@@ -1,0 +1,494 @@
+import type { CatalogDataset } from "@/lib/catalog/schema";
+
+/**
+ * Dataset demo (PRD §9 & §14).
+ *
+ * PENTING, dan jangan diubah tanpa keputusan pemilik produk:
+ *
+ * 1. Merek dan model di sini SENGAJA fiktif. Dataset smartphone asli belum
+ *    tersedia (PRD §14), dan menempelkan harga karangan pada produk nyata sama
+ *    saja menampilkan data demo sebagai data pasar. Pola spesifikasinya dibuat
+ *    realistis supaya layout bisa dinilai serius, tapi identitas produknya tidak
+ *    meniru siapa pun.
+ * 2. Gambar memakai ilustrasi perangkat generik lokal, bukan foto produk
+ *    (PRD §8). `kind: "generic-illustration"` menjaga UI tidak menyajikannya
+ *    seolah foto model asli.
+ * 3. Umur data disimpan sebagai "berapa jam lalu", bukan timestamp mati, supaya
+ *    dataset demo tidak ikut basi seiring waktu dan `now` tetap eksplisit.
+ *
+ * Dataset ini juga sengaja memuat state yang berisiko salah ditangani UI:
+ * - produk tanpa penawaran sama sekali            → "Harga belum tersedia"
+ * - penawaran habis stok yang punya harga         → tidak boleh jadi basis harga
+ * - listing ambigu yang lebih murah               → tidak boleh jadi basis harga
+ * - observasi kedaluwarsa                         → "Harga terakhir tercatat"
+ * - percobaan pemeriksaan gagal setelah berhasil  → waktu berhasil tidak maju
+ * - spesifikasi yang tidak diketahui (null)       → ditandai, bukan ditebak
+ * - produk & review berstatus draft               → tidak boleh tampil publik
+ * - dua reviewer dengan penilaian berbeda         → perbedaan dipertahankan
+ */
+
+const DEMO_SOURCE = "Fixture demo CekHarga";
+const DEMO_USAGE_RIGHTS =
+  "Ilustrasi generik milik proyek. Bukan foto produk asli.";
+const GENERIC_DEVICE_IMAGE = "/images/generic-device.svg";
+
+export function buildDemoDataset(now: Date): CatalogDataset {
+  const hoursAgo = (hours: number) =>
+    new Date(now.getTime() - hours * 60 * 60 * 1000).toISOString();
+
+  const provenance = {
+    source: DEMO_SOURCE,
+    url: null,
+    retrievedAt: hoursAgo(0),
+  };
+
+  return {
+    products: [
+      {
+        id: "p-aksa-5",
+        slug: "nusa-aksa-5",
+        brand: "Nusa",
+        model: "Aksa 5",
+        specs: {
+          displayInches: 6.6,
+          displayTechnology: "IPS LCD",
+          refreshRateHz: 90,
+          chipset: "Octa-core kelas entry",
+          batteryMah: 5000,
+          chargingWatt: 18,
+          mainCameraMp: 50,
+          cameraLensCount: 1,
+          cameraHasUltrawide: false,
+          cameraHasTelephoto: false,
+          cameraOpticalZoomX: null,
+          weightGrams: 195,
+          releaseYear: 2025,
+          is5G: false,
+          hasNfc: false,
+          ipRating: null,
+          has35mmJack: true,
+          osVersion: "Android 14",
+          colorOptions: ["Hitam", "Biru"],
+        },
+        specsProvenance: provenance,
+        status: "published",
+      },
+      {
+        id: "p-aksa-5-pro",
+        slug: "nusa-aksa-5-pro",
+        brand: "Nusa",
+        model: "Aksa 5 Pro",
+        specs: {
+          displayInches: 6.7,
+          displayTechnology: "AMOLED",
+          refreshRateHz: 120,
+          chipset: "Octa-core kelas menengah",
+          batteryMah: 5000,
+          chargingWatt: 33,
+          mainCameraMp: 64,
+          cameraLensCount: 2,
+          cameraHasUltrawide: true,
+          cameraHasTelephoto: false,
+          cameraOpticalZoomX: null,
+          weightGrams: 188,
+          releaseYear: 2025,
+          is5G: true,
+          hasNfc: true,
+          ipRating: "IP54",
+          has35mmJack: false,
+          osVersion: "Android 14",
+          colorOptions: ["Hitam", "Perak", "Hijau"],
+        },
+        specsProvenance: provenance,
+        status: "published",
+      },
+      {
+        id: "p-arc-3",
+        slug: "volt-arc-3",
+        brand: "Volt",
+        model: "Arc 3",
+        specs: {
+          displayInches: 6.4,
+          displayTechnology: "AMOLED",
+          refreshRateHz: 120,
+          chipset: "Octa-core kelas menengah atas",
+          batteryMah: 4800,
+          chargingWatt: 67,
+          mainCameraMp: 50,
+          cameraLensCount: 3,
+          cameraHasUltrawide: true,
+          cameraHasTelephoto: true,
+          cameraOpticalZoomX: 2,
+          weightGrams: 178,
+          releaseYear: 2026,
+          is5G: true,
+          hasNfc: true,
+          ipRating: "IP68",
+          has35mmJack: false,
+          osVersion: "Android 15",
+          colorOptions: ["Hitam", "Biru Langit"],
+        },
+        specsProvenance: provenance,
+        status: "published",
+      },
+      {
+        id: "p-arc-3-ultra",
+        slug: "volt-arc-3-ultra",
+        brand: "Volt",
+        model: "Arc 3 Ultra",
+        specs: {
+          displayInches: 6.8,
+          displayTechnology: "LTPO AMOLED",
+          refreshRateHz: 120,
+          chipset: "Octa-core kelas flagship",
+          batteryMah: 5400,
+          chargingWatt: 90,
+          mainCameraMp: 50,
+          cameraLensCount: 3,
+          cameraHasUltrawide: true,
+          cameraHasTelephoto: true,
+          cameraOpticalZoomX: 3.5,
+          weightGrams: 205,
+          releaseYear: 2026,
+          is5G: true,
+          hasNfc: true,
+          ipRating: "IP68",
+          has35mmJack: false,
+          osVersion: "Android 15",
+          colorOptions: ["Hitam Titanium", "Putih Mutiara"],
+        },
+        specsProvenance: provenance,
+        status: "published",
+      },
+      {
+        id: "p-note-12",
+        slug: "kirana-note-12",
+        brand: "Kirana",
+        model: "Note 12",
+        specs: {
+          displayInches: 6.7,
+          displayTechnology: "IPS LCD",
+          refreshRateHz: 120,
+          // Chipset belum diverifikasi dari sumber, biarkan null, jangan ditebak.
+          chipset: null,
+          batteryMah: 6000,
+          chargingWatt: 45,
+          mainCameraMp: 108,
+          // Detail kamera belum diverifikasi dari sumber, biarkan null.
+          cameraLensCount: null,
+          cameraHasUltrawide: null,
+          cameraHasTelephoto: null,
+          cameraOpticalZoomX: null,
+          weightGrams: 199,
+          releaseYear: 2025,
+          is5G: null,
+          hasNfc: true,
+          ipRating: null,
+          has35mmJack: true,
+          osVersion: "Android 14",
+          colorOptions: null,
+        },
+        specsProvenance: provenance,
+        status: "published",
+      },
+      {
+        id: "p-meridian-one",
+        slug: "meridian-one",
+        brand: "Meridian",
+        model: "One",
+        specs: {
+          displayInches: 6.82,
+          displayTechnology: "LTPO AMOLED",
+          refreshRateHz: 120,
+          chipset: "Octa-core kelas flagship",
+          batteryMah: 5000,
+          chargingWatt: 80,
+          mainCameraMp: 50,
+          cameraLensCount: 3,
+          cameraHasUltrawide: true,
+          cameraHasTelephoto: true,
+          cameraOpticalZoomX: 5,
+          weightGrams: 221,
+          releaseYear: 2026,
+          is5G: true,
+          hasNfc: true,
+          ipRating: "IP68",
+          has35mmJack: false,
+          osVersion: "Android 15",
+          colorOptions: ["Hitam Onyx", "Krem"],
+        },
+        specsProvenance: provenance,
+        status: "published",
+      },
+      {
+        // Draft: tidak boleh tampil ke publik maupun ke AI (PRD FR-07).
+        id: "p-arc-4",
+        slug: "volt-arc-4",
+        brand: "Volt",
+        model: "Arc 4",
+        specs: {
+          displayInches: 6.5,
+          displayTechnology: "AMOLED",
+          refreshRateHz: 120,
+          chipset: null,
+          batteryMah: 5200,
+          chargingWatt: 80,
+          mainCameraMp: 50,
+          cameraLensCount: 2,
+          cameraHasUltrawide: true,
+          cameraHasTelephoto: false,
+          cameraOpticalZoomX: null,
+          weightGrams: null,
+          releaseYear: 2026,
+          is5G: true,
+          hasNfc: true,
+          ipRating: "IP68",
+          has35mmJack: false,
+          osVersion: "Android 15",
+          colorOptions: ["Hitam"],
+        },
+        specsProvenance: provenance,
+        status: "draft",
+      },
+    ],
+
+    variants: [
+      { id: "v-aksa5-4-128", productId: "p-aksa-5", ramGb: 4, storageGb: 128, region: "Garansi resmi Indonesia" },
+      { id: "v-aksa5-6-128", productId: "p-aksa-5", ramGb: 6, storageGb: 128, region: "Garansi resmi Indonesia" },
+      { id: "v-aksa5pro-8-256", productId: "p-aksa-5-pro", ramGb: 8, storageGb: 256, region: "Garansi resmi Indonesia" },
+      { id: "v-arc3-8-128", productId: "p-arc-3", ramGb: 8, storageGb: 128, region: "Garansi resmi Indonesia" },
+      { id: "v-arc3-8-256", productId: "p-arc-3", ramGb: 8, storageGb: 256, region: "Garansi resmi Indonesia" },
+      { id: "v-arc3-12-256", productId: "p-arc-3", ramGb: 12, storageGb: 256, region: null },
+      { id: "v-arc3u-12-256", productId: "p-arc-3-ultra", ramGb: 12, storageGb: 256, region: "Garansi resmi Indonesia" },
+      { id: "v-arc3u-16-512", productId: "p-arc-3-ultra", ramGb: 16, storageGb: 512, region: null },
+      { id: "v-note12-8-256", productId: "p-note-12", ramGb: 8, storageGb: 256, region: "Garansi resmi Indonesia" },
+      { id: "v-meridian-12-512", productId: "p-meridian-one", ramGb: 12, storageGb: 512, region: "Garansi resmi Indonesia" },
+      { id: "v-arc4-12-256", productId: "p-arc-4", ramGb: 12, storageGb: 256, region: null },
+    ],
+
+    assets: [
+      "p-aksa-5",
+      "p-aksa-5-pro",
+      "p-arc-3",
+      "p-arc-3-ultra",
+      "p-note-12",
+      "p-meridian-one",
+      "p-arc-4",
+    ].map((productId) => ({
+      id: `asset-${productId}`,
+      productId,
+      variantId: null,
+      kind: "generic-illustration" as const,
+      src: GENERIC_DEVICE_IMAGE,
+      alt: "Ilustrasi generik perangkat smartphone",
+      provenance,
+      usageRights: DEMO_USAGE_RIGHTS,
+    })),
+
+    reviews: [
+      {
+        id: "r-arc3-baterai",
+        productId: "p-arc-3",
+        variantId: "v-arc3-8-256",
+        channelName: "Gawai Harian",
+        videoUrl: "https://example.com/ulasan/volt-arc-3",
+        publishedAt: hoursAgo(24 * 40),
+        timestampSeconds: 412,
+        aspect: "Baterai dan pengisian",
+        summary:
+          "Bertahan penuh sehari untuk pemakaian campuran; pengisian 67W mengisi sekitar setengah baterai dalam 20 menit.",
+        strengths: ["Pengisian cepat terasa di pemakaian harian"],
+        limitations: ["Bodi hangat saat merekam video lama"],
+        testContext: "Pemakaian campuran 5 hari, jaringan 4G, kecerahan otomatis",
+        status: "published",
+      },
+      {
+        // Reviewer kedua untuk produk yang sama dengan penekanan berbeda.
+        // Perbedaan pendapat dipertahankan, tidak dilebur (PRD FR-07).
+        id: "r-arc3-kamera",
+        productId: "p-arc-3",
+        variantId: null,
+        channelName: "Uji Gawai",
+        videoUrl: "https://example.com/ulasan/arc-3-kamera",
+        publishedAt: hoursAgo(24 * 26),
+        timestampSeconds: 785,
+        aspect: "Kamera",
+        summary:
+          "Hasil siang hari konsisten, tetapi mode malam kalah detail dibanding pesaing sekelasnya.",
+        strengths: ["Warna siang hari konsisten antar lensa"],
+        limitations: ["Mode malam kehilangan detail", "Perekaman video maksimal 4K30"],
+        testContext: null,
+        status: "published",
+      },
+      {
+        id: "r-arc3u-performa",
+        productId: "p-arc-3-ultra",
+        variantId: "v-arc3u-12-256",
+        channelName: "Uji Gawai",
+        videoUrl: "https://example.com/ulasan/arc-3-ultra",
+        publishedAt: hoursAgo(24 * 12),
+        timestampSeconds: null,
+        aspect: "Performa dan panas",
+        summary:
+          "Stabil pada sesi permainan 30 menit; setelah itu kecerahan layar turun untuk menahan panas.",
+        strengths: ["Performa stabil di sesi menengah"],
+        limitations: ["Kecerahan turun setelah 30 menit bermain"],
+        testContext: "Sesi permainan 30 menit, suhu ruangan 30°C",
+        status: "published",
+      },
+      {
+        // Draft: tidak boleh tampil ke publik maupun ke AI.
+        id: "r-aksa5-draft",
+        productId: "p-aksa-5",
+        variantId: null,
+        channelName: "Gawai Harian",
+        videoUrl: "https://example.com/ulasan/aksa-5-draft",
+        publishedAt: hoursAgo(24 * 3),
+        timestampSeconds: 120,
+        aspect: "Pemakaian harian",
+        summary: "Catatan ulasan yang belum selesai ditinjau.",
+        strengths: [],
+        limitations: [],
+        testContext: null,
+        status: "draft",
+      },
+    ],
+
+    offers: [
+      {
+        id: "o-aksa5-4-128",
+        variantId: "v-aksa5-4-128",
+        marketplace: "Blibli",
+        sellerName: "Toko Demo Elektronik",
+        url: "https://example.com/listing/aksa-5-4-128",
+        condition: "new",
+        warranty: "Garansi resmi Indonesia",
+        listingStatus: "active",
+        sellerVerified: false,
+      },
+      {
+        id: "o-aksa5-6-128",
+        variantId: "v-aksa5-6-128",
+        marketplace: "Blibli",
+        sellerName: "Toko Demo Elektronik",
+        url: "https://example.com/listing/aksa-5-6-128",
+        condition: "new",
+        warranty: null,
+        listingStatus: "active",
+        sellerVerified: false,
+      },
+      {
+        // Habis stok: punya harga tercatat, tetapi tidak boleh jadi basis harga.
+        id: "o-aksa5pro-habis",
+        variantId: "v-aksa5pro-8-256",
+        marketplace: "Blibli",
+        sellerName: "Toko Demo Gadget",
+        url: "https://example.com/listing/aksa-5-pro",
+        condition: "new",
+        warranty: "Garansi resmi Indonesia",
+        listingStatus: "out-of-stock",
+        sellerVerified: false,
+      },
+      {
+        id: "o-arc3-8-128",
+        variantId: "v-arc3-8-128",
+        marketplace: "Blibli",
+        sellerName: "Volt Official Demo",
+        url: "https://example.com/listing/arc-3-8-128",
+        condition: "new",
+        warranty: "Garansi resmi Indonesia",
+        listingStatus: "active",
+        sellerVerified: true,
+      },
+      {
+        id: "o-arc3-8-256",
+        variantId: "v-arc3-8-256",
+        marketplace: "Blibli",
+        sellerName: "Volt Official Demo",
+        url: "https://example.com/listing/arc-3-8-256",
+        condition: "new",
+        warranty: "Garansi resmi Indonesia",
+        listingStatus: "active",
+        sellerVerified: true,
+      },
+      {
+        id: "o-arc3-12-256",
+        variantId: "v-arc3-12-256",
+        marketplace: "Blibli",
+        sellerName: "Toko Demo Gadget",
+        url: "https://example.com/listing/arc-3-12-256",
+        condition: "new",
+        warranty: null,
+        listingStatus: "active",
+        sellerVerified: false,
+      },
+      {
+        id: "o-arc3u-12-256",
+        variantId: "v-arc3u-12-256",
+        marketplace: "Blibli",
+        sellerName: "Volt Official Demo",
+        url: "https://example.com/listing/arc-3-ultra",
+        condition: "new",
+        warranty: "Garansi resmi Indonesia",
+        listingStatus: "active",
+        sellerVerified: true,
+      },
+      {
+        id: "o-meridian-resmi",
+        variantId: "v-meridian-12-512",
+        marketplace: "Blibli",
+        sellerName: "Meridian Official Demo",
+        url: "https://example.com/listing/meridian-one",
+        condition: "new",
+        warranty: "Garansi resmi Indonesia",
+        listingStatus: "active",
+        sellerVerified: true,
+      },
+      {
+        // Lebih murah tapi ambigu, tidak boleh jadi basis harga (PRD §7 butir 2).
+        id: "o-meridian-ambigu",
+        variantId: "v-meridian-12-512",
+        marketplace: "Blibli",
+        sellerName: "Toko Demo Serba Ada",
+        url: "https://example.com/listing/meridian-one-ambigu",
+        condition: "new",
+        warranty: null,
+        listingStatus: "ambiguous",
+        sellerVerified: false,
+      },
+    ],
+
+    priceObservations: [
+      { id: "obs-1", offerId: "o-aksa5-4-128", priceIdr: 1_899_000, observedAt: hoursAgo(2), origin: "manual" },
+      { id: "obs-2", offerId: "o-aksa5-6-128", priceIdr: 2_149_000, observedAt: hoursAgo(5), origin: "manual" },
+      { id: "obs-3", offerId: "o-aksa5pro-habis", priceIdr: 2_899_000, observedAt: hoursAgo(6), origin: "manual" },
+      { id: "obs-4", offerId: "o-arc3-8-128", priceIdr: 4_199_000, observedAt: hoursAgo(4), origin: "manual" },
+      { id: "obs-5", offerId: "o-arc3-8-256", priceIdr: 4_699_000, observedAt: hoursAgo(3), origin: "manual" },
+      // Kedaluwarsa (> 24 jam): tidak layak jadi harga aktif.
+      { id: "obs-6", offerId: "o-arc3-12-256", priceIdr: 5_299_000, observedAt: hoursAgo(40), origin: "manual" },
+      { id: "obs-7", offerId: "o-arc3u-12-256", priceIdr: 6_499_000, observedAt: hoursAgo(30), origin: "manual" },
+      { id: "obs-8", offerId: "o-meridian-resmi", priceIdr: 12_499_000, observedAt: hoursAgo(1), origin: "manual" },
+      { id: "obs-9", offerId: "o-meridian-ambigu", priceIdr: 11_999_000, observedAt: hoursAgo(1), origin: "manual" },
+    ],
+
+    priceChecks: [
+      { id: "chk-1", offerId: "o-aksa5-4-128", attemptedAt: hoursAgo(2), outcome: "success", errorSummary: null },
+      { id: "chk-2", offerId: "o-aksa5-6-128", attemptedAt: hoursAgo(5), outcome: "success", errorSummary: null },
+      { id: "chk-3", offerId: "o-arc3-8-128", attemptedAt: hoursAgo(4), outcome: "success", errorSummary: null },
+      {
+        // Percobaan terbaru GAGAL. Waktu pemeriksaan berhasil tetap 4 jam lalu,
+        // tidak maju ke 1 jam lalu (PRD §7 butir 6).
+        id: "chk-4",
+        offerId: "o-arc3-8-128",
+        attemptedAt: hoursAgo(1),
+        outcome: "failure",
+        errorSummary: "Halaman penawaran tidak dapat dibaca saat pemeriksaan.",
+      },
+      { id: "chk-5", offerId: "o-arc3-8-256", attemptedAt: hoursAgo(3), outcome: "success", errorSummary: null },
+      { id: "chk-6", offerId: "o-arc3-12-256", attemptedAt: hoursAgo(40), outcome: "success", errorSummary: null },
+      { id: "chk-7", offerId: "o-arc3u-12-256", attemptedAt: hoursAgo(30), outcome: "success", errorSummary: null },
+      { id: "chk-8", offerId: "o-meridian-resmi", attemptedAt: hoursAgo(1), outcome: "success", errorSummary: null },
+      { id: "chk-9", offerId: "o-meridian-ambigu", attemptedAt: hoursAgo(1), outcome: "success", errorSummary: null },
+    ],
+  };
+}
