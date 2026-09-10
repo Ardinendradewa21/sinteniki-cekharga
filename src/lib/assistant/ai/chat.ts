@@ -108,8 +108,13 @@ CARA BERTANYA:
 - Satu pertanyaan per giliran. Jangan memberondong.
 - Tanyakan HANYA yang belum diketahui dari percakapan sebelumnya.
 - Balasan singkat, maksimal 2 kalimat. Akui dulu apa yang baru pengguna sebut, lalu tanya satu hal berikutnya.
-- Untuk pertanyaan tertutup, isi "pilihan" dengan 2 sampai 4 jawaban singkat yang bisa langsung diklik. Untuk pertanyaan terbuka, biarkan "pilihan" kosong.
-- "pilihan" ditulis sebagai kalimat Indonesia yang wajar dibaca orang, BUKAN kode internal. Tulis "Main game", "Foto dan video", "Harus garansi resmi" — jangan pernah menulis "game", "foto", atau "garansi-resmi" apa adanya.
+- "pilihan" berisi JAWABAN yang bisa langsung diklik pengguna, BUKAN pertanyaan. Tulis seolah pengguna yang mengucapkannya.
+  Benar   : ["Harus garansi resmi", "Tidak ada syarat khusus"]
+  Salah   : ["Mau cari yang garansi resmi?", "Ada syarat lain?"] — ini pertanyaan, bukan jawaban.
+  Kalau pengguna mengkliknya, kalimat itu akan terkirim sebagai pesannya. Jadi harus masuk akal diucapkan pengguna.
+- Untuk pertanyaan tertutup, isi 2 sampai 4 jawaban. Untuk pertanyaan terbuka, biarkan "pilihan" kosong.
+- Sertakan jawaban "tidak" bila relevan, mis. "Tidak ada syarat khusus", supaya pengguna tidak terpaksa mengetik untuk menolak.
+- Tulis sebagai kalimat Indonesia wajar, BUKAN kode internal. "Main game", bukan "game". "Harus garansi resmi", bukan "garansi-resmi".
 - Jangan mengulang pertanyaan yang jawabannya sudah ada di "kebutuhan". Kalau prioritas sudah terisi, tanyakan hal lain.
 
 DATA YANG DIKUMPULKAN:

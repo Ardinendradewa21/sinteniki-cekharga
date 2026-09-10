@@ -120,13 +120,19 @@ export function CompareTable({
                 {isDemo ? <DemoBadge /> : null}
               </div>
 
-              <div className="mt-4 flex items-center justify-center rounded-lg bg-muted py-4">
+              {/*
+                Ilustrasi dibuat lebih besar setelah QA browser: dengan tinggi
+                sebelumnya, gambar kecil di tengah kotak abu selebar kolom
+                terbaca seperti area yang gagal memuat, bukan visual produk.
+                Akan proporsional sendiri begitu foto produk asli masuk.
+              */}
+              <div className="mt-4 flex items-center justify-center rounded-lg bg-muted py-6">
                 <Image
                   src={item.image.src}
                   alt={item.image.alt}
-                  width={72}
-                  height={108}
-                  className="h-20 w-auto"
+                  width={96}
+                  height={144}
+                  className="h-32 w-auto"
                 />
               </div>
 

@@ -55,7 +55,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </noscript>
         <a
           href="#konten-utama"
-          className="sr-only rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground focus-visible:not-sr-only focus-visible:absolute focus-visible:top-4 focus-visible:left-4 focus-visible:z-50"
+          /*
+            Ukuran eksplisit saat difokus. Terukur di QA browser: dengan hanya
+            `not-sr-only`, tautan ini muncul setinggi 20px karena sr-only sudah
+            mengunci padding dan ukurannya. Tautan lewati-konten yang mungil
+            justru sulit dikenai, padahal ia ada untuk mempermudah.
+          */
+          className="sr-only rounded-lg bg-primary text-sm font-semibold text-primary-foreground focus-visible:not-sr-only focus-visible:absolute focus-visible:top-4 focus-visible:left-4 focus-visible:z-50 focus-visible:flex focus-visible:h-11 focus-visible:w-auto focus-visible:items-center focus-visible:px-4"
         >
           Lewati ke konten utama
         </a>

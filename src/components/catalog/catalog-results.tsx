@@ -92,6 +92,13 @@ export function CatalogResults({
 
   return (
     <div>
+      {/*
+        Judul wilayah hasil. Sengaja hanya untuk pembaca layar: judul ini tidak
+        menambah apa pun secara visual karena halaman sudah punya h1 "Katalog
+        smartphone", TETAPI tanpa h2 di sini struktur headingnya melompat dari
+        h1 langsung ke h3 pada nama produk. Terukur di QA browser.
+      */}
+      <h2 className="sr-only">Hasil pencarian</h2>
       <p
         role="status"
         aria-live="polite"

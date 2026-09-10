@@ -58,3 +58,6 @@ next-env.d.ts
 .roo
 .trae
 .windsurf
+
+# Hasil QA visual. PRD §12 melarang screenshot dan log masuk Git.
+qa-shots/

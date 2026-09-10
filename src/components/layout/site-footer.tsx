@@ -190,7 +190,12 @@ export function SiteFooter() {
               </li>
             </ul>
 
-            <FooterHeading>Kontak</FooterHeading>
+            {/* Jarak atas eksplisit: terlihat di QA, judul ini menempel ke
+                tautan transparansi di atasnya karena tautan itu memakai
+                min-h-11 yang tidak menyisakan ruang bawah. */}
+            <div className="mt-6">
+              <FooterHeading>Kontak</FooterHeading>
+            </div>
             <ul className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
               <li>
                 {COMPANY.email ? (

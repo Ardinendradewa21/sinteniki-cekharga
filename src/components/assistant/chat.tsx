@@ -174,11 +174,16 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
           <textarea
             id="pesan"
             name="pesan"
-            rows={2}
+            rows={1}
             maxLength={600}
             required
             placeholder={kosong ? "Contoh: budget 3 juta, buat main game" : "Tulis balasanmu"}
-            className="w-full resize-none bg-transparent px-5 pt-4 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
+            /*
+             * Satu baris, bukan dua. Terlihat di QA browser: rows={2} membuat
+             * rongga kosong menganga antara teks dan baris tombol, sehingga
+             * kotaknya tampak seperti gagal memuat sesuatu.
+             */
+            className="w-full resize-none bg-transparent px-5 pt-4 pb-1 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
             onKeyDown={(e) => {
               // Enter mengirim, Shift+Enter baris baru. Kebiasaan chat.
               if (e.key === "Enter" && !e.shiftKey) {
@@ -187,7 +192,7 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
               }
             }}
           />
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-1 pb-3">
             <p className="min-w-0 text-xs text-muted-foreground">
               Percakapan tidak disimpan.
             </p>
