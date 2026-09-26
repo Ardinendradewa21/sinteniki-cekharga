@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth/dal";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
+import { invalidateCatalogCache } from "@/lib/backend/catalog-repository";
 import { recordAudit } from "@/lib/admin/audit";
 import {
   formToNestedObject,
@@ -14,6 +15,8 @@ import {
   reviewInput,
   variantInput,
 } from "@/lib/admin/schema";
+import { officialBrandName } from "@/lib/catalog/brands";
+import { loadStoreResolver } from "@/lib/import/stores";
 
 /**
  * Aksi tulis untuk admin (PRD FR-07).
@@ -42,10 +45,33 @@ function fail(error: string): ActionState {
 
 /** Menyegarkan tampilan admin sekaligus halaman publik yang ikut berubah. */
 function revalidateCatalog(slug?: string) {
+  invalidateCatalogCache();
+  revalidatePath("/admin");
   revalidatePath("/admin/products");
   revalidatePath("/products");
   revalidatePath("/");
   if (slug) revalidatePath(`/products/${slug}`);
+}
+
+function adminProductsResultHref(
+  formData: FormData,
+  result: Record<string, string | number>
+): string {
+  const requested = String(formData.get("returnTo") ?? "");
+  let params = new URLSearchParams();
+
+  try {
+    const url = new URL(requested, "https://cekharga.local");
+    if (url.pathname === "/admin/products") params = url.searchParams;
+  } catch {
+    // URL hasil manipulasi klien diabaikan; tujuan aman dipakai di bawah.
+  }
+
+  for (const key of ["pesan", "galat", "jumlah", "status"]) params.delete(key);
+  for (const [key, value] of Object.entries(result)) params.set(key, String(value));
+
+  const search = params.toString();
+  return search ? `/admin/products?${search}` : "/admin/products";
 }
 
 /* ------------------------------------------------------------------ produk */
@@ -67,7 +93,7 @@ export async function createProductAction(
     .insert([
       {
         slug: input.slug,
-        brand: input.brand,
+        brand: officialBrandName(input.brand),
         model: input.model,
         specs: input.specs,
         specs_source: input.specsSource,
@@ -112,12 +138,16 @@ export async function updateProductAction(
     return fail(parsed.error.issues[0]?.message ?? "Masukan tidak valid.");
   }
   const input = parsed.data;
+  const db = getInsforgeAdminClient().database;
 
-  const { error } = await getInsforgeAdminClient()
-    .database.from("products")
+  const previous = await db.from("products").select("slug").eq("id", productId).limit(1);
+  const previousSlug = ((previous.data ?? [])[0] as { slug: string } | undefined)?.slug;
+
+  const { error } = await db
+    .from("products")
     .update({
       slug: input.slug,
-      brand: input.brand,
+      brand: officialBrandName(input.brand),
       model: input.model,
       specs: input.specs,
       specs_source: input.specsSource,
@@ -131,8 +161,19 @@ export async function updateProductAction(
 
   if (error) return fail("Gagal menyimpan perubahan.");
 
+  // Slug yang diganti tetap bisa dibuka: URL lama diarahkan permanen ke produk
+  // ini. Kalau slug lama itu nanti dipakai produk lain, produk itu didahulukan.
+  if (previousSlug && previousSlug !== input.slug) {
+    await db
+      .from("product_slug_redirects")
+      .upsert([{ old_slug: previousSlug, product_id: productId }], { onConflict: "old_slug" });
+    // Slug baru bukan lagi slug lama siapa pun.
+    await db.from("product_slug_redirects").delete().eq("old_slug", input.slug);
+  }
+
   await recordAudit(admin, "produk.sunting", "product", productId, {
     slug: input.slug,
+    ...(previousSlug && previousSlug !== input.slug ? { slug_lama: previousSlug } : {}),
   });
   revalidateCatalog(input.slug);
   return { error: null, message: "Perubahan tersimpan." };
@@ -174,6 +215,120 @@ export async function setProductStatusAction(formData: FormData): Promise<void> 
   redirect(`/admin/products/${productId}`);
 }
 
+export async function setProductsStatusBulkAction(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const productIds = [
+    ...new Set(
+      formData
+        .getAll("productIds")
+        .map(String)
+        .map((id) => id.trim())
+        .filter(Boolean)
+    ),
+  ];
+  const status = String(formData.get("status") ?? "");
+
+  if (
+    productIds.length === 0 ||
+    productIds.length > 50 ||
+    (status !== "draft" && status !== "published")
+  ) {
+    redirect(adminProductsResultHref(formData, { galat: "pilihan-status" }));
+  }
+
+  const db = getInsforgeAdminClient().database;
+  const selected = await db
+    .from("products")
+    .select("id, slug, status")
+    .in("id", productIds)
+    .limit(50);
+
+  if (selected.error) {
+    redirect(adminProductsResultHref(formData, { galat: "status-banyak" }));
+  }
+
+  const rows = (selected.data ?? []) as {
+    id: string;
+    slug: string;
+    status: "draft" | "published";
+  }[];
+  if (rows.length === 0) {
+    redirect(adminProductsResultHref(formData, { galat: "pilihan-status" }));
+  }
+
+  // Aturan yang sama dengan penerbitan satu produk: setiap produk wajib punya
+  // sedikitnya satu varian. Seluruh operasi dibatalkan bila ada yang belum
+  // memenuhi syarat, supaya hasil bulk update tidak setengah berhasil.
+  if (status === "published") {
+    const variants = await db
+      .from("variants")
+      .select("product_id")
+      .in(
+        "product_id",
+        rows.map((row) => row.id)
+      )
+      .limit(1000);
+
+    if (variants.error) {
+      redirect(adminProductsResultHref(formData, { galat: "status-banyak" }));
+    }
+
+    const productIdsWithVariants = new Set(
+      ((variants.data ?? []) as { product_id: string }[]).map(
+        (variant) => variant.product_id
+      )
+    );
+    const withoutVariants = rows.filter(
+      (row) => !productIdsWithVariants.has(row.id)
+    );
+
+    if (withoutVariants.length > 0) {
+      redirect(
+        adminProductsResultHref(formData, {
+          galat: "tanpa-varian-banyak",
+          jumlah: withoutVariants.length,
+        })
+      );
+    }
+  }
+
+  const changedRows = rows.filter((row) => row.status !== status);
+  if (changedRows.length > 0) {
+    const { error } = await db
+      .from("products")
+      .update({ status })
+      .in(
+        "id",
+        changedRows.map((row) => row.id)
+      );
+
+    if (error) {
+      redirect(adminProductsResultHref(formData, { galat: "status-banyak" }));
+    }
+
+    await recordAudit(
+      admin,
+      status === "published" ? "produk.terbitkan-banyak" : "produk.tarik-banyak",
+      "product",
+      null,
+      {
+        count: changedRows.length,
+        products: changedRows,
+        status,
+      }
+    );
+    revalidateCatalog();
+  }
+
+  redirect(
+    adminProductsResultHref(formData, {
+      pesan: "status",
+      status,
+      jumlah: changedRows.length,
+    })
+  );
+}
+
 export async function deleteProductAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const productId = String(formData.get("productId") ?? "");
@@ -197,6 +352,68 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
   await recordAudit(admin, "produk.hapus", "product", productId, { slug: actualSlug });
   revalidateCatalog();
   redirect("/admin/products");
+}
+
+export async function deleteProductsBulkAction(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const productIds = [
+    ...new Set(
+      formData
+        .getAll("productIds")
+        .map(String)
+        .map((id) => id.trim())
+        .filter(Boolean)
+    ),
+  ];
+
+  // Pilihan massal dibatasi satu halaman. Selain mencegah permintaan yang
+  // terlalu besar, batas ini memastikan satu kesalahan klik tidak dapat
+  // menghapus seluruh katalog yang kelak berisi ratusan produk.
+  if (productIds.length === 0 || productIds.length > 50) {
+    redirect(adminProductsResultHref(formData, { galat: "pilihan-hapus" }));
+  }
+
+  const db = getInsforgeAdminClient().database;
+  const selected = await db
+    .from("products")
+    .select("id, slug")
+    .in("id", productIds)
+    .limit(50);
+
+  if (selected.error) {
+    redirect(adminProductsResultHref(formData, { galat: "hapus-banyak" }));
+  }
+
+  const rows = (selected.data ?? []) as { id: string; slug: string }[];
+  if (rows.length === 0) {
+    redirect(adminProductsResultHref(formData, { galat: "pilihan-hapus" }));
+  }
+
+  // Relasi varian, penawaran, harga, aset, dan review memakai ON DELETE
+  // CASCADE, sama seperti penghapusan satu produk di halaman detail.
+  const { error } = await db
+    .from("products")
+    .delete()
+    .in(
+      "id",
+      rows.map((row) => row.id)
+    );
+
+  if (error) {
+    redirect(adminProductsResultHref(formData, { galat: "hapus-banyak" }));
+  }
+
+  await recordAudit(admin, "produk.hapus-banyak", "product", null, {
+    count: rows.length,
+    products: rows,
+  });
+  revalidateCatalog();
+  redirect(
+    adminProductsResultHref(formData, {
+      pesan: "dihapus",
+      jumlah: rows.length,
+    })
+  );
 }
 
 /* ------------------------------------------------------------------ varian */
@@ -277,11 +494,19 @@ export async function addOfferAction(
   }
   const input = parsed.data;
 
+  let storeId: string | null = null;
+  try {
+    storeId = (await loadStoreResolver())(input.url);
+  } catch {
+    // Toko hanya pelengkap (logo, jenis toko); penawaran tetap boleh disimpan.
+  }
+
   const { error } = await getInsforgeAdminClient()
     .database.from("offers")
     .insert([
       {
         variant_id: input.variantId,
+        store_id: storeId,
         marketplace: input.marketplace,
         seller_name: input.sellerName,
         url: input.url,
@@ -291,7 +516,13 @@ export async function addOfferAction(
       },
     ]);
 
-  if (error) return fail("Gagal menambah penawaran.");
+  if (error) {
+    return fail(
+      JSON.stringify(error).includes("23505")
+        ? "Penawaran dengan URL listing itu sudah terdaftar untuk varian ini."
+        : "Gagal menambah penawaran."
+    );
+  }
 
   await recordAudit(admin, "penawaran.tambah", "offer", null, {
     productId,

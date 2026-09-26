@@ -1,5 +1,10 @@
 import type { CsvRow } from "@/lib/import/csv-parser";
+import { canonicalBrandModel, toSlug } from "@/lib/catalog/brands";
 import type { ProductSpecs } from "@/lib/catalog/schema";
+import {
+  readProductImage,
+  type ProductImageCandidate,
+} from "@/lib/import/product-images";
 
 /**
  * Penerjemah baris CSV GSMArena menjadi produk CekHarga (PRD §6 dan §10).
@@ -142,32 +147,7 @@ export function parseVariants(
   return variants;
 }
 
-/**
- * Membuang nama merek yang sudah menempel di depan nama model.
- *
- * Sumbernya menulis `brand: "Oppo"` dan `model_name: "Oppo Reno16 Pro"`, jadi
- * menggabungkan keduanya begitu saja menghasilkan "Oppo Oppo Reno16 Pro" dan
- * slug "oppo-oppo-reno16-pro".
- */
-export function stripBrandPrefix(brand: string, model: string): string {
-  const prefix = brand.trim().toLowerCase();
-  const text = model.trim();
-  if (prefix && text.toLowerCase().startsWith(prefix + " ")) {
-    return text.slice(prefix.length).trim();
-  }
-  return text;
-}
-
-/** Slug kebab-case dari merek dan model. */
-export function toSlug(brand: string, model: string): string {
-  return `${brand} ${stripBrandPrefix(brand, model)}`
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, " ")
-    .trim()
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-");
-}
+export { stripBrandPrefix, toSlug } from "@/lib/catalog/brands";
 
 export type ImportCandidate = {
   sourceKey: string;
@@ -177,6 +157,8 @@ export type ImportCandidate = {
   specs: ProductSpecs;
   specsSourceUrl: string | null;
   variants: { ramGb: number; storageGb: number }[];
+  image: ProductImageCandidate | null;
+  imageIssue: string | null;
 };
 
 export type RowOutcome =
@@ -188,8 +170,9 @@ const GSMARENA_BASE = "https://www.gsmarena.com/";
 export function mapRow(row: CsvRow): RowOutcome {
   const get = (key: string) => fixEncoding(row[key] ?? "");
 
-  const brand = get("brand");
-  const model = stripBrandPrefix(brand, get("model_name"));
+  // Merek resmi (OPPO, realme) dan sub-merek (iQOO) dikanonkan sebelum slug
+  // dan kunci apa pun dibentuk.
+  const { brand, model } = canonicalBrandModel(get("brand"), get("model_name"));
   const label = [brand, model].filter(Boolean).join(" ") || "(baris tanpa nama)";
 
   if (!brand || !model) {
@@ -213,6 +196,7 @@ export function mapRow(row: CsvRow): RowOutcome {
   }
 
   const sourcePath = get("url");
+  const specsSourceUrl = sourcePath ? GSMARENA_BASE + sourcePath : null;
   const sourceKey = sourcePath
     ? `gsmarena:${sourcePath.replace(/\.php$/, "")}`
     : `gsmarena:${toSlug(brand, model)}`;
@@ -221,6 +205,7 @@ export function mapRow(row: CsvRow): RowOutcome {
   const cameraCountWord = get("main_camera_count").toLowerCase();
   const network = get("network_technology");
   const announced = get("announced") || get("status_raw");
+  const image = readProductImage(row, { brand, model, specsSourceUrl });
 
   const specs: ProductSpecs = {
     displayInches: firstNumber(get("display_size_inches")),
@@ -257,8 +242,10 @@ export function mapRow(row: CsvRow): RowOutcome {
       brand,
       model,
       specs,
-      specsSourceUrl: sourcePath ? GSMARENA_BASE + sourcePath : null,
+      specsSourceUrl,
       variants,
+      image: image.candidate,
+      imageIssue: image.issue,
     },
   };
 }

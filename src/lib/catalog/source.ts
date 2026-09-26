@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { getDataSourceMode, type DataSourceMode } from "@/lib/config";
 import { loadCatalogFromBackend } from "@/lib/backend/catalog-repository";
 import { buildDemoDataset } from "@/lib/catalog/demo-fixtures";
@@ -29,9 +31,19 @@ const demoSource: CatalogSource = {
   },
 };
 
+/**
+ * Satu request (mis. halaman detail: `generateMetadata` + halaman) cukup
+ * memvalidasi dataset sekali. `cache()` React berlaku per request; cache
+ * lintas request ada di `loadCatalogFromBackend`.
+ */
+const loadLiveDataset = cache(async (): Promise<CatalogDataset> => {
+  const dataset = await loadCatalogFromBackend();
+  return catalogDatasetSchema.parse(dataset);
+});
+
 const liveSource: CatalogSource = {
   mode: "live",
-  async loadDataset() {
+  loadDataset() {
     /*
      * Data nyata dari InsForge (PRD §11 Irisan B).
      *
@@ -43,8 +55,7 @@ const liveSource: CatalogSource = {
      * Tidak ada blok try/catch yang mengembalikan fixture bila gagal. PRD §9:
      * "Produksi tidak boleh diam-diam fallback ke fixture saat API gagal."
      */
-    const dataset = await loadCatalogFromBackend();
-    return catalogDatasetSchema.parse(dataset);
+    return loadLiveDataset();
   },
 };
 

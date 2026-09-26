@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAdminClient } from "@insforge/sdk";
+import { createAdminClient, createClient } from "@insforge/sdk";
 import { z } from "zod";
 
 /**
@@ -78,6 +78,51 @@ export function getInsforgeAdminClient(): InsforgeAdminClient {
   });
 
   return cachedClient;
+}
+
+const publicEnvSchema = z.object({
+  INSFORGE_URL: z.httpUrl(),
+  INSFORGE_ANON_KEY: z.string().min(1),
+});
+
+export type InsforgePublicClient = ReturnType<typeof createClient>;
+
+let cachedPublicClient: InsforgePublicClient | null = null;
+
+/**
+ * Klien baca publik memakai anon key, tetap hanya di server.
+ *
+ * Dipakai jalur katalog publik supaya "draft tidak terbaca publik" ditegakkan
+ * RLS di database (lihat migrasi skema katalog), bukan hanya oleh filter di
+ * aplikasi. Kalau suatu hari ada query publik baru yang lupa menyaring status,
+ * database tetap tidak mengembalikan baris draft. Anon key tidak punya hak
+ * tulis sama sekali, jadi jalur ini juga tidak bisa dipakai mengubah data.
+ */
+export function getInsforgePublicClient(): InsforgePublicClient {
+  if (cachedPublicClient) return cachedPublicClient;
+
+  const parsed = publicEnvSchema.safeParse({
+    INSFORGE_URL: process.env.INSFORGE_URL,
+    INSFORGE_ANON_KEY: process.env.INSFORGE_ANON_KEY,
+  });
+
+  if (!parsed.success) {
+    const missing = parsed.error.issues
+      .map((issue) => issue.path.join("."))
+      .join(", ");
+    throw new Error(
+      `Konfigurasi InsForge publik belum lengkap (${missing}). ` +
+        "Isi INSFORGE_URL dan INSFORGE_ANON_KEY di .env.local; anon key bisa " +
+        "diambil dengan `npx @insforge/cli secrets get ANON_KEY`."
+    );
+  }
+
+  cachedPublicClient = createClient({
+    baseUrl: parsed.data.INSFORGE_URL,
+    anonKey: parsed.data.INSFORGE_ANON_KEY,
+  });
+
+  return cachedPublicClient;
 }
 
 /**

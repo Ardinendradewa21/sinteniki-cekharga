@@ -1,73 +1,59 @@
 import Link from "next/link";
 
-import type { CompareResult } from "@/lib/catalog/queries";
+import { CompareSearch } from "@/components/compare/compare-search";
 import { MAX_COMPARE_ITEMS } from "@/lib/catalog/compare-params";
+import type { CompareResult } from "@/lib/catalog/queries";
 
-/**
- * Penambah kandidat perbandingan (PRD FR-04: "tambah/hapus pembanding bekerja").
- *
- * Berupa tautan biasa, bukan kontrol berstate, karena pilihan perbandingan
- * memang hidup di URL. Konsekuensinya tombol tambah tetap berfungsi tanpa
- * JavaScript dan hasilnya bisa langsung dibagikan.
- */
-export function ComparePicker({
-  result,
-  selectedCount,
-}: {
-  result: CompareResult;
-  selectedCount: number;
-}) {
-  if (result.isFull) {
-    return (
-      <div className="rounded-xl border border-border bg-card p-5">
-        <p className="text-sm font-semibold text-foreground">
-          Sudah {MAX_COMPARE_ITEMS} kandidat
-        </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-          Batasnya {MAX_COMPARE_ITEMS} supaya perbandingannya tetap terbaca.
-          Hapus salah satu dulu kalau mau menukar kandidat.
-        </p>
-      </div>
-    );
-  }
-
-  if (result.addable.length === 0) {
-    return (
-      <div className="rounded-xl border border-border bg-card p-5">
-        <p className="text-sm font-semibold text-foreground">
-          Tidak ada kandidat lain
-        </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-          Semua produk terpublikasi sudah masuk perbandingan ini.
-        </p>
-      </div>
-    );
-  }
-
+/** Pilihan kandidat tetap ada di URL agar hasil bandingkan bisa dibagikan. */
+export function ComparePicker({ result }: { result: CompareResult }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <h2 className="text-sm font-semibold text-foreground">
-        {selectedCount === 0
-          ? "Pilih kandidat pertama"
-          : selectedCount === 1
-            ? "Tambah satu kandidat lagi untuk mulai membandingkan"
-            : "Tambah kandidat"}
-      </h2>
-      <p className="mt-1.5 text-sm text-muted-foreground">
-        Varian bisa diganti setelah kandidatnya masuk.
-      </p>
-      <ul className="mt-4 flex flex-wrap gap-2">
-        {result.addable.map((candidate) => (
-          <li key={candidate.slug}>
-            <Link
-              href={candidate.href}
-              className="inline-flex min-h-11 items-center rounded-pill border border-border-strong bg-card px-4 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted"
-            >
-              {candidate.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <section aria-labelledby="pilih-kandidat" className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-brand">Langkah 1</p>
+          <h2 id="pilih-kandidat" className="mt-1 text-lg font-bold text-foreground sm:text-xl">
+            Pilih produk
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Pilih dua atau tiga produk. Varian dapat diganti setelah produk dipilih.
+          </p>
+        </div>
+        <span className="rounded-full bg-brand-muted px-3 py-1.5 text-xs font-bold text-brand">
+          {result.items.length}/{MAX_COMPARE_ITEMS} dipilih
+        </span>
+      </div>
+
+      {result.items.length > 0 ? (
+        <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Produk terpilih</p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {result.items.map((item) => (
+              <li key={item.slug} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+                <span className="min-w-0 text-sm font-semibold text-foreground">{item.name}</span>
+                <Link
+                  href={item.removeHref}
+                  aria-label={`Hapus ${item.name} dari perbandingan`}
+                  className="inline-flex min-h-11 shrink-0 items-center text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Hapus
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {result.isFull ? (
+        <p role="status" className="mt-5 rounded-xl bg-muted/50 p-4 text-sm text-foreground">
+          Batas {MAX_COMPARE_ITEMS} produk tercapai. Hapus salah satu untuk memilih produk lain.
+        </p>
+      ) : result.addable.length === 0 ? (
+        <p role="status" className="mt-5 rounded-xl bg-muted/50 p-4 text-sm text-foreground">
+          Tidak ada produk terbit lain yang bisa ditambahkan.
+        </p>
+      ) : (
+        <CompareSearch candidates={result.addable} />
+      )}
+    </section>
   );
 }

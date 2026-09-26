@@ -71,7 +71,7 @@ export function RecommendationCard({
               >
                 {reason.text}
                 {reason.source ? (
-                  <span className="text-foreground"> — {reason.source}</span>
+                  <span className="text-foreground"> ({reason.source})</span>
                 ) : null}
               </li>
             ))}
@@ -95,7 +95,7 @@ export function RecommendationCard({
               >
                 {tradeOff.text}
                 {tradeOff.source ? (
-                  <span className="text-foreground"> — {tradeOff.source}</span>
+                  <span className="text-foreground"> ({tradeOff.source})</span>
                 ) : null}
               </li>
             ))}

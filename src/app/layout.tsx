@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
-import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
 import { MotionProvider } from "@/components/motion/motion-provider";
 
 import "./globals.css";
@@ -70,11 +68,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           tetap Server Component seperti sebelumnya.
         */}
         <MotionProvider>
-          <SiteHeader />
-          <main id="konten-utama" className="flex-1">
-            {children}
-          </main>
-          <SiteFooter />
+          {children}
         </MotionProvider>
       </body>
     </html>

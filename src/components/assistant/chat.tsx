@@ -149,13 +149,13 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
         <ul className="mt-5 flex flex-wrap gap-2">
           {state.suggestions.map((s) => (
             <li key={s}>
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => kirim(s)}
-                className="min-h-11 rounded-pill border border-border-strong bg-card px-4 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted"
               >
                 {s}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -196,16 +196,16 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
             <p className="min-w-0 text-xs text-muted-foreground">
               Percakapan tidak disimpan.
             </p>
-            <button
+            <Button
               type="submit"
               disabled={pending}
-              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-pill bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+              className="shrink-0"
             >
               {pending ? "Mengirim" : "Kirim"}
               {pending ? null : (
                 <HugeiconsIcon icon={ArrowRight01Icon} size={16} strokeWidth={2} aria-hidden />
               )}
-            </button>
+            </Button>
           </div>
         </form>
       ) : null}
@@ -217,13 +217,13 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
       */}
       {!state.result && chips.length > 0 && !pending ? (
         <div className="mt-4 text-center">
-          <button
+          <Button
             type="button"
+            variant="link"
             onClick={() => kirim("Sudah cukup, langsung cari kandidatnya saja.")}
-            className="min-h-11 rounded-pill px-4 text-sm font-medium text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
           >
             Sudah cukup, cari kandidat sekarang
-          </button>
+          </Button>
         </div>
       ) : null}
 

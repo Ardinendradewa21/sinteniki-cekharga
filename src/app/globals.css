@@ -2,7 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Mendukung tema admin berbasis class dan tema publik berbasis data attribute. */
+@custom-variant dark (&:where(.dark, .dark *, [data-theme=dark], [data-theme=dark] *));
 
 /*
   CekHarga design tokens — PRD §8.
@@ -10,22 +11,19 @@
   Hex di PRD adalah acuan desain, bukan kontrak warna. Semua warna dipakai lewat
   semantic token di bawah; jangan menulis hex langsung di komponen.
 
-  Rasio kontras yang sudah dihitung untuk kombinasi yang benar-benar dipakai:
-  - foreground #303030 di canvas #F5F5F5 ....... 12.1:1  (teks normal, butuh 4.5:1)
-  - foreground #303030 di surface #FFFFFF ...... 13.2:1
-  - muted-foreground #667085 di surface ........  4.98:1
-  - muted-foreground #667085 di canvas .........  4.56:1
-  - border-strong #8A93A5 di surface ...........  3.09:1  (border kontrol form, butuh 3:1)
-  - ring/brand #0F766E di surface ..............  5.47:1
-  - success #15803D / warning #B45309 / destructive #B42318 di surface ... ~5:1+
+  Rasio kontras utama pada tema publik:
+  - light foreground/canvas 14.02:1; muted/card 5.79:1
+  - dark foreground/canvas 16.42:1; muted/card 8.36:1
+  - brand: 5.47:1 di card terang; 12.42:1 di canvas gelap
+  - border-strong: 4.08:1 terang; 4.54:1 gelap (kontrol butuh 3:1)
 
-  Catatan jujur: border dekoratif #E5E7EB (1.24:1) dan kartu putih di atas canvas
-  (1.09:1) memang kontras rendah — itu konsekuensi bahasa visual referensi. Karena
-  itu batas elemen yang HARUS terbaca (kontrol form, focus ring, status) memakai
+  Border dekoratif dan kartu di atas canvas memang sengaja lembut. Batas elemen
+  yang HARUS terbaca (kontrol form, focus ring, status) selalu memakai
   border-strong/ring, bukan border dekoratif.
 
-  Tema gelap belum ditetapkan di PRD §8, jadi sengaja tidak didefinisikan.
-  Aplikasi dikunci ke color-scheme light sampai ada keputusan produk.
+  Tema publik dan admin sengaja dipisahkan. `.public-theme` membawa identitas
+  teal/navy CekHarga dan bisa terang/gelap, sedangkan `.admin-theme` tetap punya
+  preferensinya sendiri. Cookie salah satu area tidak mengubah area lainnya.
 */
 
 @theme inline {
@@ -69,6 +67,13 @@
   */
   --color-accent-warm: var(--accent-warm);
   --color-accent-warm-soft: var(--accent-warm-soft);
+  /*
+    Versi gelap dari terracotta yang BOLEH dipakai untuk teks dan garis UI:
+    diukur 5.1:1 terhadap putih, jadi lolos 4.5:1 untuk teks ukuran normal.
+    Ada karena aturan di atas nyata membatasi: begitu warna hangat perlu
+    menempel pada kata yang harus terbaca, --accent-warm terlalu terang.
+  */
+  --color-accent-warm-strong: var(--accent-warm-strong);
 
   /* Status — selalu dipasangkan dengan kata atau ikon, tidak pernah warna saja */
   --color-success: var(--success);
@@ -118,6 +123,7 @@
   /* Terracotta hangat — pasangan komplementer teal, dipakai di ilustrasi & blob saja */
   --accent-warm: #d97757;
   --accent-warm-soft: #fbe9e1;
+  --accent-warm-strong: #b3502f;
 
   --success: #15803d;
   --success-muted: #eef8f1;
@@ -133,6 +139,132 @@
     Pakai utility duration-150 (micro) dan duration-300 (entrance) di komponen
     agar konsisten; hindari angka lain tanpa alasan.
   */
+}
+
+/*
+  Identitas publik CekHarga: teal = keputusan tepercaya/data harga, navy =
+  struktur, terracotta = aksen hangat terbatas. Semua komponen publik memakai
+  token semantik ini, jadi dark mode tidak membutuhkan warna per halaman.
+*/
+.public-theme[data-theme="light"] {
+  --background: #f3f7f6;
+  --foreground: #102a2a;
+  --card: #ffffff;
+  --card-foreground: #102a2a;
+  --popover: #ffffff;
+  --popover-foreground: #102a2a;
+
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #e2efed;
+  --secondary-foreground: #173a37;
+  --muted: #e8f1ef;
+  --muted-foreground: #536a67;
+  --accent: #dcecea;
+  --accent-foreground: #173a37;
+
+  --border: #d5e3e0;
+  --border-strong: #6d827e;
+  --input: #6d827e;
+  --ring: #0f766e;
+
+  --brand: #0f766e;
+  --brand-foreground: #ffffff;
+  --brand-muted: #dff3ef;
+
+  --accent-warm: #d97757;
+  --accent-warm-soft: #f8e7df;
+  --accent-warm-strong: #a9482a;
+
+  --success: #147a3d;
+  --success-muted: #e5f5e9;
+  --warning: #a94f08;
+  --warning-muted: #fbefdf;
+  --destructive: #a9251c;
+  --destructive-muted: #f9e8e6;
+
+  color-scheme: light;
+}
+
+.public-theme[data-theme="dark"] {
+  --background: #071716;
+  --foreground: #e8f5f2;
+  --card: #0f2422;
+  --card-foreground: #e8f5f2;
+  --popover: #102825;
+  --popover-foreground: #e8f5f2;
+
+  --primary: #5eead4;
+  --primary-foreground: #062824;
+  --secondary: #173532;
+  --secondary-foreground: #e8f5f2;
+  --muted: #142e2c;
+  --muted-foreground: #a8bfba;
+  --accent: #1b403c;
+  --accent-foreground: #effbf8;
+
+  --border: #294a46;
+  --border-strong: #728d88;
+  --input: #728d88;
+  --ring: #5eead4;
+
+  --brand: #5eead4;
+  --brand-foreground: #062824;
+  --brand-muted: #143d39;
+
+  --accent-warm: #fb9c7b;
+  --accent-warm-soft: #3b2924;
+  --accent-warm-strong: #ffad90;
+
+  --success: #6ee7a0;
+  --success-muted: #173829;
+  --warning: #fbbf6a;
+  --warning-muted: #3d2d16;
+  --destructive: #fda29b;
+  --destructive-muted: #442321;
+
+  color-scheme: dark;
+}
+
+/* Tema gelap terisolasi untuk workspace admin. */
+.admin-theme.dark {
+  --background: #0b1220;
+  --foreground: #e7edf5;
+  --card: #111a2a;
+  --card-foreground: #e7edf5;
+  --popover: #111a2a;
+  --popover-foreground: #e7edf5;
+
+  --primary: #e7edf5;
+  --primary-foreground: #0b1220;
+  --secondary: #1c293b;
+  --secondary-foreground: #e7edf5;
+  --muted: #182437;
+  --muted-foreground: #a8b4c5;
+  --accent: #1c293b;
+  --accent-foreground: #e7edf5;
+
+  --border: #2a384d;
+  --border-strong: #748198;
+  --input: #748198;
+  --ring: #5eead4;
+
+  --brand: #5eead4;
+  --brand-foreground: #062c2a;
+  --brand-muted: #123b3a;
+
+  --accent-warm: #fb9777;
+  --accent-warm-soft: #3f2925;
+  --accent-warm-strong: #ffae91;
+
+  --success: #6ee7a0;
+  --success-muted: #173829;
+  --warning: #fbbf6a;
+  --warning-muted: #3d2d16;
+  --destructive: #fda29b;
+  --destructive-muted: #442321;
+
+  color-scheme: dark;
 }
 
 /*
@@ -196,34 +328,6 @@
   bottom: -10rem;
   left: -8rem;
   background: var(--brand-muted);
-}
-
-/*
-  Penyejajaran baris tabel perbandingan (PRD FR-04 dan §8).
-
-  Masalahnya: nilai antar produk punya panjang berbeda ("8 GB" vs "Octa-core
-  kelas menengah atas"), jadi kalau tiap kolom adalah kartu yang berdiri
-  sendiri, barisnya tidak sejajar dan perbandingan jadi susah dipindai.
-
-  Solusinya subgrid: grid luar yang menentukan tinggi tiap baris, lalu setiap
-  kolom mengadopsi track baris itu. Sengaja hanya aktif mulai layar sedang. Di
-  mobile kolomnya menumpuk sebagai kartu biasa dengan label menempel pada
-  nilainya, sesuai §8 yang melarang memaksa tabel lebar yang tak terbaca.
-
-  --compare-cols dan --compare-rows diisi dari komponen karena jumlahnya
-  tergantung berapa kandidat yang sedang dibandingkan.
-*/
-@media (min-width: 48rem) {
-  .compare-grid {
-    grid-template-columns: repeat(var(--compare-cols), minmax(0, 1fr));
-    grid-template-rows: repeat(var(--compare-rows), auto);
-  }
-
-  .compare-column {
-    grid-row: 1 / -1;
-    display: grid;
-    grid-template-rows: subgrid;
-  }
 }
 
 @layer base {

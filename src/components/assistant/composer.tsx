@@ -2,6 +2,7 @@ import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,9 +43,9 @@ export function Composer({
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
         <div className="min-w-0 text-xs text-muted-foreground">{controls}</div>
 
-        <button
+        <Button
           type="submit"
-          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-pill bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="shrink-0"
         >
           {submitLabel}
           <HugeiconsIcon
@@ -53,7 +54,7 @@ export function Composer({
             strokeWidth={2}
             aria-hidden
           />
-        </button>
+        </Button>
       </div>
     </div>
   );

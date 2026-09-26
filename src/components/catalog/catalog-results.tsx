@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { CatalogPagination } from "@/components/catalog/catalog-pagination";
+import { RevealItem } from "@/components/motion/reveal-item";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import { formatIdr } from "@/lib/catalog/pricing";
@@ -31,7 +33,7 @@ function buildSuggestions(query: CatalogQuery): Suggestion[] {
 
   if (query.query) {
     suggestions.push({
-      label: `Hapus kata kunci "${query.query}"`,
+      label: `Hapus pencarian “${query.query}”`,
       href: buildCatalogHref(query, { query: "" }),
     });
   }
@@ -89,9 +91,22 @@ export function CatalogResults({
 }) {
   const activeCount = countActiveFilters(query);
   const suggestions = buildSuggestions(query);
+  const hasReviewTopic = result.interpretation.hasReviewTopic;
+
+  const first = (result.page - 1) * result.pageSize + 1;
+  const last = first + result.items.length - 1;
+  const range = result.totalPages > 1 ? `${first}-${last} dari ` : "";
+  // Pencarian yang seluruh katanya diabaikan tidak menyaring apa pun, jadi
+  // "X dari X produk yang cocok" hanya membingungkan.
+  const statusText =
+    activeCount === 0 || result.matched === result.totalPublished
+      ? `Menampilkan ${range}${result.matched} produk.`
+      : `Menampilkan ${range}${result.matched} produk yang cocok (dari ${result.totalPublished} produk).`;
 
   return (
-    <div>
+    // Target lompatan pagination: pindah halaman langsung ke awal hasil,
+    // bukan ke atas halaman yang masih berisi panel filter.
+    <div id="hasil" className="scroll-mt-24">
       {/*
         Judul wilayah hasil. Sengaja hanya untuk pembaca layar: judul ini tidak
         menambah apa pun secara visual karena halaman sudah punya h1 "Katalog
@@ -104,20 +119,18 @@ export function CatalogResults({
         aria-live="polite"
         className="text-sm text-muted-foreground"
       >
-        {activeCount === 0
-          ? `Menampilkan ${result.matched} produk.`
-          : `Menampilkan ${result.matched} dari ${result.totalPublished} produk setelah filter.`}
+        {statusText}
       </p>
 
       {result.items.length === 0 ? (
         <div className="mt-6 rounded-xl border border-border bg-card p-8">
           <h2 className="text-base font-bold text-foreground">
-            Tidak ada produk yang cocok
+            {hasReviewTopic ? "Belum ada bukti ulasan yang cocok" : "Tidak ada produk yang cocok"}
           </h2>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
-            Katalog versi awal ini masih kecil, jadi kombinasi filter yang
-            spesifik memang gampang tidak menemukan apa pun. Coba lepas salah
-            satu filter berikut.
+            {hasReviewTopic
+              ? "Tidak ada produk yang memenuhi seluruh syarat dan memiliki ulasan terbit tentang topik ini. Produk tanpa ulasan relevan bukan berarti buruk. Coba lepas salah satu filter berikut."
+              : "Katalog versi awal ini masih kecil, jadi kombinasi filter yang spesifik memang gampang tidak menemukan apa pun. Coba lepas salah satu filter berikut."}
           </p>
 
           {suggestions.length > 0 ? (
@@ -142,19 +155,42 @@ export function CatalogResults({
           </div>
         </div>
       ) : (
-        <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {result.items.map((product) => (
-            <li key={product.id}>
+        <ul className="-mx-2 mt-6 grid grid-cols-2 gap-2 sm:mx-0 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          {result.items.map((product, index) => (
+            <RevealItem key={product.id} index={index}>
               <ProductCard
                 product={product}
                 now={now}
                 isDemo={isDemo}
                 href={`/products/${product.slug}`}
+                eager={index < 5}
               />
-            </li>
+              {result.semanticReviews[product.id]?.map((review) => (
+                <div key={`${product.id}-${review.channelName}-${review.summary}`} className="mt-2 rounded-lg border border-border bg-card p-3 text-xs leading-relaxed text-foreground">
+                  <p className="font-semibold text-muted-foreground">Catatan reviewer: {review.channelName}</p>
+                  <p className="mt-1 line-clamp-3">{review.summary}</p>
+                  {!isDemo && /^https?:\/\//.test(review.videoUrl) ? (
+                    <a
+                      href={review.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Lihat sumber ulasan
+                    </a>
+                  ) : null}
+                </div>
+              ))}
+            </RevealItem>
           ))}
         </ul>
       )}
+
+      <CatalogPagination
+        query={query}
+        page={result.page}
+        totalPages={result.totalPages}
+      />
     </div>
   );
 }

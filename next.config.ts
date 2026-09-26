@@ -16,7 +16,27 @@ import type { NextConfig } from "next";
  */
 const buildCpus = Number(process.env.CEKHARGA_BUILD_CPUS);
 
+const insforgeStorageHostname = (() => {
+  try {
+    const url = new URL(process.env.INSFORGE_URL ?? "");
+    return url.protocol === "https:" ? url.hostname : null;
+  } catch {
+    return null;
+  }
+})();
+
 const nextConfig: NextConfig = {
+  images: insforgeStorageHostname
+    ? {
+        remotePatterns: [
+          {
+            protocol: "https",
+            hostname: insforgeStorageHostname,
+            pathname: "/api/storage/buckets/product-images/objects/**",
+          },
+        ],
+      }
+    : undefined,
   experimental: {
     ...(Number.isFinite(buildCpus) && buildCpus > 0 ? { cpus: buildCpus } : {}),
     serverActions: {

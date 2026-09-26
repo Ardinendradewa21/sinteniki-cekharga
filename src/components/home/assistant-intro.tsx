@@ -8,6 +8,7 @@ import {
   StatusPulse,
 } from "@/components/illustrations/concept-glyphs";
 import { StaggerItem, StaggerList } from "@/components/motion/reveal";
+import { hasAiCredentials } from "@/lib/assistant/ai/client";
 import { Section } from "@/components/section";
 import { Button } from "@/components/ui/button";
 
@@ -17,9 +18,9 @@ import { Button } from "@/components/ui/button";
  * Yang dijaga di sini:
  * - Menjelaskan cara kerjanya tanpa menjanjikan hasil (PRD FR-06).
  * - Membedakan syarat wajib dari preferensi, karena itu inti perilakunya.
- * - Menyatakan statusnya secara jujur: integrasi AI dikerjakan di track backend
- *   dan belum aktif, jadi tautannya tidak boleh terbaca seperti fitur siap
- *   pakai (PRD §4: fitur yang belum tersedia harus dinyatakan jelas).
+ * - Menyatakan statusnya secara jujur dan sesuai kenyataan: aktif bila kunci
+ *   model tersedia di server, dan terus terang bila tidak (PRD §4: fitur yang
+ *   belum tersedia harus dinyatakan jelas, bukan dipalsukan).
  *
  * Tiap perilaku dipasangkan dengan diagram beranimasi yang menggambarkan
  * mekanismenya (lihat concept-glyphs.tsx), bukan ikon dekoratif: pertanyaan
@@ -55,6 +56,11 @@ const BEHAVIOURS = [
 ];
 
 export function AssistantIntro() {
+  // Sama dengan penentu tampilan di /assistant: chat AI bila kunci model
+  // tersedia, konsultasi bertahap bila tidak. Status di beranda wajib cocok
+  // dengan yang benar-benar didapat pengunjung di halaman itu.
+  const aiReady = hasAiCredentials();
+
   return (
     <Section
       title="Kalau lebih mudah menjelaskan kebutuhan"
@@ -80,21 +86,21 @@ export function AssistantIntro() {
           <div>
             <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground">
               <StatusPulse />
-              Asisten belum aktif
+              {aiReady ? "Asisten AI aktif" : "Asisten AI sedang tidak tersedia"}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Antarmukanya sedang dibangun dan integrasi AI-nya dikerjakan di
-              sisi server. Sementara ini katalog tetap bisa dipakai penuh tanpa
-              asisten.
+              {aiReady
+                ? "Ceritakan kebutuhanmu dengan bahasa sehari-hari. Kandidatnya tetap dipilih dari katalog, bukan dikarang AI."
+                : "Kamu tetap bisa menjawab beberapa pertanyaan singkat dan mendapat kandidat dari katalog, tanpa percakapan AI."}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button asChild variant="outline">
-              <Link href="/assistant">Lihat status asisten</Link>
+            <Button asChild>
+              <Link href="/assistant">Tanya AI</Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link href="/products">Cari sendiri di katalog</Link>
+              <Link href="/products">Cari Produk</Link>
             </Button>
           </div>
         </div>

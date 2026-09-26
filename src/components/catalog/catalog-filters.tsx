@@ -8,10 +8,11 @@ import {
   PARAM,
   SORT_LABELS,
   SORT_OPTIONS,
+  buildCatalogHref,
   countActiveFilters,
   type CatalogQuery,
 } from "@/lib/catalog/search-params";
-import type { CatalogFacets } from "@/lib/catalog/queries";
+import type { CatalogFacets, CatalogSearchResult } from "@/lib/catalog/queries";
 
 /**
  * Panel filter katalog (PRD FR-02).
@@ -79,51 +80,118 @@ function CheckboxGroup({
 export function CatalogFilters({
   query,
   facets,
+  interpretation,
 }: {
   query: CatalogQuery;
   facets: CatalogFacets;
+  interpretation: CatalogSearchResult["interpretation"];
 }) {
   const activeCount = countActiveFilters(query);
 
-  // Panel dibuka kalau yang aktif bukan cuma kata kunci, karena kata kunci
-  // sudah terlihat di kolom pencarian di atas panel.
+  // Kata kunci terlihat di atas panel disclosure, jadi tidak dihitung di sini.
   const groupFilterCount = activeCount - (query.query ? 1 : 0);
+
+  const hasReading =
+    interpretation.appliedLabels.length > 0 || interpretation.keywords.length > 0;
+  const notes = [
+    ...interpretation.cautions,
+    ...(interpretation.ignoredWords.length > 0
+      ? [
+          `Tidak ditemukan di nama, merek, maupun spesifikasi produk mana pun, jadi diabaikan: ${interpretation.ignoredWords
+            .map((word) => `“${word}”`)
+            .join(", ")}.`,
+        ]
+      : []),
+    ...(interpretation.subjectiveWords.length > 0
+      ? [
+          `Kata penilaian seperti ${interpretation.subjectiveWords
+            .map((word) => `“${word}”`)
+            .join(", ")} tidak bisa diukur dari data. Tulis batas yang jelas, mis. “di bawah 5 juta”.`,
+        ]
+      : []),
+  ];
 
   return (
     <Form action="/products" className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <Label htmlFor="katalog-cari">Cari produk</Label>
-          <Input
-            id="katalog-cari"
-            type="search"
-            name={PARAM.query}
-            defaultValue={query.query}
-            placeholder="Nama atau merek"
-            className="mt-2"
-          />
-        </div>
+      <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <Label htmlFor="katalog-cari">Cari produk atau kebutuhan</Label>
+            <Input
+              id="katalog-cari"
+              type="search"
+              name={PARAM.query}
+              defaultValue={query.query}
+              maxLength={160}
+              placeholder="Contoh: Samsung 5G NFC di bawah 5 juta"
+              aria-describedby="katalog-cari-bantuan"
+              className="mt-2"
+            />
+          </div>
 
-        <div className="sm:w-56">
-          <Label htmlFor="katalog-urut">Urutkan</Label>
-          <select
-            id="katalog-urut"
-            name={PARAM.sort}
-            defaultValue={query.sort}
-            className="mt-2 h-11 w-full rounded-lg border border-input bg-card px-4 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {SORT_LABELS[option]}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="sm:w-56">
+            <Label htmlFor="katalog-urut">Urutkan</Label>
+            <select
+              id="katalog-urut"
+              name={PARAM.sort}
+              defaultValue={query.sort}
+              className="mt-2 h-11 w-full rounded-lg border border-input bg-card px-4 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {SORT_LABELS[option]}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <Button type="submit" className="sm:mb-0">
-          Terapkan
-        </Button>
+          <Button type="submit" className="sm:mb-0">
+            Cari
+          </Button>
+        </div>
+        <p id="katalog-cari-bantuan" className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          Satu kolom untuk nama, merek, spesifikasi (mis. AMOLED, IP68, lipat),
+          dan kebutuhan: batas harga, RAM/penyimpanan minimal, NFC, 5G, serta
+          topik ulasan yang tercatat. Kualitas pemakaian tidak ditebak dari angka
+          spesifikasi.
+        </p>
       </div>
+
+      {query.query ? (
+        <div role="status" className="rounded-xl border border-brand/20 bg-brand-muted/30 p-4 text-sm">
+          <p className="font-semibold text-foreground">
+            {hasReading ? "Pencarian dibaca sebagai:" : "Pencarian ini belum menjadi filter:"}
+          </p>
+          {hasReading ? (
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {interpretation.keywords.length > 0 ? (
+                <li className="rounded-full border border-brand/20 bg-card px-3 py-1.5 text-xs font-medium text-foreground">
+                  Kata kunci: {interpretation.keywords.join(" ")}
+                </li>
+              ) : null}
+              {interpretation.appliedLabels.map((label) => (
+                <li key={label} className="rounded-full border border-brand/20 bg-card px-3 py-1.5 text-xs font-medium text-foreground">
+                  {label}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {notes.map((note) => (
+            <p key={note} className="mt-2 text-xs leading-relaxed text-muted-foreground">{note}</p>
+          ))}
+          {interpretation.hasReviewTopic ? (
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Hasil dari topik ulasan berarti ada reviewer yang membahasnya, bukan jaminan produk itu cocok; ulasan bisa menyebut kekurangan.
+            </p>
+          ) : null}
+          <Link
+            href={buildCatalogHref(query, { query: "" })}
+            className="mt-3 inline-flex min-h-11 items-center text-xs font-semibold text-brand underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Hapus pencarian
+          </Link>
+        </div>
+      ) : null}
 
       <details
         open={groupFilterCount > 0}

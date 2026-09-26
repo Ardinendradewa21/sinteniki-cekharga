@@ -157,8 +157,26 @@ export const offerSchema = z.object({
    * (PRD FR-05). Default false.
    */
   sellerVerified: z.boolean(),
+  /** Toko terdaftar (tabel stores); null bila domain listing belum dikenal. */
+  storeId: z.string().min(1).nullable(),
 });
 export type Offer = z.infer<typeof offerSchema>;
+
+export const storeSchema = z.object({
+  id: z.string().min(1),
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  /** official = situs resmi merek; marketplace = banyak penjual; retailer = satu penjual. */
+  kind: z.enum(["official", "marketplace", "retailer"]),
+});
+export type Store = z.infer<typeof storeSchema>;
+
+/** Slug lama yang diganti; URL lama diarahkan permanen ke produknya. */
+export const slugRedirectSchema = z.object({
+  oldSlug: z.string().min(1),
+  productId: z.string().min(1),
+});
+export type SlugRedirect = z.infer<typeof slugRedirectSchema>;
 
 export const priceObservationSchema = z.object({
   id: z.string().min(1),
@@ -189,5 +207,7 @@ export const catalogDatasetSchema = z.object({
   offers: z.array(offerSchema),
   priceObservations: z.array(priceObservationSchema),
   priceChecks: z.array(priceCheckSchema),
+  stores: z.array(storeSchema),
+  slugRedirects: z.array(slugRedirectSchema),
 });
 export type CatalogDataset = z.infer<typeof catalogDatasetSchema>;

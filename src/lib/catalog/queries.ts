@@ -23,6 +23,16 @@ import {
   type CatalogQuery,
 } from "@/lib/catalog/search-params";
 import {
+  interpretCatalogNeeds,
+  reviewMatchesTopic,
+} from "@/lib/catalog/semantic-needs";
+import {
+  buildSearchDocument,
+  isKnownKeyword,
+  matchKeywords,
+  planKeywords,
+} from "@/lib/catalog/keyword-search";
+import {
   buildCompareHref,
   MAX_COMPARE_ITEMS,
   type CompareSelection,
@@ -79,6 +89,10 @@ function selectPublished(dataset: CatalogDataset): CatalogDataset {
     productIds.has(variant.productId)
   );
   const variantIds = new Set(variants.map((variant) => variant.id));
+  const offers = dataset.offers.filter((offer) =>
+    variantIds.has(offer.variantId)
+  );
+  const offerIds = new Set(offers.map((offer) => offer.id));
 
   return {
     products,
@@ -88,10 +102,42 @@ function selectPublished(dataset: CatalogDataset): CatalogDataset {
       (review) =>
         review.status === "published" && productIds.has(review.productId)
     ),
-    offers: dataset.offers.filter((offer) => variantIds.has(offer.variantId)),
-    priceObservations: dataset.priceObservations,
-    priceChecks: dataset.priceChecks,
+    offers,
+    priceObservations: dataset.priceObservations.filter((observation) =>
+      offerIds.has(observation.offerId)
+    ),
+    priceChecks: dataset.priceChecks.filter((check) =>
+      offerIds.has(check.offerId)
+    ),
+    stores: dataset.stores,
+    // Redirect ke produk draft tidak boleh mengungkap produknya.
+    slugRedirects: dataset.slugRedirects.filter((redirect) =>
+      productIds.has(redirect.productId)
+    ),
   };
+}
+
+/** Produk untuk slug ini, termasuk lewat slug lama yang sudah diganti. */
+function findProductBySlug(catalog: CatalogDataset, slug: string) {
+  const direct = catalog.products.find((candidate) => candidate.slug === slug);
+  if (direct) return direct;
+  const redirect = catalog.slugRedirects.find((entry) => entry.oldSlug === slug);
+  return redirect
+    ? catalog.products.find((candidate) => candidate.id === redirect.productId)
+    : undefined;
+}
+
+/**
+ * Slug baru bila `slug` adalah slug lama yang sudah diganti (mis. "+" menjadi
+ * "-plus", atau iQOO keluar dari vivo). `null` bila tidak ada pengalihan.
+ */
+export async function resolveProductSlugRedirect(
+  now: Date,
+  slug: string
+): Promise<string | null> {
+  const catalog = await loadPublishedCatalog(now);
+  if (catalog.products.some((candidate) => candidate.slug === slug)) return null;
+  return findProductBySlug(catalog, slug)?.slug ?? null;
 }
 
 export async function loadPublishedCatalog(
@@ -131,9 +177,12 @@ function buildProductSummary(
       null)
     : null;
 
-  const asset = catalog.assets.find(
-    (candidate) => candidate.productId === product.id
-  );
+  const asset =
+    catalog.assets.find(
+      (candidate) =>
+        candidate.productId === product.id && candidate.kind === "photo"
+    ) ??
+    catalog.assets.find((candidate) => candidate.productId === product.id);
 
   return {
     id: product.id,
@@ -270,12 +319,37 @@ export type CatalogFacets = {
 
 export type CatalogSearchResult = {
   items: ProductSummary[];
+  /** Ulasan terbit yang membahas topik kebutuhan, bukan klaim produk terbaik. */
+  semanticReviews: Record<string, { summary: string; channelName: string; videoUrl: string }[]>;
   /** Jumlah hasil setelah filter. */
   matched: number;
   /** Jumlah seluruh produk terpublikasi, untuk konteks "X dari Y". */
   totalPublished: number;
   facets: CatalogFacets;
+  /**
+   * Cara search bar membaca teks pengguna, untuk ditampilkan terbuka: syarat
+   * yang dipakai menyaring, kata kunci, dan kata yang diabaikan beserta
+   * alasannya. Pencarian yang tidak bisa dijelaskan tidak boleh diam-diam
+   * mengubah hasil.
+   */
+  interpretation: {
+    appliedLabels: string[];
+    cautions: string[];
+    keywords: string[];
+    /** Kata yang tidak dikenal nama, merek, maupun tag produk mana pun. */
+    ignoredWords: string[];
+    /** Kata penilaian seperti "murah" atau "terbaik" yang tidak terukur. */
+    subjectiveWords: string[];
+    hasReviewTopic: boolean;
+  };
+  /** Halaman yang benar-benar disajikan (sudah dijepit ke jangkauan valid). */
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
+
+/** 20 = empat baris penuh pada grid desktop lima kolom. */
+export const CATALOG_PAGE_SIZE = 20;
 
 /** Skor kecocokan teks. BUKAN skor kualitas produk (PRD FR-02). */
 function matchScore(name: string, query: string): number {
@@ -329,27 +403,78 @@ export async function searchCatalog(
   };
 
   const brandFilter = new Set(query.brands.map((brand) => brand.toLowerCase()));
-  const priceBounded = hasPriceBound(query);
 
-  type Scored = { summary: ProductSummary; score: number; order: number };
+  // Satu search bar, dibaca dua lapis: syarat terukur (harga, kapasitas, NFC,
+  // 5G, topik ulasan) lebih dulu, lalu sisanya menjadi kata kunci.
+  const semantic = interpretCatalogNeeds(query.query);
+  const documents = catalog.products.map(buildSearchDocument);
+  const plan = planKeywords(semantic.keywordText);
+  const keywords = plan.keywords.filter((keyword) =>
+    isKnownKeyword(keyword, documents)
+  );
+  const ignoredWords = plan.keywords.filter(
+    (keyword) => !keywords.includes(keyword)
+  );
+
+  const semanticMaxPrice = semantic.maxPriceIdr === null
+    ? null
+    : semantic.maxPriceIdr - (semantic.maxPriceExclusive ? 1 : 0);
+  const effectiveMaxPrice = semanticMaxPrice === null
+    ? query.maxPrice
+    : query.maxPrice === null
+      ? semanticMaxPrice
+      : Math.min(query.maxPrice, semanticMaxPrice);
+  const priceBounded = hasPriceBound(query) || effectiveMaxPrice !== null;
+
+  type Scored = {
+    summary: ProductSummary;
+    score: number;
+    order: number;
+    reviews: { summary: string; channelName: string; videoUrl: string }[];
+  };
   const scored: Scored[] = [];
 
   catalog.products.forEach((product, order) => {
     if (brandFilter.size > 0 && !brandFilter.has(product.brand.toLowerCase())) {
       return;
     }
+    if (semantic.requiredFeatures.includes("nfc") && product.specs.hasNfc !== true) return;
+    if (semantic.requiredFeatures.includes("5g") && product.specs.is5G !== true) return;
 
-    const name = `${product.brand} ${product.model}`;
-    const score = matchScore(name, query.query);
-    if (query.query && score === 0) return;
+    const topicReviews = semantic.reviewTopics.map((topic) =>
+      catalog.reviews.find(
+        (review) => review.productId === product.id && reviewMatchesTopic(review, topic)
+      )
+    );
+    if (topicReviews.some((review) => !review)) return;
+    const relevantReviews = [...new Map(
+      topicReviews.filter((review) => review !== undefined).map((review) => [review.id, review])
+    ).values()].map((review) => ({
+      summary: review.summary,
+      channelName: review.channelName,
+      videoUrl: review.videoUrl,
+    }));
+
+    // Setiap kata kunci yang dikenal katalog wajib cocok (nama, merek, atau
+    // tag spesifikasi). Skornya kecocokan teks, bukan kualitas produk.
+    let score = 0;
+    if (keywords.length > 0) {
+      const match = matchKeywords(keywords, documents[order]);
+      if (!match.matched) return;
+      score =
+        match.score * 10 +
+        matchScore(`${product.brand} ${product.model}`, keywords.join(" "));
+    }
 
     // Varian yang cocok dengan filter kapasitas. Ini juga yang jadi dasar harga.
     const variants = catalog.variants.filter(
       (variant) =>
         variant.productId === product.id &&
         (query.ram.length === 0 || query.ram.includes(variant.ramGb)) &&
+        (semantic.minRamGb === null || variant.ramGb >= semantic.minRamGb) &&
         (query.storage.length === 0 ||
-          query.storage.includes(variant.storageGb))
+          query.storage.includes(variant.storageGb)) &&
+        (semantic.minStorageGb === null || variant.storageGb >= semantic.minStorageGb)
     );
     if (variants.length === 0) return;
 
@@ -362,23 +487,37 @@ export async function searchCatalog(
       if (query.minPrice !== null && summary.price.priceIdr < query.minPrice) {
         return;
       }
-      if (query.maxPrice !== null && summary.price.priceIdr > query.maxPrice) {
+      if (effectiveMaxPrice !== null && summary.price.priceIdr > effectiveMaxPrice) {
         return;
       }
     }
 
-    scored.push({ summary, score, order });
+    scored.push({ summary, score, order, reviews: relevantReviews });
   });
 
-  /** Harga untuk pengurutan; null = tidak punya harga layak. */
-  const priceOf = (summary: ProductSummary): number | null =>
-    summary.price.status === "available" ? summary.price.priceIdr : null;
+  /**
+   * Tingkat harga untuk pengurutan. Harga terakhir tercatat kini tampil sebagai
+   * angka di kartu, jadi ikut diurutkan menurut harganya, tetapi SELALU di
+   * belakang harga yang masih berlaku: harga lama tidak boleh tampil seolah
+   * pilihan termurah saat ini (PRD §7 butir 5).
+   */
+  const priceTierOf = (summary: ProductSummary): number =>
+    summary.price.status === "available" ? 0 : summary.price.status === "stale" ? 1 : 2;
 
-  /** Waktu pemeriksaan berhasil; null = belum pernah berhasil. */
+  /** Harga untuk pengurutan; null = tidak ada harga tercatat sama sekali. */
+  const priceOf = (summary: ProductSummary): number | null =>
+    summary.price.status === "unavailable" ? null : summary.price.priceIdr;
+
+  /**
+   * Waktu harga terakhir benar-benar teramati; null = belum pernah. Harga
+   * berlaku selalu lebih baru dari batas freshness, jadi otomatis di depan.
+   */
   const checkedAtOf = (summary: ProductSummary): number | null =>
     summary.price.status === "available"
       ? new Date(summary.price.checkedAt).getTime()
-      : null;
+      : summary.price.status === "stale"
+        ? new Date(summary.price.observedAt).getTime()
+        : null;
 
   /** Yang tidak punya nilai selalu ke belakang, apa pun arah urutannya. */
   function compareNullable(
@@ -396,11 +535,13 @@ export async function searchCatalog(
     switch (query.sort) {
       case "price-asc":
         return (
+          priceTierOf(a.summary) - priceTierOf(b.summary) ||
           compareNullable(priceOf(a.summary), priceOf(b.summary), "asc") ||
           a.order - b.order
         );
       case "price-desc":
         return (
+          priceTierOf(a.summary) - priceTierOf(b.summary) ||
           compareNullable(priceOf(a.summary), priceOf(b.summary), "desc") ||
           a.order - b.order
         );
@@ -420,11 +561,36 @@ export async function searchCatalog(
     }
   });
 
+  // Paginasi sungguhan di atas hasil yang sudah difilter dan diurutkan (PRD
+  // FR-02: "bukan simulasi cursor palsu"). Halaman di luar jangkauan, mis.
+  // tautan lama setelah katalog menyusut, jatuh ke halaman terakhir yang ada.
+  const totalPages = Math.max(Math.ceil(sorted.length / CATALOG_PAGE_SIZE), 1);
+  const page = Math.min(Math.max(query.page, 1), totalPages);
+  const pageEntries = sorted.slice(
+    (page - 1) * CATALOG_PAGE_SIZE,
+    page * CATALOG_PAGE_SIZE
+  );
+
   return {
-    items: sorted.map((entry) => entry.summary),
+    items: pageEntries.map((entry) => entry.summary),
+    semanticReviews: Object.fromEntries(
+      pageEntries.filter((entry) => entry.reviews.length > 0)
+        .map((entry) => [entry.summary.id, entry.reviews])
+    ),
     matched: sorted.length,
     totalPublished: catalog.products.length,
     facets,
+    interpretation: {
+      appliedLabels: semantic.appliedLabels,
+      cautions: semantic.cautions,
+      keywords,
+      ignoredWords,
+      subjectiveWords: plan.subjective,
+      hasReviewTopic: semantic.reviewTopics.length > 0,
+    },
+    page,
+    pageSize: CATALOG_PAGE_SIZE,
+    totalPages,
   };
 }
 
@@ -462,6 +628,8 @@ export type ProductDetailOffer = {
   isFreshPrice: boolean;
   /** Penawaran inilah yang menjadi dasar harga aktif varian terpilih. */
   isPriceBasis: boolean;
+  /** Toko terdaftar; `null` bila domain listing belum dikenal. */
+  store: { slug: string; name: string; kind: "official" | "marketplace" | "retailer" } | null;
 };
 
 export type ProductSpecRow = {
@@ -492,6 +660,11 @@ export type ProductDetail = {
   model: string;
   name: string;
   image: ProductSummary["image"];
+  /**
+   * Semua foto produk asli, foto utama lebih dulu. Kosong bila produk hanya
+   * punya ilustrasi generik; ilustrasi tidak pernah dicampur ke galeri foto.
+   */
+  gallery: { src: string; alt: string; source: string }[];
   specs: ProductSpecRow[];
   specsSource: string;
   specsRetrievedAt: string;
@@ -632,6 +805,10 @@ function buildProductDetail(
             warranty: offer.warranty,
             listingStatus: offer.listingStatus,
             sellerVerified: offer.sellerVerified,
+            store: (() => {
+              const store = catalog.stores.find((entry) => entry.id === offer.storeId);
+              return store ? { slug: store.slug, name: store.name, kind: store.kind } : null;
+            })(),
             priceIdr: observation?.priceIdr ?? null,
             observedAt: observation?.observedAt ?? null,
             checkedAt: lastSuccessfulCheckAt(offer.id, catalog.priceChecks),
@@ -667,9 +844,12 @@ function buildProductDetail(
         : null,
     }));
 
-  const asset = catalog.assets.find(
-    (candidate) => candidate.productId === product.id
-  );
+  const asset =
+    catalog.assets.find(
+      (candidate) =>
+        candidate.productId === product.id && candidate.kind === "photo"
+    ) ??
+    catalog.assets.find((candidate) => candidate.productId === product.id);
 
   const specs: ProductSpecRow[] = [
     {
@@ -775,6 +955,16 @@ function buildProductDetail(
       alt: asset?.alt ?? "Ilustrasi generik perangkat smartphone",
       isGenericIllustration: asset?.kind !== "photo",
     },
+    gallery: catalog.assets
+      .filter(
+        (candidate) =>
+          candidate.productId === product.id && candidate.kind === "photo"
+      )
+      .map((photo) => ({
+        src: photo.src,
+        alt: photo.alt,
+        source: photo.provenance.source,
+      })),
     specs,
     specsSource: product.specsProvenance.source,
     specsRetrievedAt: product.specsProvenance.retrievedAt,
@@ -812,11 +1002,41 @@ export async function listPublishedSlugs(now: Date): Promise<string[]> {
  */
 export type CompareRowState = "same" | "different" | "incomplete";
 
+/** Ikon garis per atribut; digambar sendiri di `compare/spec-icons.tsx`. */
+export type CompareSpecIcon =
+  | "display"
+  | "refresh"
+  | "chip"
+  | "os"
+  | "camera"
+  | "lenses"
+  | "battery"
+  | "charging"
+  | "memory"
+  | "storage"
+  | "weight"
+  | "water"
+  | "palette"
+  | "network"
+  | "nfc"
+  | "jack"
+  | "calendar"
+  | "shield";
+
 export type CompareRow = {
   label: string;
   state: CompareRowState;
   /** Nilai per item, urutannya sama dengan urutan item. */
   values: (string | null)[];
+  icon: CompareSpecIcon;
+  /** Nilai pendek yang ditampilkan besar (mis. "5G", "5000 mAh"). */
+  headline: boolean;
+};
+
+export type CompareSection = {
+  id: string;
+  title: string;
+  rows: CompareRow[];
 };
 
 export type CompareItem = {
@@ -831,14 +1051,25 @@ export type CompareItem = {
   detailHref: string;
   removeHref: string;
   /** Varian lain untuk produk ini, supaya bisa ditukar tanpa keluar halaman. */
-  variantOptions: { key: string; label: string; href: string }[];
+  variantOptions: {
+    key: string;
+    label: string;
+    href: string;
+    ramGb: number;
+    storageGb: number;
+  }[];
   /** Konteks pengalaman reviewer (PRD FR-04 meminta ini ikut ditampilkan). */
   reviewNotes: { channelName: string; aspect: string; summary: string }[];
 };
 
 export type CompareResult = {
   items: CompareItem[];
+  /** Semua baris, datar. Sama isinya dengan gabungan `sections`. */
   rows: CompareRow[];
+  /** Baris yang dikelompokkan per bagian (Layar, Kamera, ...). */
+  sections: CompareSection[];
+  /** Pilihan yang sudah diselesaikan, untuk menukar produk per kolom. */
+  selections: CompareSelection[];
   /**
    * Selisih harga hanya terisi bila MINIMAL DUA item punya harga layak
    * (PRD FR-04). Item tanpa harga layak tidak pernah ikut dihitung.
@@ -856,19 +1087,84 @@ export type CompareResult = {
   isFull: boolean;
 };
 
-const COMPARE_ROW_LABELS = [
-  "RAM",
-  "Penyimpanan",
-  "Garansi",
-  "Layar",
-  "Refresh rate",
-  "Chipset",
-  "Baterai",
-  "Pengisian",
-  "Kamera utama",
-  "Bobot",
-  "Tahun rilis",
-] as const;
+/**
+ * Susunan bagian perbandingan, meniru pola "Spesifikasi Utama" situs resmi
+ * produsen: dikelompokkan per topik, bukan satu daftar panjang. Label baris
+ * sama dengan label `ProductDetail.specs`, kecuali RAM, Penyimpanan, dan
+ * Garansi yang diambil dari varian terpilih.
+ */
+const COMPARE_SECTIONS: {
+  id: string;
+  title: string;
+  rows: { label: string; icon: CompareSpecIcon; headline?: boolean }[];
+}[] = [
+  {
+    id: "layar",
+    title: "Layar",
+    rows: [
+      { label: "Layar", icon: "display" },
+      { label: "Refresh rate", icon: "refresh" },
+    ],
+  },
+  {
+    id: "kamera",
+    title: "Kamera",
+    rows: [
+      { label: "Kamera utama", icon: "camera", headline: true },
+      { label: "Susunan kamera", icon: "lenses" },
+    ],
+  },
+  {
+    id: "performa",
+    title: "Performa",
+    rows: [
+      { label: "Chipset", icon: "chip" },
+      { label: "Sistem operasi", icon: "os" },
+    ],
+  },
+  {
+    id: "baterai",
+    title: "Baterai",
+    rows: [
+      { label: "Baterai", icon: "battery", headline: true },
+      { label: "Pengisian", icon: "charging" },
+    ],
+  },
+  {
+    id: "memori",
+    title: "Memori varian terpilih",
+    rows: [
+      { label: "RAM", icon: "memory", headline: true },
+      { label: "Penyimpanan", icon: "storage", headline: true },
+    ],
+  },
+  {
+    id: "desain",
+    title: "Desain dan ketahanan",
+    rows: [
+      { label: "Bobot", icon: "weight" },
+      { label: "Ketahanan (IP rating)", icon: "water" },
+      { label: "Pilihan warna", icon: "palette" },
+    ],
+  },
+  {
+    id: "konektivitas",
+    title: "Konektivitas",
+    rows: [
+      { label: "Jaringan", icon: "network", headline: true },
+      { label: "NFC", icon: "nfc" },
+      { label: "Jack headphone 3.5mm", icon: "jack" },
+    ],
+  },
+  {
+    id: "lainnya",
+    title: "Lainnya",
+    rows: [
+      { label: "Tahun rilis", icon: "calendar" },
+      { label: "Garansi", icon: "shield" },
+    ],
+  },
+];
 
 /**
  * Menyusun perbandingan 2-3 kandidat (PRD FR-04).
@@ -891,9 +1187,8 @@ export async function getComparison(
 
   const details = selections
     .map((selection) => {
-      const product = catalog.products.find(
-        (candidate) => candidate.slug === selection.slug
-      );
+      // Tautan bandingkan lama dengan slug yang sudah diganti tetap berfungsi.
+      const product = findProductBySlug(catalog, selection.slug);
       if (!product) return null;
       return {
         selection,
@@ -933,6 +1228,8 @@ export async function getComparison(
       variantOptions: detail.variants.map((variant) => ({
         key: variant.key,
         label: variant.label,
+        ramGb: variant.ramGb,
+        storageGb: variant.storageGb,
         href: buildCompareHref(
           resolvedSelections.map((selection, other) =>
             other === index
@@ -949,7 +1246,11 @@ export async function getComparison(
     };
   });
 
-  const rows: CompareRow[] = COMPARE_ROW_LABELS.map((label) => {
+  const buildRow = ({
+    label,
+    icon,
+    headline = false,
+  }: (typeof COMPARE_SECTIONS)[number]["rows"][number]): CompareRow => {
     const values = details.map((entry) => {
       const { detail } = entry;
 
@@ -975,9 +1276,17 @@ export async function getComparison(
     return {
       label,
       values,
+      icon,
+      headline,
       state: hasUnknown ? "incomplete" : allEqual ? "same" : "different",
     };
-  });
+  };
+  const sections: CompareSection[] = COMPARE_SECTIONS.map((section) => ({
+    id: section.id,
+    title: section.title,
+    rows: section.rows.map(buildRow),
+  }));
+  const rows = sections.flatMap((section) => section.rows);
 
   const priced = items.filter(
     (item): item is CompareItem & { price: { priceIdr: number } } =>
@@ -1017,6 +1326,8 @@ export async function getComparison(
   return {
     items,
     rows,
+    sections,
+    selections: resolvedSelections,
     priceSpread,
     itemsWithoutPrice: items
       .filter((item) => item.price.status !== "available")

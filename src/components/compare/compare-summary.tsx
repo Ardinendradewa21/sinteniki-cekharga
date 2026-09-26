@@ -19,9 +19,9 @@ export function CompareSummary({ result }: { result: CompareResult }) {
   const withNotes = items.filter((item) => item.reviewNotes.length > 0);
 
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground">Selisih harga</h2>
+        <h3 className="text-sm font-semibold text-foreground">Selisih harga</h3>
 
         {priceSpread === null ? (
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
@@ -45,17 +45,18 @@ export function CompareSummary({ result }: { result: CompareResult }) {
 
         {itemsWithoutPrice.length > 0 ? (
           <p className="mt-3 border-t border-border pt-3 text-sm leading-relaxed text-warning">
-            Tidak ikut dihitung karena belum punya penawaran yang memenuhi
-            syarat: {itemsWithoutPrice.join(", ")}. Ini bukan berarti lebih murah
-            atau lebih mahal.
+            Tidak ikut dihitung karena belum punya harga yang baru diperiksa
+            (harga terakhir tercatat bisa sudah berubah):{" "}
+            {itemsWithoutPrice.join(", ")}. Ini bukan berarti lebih murah atau
+            lebih mahal.
           </p>
         ) : null}
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground">
+        <h3 className="text-sm font-semibold text-foreground">
           Konteks pengalaman
-        </h2>
+        </h3>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Catatan reviewer, bukan pengujian CekHarga dan bukan kesimpulan dari
           angka spesifikasi.

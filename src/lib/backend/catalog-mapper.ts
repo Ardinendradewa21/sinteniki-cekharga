@@ -114,7 +114,21 @@ export function mapOffers(rows: Row[]): CatalogDataset["offers"] {
     warranty: strOrNull(r.warranty),
     listingStatus: str(r.listing_status) as CatalogDataset["offers"][number]["listingStatus"],
     sellerVerified: bool(r.seller_verified),
+    storeId: strOrNull(r.store_id),
   }));
+}
+
+export function mapStores(rows: Row[]): CatalogDataset["stores"] {
+  return rows.map((r) => ({
+    id: str(r.id),
+    slug: str(r.slug),
+    name: str(r.name),
+    kind: str(r.kind) as CatalogDataset["stores"][number]["kind"],
+  }));
+}
+
+export function mapSlugRedirects(rows: Row[]): CatalogDataset["slugRedirects"] {
+  return rows.map((r) => ({ oldSlug: str(r.old_slug), productId: str(r.product_id) }));
 }
 
 export function mapPriceObservations(

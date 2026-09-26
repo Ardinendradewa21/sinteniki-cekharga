@@ -28,3 +28,13 @@ Key patterns:
 - Reference users with `auth.users(id)`; use `auth.uid()` in RLS policies.
 - For storage uploads, persist both the returned `url` and `key`.
 <!-- INSFORGE:END -->
+
+## Skill desain & marketing pihak ketiga
+
+Skill di `.claude/skills/` (`ui-ux-pro-max`, `design-taste-frontend`, `redesign-existing-projects`, `seo-audit`, `ai-seo`, `programmatic-seo`, `schema`, `site-architecture`, `copywriting`, `product-marketing`, `caveman`) bersifat saran umum. Kalau bertentangan dengan `docs/CekHarga_PRD_v2.md`, **PRD yang menang**:
+
+- Tidak ada testimonial, popularitas, jumlah pengguna, urgensi/kelangkaan, atau badge "terverifikasi" tanpa bukti (PRD FR-01, FR-05).
+- Tidak ada skor, peringkat, "terbaik", atau pemenang tunggal (PRD §3, FR-02, FR-04). Structured data `Product` tidak boleh memuat `aggregateRating`/`review` karangan.
+- Harga kosong bukan nol; harga selalu menyebut varian acuan dan waktu pemeriksaan (PRD §7).
+- Pertahankan token desain di `src/app/globals.css` dan font Plus Jakarta Sans kecuali pemilik produk meminta perubahan; redesign bertahap, bukan tulis ulang.
+- Aksesibilitas PRD §8 tetap wajib: target 44 px, kontras 4.5:1, focus terlihat.

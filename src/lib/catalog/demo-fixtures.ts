@@ -365,6 +365,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         warranty: "Garansi resmi Indonesia",
         listingStatus: "active",
         sellerVerified: false,
+        storeId: null,
       },
       {
         id: "o-aksa5-6-128",
@@ -376,6 +377,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         warranty: null,
         listingStatus: "active",
         sellerVerified: false,
+        storeId: null,
       },
       {
         // Habis stok: punya harga tercatat, tetapi tidak boleh jadi basis harga.
@@ -388,6 +390,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         warranty: "Garansi resmi Indonesia",
         listingStatus: "out-of-stock",
         sellerVerified: false,
+        storeId: null,
       },
       {
         id: "o-arc3-8-128",
@@ -399,6 +402,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         warranty: "Garansi resmi Indonesia",
         listingStatus: "active",
         sellerVerified: true,
+        storeId: null,
       },
       {
         id: "o-arc3-8-256",
@@ -410,6 +414,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         warranty: "Garansi resmi Indonesia",
         listingStatus: "active",
         sellerVerified: true,
+        storeId: null,
       },
       {
         id: "o-arc3-12-256",
@@ -421,6 +426,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         warranty: null,
         listingStatus: "active",
         sellerVerified: false,
+        storeId: null,
       },
       {
         id: "o-arc3u-12-256",
@@ -432,6 +438,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         warranty: "Garansi resmi Indonesia",
         listingStatus: "active",
         sellerVerified: true,
+        storeId: null,
       },
       {
         id: "o-meridian-resmi",
@@ -443,6 +450,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         warranty: "Garansi resmi Indonesia",
         listingStatus: "active",
         sellerVerified: true,
+        storeId: null,
       },
       {
         // Lebih murah tapi ambigu, tidak boleh jadi basis harga (PRD §7 butir 2).
@@ -455,6 +463,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         warranty: null,
         listingStatus: "ambiguous",
         sellerVerified: false,
+        storeId: null,
       },
     ],
 
@@ -490,5 +499,8 @@ export function buildDemoDataset(now: Date): CatalogDataset {
       { id: "chk-8", offerId: "o-meridian-resmi", attemptedAt: hoursAgo(1), outcome: "success", errorSummary: null },
       { id: "chk-9", offerId: "o-meridian-ambigu", attemptedAt: hoursAgo(1), outcome: "success", errorSummary: null },
     ],
+    // Fixture tidak memakai toko terdaftar maupun redirect slug.
+    stores: [],
+    slugRedirects: [],
   };
 }

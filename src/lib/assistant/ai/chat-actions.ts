@@ -1,10 +1,16 @@
 "use server";
 
-import { headers } from "next/headers";
+import { z } from "zod";
 
-import { rateLimit } from "@/lib/assistant/ai/client";
+import { AI_LIMITS, rateLimit } from "@/lib/assistant/ai/client";
 import { runChatTurn } from "@/lib/assistant/ai/chat";
-import type { ChatMessage, ChatState } from "@/lib/assistant/ai/chat-state";
+import {
+  CHAT_START,
+  collectedSchema,
+  type ChatMessage,
+  type ChatState,
+} from "@/lib/assistant/ai/chat-state";
+import { clientIp } from "@/lib/rate-limit";
 import { recommend } from "@/lib/assistant/recommend";
 import { parseNeeds } from "@/lib/assistant/needs";
 
@@ -22,23 +28,57 @@ import { parseNeeds } from "@/lib/assistant/needs";
  * disimpan di server (PRD §10).
  */
 
-async function clientKey(): Promise<string> {
-  const headerList = await headers();
-  return (
-    headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headerList.get("x-real-ip") ||
-    "tanpa-ip"
-  );
-}
+/**
+ * State sebelumnya dikirim BALIK oleh browser, jadi statusnya masukan tidak
+ * tepercaya, sama seperti FormData. Tanpa validasi ini, riwayat bisa diisi
+ * pesan sepanjang apa pun lalu diteruskan ke model berbayar.
+ */
+const historySchema = z
+  .array(
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().min(1).max(AI_LIMITS.maxHistoryMessageChars),
+    })
+  )
+  .max(AI_LIMITS.maxHistoryMessages);
 
 export async function sendChatMessage(
-  prev: ChatState,
+  rawPrev: ChatState,
   formData: FormData
 ): Promise<ChatState> {
+  const history = historySchema.safeParse(rawPrev?.messages);
+  if (!history.success) {
+    return {
+      ...CHAT_START,
+      error: "Percakapan tidak bisa dilanjutkan. Silakan mulai percakapan baru.",
+    };
+  }
+
+  // Riwayat dan kebutuhan memakai versi tervalidasi. `result` dan
+  // `suggestions` hanya dipantulkan balik ke klien yang sama (tidak pernah
+  // dikirim ke model atau disimpan), jadi dibiarkan supaya panel hasil tidak
+  // hilang saat giliran berikutnya gagal.
+  const collected = collectedSchema.safeParse(rawPrev.collected);
+  const prev: ChatState = {
+    ...CHAT_START,
+    ...rawPrev,
+    messages: history.data,
+    collected: collected.success ? collected.data : CHAT_START.collected,
+    error: null,
+  };
+
   const text = String(formData.get("pesan") ?? "").trim();
   if (!text) return { ...prev, error: "Tulis dulu pesannya." };
+  // Ditolak SEBELUM masuk riwayat: pesan kepanjangan yang ikut tersimpan akan
+  // membuat validasi riwayat di giliran berikutnya gagal.
+  if (text.length > AI_LIMITS.maxInputChars) {
+    return {
+      ...prev,
+      error: `Pesannya terlalu panjang, maksimal ${AI_LIMITS.maxInputChars} karakter.`,
+    };
+  }
 
-  const limit = rateLimit(await clientKey());
+  const limit = rateLimit(await clientIp());
   if (!limit.allowed) {
     return {
       ...prev,

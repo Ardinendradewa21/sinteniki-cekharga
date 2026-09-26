@@ -16,19 +16,22 @@ import { Label } from "@/components/ui/label";
  * yang sama dengan seluruh form di situs ini.
  */
 const INITIAL: SignInState = { error: null };
+const DEFAULT_ADMIN_EMAIL = "sinteniki@gmail.com";
 
 export function LoginForm() {
   const [state, action, pending] = useActionState(signInAction, INITIAL);
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} autoComplete="off" className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
           name="email"
           type="email"
-          autoComplete="username"
+          value={DEFAULT_ADMIN_EMAIL}
+          autoComplete="off"
+          readOnly
           required
         />
       </div>
@@ -39,7 +42,7 @@ export function LoginForm() {
           id="password"
           name="password"
           type="password"
-          autoComplete="current-password"
+          autoComplete="off"
           required
         />
       </div>

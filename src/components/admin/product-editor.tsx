@@ -221,7 +221,7 @@ export function OfferPanel({
                         </span>
                         <span className="text-muted-foreground">
                           {new Date(c.attemptedAt).toLocaleString("id-ID")}
-                          {c.errorSummary ? ` — ${c.errorSummary}` : ""}
+                          {c.errorSummary ? `: ${c.errorSummary}` : ""}
                         </span>
                       </li>
                     ))}

@@ -3,6 +3,8 @@ import "server-only";
 import OpenAI from "openai";
 import { z } from "zod";
 
+import { createRateLimiter, type RateLimitResult } from "@/lib/rate-limit";
+
 /**
  * Gerbang model bahasa (PRD §9 dan §10).
  *
@@ -59,7 +61,13 @@ export const AI_LIMITS = {
   maxHistoryTurns: 12,
   /** Panggilan per IP per jendela waktu. */
   requestsPerWindow: 8,
+  /** Panggilan total per instance per jendela waktu, lintas semua klien. */
+  globalRequestsPerWindow: 120,
   windowMs: 60_000,
+  /** Panjang maksimum satu pesan di riwayat (balasan model maks. 400). */
+  maxHistoryMessageChars: 600,
+  /** Jumlah pesan riwayat yang diterima dari klien sebelum ditolak. */
+  maxHistoryMessages: 200,
 } as const;
 
 let cached: OpenAI | null = null;
@@ -99,37 +107,23 @@ export function hasAiCredentials(): boolean {
 }
 
 /**
- * Pembatas laju sederhana berbasis memori.
+ * Dua lapis pembatas laju untuk panggilan model (lihat `@/lib/rate-limit`).
  *
- * Cukup untuk satu instance dan jujur tentang keterbatasannya: kalau aplikasi
- * kelak berjalan di banyak instance, hitungannya tidak dibagi dan batas
- * efektifnya menjadi lebih longgar. Saat itu tiba, pindahkan ke penyimpanan
- * bersama. Yang penting sekarang: satu pengunjung tidak bisa menghabiskan
- * anggaran model hanya dengan menahan tombol kirim.
+ * Batas per klien mencegah satu pengunjung menghabiskan anggaran dengan
+ * menahan tombol kirim. Batas global per instance tetap berlaku walau header
+ * IP dipalsukan, jadi biaya terburuk per instance selalu terbatas.
  */
-const hits = new Map<string, number[]>();
+const perClientLimiter = createRateLimiter({
+  limit: AI_LIMITS.requestsPerWindow,
+  windowMs: AI_LIMITS.windowMs,
+});
+const globalLimiter = createRateLimiter({
+  limit: AI_LIMITS.globalRequestsPerWindow,
+  windowMs: AI_LIMITS.windowMs,
+});
 
-export function rateLimit(key: string): { allowed: boolean; retryAfterSec: number } {
-  const now = Date.now();
-  const recent = (hits.get(key) ?? []).filter((t) => now - t < AI_LIMITS.windowMs);
-
-  if (recent.length >= AI_LIMITS.requestsPerWindow) {
-    const oldest = Math.min(...recent);
-    return {
-      allowed: false,
-      retryAfterSec: Math.ceil((AI_LIMITS.windowMs - (now - oldest)) / 1000),
-    };
-  }
-
-  recent.push(now);
-  hits.set(key, recent);
-
-  // Menjaga peta tidak tumbuh tanpa batas di proses yang berumur panjang.
-  if (hits.size > 5000) {
-    for (const [k, times] of hits) {
-      if (times.every((t) => now - t >= AI_LIMITS.windowMs)) hits.delete(k);
-    }
-  }
-
-  return { allowed: true, retryAfterSec: 0 };
+export function rateLimit(key: string): RateLimitResult {
+  const perClient = perClientLimiter.check(key);
+  if (!perClient.allowed) return perClient;
+  return globalLimiter.check("global");
 }

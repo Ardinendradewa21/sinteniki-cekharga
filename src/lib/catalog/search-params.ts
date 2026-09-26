@@ -42,12 +42,19 @@ export const SORT_LABELS: Record<SortOption, string> = {
 /** Nama parameter URL. Satu tempat, supaya form dan parser tidak berbeda. */
 export const PARAM = {
   query: "q",
+  /**
+   * Parameter lama dari masa dua search bar. Tidak lagi ditulis, tetapi tetap
+   * dibaca dan digabung ke `q` supaya tautan lama yang sudah dibagikan tetap
+   * membawa pencariannya.
+   */
+  legacyNeeds: "kebutuhan",
   brand: "merek",
   ram: "ram",
   storage: "penyimpanan",
   minPrice: "harga_min",
   maxPrice: "harga_max",
   sort: "urut",
+  page: "hal",
 } as const;
 
 /** Bentuk mentah dari Next.js: satu nilai, banyak nilai, atau tidak ada. */
@@ -58,12 +65,12 @@ function toList(value: string | string[] | undefined): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
-const optionalPositiveInt = z.coerce
-  .number()
-  .int()
-  .nonnegative()
-  .nullable()
-  .catch(null);
+const optionalPositiveInt = z.preprocess(
+  // Form GET mengirim input kosong sebagai "". Number("") = 0, tetapi harga
+  // yang tidak diisi berarti tanpa batas, bukan batas Rp0.
+  (value) => typeof value === "string" && value.trim() === "" ? null : value,
+  z.coerce.number().int().nonnegative().nullable().catch(null)
+);
 
 const intList = z
   .array(z.coerce.number().int().positive().catch(0))
@@ -72,7 +79,8 @@ const intList = z
   .catch([]);
 
 const catalogQuerySchema = z.object({
-  query: z.string().trim().max(80).catch(""),
+  /** Satu kolom pencarian: nama, merek, spesifikasi, dan kalimat kebutuhan. */
+  query: z.string().trim().max(160).catch(""),
   brands: z
     .array(z.string().trim().min(1).catch(""))
     .transform((values) => [...new Set(values.filter(Boolean))])
@@ -82,19 +90,26 @@ const catalogQuerySchema = z.object({
   minPrice: optionalPositiveInt,
   maxPrice: optionalPositiveInt,
   sort: z.enum(SORT_OPTIONS).catch("relevance"),
+  /** Nomor halaman hasil, mulai 1. Nilai rusak jatuh ke halaman pertama. */
+  page: z.coerce.number().int().positive().max(10_000).catch(1),
 });
 
 export type CatalogQuery = z.infer<typeof catalogQuerySchema>;
 
 export function parseCatalogQuery(raw: RawSearchParams): CatalogQuery {
   const parsed = catalogQuerySchema.parse({
-    query: toList(raw[PARAM.query])[0],
+    query: [toList(raw[PARAM.query])[0], toList(raw[PARAM.legacyNeeds])[0]]
+      .map((value) => value?.trim())
+      .filter(Boolean)
+      .join(" ")
+      .slice(0, 160),
     brands: toList(raw[PARAM.brand]),
     ram: toList(raw[PARAM.ram]),
     storage: toList(raw[PARAM.storage]),
     minPrice: toList(raw[PARAM.minPrice])[0],
     maxPrice: toList(raw[PARAM.maxPrice])[0],
     sort: toList(raw[PARAM.sort])[0],
+    page: toList(raw[PARAM.page])[0] ?? 1,
   });
 
   // Rentang terbalik (min > max) tidak akan pernah cocok apa pun dan menghasilkan
@@ -138,7 +153,9 @@ export function buildCatalogHref(
   query: CatalogQuery,
   overrides: Partial<CatalogQuery> = {}
 ): string {
-  const next = { ...query, ...overrides };
+  // Mengubah filter apa pun membuat daftar hasilnya berbeda, jadi halaman
+  // kembali ke 1 kecuali pemanggil memang meminta halaman tertentu.
+  const next = { ...query, page: 1, ...overrides };
   const params = new URLSearchParams();
 
   if (next.query) params.set(PARAM.query, next.query);
@@ -151,6 +168,7 @@ export function buildCatalogHref(
   if (next.maxPrice !== null) params.set(PARAM.maxPrice, String(next.maxPrice));
   // Urutan default tidak perlu ditulis; URL-nya jadi lebih pendek.
   if (next.sort !== "relevance") params.set(PARAM.sort, next.sort);
+  if (next.page > 1) params.set(PARAM.page, String(next.page));
 
   const search = params.toString();
   return search ? `/products?${search}` : "/products";
@@ -165,4 +183,5 @@ export const EMPTY_CATALOG_QUERY: CatalogQuery = {
   minPrice: null,
   maxPrice: null,
   sort: "relevance",
+  page: 1,
 };

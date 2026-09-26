@@ -67,9 +67,8 @@ export function Hero({
             </h1>
 
             <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
-              CekHarga menyatukan spesifikasi, ringkasan pengalaman reviewer, dan
-              penawaran yang tercatat. Kamu bisa melihat apa yang didapat di
-              setiap harga, dan apa yang dikorbankan.
+              Spesifikasi, pengalaman reviewer, dan harga tercatat dalam satu
+              tempat. Lihat apa yang kamu dapat, dan apa yang dikorbankan.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">

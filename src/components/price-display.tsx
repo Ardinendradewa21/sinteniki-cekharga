@@ -10,9 +10,12 @@ import { cn } from "@/lib/utils";
  * tempat, apa pun bentuk tampilannya:
  *
  * - "Mulai dari" selalu menyebut varian acuannya (butir 3).
- * - Tanpa penawaran layak → "Harga belum tersedia" (butir 5).
- * - Harga kedaluwarsa TIDAK pernah tampil sebagai harga aktif; hanya muncul
- *   terpisah sebagai "Harga terakhir tercatat" (butir 5).
+ * - Tanpa harga tercatat sama sekali → "Harga belum tersedia" (butir 5).
+ * - Harga yang sudah melewati batas freshness TETAP ditampilkan sebagai angka
+ *   utama (keputusan pemilik produk, 2026-09-21), tetapi selalu berlabel
+ *   "Harga terakhir tercatat" beserta waktunya dan TIDAK pernah berlabel
+ *   "Mulai dari". Ini tetap sesuai butir 5: harga lama boleh tampil sebagai
+ *   "Harga terakhir tercatat", dan filter budget tetap tidak memakainya.
  * - Yang ditampilkan adalah waktu pemeriksaan BERHASIL terakhir (butir 6).
  *
  * `now` selalu diberikan pemanggil supaya label waktunya deterministik.
@@ -58,28 +61,40 @@ export function PriceDisplay({
     );
   }
 
+  if (price.status === "stale") {
+    return (
+      <div className={cn("flex flex-col gap-1", className)}>
+        <span className="text-xs text-muted-foreground">
+          Harga terakhir tercatat
+        </span>
+        <span className="tabular text-2xl font-extrabold tracking-tight text-foreground">
+          {formatIdr(price.priceIdr)}
+        </span>
+        {referenceVariant ? (
+          <span className="text-xs text-muted-foreground">
+            Untuk varian {referenceVariant}
+          </span>
+        ) : null}
+        <span className="mt-1 inline-flex items-center gap-1.5 text-xs text-warning">
+          <HugeiconsIcon icon={Clock01Icon} size={14} strokeWidth={2} aria-hidden />
+          Tercatat {formatCheckedAt(price.observedAt, now)} · belum diperiksa ulang
+        </span>
+        <span className="text-xs text-muted-foreground">
+          Harga bisa sudah berubah. Cek harga akhir di marketplace sebelum membeli.
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       <span className="text-base font-semibold text-foreground">
         Harga belum tersedia
       </span>
-      {price.status === "stale" ? (
-        <>
-          <span className="text-xs text-muted-foreground">
-            Tidak ada penawaran yang cukup baru untuk dijadikan harga aktif.
-          </span>
-          <span className="mt-1 inline-flex items-center gap-1.5 text-xs text-warning">
-            <HugeiconsIcon icon={Clock01Icon} size={14} strokeWidth={2} aria-hidden />
-            Harga terakhir tercatat {formatIdr(price.priceIdr)} ·{" "}
-            {formatCheckedAt(price.observedAt, now)}
-          </span>
-        </>
-      ) : (
-        <span className="text-xs text-muted-foreground">
-          Belum ada penawaran tercatat yang memenuhi syarat dalam cakupan
-          CekHarga.
-        </span>
-      )}
+      <span className="text-xs text-muted-foreground">
+        Belum ada penawaran tercatat yang memenuhi syarat dalam cakupan
+        CekHarga.
+      </span>
     </div>
   );
 }
@@ -92,7 +107,9 @@ export function CardPriceValue({
   price: StartingPriceResolution;
   className?: string;
 }) {
-  if (price.status === "available") {
+  // Harga terakhir tercatat tetap tampil sebagai angka; statusnya dijelaskan
+  // `CardPriceMeta` tepat di bawahnya, jadi keduanya wajib dipasang bersama.
+  if (price.status === "available" || price.status === "stale") {
     return (
       <span
         className={cn(
@@ -146,10 +163,11 @@ export function CardPriceMeta({
 
   if (price.status === "stale") {
     return (
-      <p className={cn("text-xs text-warning", className)}>
-        Harga terakhir tercatat {formatIdr(price.priceIdr)}
-        {referenceVariant ? ` untuk varian ${referenceVariant}` : ""} ·{" "}
-        {formatCheckedAt(price.observedAt, now)}
+      <p className={cn("text-xs text-muted-foreground", className)}>
+        {referenceVariant ? <>Varian {referenceVariant} · </> : null}
+        <span className="text-warning">
+          terakhir tercatat {formatCheckedAt(price.observedAt, now)}
+        </span>
       </p>
     );
   }

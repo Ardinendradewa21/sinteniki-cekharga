@@ -1,12 +1,14 @@
 import { HugeiconsIcon } from "@hugeicons/react";
-import { LinkSquare01Icon } from "@hugeicons/core-free-icons";
+import { ArrowUpRight01Icon, Clock01Icon } from "@hugeicons/core-free-icons";
 
+import { MarketplaceLogo, marketplaceKey } from "@/components/product/marketplace-logo";
 import { formatCheckedAt, formatIdr } from "@/lib/catalog/pricing";
 import type { ProductDetailOffer } from "@/lib/catalog/queries";
 import { cn } from "@/lib/utils";
 
 /**
- * Daftar penawaran untuk varian terpilih (PRD FR-05).
+ * Daftar penawaran untuk varian terpilih (PRD FR-05), sebagai kartu baris
+ * ringkas: logo toko, nama, waktu pemeriksaan, harga, lalu tombol ke toko.
  *
  * Aturan yang ditegakkan:
  *
@@ -14,19 +16,116 @@ import { cn } from "@/lib/utils";
  *   tidak pernah bisa terbaca sebagai basis harga.
  * - Listing yang habis atau ambigu TETAP ditampilkan supaya pengguna tahu
  *   keberadaannya, tapi diberi label statusnya dan tidak pernah ditandai sebagai
- *   dasar harga.
+ *   dasar harga. Status "aktif" tidak diberi label karena itu keadaan normal.
  * - Harga kedaluwarsa dibedakan dari harga yang masih baru.
  * - Badge penjual terverifikasi hanya muncul kalau datanya memang menyatakan
- *   verifikasi. Tidak ada badge yang diberikan berdasarkan tebakan.
+ *   verifikasi. Logo toko bukan tanda verifikasi atau kemitraan.
  * - Tidak ada klaim bahwa CekHarga memproses transaksi.
  */
 
-const STATUS_LABEL: Record<ProductDetailOffer["listingStatus"], string> = {
-  active: "Listing aktif",
+const STATUS_LABEL: Record<Exclude<ProductDetailOffer["listingStatus"], "active">, string> = {
   "out-of-stock": "Stok habis",
   ambiguous: "Listing ambigu",
   inactive: "Tidak aktif",
 };
+
+function Chip({ tone, children }: { tone: "strong" | "warning" | "brand"; children: string }) {
+  return (
+    <span
+      className={cn(
+        "rounded-pill px-2 py-0.5 text-[11px] leading-4 font-semibold whitespace-nowrap",
+        tone === "strong" && "bg-foreground text-background",
+        tone === "warning" && "bg-warning-muted text-warning",
+        tone === "brand" && "bg-brand-muted text-brand"
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function OfferCard({ offer, now }: { offer: ProductDetailOffer; now: Date }) {
+  const isOfficialSite = marketplaceKey(offer.url, offer.store) === "official";
+  const showSeller =
+    offer.sellerName.trim().toLowerCase() !== offer.marketplace.trim().toLowerCase();
+  const inactive = offer.listingStatus !== "active";
+  const cta = isOfficialSite ? "Buka situs resmi" : `Buka di ${offer.marketplace}`;
+
+  return (
+    <li
+      className={cn(
+        "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 rounded-2xl border bg-card p-3 transition-colors duration-150 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:p-4",
+        offer.isPriceBasis && offer.isFreshPrice
+          ? "border-brand/50 ring-1 ring-brand/20"
+          : "border-border hover:border-border-strong"
+      )}
+    >
+      <MarketplaceLogo url={offer.url} store={offer.store} name={offer.marketplace} />
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="truncate text-sm font-bold text-foreground">{offer.marketplace}</p>
+          {offer.isPriceBasis ? (
+            /*
+              Penawaran basi memang sumber angka "harga terakhir tercatat",
+              tapi menyebutnya "dasar harga" akan terbaca seolah harganya masih
+              berlaku.
+            */
+            <Chip tone={offer.isFreshPrice ? "strong" : "warning"}>
+              {offer.isFreshPrice ? "Dasar harga" : "Harga terakhir tercatat"}
+            </Chip>
+          ) : null}
+          {offer.sellerVerified ? <Chip tone="brand">Penjual terverifikasi</Chip> : null}
+          {inactive ? (
+            <Chip tone="warning">
+              {STATUS_LABEL[offer.listingStatus as keyof typeof STATUS_LABEL]}
+            </Chip>
+          ) : null}
+        </div>
+        {showSeller ? (
+          <p className="truncate text-xs text-muted-foreground">{offer.sellerName}</p>
+        ) : null}
+        <p
+          className={cn(
+            "mt-0.5 flex items-center gap-1 text-xs font-medium",
+            offer.isFreshPrice ? "text-success" : "text-warning"
+          )}
+        >
+          <HugeiconsIcon icon={Clock01Icon} size={13} strokeWidth={2} aria-hidden />
+          {offer.checkedAt
+            ? `Diperiksa ${formatCheckedAt(offer.checkedAt, now)}${offer.isFreshPrice ? "" : ", sudah lama"}`
+            : "Belum pernah berhasil diperiksa"}
+        </p>
+      </div>
+
+      <div className="text-right">
+        <p
+          className={cn(
+            "tabular text-base font-extrabold tracking-tight sm:text-lg",
+            inactive || offer.priceIdr === null ? "text-muted-foreground" : "text-foreground"
+          )}
+        >
+          {offer.priceIdr === null ? "Belum tercatat" : formatIdr(offer.priceIdr)}
+        </p>
+        {offer.warranty ? (
+          <p className="max-w-40 truncate text-xs text-muted-foreground">{offer.warranty}</p>
+        ) : null}
+      </div>
+
+      <a
+        href={offer.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`${cta}${isOfficialSite ? ` (${offer.marketplace})` : ""}, membuka tab baru`}
+        className="col-span-3 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-pill bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:col-span-1"
+      >
+        <span className="sm:hidden">{cta}</span>
+        <span className="hidden sm:inline">Buka</span>
+        <HugeiconsIcon icon={ArrowUpRight01Icon} size={16} strokeWidth={2} aria-hidden />
+      </a>
+    </li>
+  );
+}
 
 export function OfferList({
   offers,
@@ -39,137 +138,37 @@ export function OfferList({
 }) {
   return (
     <section>
-      <h2 className="text-xl font-bold tracking-tight text-foreground">
-        Penawaran
-      </h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {variantLabel
-          ? `Penawaran yang tercatat untuk varian ${variantLabel}.`
-          : "Penawaran yang tercatat."}{" "}
-        Pembelian dan harga akhir mengikuti marketplace tujuan; CekHarga tidak
-        memproses transaksi.
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h2 className="text-xl font-bold tracking-tight text-foreground">
+          Penawaran
+          {offers.length > 0 ? (
+            <span className="ml-2 text-base font-semibold text-muted-foreground">
+              {offers.length}
+            </span>
+          ) : null}
+        </h2>
+        {variantLabel ? (
+          <p className="text-sm text-muted-foreground">Varian {variantLabel} · kondisi baru</p>
+        ) : null}
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Pembelian dan harga akhir mengikuti toko tujuan; CekHarga tidak memproses transaksi.
       </p>
 
       {offers.length === 0 ? (
-        <div className="mt-5 rounded-xl border border-border bg-card p-6">
+        <div className="mt-4 rounded-2xl border border-border bg-card p-5">
           <p className="text-sm font-semibold text-foreground">
             Belum ada penawaran tercatat untuk varian ini
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             Varian lain dari produk ini mungkin punya penawaran. Coba pilih
             varian yang berbeda di atas.
           </p>
         </div>
       ) : (
-        <ul className="mt-5 space-y-4">
+        <ul className="mt-4 grid gap-3 lg:grid-cols-2">
           {offers.map((offer) => (
-            <li
-              key={offer.id}
-              className={cn(
-                "rounded-xl border bg-card p-5",
-                offer.isPriceBasis ? "border-foreground" : "border-border"
-              )}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-foreground">
-                    {offer.marketplace}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {offer.sellerName}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {offer.isPriceBasis ? (
-                    /*
-                      Dibedakan supaya badge tidak bertabrakan dengan pernyataan
-                      harga di atas halaman. Penawaran basi memang sumber angka
-                      "harga terakhir tercatat", tapi menyebutnya "dasar harga"
-                      akan terbaca seolah harganya masih berlaku.
-                    */
-                    <span
-                      className={cn(
-                        "rounded-pill px-2.5 py-1 text-xs font-semibold",
-                        offer.isFreshPrice
-                          ? "bg-foreground text-background"
-                          : "bg-warning-muted text-warning"
-                      )}
-                    >
-                      {offer.isFreshPrice ? "Dasar harga" : "Harga terakhir tercatat"}
-                    </span>
-                  ) : null}
-                  {offer.sellerVerified ? (
-                    <span className="rounded-pill bg-brand-muted px-2.5 py-1 text-xs font-semibold text-brand">
-                      Penjual terverifikasi
-                    </span>
-                  ) : null}
-                  <span
-                    className={cn(
-                      "rounded-pill px-2.5 py-1 text-xs font-semibold",
-                      offer.listingStatus === "active"
-                        ? "bg-success-muted text-success"
-                        : "bg-warning-muted text-warning"
-                    )}
-                  >
-                    {STATUS_LABEL[offer.listingStatus]}
-                  </span>
-                </div>
-              </div>
-
-              <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-                <div className="flex justify-between gap-3 sm:block">
-                  <dt className="text-muted-foreground">Harga tercatat</dt>
-                  <dd className="tabular font-semibold text-foreground sm:mt-0.5">
-                    {offer.priceIdr === null
-                      ? "Belum tercatat"
-                      : formatIdr(offer.priceIdr)}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-3 sm:block">
-                  <dt className="text-muted-foreground">Pemeriksaan berhasil</dt>
-                  <dd
-                    className={cn(
-                      "font-medium sm:mt-0.5",
-                      offer.isFreshPrice ? "text-success" : "text-warning"
-                    )}
-                  >
-                    {offer.checkedAt
-                      ? `${formatCheckedAt(offer.checkedAt, now)}${offer.isFreshPrice ? "" : ", sudah lama"}`
-                      : "Belum pernah berhasil"}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-3 sm:block">
-                  <dt className="text-muted-foreground">Kondisi</dt>
-                  <dd className="font-medium text-foreground sm:mt-0.5">Baru</dd>
-                </div>
-                <div className="flex justify-between gap-3 sm:block">
-                  <dt className="text-muted-foreground">Garansi</dt>
-                  <dd className="font-medium text-foreground sm:mt-0.5">
-                    {offer.warranty ?? (
-                      <span className="font-normal text-muted-foreground italic">
-                        Belum diketahui
-                      </span>
-                    )}
-                  </dd>
-                </div>
-              </dl>
-
-              <a
-                href={offer.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-pill bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary/80"
-              >
-                Buka di {offer.marketplace}
-                <HugeiconsIcon
-                  icon={LinkSquare01Icon}
-                  size={16}
-                  strokeWidth={2}
-                  aria-hidden
-                />
-                <span className="sr-only">(membuka tab baru)</span>
-              </a>
-            </li>
+            <OfferCard key={offer.id} offer={offer} now={now} />
           ))}
         </ul>
       )}
