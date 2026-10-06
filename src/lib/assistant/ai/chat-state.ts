@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { ACTIVITIES, PRIORITIES, REQUIREMENTS } from "@/lib/assistant/needs";
-import type { Candidate } from "@/lib/assistant/recommend";
+import type { ResultView } from "@/lib/assistant/results";
 
 /**
  * Tipe dan konstanta percakapan yang dipakai bersama klien dan server.
@@ -29,6 +29,11 @@ export const collectedSchema = z.object({
   activities: z.array(z.enum(ACTIVITIES)),
   priority: z.enum(PRIORITIES).nullable(),
   requirements: z.array(z.enum(REQUIREMENTS)),
+  /** Merek yang disebut pengguna, apa adanya; dicocokkan ke katalog oleh kode. */
+  brands: z.array(z.string().min(1).max(30)).max(8),
+  /** true bila pengguna mewajibkan HANYA merek di atas. */
+  brandsOnly: z.boolean(),
+  avoidBrands: z.array(z.string().min(1).max(30)).max(8),
 });
 export type Collected = z.infer<typeof collectedSchema>;
 
@@ -38,15 +43,13 @@ export const EMPTY_COLLECTED: Collected = {
   activities: [],
   priority: null,
   requirements: [],
+  brands: [],
+  brandsOnly: false,
+  avoidBrands: [],
 };
 
-export type ChatResult = {
-  /** Kandidat nyata dari mesin deterministik, bukan karangan model. */
-  matches: Candidate[];
-  overBudget: Candidate[];
-  exclusions: { name: string; reason: string }[];
-  appliedHardRules: string[];
-};
+/** Kandidat nyata dari mesin deterministik, bukan karangan model. */
+export type ChatResult = ResultView;
 
 export type ChatState = {
   messages: ChatMessage[];

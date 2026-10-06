@@ -34,25 +34,56 @@ export const ACTIVITY_LABELS: Record<(typeof ACTIVITIES)[number], string> = {
   baterai: "Tahan lama tanpa mengisi",
 };
 
-export const REQUIREMENTS = ["garansi-resmi", "ram-8", "storage-256"] as const;
+/**
+ * Syarat wajib. Setiap nilai di sini harus bisa diperiksa dari data tercatat
+ * (varian atau spesifikasi) oleh `recommend()`, bukan dari tebakan model.
+ */
+export const REQUIREMENTS = [
+  "garansi-resmi",
+  "ram-8",
+  "storage-256",
+  "5g",
+  "nfc",
+  "tahan-air",
+  "jack-audio",
+  "telefoto",
+  "charging-cepat",
+] as const;
+export type Requirement = (typeof REQUIREMENTS)[number];
 
-export const REQUIREMENT_LABELS: Record<
-  (typeof REQUIREMENTS)[number],
-  string
-> = {
+export const REQUIREMENT_LABELS: Record<Requirement, string> = {
   "garansi-resmi": "Harus bergaransi resmi Indonesia",
   "ram-8": "RAM minimal 8 GB",
   "storage-256": "Penyimpanan minimal 256 GB",
+  "5g": "Harus mendukung 5G",
+  nfc: "Harus ada NFC",
+  "tahan-air": "Tahan air dan debu (IP67 atau lebih)",
+  "jack-audio": "Ada colokan audio 3,5 mm",
+  telefoto: "Ada lensa telefoto (zoom optik)",
+  "charging-cepat": "Pengisian cepat minimal 33 W",
 };
 
-export const PRIORITIES = ["harga", "baterai", "kamera", "performa"] as const;
+export const PRIORITIES = [
+  "harga",
+  "baterai",
+  "kamera",
+  "performa",
+  "ringan",
+  "layar",
+] as const;
 
 export const PRIORITY_LABELS: Record<(typeof PRIORITIES)[number], string> = {
   harga: "Harga semurah mungkin",
   baterai: "Daya tahan baterai",
   kamera: "Kemampuan kamera",
   performa: "Performa dan kelancaran",
+  ringan: "Bodi ringan",
+  layar: "Layar besar dan mulus",
 };
+
+/** Batas panjang dan jumlah nama merek dari pengguna (masukan bebas). */
+const BRAND_MAX_CHARS = 30;
+const BRAND_MAX_COUNT = 8;
 
 export const NEEDS_PARAM = {
   budget: "budget",
@@ -61,10 +92,47 @@ export const NEEDS_PARAM = {
   requirements: "wajib",
   requirementsAnswered: "wajib_jawab",
   priority: "prioritas",
+  /** Merek yang diinginkan. */
+  brands: "merek",
+  /** `ya` = hanya merek di atas (syarat wajib), bukan sekadar preferensi. */
+  brandsOnly: "merek_saja",
+  /** Merek yang dihindari; selalu syarat wajib. */
+  avoidBrands: "hindari",
+  /**
+   * Penanda jalur formulir. Tanpa ini, saat mode percakapan aktif, setiap
+   * langkah formulir kembali ke tampilan chat dan jawabannya hilang.
+   */
+  mode: "tanya",
 } as const;
 
 const toList = (value: string | string[] | undefined): string[] =>
   value === undefined ? [] : Array.isArray(value) ? value : [value];
+
+/** Daftar nilai enum dari URL: yang tidak dikenal dibuang, duplikat dihapus. */
+function knownValues<const T extends readonly [string, ...string[]]>(allowed: T) {
+  const allowedSet = new Set<string>(allowed);
+  return z
+    .array(z.string())
+    .transform((values) => [...new Set(values.filter((value) => allowedSet.has(value)))] as T[number][])
+    .catch([]);
+}
+
+/** Nama merek bebas dari pengguna: dipangkas, tanpa duplikat (abaikan huruf besar). */
+const brandList = z
+  .array(z.string())
+  .transform((values) => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const raw of values) {
+      const brand = raw.trim().slice(0, BRAND_MAX_CHARS);
+      if (brand && !seen.has(brand.toLowerCase())) {
+        seen.add(brand.toLowerCase());
+        out.push(brand);
+      }
+    }
+    return out.slice(0, BRAND_MAX_COUNT);
+  })
+  .catch([]);
 
 const needsSchema = z.object({
   /** `null` = belum ditanyakan atau sengaja dilewati. */
@@ -79,14 +147,10 @@ const needsSchema = z.object({
     .nullable()
     .catch(null)
     .transform((value) => (value === null ? null : value === "ya")),
-  activities: z
-    .array(z.enum(ACTIVITIES).catch("sosial-media"))
-    .transform((values) => [...new Set(values)])
-    .catch([]),
-  requirements: z
-    .array(z.enum(REQUIREMENTS).catch("garansi-resmi"))
-    .transform((values) => [...new Set(values)])
-    .catch([]),
+  activities: knownValues(ACTIVITIES),
+  // Nilai tak dikenal DIBUANG, bukan diganti nilai lain: URL rusak tidak
+  // boleh diam-diam menambahkan syarat wajib yang tidak pernah dipilih.
+  requirements: knownValues(REQUIREMENTS),
   /**
    * Dibutuhkan karena daftar syarat khusus yang KOSONG punya dua arti berbeda:
    * belum ditanyakan, atau sudah ditanyakan dan jawabannya memang tidak ada.
@@ -99,6 +163,13 @@ const needsSchema = z.object({
     .catch(null)
     .transform((value) => value === "ya"),
   priority: z.enum(PRIORITIES).nullable().catch(null),
+  brands: brandList,
+  brandsOnly: z
+    .enum(["ya"])
+    .nullable()
+    .catch(null)
+    .transform((value) => value === "ya"),
+  avoidBrands: brandList,
 });
 
 export type UserNeeds = z.infer<typeof needsSchema>;
@@ -113,6 +184,9 @@ export function parseNeeds(
     requirements: toList(raw[NEEDS_PARAM.requirements]),
     requirementsAnswered: toList(raw[NEEDS_PARAM.requirementsAnswered])[0],
     priority: toList(raw[NEEDS_PARAM.priority])[0],
+    brands: toList(raw[NEEDS_PARAM.brands]),
+    brandsOnly: toList(raw[NEEDS_PARAM.brandsOnly])[0],
+    avoidBrands: toList(raw[NEEDS_PARAM.avoidBrands]),
   });
 }
 
@@ -149,7 +223,11 @@ export function buildNeedsHref(
   overrides: Partial<UserNeeds> = {}
 ): string {
   const next = { ...needs, ...overrides };
-  const parts: string[] = [];
+  // Selalu jalur formulir: tautan ini dipakai untuk berbagi hasil dan untuk
+  // berpindah dari chat ke formulir, jadi harus membuka tampilan yang sama
+  // walau mode percakapan sedang aktif.
+  const parts: string[] = [`${NEEDS_PARAM.mode}=form`];
+  const enc = encodeURIComponent;
 
   if (next.budgetIdr !== null) {
     parts.push(`${NEEDS_PARAM.budget}=${next.budgetIdr}`);
@@ -171,6 +249,9 @@ export function buildNeedsHref(
   if (next.priority !== null) {
     parts.push(`${NEEDS_PARAM.priority}=${next.priority}`);
   }
+  for (const brand of next.brands) parts.push(`${NEEDS_PARAM.brands}=${enc(brand)}`);
+  if (next.brandsOnly && next.brands.length > 0) parts.push(`${NEEDS_PARAM.brandsOnly}=ya`);
+  for (const brand of next.avoidBrands) parts.push(`${NEEDS_PARAM.avoidBrands}=${enc(brand)}`);
 
-  return parts.length > 0 ? `/assistant?${parts.join("&")}` : "/assistant";
+  return `/assistant?${parts.join("&")}`;
 }

@@ -3,9 +3,14 @@ import type { Metadata } from "next";
 
 import { AssistantChat } from "@/components/assistant/chat";
 import { Consultation } from "@/components/assistant/consultation";
+import { AssistantResults } from "@/components/assistant/results";
+import { ShareResultButton } from "@/components/assistant/share-result-button";
 import { Container } from "@/components/layout/container";
 import { hasAiCredentials } from "@/lib/assistant/ai/client";
 import { isDemoData } from "@/lib/catalog/queries";
+import { loadOrNull } from "@/lib/catalog/load";
+import { recommend } from "@/lib/assistant/recommend";
+import { toResultView } from "@/lib/assistant/results";
 import {
   buildNeedsHref,
   nextStep,
@@ -77,7 +82,7 @@ export default async function AssistantPage({
  * Seluruhnya Server Component dan berjalan tanpa JavaScript, jadi ini juga yang
  * menjaga halaman tetap berguna kalau model bahasa sedang tidak tersedia.
  */
-function FormFallback({
+async function FormFallback({
   params,
   aiReady,
 }: {
@@ -94,7 +99,16 @@ function FormFallback({
     activities: clear({ activities: [] }),
     priority: clear({ priority: null }),
     requirements: clear({ requirements: [], requirementsAnswered: false }),
+    brands: clear({ brands: [], brandsOnly: false }),
+    avoidBrands: clear({ avoidBrands: [] }),
   };
+
+  // Langkah terakhir: hitung kandidat di server. Jalur ini juga yang dibuka
+  // tautan "salin hasil", jadi hasilnya harus identik dengan jalur chat.
+  const result =
+    step === "done"
+      ? await loadOrNull(async () => toResultView(await recommend(new Date(), needs), needs))
+      : null;
 
   return (
     <Container className="py-10 md:py-14">
@@ -110,6 +124,21 @@ function FormFallback({
 
       <div className="mt-10">
         <Consultation needs={needs} step={step} answeredHrefs={answeredHrefs} />
+        {step === "done" ? (
+          <div className="mx-auto w-full max-w-2xl">
+            {result ? (
+              <AssistantResults
+                result={result}
+                newConversationHref="/assistant?tanya=form"
+                extraActions={<ShareResultButton href={result.shareHref} />}
+              />
+            ) : (
+              <p role="alert" className="mt-8 text-center text-sm text-warning">
+                Data katalog sedang tidak bisa dibaca. Coba muat ulang sebentar lagi.
+              </p>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {aiReady ? (

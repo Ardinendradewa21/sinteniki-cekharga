@@ -13,6 +13,7 @@ import {
 import { clientIp } from "@/lib/rate-limit";
 import { recommend } from "@/lib/assistant/recommend";
 import { parseNeeds } from "@/lib/assistant/needs";
+import { toResultView } from "@/lib/assistant/results";
 
 /**
  * Satu giliran percakapan (PRD FR-06).
@@ -137,14 +138,10 @@ async function cariKandidat(collected: ChatState["collected"]) {
     prioritas: collected.priority ?? undefined,
     wajib: collected.requirements,
     wajib_jawab: "ya",
+    merek: collected.brands,
+    merek_saja: collected.brandsOnly ? "ya" : undefined,
+    hindari: collected.avoidBrands,
   });
 
-  const result = await recommend(new Date(), needs);
-
-  return {
-    matches: result.matches,
-    overBudget: result.overBudget,
-    exclusions: result.exclusions,
-    appliedHardRules: result.appliedHardRules,
-  };
+  return toResultView(await recommend(new Date(), needs), needs);
 }

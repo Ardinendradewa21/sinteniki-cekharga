@@ -1,15 +1,16 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AiMagicIcon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 
-import { RecommendationCard } from "@/components/assistant/recommendation-card";
+import { AssistantResults } from "@/components/assistant/results";
+import { ShareResultButton } from "@/components/assistant/share-result-button";
 import { Button } from "@/components/ui/button";
 import { sendChatMessage } from "@/lib/assistant/ai/chat-actions";
 import { CHAT_START, type ChatState } from "@/lib/assistant/ai/chat-state";
 import { formatIdr } from "@/lib/catalog/pricing";
+import { ACTIVITY_LABELS, PRIORITY_LABELS, REQUIREMENT_LABELS } from "@/lib/assistant/needs";
 
 /**
  * Percakapan asisten (PRD FR-06).
@@ -228,7 +229,13 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
       ) : null}
 
       {/* Hasil pencarian: kartu dari mesin deterministik */}
-      {state.result ? <HasilPencarian result={state.result} /> : null}
+      {state.result ? (
+        <AssistantResults
+          result={state.result}
+          newConversationHref="/assistant"
+          extraActions={<ShareResultButton href={state.result.shareHref} />}
+        />
+      ) : null}
 
       <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
         {isDemo ? (
@@ -244,86 +251,6 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
   );
 }
 
-function HasilPencarian({ result }: { result: NonNullable<ChatState["result"]> }) {
-  const now = new Date();
-
-  return (
-    <div className="mt-8 border-t border-border pt-8">
-      {result.appliedHardRules.length > 0 ? (
-        <div className="mb-6 rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">
-            Syarat wajib yang dipakai menyaring
-          </h2>
-          <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-            {result.appliedHardRules.map((r) => (
-              <li key={r}>{r}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {result.matches.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h2 className="text-base font-bold text-foreground">
-            Tidak ada kandidat yang memenuhi semua syaratmu
-          </h2>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
-            Katalog versi awal ini masih kecil. Saya tidak melonggarkan syaratmu
-            diam-diam supaya daftar ini terisi.
-          </p>
-          {result.exclusions.length > 0 ? (
-            <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
-              {result.exclusions.slice(0, 6).map((e) => (
-                <li key={e.name}>
-                  <span className="font-medium text-foreground">{e.name}</span>: {e.reason}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ) : (
-        <>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            {result.matches.length === 1
-              ? "Satu kandidat yang memenuhi syaratmu"
-              : `${result.matches.length} kandidat yang memenuhi syaratmu`}
-          </h2>
-          <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
-            Urutan di bawah bukan peringkat kualitas.
-          </p>
-          <div className="mt-5 space-y-4">
-            {result.matches.map((c) => (
-              <RecommendationCard key={c.slug} candidate={c} now={now} />
-            ))}
-          </div>
-        </>
-      )}
-
-      {result.overBudget.length > 0 ? (
-        <div className="mt-8">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            Di luar budget, kalau mau menimbang ulang
-          </h2>
-          <div className="mt-5 space-y-4">
-            {result.overBudget.map((c) => (
-              <RecommendationCard key={c.slug} candidate={c} now={now} />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Button asChild variant="outline">
-          <Link href="/assistant">Mulai percakapan baru</Link>
-        </Button>
-        <Button asChild variant="ghost">
-          <Link href="/products">Telusuri katalog sendiri</Link>
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 /** Ringkasan kebutuhan yang sudah tertangkap, dalam bahasa manusia. */
 function ringkasKebutuhan(state: ChatState): string[] {
   const c = state.collected;
@@ -333,28 +260,13 @@ function ringkasKebutuhan(state: ChatState): string[] {
   if (c.budgetIsHard !== null) {
     chips.push(c.budgetIsHard ? "Batas keras" : "Budget perkiraan");
   }
-  for (const a of c.activities) chips.push(ACTIVITY_TEXT[a] ?? a);
-  if (c.priority) chips.push(`Utamakan ${PRIORITY_TEXT[c.priority] ?? c.priority}`);
-  for (const r of c.requirements) chips.push(REQUIREMENT_TEXT[r] ?? r);
+  for (const a of c.activities) chips.push(ACTIVITY_LABELS[a]);
+  if (c.priority) chips.push(`Utamakan ${PRIORITY_LABELS[c.priority].toLowerCase()}`);
+  for (const r of c.requirements) chips.push(REQUIREMENT_LABELS[r]);
+  if (c.brands.length > 0) {
+    chips.push(`${c.brandsOnly ? "Hanya" : "Suka"} ${c.brands.join(", ")}`);
+  }
+  if (c.avoidBrands.length > 0) chips.push(`Bukan ${c.avoidBrands.join(", ")}`);
 
   return chips;
 }
-
-const ACTIVITY_TEXT: Record<string, string> = {
-  "sosial-media": "Media sosial dan pesan",
-  foto: "Foto dan video",
-  game: "Main game",
-  kerja: "Kerja dan multitasking",
-  baterai: "Tahan lama tanpa mengisi",
-};
-const PRIORITY_TEXT: Record<string, string> = {
-  harga: "harga semurah mungkin",
-  baterai: "daya tahan baterai",
-  kamera: "kemampuan kamera",
-  performa: "performa dan kelancaran",
-};
-const REQUIREMENT_TEXT: Record<string, string> = {
-  "garansi-resmi": "Harus garansi resmi",
-  "ram-8": "RAM minimal 8 GB",
-  "storage-256": "Penyimpanan minimal 256 GB",
-};

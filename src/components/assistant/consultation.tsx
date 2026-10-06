@@ -45,7 +45,9 @@ function PreservedFields({
   needs: UserNeeds;
   omit?: (keyof UserNeeds)[];
 }) {
-  const fields: { name: string; value: string }[] = [];
+  // Penanda jalur formulir: tanpa ini, saat mode percakapan aktif, langkah
+  // berikutnya terbuka sebagai chat dan seluruh jawaban formulir hilang.
+  const fields: { name: string; value: string }[] = [{ name: NEEDS_PARAM.mode, value: "form" }];
 
   if (needs.budgetIdr !== null && !omit.includes("budgetIdr")) {
     fields.push({ name: NEEDS_PARAM.budget, value: String(needs.budgetIdr) });
@@ -72,6 +74,11 @@ function PreservedFields({
   if (needs.priority !== null && !omit.includes("priority")) {
     fields.push({ name: NEEDS_PARAM.priority, value: needs.priority });
   }
+  // Merek tidak ditanyakan di formulir, tetapi bisa datang dari tautan yang
+  // dibagikan atau dari chat. Dibawa terus supaya tidak hilang diam-diam.
+  for (const brand of needs.brands) fields.push({ name: NEEDS_PARAM.brands, value: brand });
+  if (needs.brandsOnly) fields.push({ name: NEEDS_PARAM.brandsOnly, value: "ya" });
+  for (const brand of needs.avoidBrands) fields.push({ name: NEEDS_PARAM.avoidBrands, value: brand });
 
   return (
     <>
@@ -101,7 +108,7 @@ function AnsweredChips({
     chips.push({
       key: "budget",
       text: `Budget ${formatIdr(needs.budgetIdr)}`,
-      href: answeredHrefs.budgetIdr ?? "/assistant",
+      href: answeredHrefs.budgetIdr ?? "/assistant?tanya=form",
     });
   }
   if (needs.budgetIsHard !== null) {
@@ -135,6 +142,21 @@ function AnsweredChips({
               .map((requirement) => REQUIREMENT_LABELS[requirement])
               .join(", "),
       href: answeredHrefs.requirements ?? "/assistant",
+    });
+  }
+
+  if (needs.brands.length > 0) {
+    chips.push({
+      key: "brands",
+      text: `${needs.brandsOnly ? "Hanya" : "Suka"} ${needs.brands.join(", ")}`,
+      href: answeredHrefs.brands ?? "/assistant?tanya=form",
+    });
+  }
+  if (needs.avoidBrands.length > 0) {
+    chips.push({
+      key: "avoid-brands",
+      text: `Bukan ${needs.avoidBrands.join(", ")}`,
+      href: answeredHrefs.avoidBrands ?? "/assistant?tanya=form",
     });
   }
 

@@ -32,6 +32,12 @@ export const PRICING_POLICY = {
   currency: "IDR",
   /** Versi awal hanya kondisi baru (PRD §3). */
   allowedConditions: ["new"],
+  /**
+   * Umur maksimum harga lama (melewati freshness) yang masih boleh dipakai
+   * asisten untuk grup terpisah "harga perlu dicek ulang". Grup ini tidak
+   * pernah disebut memenuhi syarat budget; tanggal pemeriksaannya selalu tampil.
+   */
+  assistantStaleWindowDays: 14,
 } as const;
 
 export const FRESHNESS_WINDOW_MS =

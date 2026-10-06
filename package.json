@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:assistant": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/assistant.test.ts",
+    "test:import": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/import.test.ts"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.3.0",
