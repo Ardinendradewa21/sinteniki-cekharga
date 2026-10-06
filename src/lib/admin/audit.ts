@@ -29,7 +29,8 @@ export async function recordAudit(
     .database.from("admin_audit")
     .insert([
       {
-        actor_id: admin.userId,
+        // Pekerjaan terjadwal tidak punya akun; emailnya menjadi label pelaku.
+        actor_id: admin.userId || null,
         actor_email: admin.email,
         operation,
         object_type: objectType,

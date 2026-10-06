@@ -11,11 +11,11 @@ import {
   getImportQuality,
   listAdminProducts,
   listRecentAudit,
-  listRecentImports,
 } from "@/lib/admin/queries";
 import { requireAdmin } from "@/lib/auth/dal";
 import { checkBackendHealth } from "@/lib/backend/health";
 import { getDataSourceMode, PRICING_POLICY } from "@/lib/config";
+import { listBatches } from "@/lib/import/batches";
 
 export const metadata: Metadata = {
   title: "Dashboard Admin",
@@ -24,16 +24,46 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
-  // Hak akses diperiksa sebelum data admin dibaca.
-  await requireAdmin();
+/**
+ * Beranda staf non-admin. Data katalog dan impor khusus peran admin, jadi staf
+ * lain (sales, adops, finance, legal) hanya melihat modul yang menjadi
+ * tugasnya. Halaman yang menolak akses mengarahkan ke sini dengan
+ * `?alasan=akses-ditolak`, jadi pesannya juga ditampilkan di sini.
+ */
+function StaffHome({ denied }: { denied: boolean }) {
+  return (
+    <Container className="py-6 sm:py-8 lg:py-10">
+      <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Dashboard</h1>
+      {denied ? (
+        <p role="alert" className="mt-4 max-w-prose rounded-xl border border-warning/40 bg-warning-muted px-4 py-3 text-sm text-foreground">
+          Halaman tadi khusus peran admin. Hubungi admin bila Anda membutuhkan aksesnya.
+        </p>
+      ) : null}
+      <p className="mt-4 max-w-prose text-sm leading-relaxed text-muted-foreground">
+        Data katalog, impor, dan tarik otomatis dikelola peran admin. Modul yang tersedia untuk Anda:
+      </p>
+      <Button asChild className="mt-4">
+        <Link href="/admin/iklan">Buka modul Iklan</Link>
+      </Button>
+    </Container>
+  );
+}
+
+export default async function AdminPage(props: PageProps<"/admin">) {
+  // Hak akses diperiksa sebelum data admin dibaca. Semua staf boleh masuk ke
+  // halaman ini, tetapi data katalog hanya untuk peran admin.
+  const staff = await requireAdmin();
+  if (staff.role !== "admin") {
+    const { alasan } = await props.searchParams;
+    return <StaffHome denied={alasan === "akses-ditolak"} />;
+  }
   const now = new Date();
   const importQualityPromise = getImportQuality(now).catch(() => null);
   const [health, products, audit, imports] = await Promise.all([
     checkBackendHealth(),
     listAdminProducts(now),
     listRecentAudit(10),
-    listRecentImports(6),
+    listBatches(6, { excludeScheduled: true }),
   ]);
   // Panel kualitas impor bersifat pelengkap: gagal dibaca tidak menjatuhkan dasbor.
   const importQuality = await importQualityPromise;

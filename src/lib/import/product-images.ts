@@ -8,7 +8,7 @@ import type { CsvRow } from "@/lib/import/csv-parser";
 import { removePlainBackground } from "@/lib/import/image-matte";
 import { isImageUsageBasis, type ImageRights } from "@/lib/import/image-rights";
 
-const PRODUCT_IMAGE_BUCKET = "product-images";
+export const PRODUCT_IMAGE_BUCKET = "product-images";
 /** Batas foto per produk (foto utama + foto listing tiap warna). */
 export const MAX_GALLERY_PHOTOS = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -16,6 +16,12 @@ const MAX_OPTIMIZED_IMAGE_BYTES = 2 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 1_200;
 const DOWNLOAD_TIMEOUT_MS = 15_000;
+/**
+ * Batas waktu pemrosesan satu tahap sharp (libvips), dihitung sejak gambar
+ * dibuka. Gambar yang sengaja dibuat berat tidak boleh menahan worker foto
+ * sampai batas waktu fungsi serverless.
+ */
+const SHARP_TIMEOUT_SECONDS = 20;
 const MAX_REDIRECTS = 3;
 const WEBP_QUALITY = 80;
 const WEBP_FALLBACK_QUALITY = 68;
@@ -256,6 +262,7 @@ async function prepareRaster(bytes: Uint8Array): Promise<Raster> {
     })
     .ensureAlpha()
     .raw()
+    .timeout({ seconds: SHARP_TIMEOUT_SECONDS })
     .toBuffer({ resolveWithObject: true });
 
   const pixels = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
@@ -268,6 +275,7 @@ async function encodeWebp(raster: Raster, quality: number) {
     raw: { width: raster.width, height: raster.height, channels: 4 },
   })
     .webp({ quality, alphaQuality: 90, effort: 4, smartSubsample: true })
+    .timeout({ seconds: SHARP_TIMEOUT_SECONDS })
     .toBuffer({ resolveWithObject: true });
 }
 
@@ -343,6 +351,7 @@ async function storeImage(
   const bucket = getInsforgeAdminClient().storage.from(PRODUCT_IMAGE_BUCKET);
   const uploaded = await bucket.upload(storageKey, optimized.blob);
   if (uploaded.error || !uploaded.data) {
+    console.error("[foto] unggah ke Storage gagal:", storageKey, uploaded.error);
     return { ok: false, reason: "Gambar gagal disimpan ke Storage." };
   }
 
@@ -383,7 +392,8 @@ async function saveAssetRow(
   rights: ImageRights,
   retrievedAt: string,
   stored: { key: string; publicUrl: string },
-  existing: PhotoRow | undefined
+  existing: PhotoRow | undefined,
+  batchId: string | null
 ): Promise<ProductImageImportResult> {
   const db = getInsforgeAdminClient().database;
   const payload = {
@@ -413,7 +423,9 @@ async function saveAssetRow(
     return { ok: true, outcome: "updated" };
   }
 
-  const inserted = await db.from("product_assets").insert([payload]);
+  // Hanya foto yang DIBUAT diberi tanda batch: undo boleh menghapusnya. Foto
+  // yang diganti di tempat tidak ditandai, karena isi lamanya sudah hilang.
+  const inserted = await db.from("product_assets").insert([{ ...payload, created_by_batch_id: batchId }]);
   if (inserted.error) {
     await removeStoredImage(stored.key);
     return { ok: false, reason: "Gambar tersimpan tetapi catatan aset gagal dibuat." };
@@ -431,12 +443,15 @@ export async function importProductImage({
   candidate,
   defaultRights,
   retrievedAt,
+  batchId = null,
 }: {
   productId: string;
   candidate: ProductImageCandidate;
   /** Pilihan form; dipakai bila fotonya tidak membawa hak pakai sendiri. */
   defaultRights: ImageRights | null;
   retrievedAt: string;
+  /** Batch impor asal antrean foto ini (jejak asal untuk undo). */
+  batchId?: string | null;
 }): Promise<ProductImageImportResult> {
   const storageKey = storageKeyFor(productId, candidate.imageUrl);
   const photos = await productPhotos(productId);
@@ -457,7 +472,7 @@ export async function importProductImage({
 
   const stored = await storeImage(storageKey, candidate.imageUrl);
   if (!stored.ok) return stored;
-  return saveAssetRow(productId, candidate, rights, retrievedAt, stored, existing);
+  return saveAssetRow(productId, candidate, rights, retrievedAt, stored, existing, batchId);
 }
 
 /**
@@ -469,10 +484,12 @@ export async function importGalleryImage({
   productId,
   candidate,
   retrievedAt,
+  batchId = null,
 }: {
   productId: string;
   candidate: ProductImageCandidate;
   retrievedAt: string;
+  batchId?: string | null;
 }): Promise<ProductImageImportResult> {
   const rights = candidate.rights;
   if (!rights) return { ok: false, reason: "Dasar hak pakai foto belum dipilih." };
@@ -492,39 +509,30 @@ export async function importGalleryImage({
 
   const stored = await storeImage(storageKey, candidate.imageUrl);
   if (!stored.ok) return stored;
-  return saveAssetRow(productId, candidate, rights, retrievedAt, stored, existing);
+  return saveAssetRow(productId, candidate, rights, retrievedAt, stored, existing, batchId);
 }
 
-export type PhotoReprocessResult = {
-  processed: number;
-  failed: { label: string; reason: string }[];
-  /** Foto yang masih memakai versi pipeline lama setelah batch ini. */
-  remaining: number;
-  /** Foto lama tanpa URL asli; tidak bisa diproses ulang otomatis. */
-  withoutOrigin: number;
+export type OutdatedPhoto = {
+  id: string;
+  product_id: string;
+  storage_key: string | null;
+  original_url: string | null;
+  alt: string;
+  source: string;
+  source_url: string | null;
+  usage_rights: string;
+  usage_basis: string;
 };
 
 /**
- * Memproses ulang foto yang dibuat pipeline versi lama (mis. sebelum latar
- * putih dihapus) dari URL aslinya. Bekerja per batch supaya satu klik admin
- * tidak melewati batas waktu request; klik lagi untuk sisanya.
+ * Foto yang dibuat pipeline versi lama (mis. sebelum latar putih dihapus) dan
+ * masih punya URL asli, sehingga bisa diproses ulang otomatis.
  */
-export async function reprocessOutdatedPhotos(
-  limit: number,
-  concurrency: number
-): Promise<PhotoReprocessResult | { error: string }> {
+export async function listOutdatedPhotos(): Promise<
+  { outdated: OutdatedPhoto[]; withoutOrigin: number } | { error: string }
+> {
   const db = getInsforgeAdminClient().database;
-  const rows: {
-    id: string;
-    product_id: string;
-    storage_key: string | null;
-    original_url: string | null;
-    alt: string;
-    source: string;
-    source_url: string | null;
-    usage_rights: string;
-    usage_basis: string;
-  }[] = [];
+  const rows: OutdatedPhoto[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db
       .from("product_assets")
@@ -533,60 +541,46 @@ export async function reprocessOutdatedPhotos(
       .order("id", { ascending: true })
       .range(from, from + 999);
     if (error) return { error: "Daftar foto produk gagal dibaca." };
-    rows.push(...((data ?? []) as typeof rows));
+    rows.push(...((data ?? []) as OutdatedPhoto[]));
     if ((data ?? []).length < 1000) break;
   }
-
-  const withoutOrigin = rows.filter((row) => row.storage_key && !row.original_url).length;
-  const outdated = rows.filter(
-    (row) =>
-      row.original_url &&
-      row.storage_key !== storageKeyFor(row.product_id, row.original_url)
-  );
-  const batch = outdated.slice(0, limit);
-  const failed: { label: string; reason: string }[] = [];
-  let processed = 0;
-  const retrievedAt = new Date().toISOString();
-
-  let next = 0;
-  async function worker() {
-    while (next < batch.length) {
-      const row = batch[next++]!;
-      const originalUrl = row.original_url!;
-      const stored = await storeImage(storageKeyFor(row.product_id, originalUrl), originalUrl);
-      if (!stored.ok) {
-        failed.push({ label: row.alt, reason: stored.reason });
-        continue;
-      }
-      // Hak pakai yang sudah tercatat dipertahankan apa adanya.
-      const rights: ImageRights = {
-        basis: isImageUsageBasis(row.usage_basis) ? row.usage_basis : "admin-declared",
-        text: row.usage_rights,
-      };
-      const result = await saveAssetRow(
-        row.product_id,
-        {
-          imageUrl: originalUrl,
-          source: row.source,
-          sourceUrl: row.source_url ?? originalUrl,
-          alt: row.alt,
-          rights,
-        },
-        rights,
-        retrievedAt,
-        stored,
-        { id: row.id, storage_key: row.storage_key, original_url: originalUrl }
-      );
-      if (result.ok) processed += 1;
-      else failed.push({ label: row.alt, reason: result.reason });
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(concurrency, batch.length) }, worker));
-
   return {
-    processed,
-    failed,
-    remaining: outdated.length - processed,
-    withoutOrigin,
+    withoutOrigin: rows.filter((row) => row.storage_key && !row.original_url).length,
+    outdated: rows.filter(
+      (row) => row.original_url && row.storage_key !== storageKeyFor(row.product_id, row.original_url)
+    ),
   };
+}
+
+/**
+ * Memproses ulang satu foto yang sudah tercatat, dengan hak pakai yang sudah
+ * tercatat. Foto yang ternyata sudah versi terbaru dilewati sebagai "unchanged".
+ */
+export async function reprocessAssetPhoto(assetId: string, retrievedAt: string): Promise<ProductImageImportResult> {
+  const { data, error } = await getInsforgeAdminClient()
+    .database.from("product_assets")
+    .select("id, product_id, storage_key, original_url, alt, source, source_url, usage_rights, usage_basis")
+    .eq("id", assetId)
+    .limit(1);
+  const row = (data ?? [])[0] as OutdatedPhoto | undefined;
+  if (error || !row) return { ok: false, reason: "Foto ini sudah tidak ada." };
+  if (!row.original_url) return { ok: false, reason: "Foto tidak menyimpan URL asli; impor ulang lewat CSV spesifikasi." };
+
+  const storageKey = storageKeyFor(row.product_id, row.original_url);
+  if (row.storage_key === storageKey) return { ok: true, outcome: "unchanged" };
+  const stored = await storeImage(storageKey, row.original_url);
+  if (!stored.ok) return stored;
+  const rights: ImageRights = {
+    basis: isImageUsageBasis(row.usage_basis) ? row.usage_basis : "admin-declared",
+    text: row.usage_rights,
+  };
+  return saveAssetRow(
+    row.product_id,
+    { imageUrl: row.original_url, source: row.source, sourceUrl: row.source_url ?? row.original_url, alt: row.alt, rights },
+    rights,
+    retrievedAt,
+    stored,
+    { id: row.id, storage_key: row.storage_key, original_url: row.original_url },
+    null
+  );
 }

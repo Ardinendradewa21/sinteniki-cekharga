@@ -69,7 +69,8 @@ export type OrderBy = { column: string; ascending: boolean };
 
 /**
  * Semua baris yang `column` bernilai salah satu `values`. Urutan selalu diakhiri
- * `id` supaya paginasi deterministik. Melempar error bila backend gagal.
+ * kolom unik (`id`, atau `uniqueKey` untuk tabel berkunci gabungan tanpa `id`)
+ * supaya paginasi deterministik. Melempar error bila backend gagal.
  */
 export async function selectWhereIn(
   table: string,
@@ -80,10 +81,19 @@ export async function selectWhereIn(
     /** Rentang inklusif pada kolom lain, mis. waktu pengamatan dalam berkas. */
     range?: { column: string; gte: string; lte: string };
     order?: OrderBy[];
+    /**
+     * Kolom yang bersama-sama unik, pengganti `id` untuk tabel berkunci
+     * gabungan (mis. scrape_results, ad_stats_daily). Tanpa ini, query ke
+     * tabel tanpa kolom `id` selalu gagal.
+     */
+    uniqueKey?: string[];
   } = {}
 ): Promise<Row[]> {
   const db = getInsforgeAdminClient().database;
-  const order = [...(options.order ?? []), { column: "id", ascending: true }];
+  const order = [
+    ...(options.order ?? []),
+    ...(options.uniqueKey ?? ["id"]).map((column) => ({ column, ascending: true })),
+  ];
   const rows: Row[] = [];
 
   for (const group of chunkForUrl([...new Set(values)])) {

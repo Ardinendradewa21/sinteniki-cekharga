@@ -44,7 +44,7 @@ export function PhotoReprocessForm() {
             <span className="font-semibold text-success">{summary.processed}</span> foto
             diproses ulang.{" "}
             {summary.remaining > 0
-              ? `${summary.remaining} foto lama tersisa; klik lagi untuk melanjutkan.`
+              ? `${summary.remaining} foto masih di antrean; diproses otomatis bertahap, atau klik lagi untuk mempercepat.`
               : "Semua foto sudah memakai versi terbaru."}
           </p>
           {summary.withoutOrigin > 0 ? (

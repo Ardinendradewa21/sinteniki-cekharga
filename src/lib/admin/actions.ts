@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAdmin } from "@/lib/auth/dal";
+import { requireStaff } from "@/lib/auth/dal";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { invalidateCatalogCache } from "@/lib/backend/catalog-repository";
 import { recordAudit } from "@/lib/admin/audit";
@@ -24,7 +24,7 @@ import { loadStoreResolver } from "@/lib/import/stores";
  * Setiap fungsi di berkas ini mengikuti urutan yang sama, dan urutannya bukan
  * gaya penulisan melainkan syarat keamanan:
  *
- *   1. requireAdmin()   — dokumentasi Next.js menegaskan Server Action adalah
+ *   1. requireStaff([]) — dokumentasi Next.js menegaskan Server Action adalah
  *                         endpoint POST yang bisa dipanggil siapa pun tanpa
  *                         melewati antarmuka. Form yang hanya dirender di
  *                         halaman terlindungi BUKAN batas keamanan.
@@ -80,7 +80,7 @@ export async function createProductAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
 
   const parsed = productInput.safeParse(formToNestedObject(formData));
   if (!parsed.success) {
@@ -92,6 +92,8 @@ export async function createProductAction(
     .database.from("products")
     .insert([
       {
+        // Jejak asal (Fase 4): dibuat langsung di admin, bukan oleh batch impor.
+        last_source: "manual",
         slug: input.slug,
         brand: officialBrandName(input.brand),
         model: input.model,
@@ -131,7 +133,7 @@ export async function updateProductAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
 
   const parsed = productInput.safeParse(formToNestedObject(formData));
   if (!parsed.success) {
@@ -146,6 +148,10 @@ export async function updateProductAction(
   const { error } = await db
     .from("products")
     .update({
+      // Disunting manual: batch impor yang membuatnya tidak lagi boleh
+      // menghapusnya lewat undo (updated_at ikut maju).
+      last_source: "manual",
+      updated_by_batch_id: null,
       slug: input.slug,
       brand: officialBrandName(input.brand),
       model: input.model,
@@ -180,7 +186,7 @@ export async function updateProductAction(
 }
 
 export async function setProductStatusAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
   const productId = String(formData.get("productId") ?? "");
   const status = String(formData.get("status") ?? "");
 
@@ -216,7 +222,7 @@ export async function setProductStatusAction(formData: FormData): Promise<void> 
 }
 
 export async function setProductsStatusBulkAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
   const productIds = [
     ...new Set(
       formData
@@ -330,7 +336,7 @@ export async function setProductsStatusBulkAction(formData: FormData): Promise<v
 }
 
 export async function deleteProductAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
   const productId = String(formData.get("productId") ?? "");
   const confirmSlug = String(formData.get("konfirmasi") ?? "").trim();
   const actualSlug = String(formData.get("slug") ?? "").trim();
@@ -355,7 +361,7 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
 }
 
 export async function deleteProductsBulkAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
   const productIds = [
     ...new Set(
       formData
@@ -423,7 +429,7 @@ export async function addVariantAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
 
   const parsed = variantInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -461,7 +467,7 @@ export async function addVariantAction(
 }
 
 export async function deleteVariantAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
   const variantId = String(formData.get("variantId") ?? "");
   const productId = String(formData.get("productId") ?? "");
   if (!variantId) return;
@@ -486,7 +492,7 @@ export async function addOfferAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
 
   const parsed = offerInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -505,6 +511,7 @@ export async function addOfferAction(
     .database.from("offers")
     .insert([
       {
+        last_source: "manual",
         variant_id: input.variantId,
         store_id: storeId,
         marketplace: input.marketplace,
@@ -534,7 +541,7 @@ export async function addOfferAction(
 }
 
 export async function deleteOfferAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
   const offerId = String(formData.get("offerId") ?? "");
   const productId = String(formData.get("productId") ?? "");
   if (!offerId) return;
@@ -559,7 +566,7 @@ export async function recordPriceAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
 
   const parsed = priceInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -581,6 +588,10 @@ export async function recordPriceAction(
   ]);
   if (observation.error) return fail("Gagal menyimpan harga.");
 
+  // Penawaran yang harganya dicatat manual ditandai manual, supaya undo batch
+  // impor tidak menghapus penawaran yang sudah dirawat admin.
+  await db.from("offers").update({ last_source: "manual", updated_by_batch_id: null }).eq("id", offerId);
+
   const check = await db.from("price_checks").insert([
     { offer_id: offerId, attempted_at: now, outcome: "success", error_summary: null },
   ]);
@@ -601,7 +612,7 @@ export async function addReviewAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
 
   const parsed = reviewInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -642,7 +653,7 @@ export async function addReviewAction(
 }
 
 export async function setReviewStatusAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
   const reviewId = String(formData.get("reviewId") ?? "");
   const productId = String(formData.get("productId") ?? "");
   const status = String(formData.get("status") ?? "");
@@ -668,7 +679,7 @@ export async function setReviewStatusAction(formData: FormData): Promise<void> {
 }
 
 export async function deleteReviewAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
   const reviewId = String(formData.get("reviewId") ?? "");
   const productId = String(formData.get("productId") ?? "");
   if (!reviewId) return;
@@ -689,7 +700,7 @@ export async function deleteReviewAction(formData: FormData): Promise<void> {
 /* ------------------------------------------- pemeriksaan harga yang gagal */
 
 export async function recordFailedCheckAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
+  const admin = await requireStaff([]);
   const offerId = String(formData.get("offerId") ?? "");
   const productId = String(formData.get("productId") ?? "");
   const reason = String(formData.get("alasan") ?? "").trim();

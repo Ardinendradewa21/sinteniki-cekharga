@@ -17,18 +17,16 @@ import {
   selectWhereIn,
 } from "@/lib/import/batch";
 import type { ImageRights } from "@/lib/import/image-rights";
-import {
-  importProductImage,
-  type ProductImageCandidate,
-} from "@/lib/import/product-images";
-import type { ImportReport } from "@/lib/import/report";
+import type { ProductImageCandidate } from "@/lib/import/product-images";
+import { enqueuePhotoJobs } from "@/lib/import/photo-jobs";
+import type { ImportReport, RowResult } from "@/lib/import/report";
 
 /**
  * Impor dataset spesifikasi (PRD FR-07 dan §10), terpisah dari server action.
  *
  * Modul biasa, bukan "use server": fungsi di sini TIDAK boleh bisa dipanggil
  * langsung dari browser. Pemanggilnya (aksi unggah CSV, penerapan batch
- * pratinjau, tarik otomatis) wajib sudah menjalankan requireAdmin().
+ * pratinjau, tarik otomatis) wajib sudah menjalankan requireStaff([]).
  *
  * Empat jaminan yang dipegang, dan semuanya berasal dari PRD:
  *
@@ -50,7 +48,6 @@ import type { ImportReport } from "@/lib/import/report";
 
 /** Batas aman: satu berkas sekali jalan, bukan seluruh dump GSMArena. */
 export const MAX_ROWS = 500;
-const IMAGE_IMPORT_CONCURRENCY = 4;
 /** Pembaruan baris yang sudah ada berjalan paralel, dibatasi supaya sopan ke backend. */
 const UPDATE_CONCURRENCY = 6;
 
@@ -72,8 +69,13 @@ export type ValidCandidate = {
   rowIndex: number;
 };
 
-function productPayload({ candidate, specs }: ValidCandidate, retrievedAt: string) {
+/** Jejak asal tulisan impor: batch dan jenis sumbernya (Fase 4). */
+export type Lineage = { batchId: string | null; source: "import" | "scrape" };
+
+function productPayload({ candidate, specs }: ValidCandidate, retrievedAt: string, lineage: Lineage) {
   return {
+    updated_by_batch_id: lineage.batchId,
+    last_source: lineage.source,
     brand: candidate.brand,
     model: candidate.model,
     specs,
@@ -85,9 +87,10 @@ function productPayload({ candidate, specs }: ValidCandidate, retrievedAt: strin
   };
 }
 
-function newProductRow(valid: ValidCandidate, retrievedAt: string) {
+function newProductRow(valid: ValidCandidate, retrievedAt: string, lineage: Lineage) {
   return {
-    ...productPayload(valid, retrievedAt),
+    ...productPayload(valid, retrievedAt, lineage),
+    created_by_batch_id: lineage.batchId,
     slug: valid.candidate.slug,
     source_key: valid.candidate.sourceKey,
     status: "draft",
@@ -97,11 +100,12 @@ function newProductRow(valid: ValidCandidate, retrievedAt: string) {
 /** Jalur satu per satu, dipakai hanya bila insert massal gagal, untuk menemukan baris penyebabnya. */
 async function insertProductSingly(
   valid: ValidCandidate,
-  retrievedAt: string
+  retrievedAt: string,
+  lineage: Lineage
 ): Promise<SaveResult> {
   const { data, error } = await getInsforgeAdminClient()
     .database.from("products")
-    .insert([newProductRow(valid, retrievedAt)])
+    .insert([newProductRow(valid, retrievedAt, lineage)])
     .select("id");
   if (error) {
     return {
@@ -122,7 +126,8 @@ async function insertProductSingly(
  */
 async function saveCandidates(
   candidates: readonly ValidCandidate[],
-  retrievedAt: string
+  retrievedAt: string,
+  lineage: Lineage
 ): Promise<Map<string, SaveResult>> {
   const db = getInsforgeAdminClient().database;
   const results = new Map<string, SaveResult>();
@@ -147,7 +152,7 @@ async function saveCandidates(
     const productId = existingByKey.get(valid.candidate.sourceKey)!;
     const { error } = await db
       .from("products")
-      .update(productPayload(valid, retrievedAt))
+      .update(productPayload(valid, retrievedAt, lineage))
       .eq("id", productId);
     results.set(
       valid.candidate.sourceKey,
@@ -160,7 +165,7 @@ async function saveCandidates(
   for (const group of chunk(toInsert, INSERT_CHUNK)) {
     const { data, error } = await db
       .from("products")
-      .insert(group.map((valid) => newProductRow(valid, retrievedAt)))
+      .insert(group.map((valid) => newProductRow(valid, retrievedAt, lineage)))
       .select("id, source_key");
 
     if (error) {
@@ -168,7 +173,7 @@ async function saveCandidates(
       // kelompok. Ulangi satu per satu supaya baris yang sah tetap tersimpan
       // dan alasan kegagalannya menempel ke baris yang benar.
       const singles = await mapWithConcurrency(group, UPDATE_CONCURRENCY, (valid) =>
-        insertProductSingly(valid, retrievedAt)
+        insertProductSingly(valid, retrievedAt, lineage)
       );
       group.forEach((valid, i) => results.set(valid.candidate.sourceKey, singles[i]));
       continue;
@@ -305,13 +310,25 @@ export async function runSpecImport({
   defaultImageRights,
   admin,
   malformedLines = [],
+  quiet = false,
+  batchId = null,
+  source = "import",
 }: {
   rows: readonly CsvRow[];
   fileName: string;
   defaultImageRights: ImageRights | null;
+  /** Jenis sumber untuk jejak asal: CSV atau tarik otomatis. */
+  source?: Lineage["source"];
   admin: AdminSession;
   malformedLines?: number[];
-}): Promise<ImportReport> {
+  /** Batch asal, dicatat di antrean foto supaya progres fotonya bisa dipantau. */
+  batchId?: string | null;
+  /**
+   * true = satu potongan dari penerapan bertahap: audit dan revalidasi
+   * dilakukan sekali oleh worker di akhir, bukan per potongan.
+   */
+  quiet?: boolean;
+}): Promise<ImportReport & { rowResults: RowResult[] }> {
   const retrievedAt = new Date().toISOString();
   const prepared = prepareSpecRows(rows);
   const { validByKey } = prepared;
@@ -322,32 +339,38 @@ export async function runSpecImport({
   const imageJobs: ImageImportJob[] = [];
   let created = 0;
   let updated = 0;
-  let imagesCreated = 0;
-  let imagesUpdated = 0;
-  let imagesUnchanged = 0;
+  const rowResults: RowResult[] = prepared.skipped.map(({ rowIndex, reason }) => ({
+    rowIndex,
+    outcome: "skipped",
+    entityId: null,
+    message: reason,
+  }));
 
   // Tahap 2: tulis massal.
   let saveResults: Map<string, SaveResult>;
   try {
-    saveResults = await saveCandidates([...validByKey.values()], retrievedAt);
+    saveResults = await saveCandidates([...validByKey.values()], retrievedAt, { batchId, source });
   } catch {
     return {
       error: "Data katalog yang ada gagal dibaca, jadi impor dibatalkan sebelum menulis apa pun.",
       summary: null,
+      rowResults: [],
     };
   }
 
-  for (const { candidate } of validByKey.values()) {
+  for (const { candidate, rowIndex } of validByKey.values()) {
     const outcome = { candidate };
     const result = saveResults.get(candidate.sourceKey) ?? {
       failed: "Produk tidak diproses.",
     };
     if ("failed" in result) {
       skipped.push({ label: outcome.candidate.slug, reason: result.failed });
+      rowResults.push({ rowIndex, outcome: "failed", entityId: null, message: result.failed });
       continue;
     }
     if (result.outcome === "created") created += 1;
     else updated += 1;
+    rowResults.push({ rowIndex, outcome: result.outcome, entityId: result.productId, message: null });
 
     const imageLabel = `${outcome.candidate.brand} ${outcome.candidate.model}`;
     if (outcome.candidate.imageIssue) {
@@ -372,65 +395,66 @@ export async function runSpecImport({
     }
   }
 
-  const imageResults = await mapWithConcurrency(
-    imageJobs,
-    IMAGE_IMPORT_CONCURRENCY,
-    async (job) => ({
-      job,
-      result: await importProductImage({
-        productId: job.productId,
-        candidate: job.candidate,
-        defaultRights: defaultImageRights,
-        retrievedAt,
-      }),
-    })
-  );
-
-  for (const { job, result } of imageResults) {
-    if (!result.ok) {
-      const key = `${job.sourceKey}|${result.reason}`;
-      if (!imageSkipKeys.has(key)) {
-        imageSkipKeys.add(key);
-        imageSkipped.push({ label: job.label, reason: result.reason });
-      }
-    } else if (result.outcome === "created") {
-      imagesCreated += 1;
-    } else if (result.outcome === "updated") {
-      imagesUpdated += 1;
-    } else {
-      imagesUnchanged += 1;
+  // Foto tidak diproses di sini: diantrekan ke photo_jobs dan dikerjakan
+  // worker foto terpisah, supaya satu foto lambat tidak menahan penerapan.
+  const photoJobs = imageJobs.flatMap((job) => {
+    const rights = job.candidate.rights ?? defaultImageRights;
+    if (!rights) {
+      imageSkipped.push({
+        label: job.label,
+        reason: "Dasar hak pakai foto belum dipilih; spesifikasi tetap diimpor tetapi gambarnya dilewati.",
+      });
+      return [];
     }
+    return [
+      {
+        productId: job.productId,
+        kind: "primary" as const,
+        imageUrl: job.candidate.imageUrl,
+        source: job.candidate.source,
+        sourceUrl: job.candidate.sourceUrl,
+        alt: job.candidate.alt,
+        rights,
+        batchId,
+      },
+    ];
+  });
+  const queuedPhotos = await enqueuePhotoJobs(photoJobs);
+  if (queuedPhotos.failed > 0) {
+    imageSkipped.push({ label: `${queuedPhotos.failed} foto`, reason: "Gagal masuk antrean foto." });
   }
 
-  await recordAudit(admin, "impor.csv", "dataset", null, {
+  if (!quiet) await recordAudit(admin, "impor.csv", "dataset", null, {
     berkas: fileName,
     baris: rows.length,
     baru: created,
     diperbarui: updated,
-    gambar_baru: imagesCreated,
-    gambar_diperbarui: imagesUpdated,
-    gambar_tetap: imagesUnchanged,
+    gambar_diantrekan: queuedPhotos.queued,
     gambar_dilewati: imageSkipped.length,
     gambar_format: "webp",
     gambar_maksimum_px: 1_200,
     dilewati: skipped.length,
   });
 
-  invalidateCatalogCache();
-  revalidatePath("/admin");
-  revalidatePath("/admin/products");
-  revalidatePath("/products");
-  revalidatePath("/");
+  if (!quiet) {
+    invalidateCatalogCache();
+    revalidatePath("/admin");
+    revalidatePath("/admin/products");
+    revalidatePath("/products");
+    revalidatePath("/");
+  }
 
   return {
     error: null,
+    rowResults,
     summary: {
       totalRows: rows.length,
       created,
       updated,
-      imagesCreated,
-      imagesUpdated,
-      imagesUnchanged,
+      imagesCreated: 0,
+      imagesUpdated: 0,
+      imagesUnchanged: 0,
+      imagesQueued: queuedPhotos.queued,
       imageSkipped,
       skipped,
       malformedLines: malformedLines,

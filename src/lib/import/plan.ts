@@ -116,10 +116,13 @@ export async function planSpecImport(
     const photoRights = candidate.image?.rights ?? defaultImageRights;
     const photo = candidate.image
       ? photoRights
-        ? "Diunduh dan dibersihkan latarnya"
+        ? "Diantrekan: diunduh dan dibersihkan latarnya setelah diterapkan"
         : "Dilewati: dasar hak pakai foto belum dipilih"
       : (candidate.imageIssue ?? "Tanpa foto di sumber");
     const view = {
+      // Kunci sumber dipakai halaman batch untuk menampilkan harga resmi
+      // hasil tarik otomatis di baris produk yang sama.
+      sourceKey: candidate.sourceKey,
       brand: candidate.brand,
       model: candidate.model,
       variants: candidate.variants.map((v) => variantLabel(v.ramGb, v.storageGb)),

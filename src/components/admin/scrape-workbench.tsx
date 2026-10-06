@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 
@@ -19,6 +20,7 @@ import {
   resolveModelAction,
 } from "@/lib/scrape/actions";
 import { SPEC_COLUMNS, toCsv } from "@/lib/scrape/parsers";
+import type { ScrapeSession } from "@/lib/scrape/sessions";
 import {
   BRANDS_WITH_OFFICIAL_PRICES,
   SCRAPE_BRAND_LABELS,
@@ -43,6 +45,10 @@ import {
  *      ragu, harga tak terbaca, model lama) sebelum apa pun disimpan.
  *   4. Yang dicentang disimpan sebagai DRAFT lewat jalur impor yang sama
  *      dengan unggahan CSV. Penerbitan tetap keputusan manual.
+ *
+ * Daftar, harga, dan hasil spesifikasi disimpan di server sebagai SESI (ID-nya
+ * di URL `?sesi=`). Refresh tab memulihkan pekerjaan dari server, dan yang
+ * dikirim browser saat menyimpan hanya ID model + pilihan admin.
  */
 
 type ResolveState =
@@ -65,20 +71,52 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ScrapeWorkbench() {
-  const [brand, setBrand] = useState<ScrapeBrand>("vivo");
-  const [lineup, setLineup] = useState<LineupItem[] | null>(null);
+function initialResults(session: ScrapeSession | null): Map<string, ResolveState> {
+  return new Map(
+    Object.entries(session?.results ?? {}).map(([id, state]) => [
+      id,
+      state.status === "ok" ? { status: "ok", item: state.item } : { status: "error", error: state.error },
+    ])
+  );
+}
+
+function initialIncluded(session: ScrapeSession | null, minYear: number): Set<string> {
+  const next = new Set<string>();
+  for (const [id, state] of Object.entries(session?.results ?? {})) {
+    if (state.status !== "ok" || !state.item.specRow || state.item.issues.some((issue) => issue.level === "error")) continue;
+    const year = state.item.summary?.releaseYear ?? null;
+    if (year === null || year >= minYear) next.add(id);
+  }
+  return next;
+}
+
+export function ScrapeWorkbench({
+  initialSession = null,
+  initialBrand = null,
+  initialFilter = "",
+}: {
+  initialSession?: ScrapeSession | null;
+  /** Prasetel dari tautan "tarik ulang" (mis. panel kesehatan katalog). */
+  initialBrand?: ScrapeBrand | null;
+  initialFilter?: string;
+}) {
+  const [sessionId, setSessionId] = useState<string | null>(initialSession?.id ?? null);
+  const [sessionStatus, setSessionStatus] = useState(initialSession?.status ?? "open");
+  const [sessionBatchId] = useState(initialSession?.batchId ?? null);
+  const [fetchedAt, setFetchedAt] = useState<string | null>(initialSession?.fetchedAt ?? null);
+  const [brand, setBrand] = useState<ScrapeBrand>(initialSession?.brand ?? initialBrand ?? "vivo");
+  const [lineup, setLineup] = useState<LineupItem[] | null>(initialSession?.lineup ?? null);
   const [lineupError, setLineupError] = useState<string | null>(null);
   const [loadingLineup, setLoadingLineup] = useState(false);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState(initialSession ? "" : initialFilter);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const [results, setResults] = useState<Map<string, ResolveState>>(new Map());
+  const [results, setResults] = useState<Map<string, ResolveState>>(() => initialResults(initialSession));
   const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(null);
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const stopRef = useRef(false);
 
-  const [included, setIncluded] = useState<Set<string>>(new Set());
+  const [included, setIncluded] = useState<Set<string>>(() => initialIncluded(initialSession, CURRENT_YEAR - 1));
   const [minYear, setMinYear] = useState(CURRENT_YEAR - 1);
   const [usageRights, setUsageRights] = useState("");
   const [usageBasis, setUsageBasis] = useState("");
@@ -134,12 +172,20 @@ export function ScrapeWorkbench() {
     setBlockedMessage(null);
     const result = await loadLineupAction(brand);
     setLoadingLineup(false);
-    if (result.ok) setLineup(result.items);
-    else setLineupError(result.error);
+    if (result.ok) {
+      setLineup(result.items);
+      setSessionId(result.sessionId);
+      setSessionStatus("open");
+      setFetchedAt(result.fetchedAt);
+      // ID sesi di URL: refresh tab memulihkan pekerjaan dari server.
+      router.replace(`/admin/import?tab=tarik&sesi=${result.sessionId}`, { scroll: false });
+    } else {
+      setLineupError(result.error);
+    }
   }
 
   async function resolveOne(item: LineupItem, pathOverride?: string) {
-    const result = await resolveModelAction({ lineup: item, pathOverride });
+    const result = await resolveModelAction({ sessionId, officialId: item.officialId, pathOverride });
     setResults((previous) => {
       const next = new Map(previous);
       next.set(item.officialId, result.ok ? { status: "ok", item: result.item } : { status: "error", error: result.error });
@@ -218,19 +264,14 @@ export function ScrapeWorkbench() {
   }
 
   async function commit() {
+    // Hanya keputusan admin yang dikirim; data diambil server dari sesinya.
     const items = previews
       .filter(({ id, state }) => included.has(id) && canInclude(state))
-      .map(({ id, state }) => {
-        const item = (state as { status: "ok"; item: PreviewItem }).item;
-        return {
-          lineup: { ...item.lineup, prices: assignedPrices(id, item), unassignedPrices: [] },
-          specRow: item.specRow!,
-        };
-      });
-    if (items.length === 0) return;
+      .map(({ id }) => ({ officialId: id, assignments: assignments.get(id) ?? {} }));
+    if (items.length === 0 || !sessionId) return;
     setCommitting(true);
     setCommitResult(null);
-    const summary = await commitScrapeAction({ items, imageUsageRights: usageRights, imageUsageBasis: usageBasis });
+    const summary = await commitScrapeAction({ sessionId, items, imageUsageRights: usageRights, imageUsageBasis: usageBasis });
     if (summary.batchId) {
       // Hasil tarik otomatis ditinjau di Pusat Impor sebelum menyentuh katalog.
       router.push(`/admin/import/batch/${summary.batchId}`);
@@ -254,6 +295,17 @@ export function ScrapeWorkbench() {
 
   return (
     <div className="space-y-6">
+      {sessionStatus === "committed" ? (
+        <p role="status" className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-foreground">
+          Sesi ini sudah dikirim ke Pusat Impor.{" "}
+          {sessionBatchId ? (
+            <Link href={`/admin/import/batch/${sessionBatchId}`} className="font-semibold text-brand underline underline-offset-2">
+              Buka batchnya
+            </Link>
+          ) : null}{" "}
+          Muat daftar baru untuk menarik lagi.
+        </p>
+      ) : null}
       {/* Tahap 1 */}
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="text-base font-bold text-foreground">1. Muat daftar model</h2>
@@ -283,6 +335,13 @@ export function ScrapeWorkbench() {
         </div>
         {lineupError ? (
           <p role="alert" className="mt-4 text-sm font-medium text-destructive">{lineupError}</p>
+        ) : null}
+        {fetchedAt && lineup ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Daftar dan harga diambil{" "}
+            {new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(fetchedAt))}
+            . Waktu ini yang dicatat sebagai waktu pemeriksaan harga.
+          </p>
         ) : null}
       </section>
 
@@ -342,7 +401,7 @@ export function ScrapeWorkbench() {
           </ul>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Button type="button" onClick={resolveSelected} disabled={running || selected.size === 0}>
+            <Button type="button" onClick={resolveSelected} disabled={running || selected.size === 0 || sessionStatus !== "open"}>
               {`Ambil spesifikasi ${selected.size} model`}
             </Button>
             {running ? (
@@ -582,7 +641,7 @@ export function ScrapeWorkbench() {
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Button type="button" onClick={commit} disabled={committing || running || includedCount === 0}>
+            <Button type="button" onClick={commit} disabled={committing || running || includedCount === 0 || sessionStatus !== "open"}>
               {committing ? "Menyiapkan pratinjau..." : `Kirim ${includedCount} model ke Pusat Impor`}
             </Button>
             <Button type="button" variant="outline" onClick={exportCsv} disabled={includedCount === 0}>

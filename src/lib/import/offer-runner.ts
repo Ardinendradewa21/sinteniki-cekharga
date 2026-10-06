@@ -21,15 +21,15 @@ import {
   type OfferCatalogProduct,
   type OfferSourceFormat,
 } from "@/lib/import/offers";
-import { importGalleryImage } from "@/lib/import/product-images";
-import type { OfferImportReport } from "@/lib/import/report";
+import { enqueuePhotoJobs } from "@/lib/import/photo-jobs";
+import type { OfferImportReport, RowResult } from "@/lib/import/report";
 import { loadSlugRedirects, loadStoreResolver, type StoreResolver } from "@/lib/import/stores";
 
 /**
  * Impor penawaran dan harga (PRD §3 dan §7), terpisah dari server action.
  *
  * Modul biasa, bukan "use server": fungsi di sini TIDAK boleh bisa dipanggil
- * langsung dari browser. Pemanggilnya wajib sudah menjalankan requireAdmin().
+ * langsung dari browser. Pemanggilnya wajib sudah menjalankan requireStaff([]).
  *
  * Empat aturan yang dipegang, semuanya sama dengan jalur form manual:
  *
@@ -50,7 +50,6 @@ import { loadSlugRedirects, loadStoreResolver, type StoreResolver } from "@/lib/
 
 /** Pembaruan baris yang sudah ada berjalan paralel, dibatasi supaya sopan ke backend. */
 const UPDATE_CONCURRENCY = 6;
-const IMAGE_IMPORT_CONCURRENCY = 4;
 
 export type OfferPayload = {
   marketplace: string;
@@ -283,6 +282,10 @@ export async function runOfferImport({
   imageRights,
   admin,
   malformedLines = [],
+  quiet = false,
+  batchId = null,
+  context: providedContext,
+  source = "import",
 }: {
   rows: readonly CsvRow[];
   fileName: string;
@@ -291,12 +294,24 @@ export async function runOfferImport({
   imageRights: ImageRights | null;
   admin: AdminSession;
   malformedLines?: number[];
-}): Promise<OfferImportReport> {
+  /** Batch asal, dicatat di antrean foto. */
+  batchId?: string | null;
+  /**
+   * Katalog untuk pencocokan yang sudah dibaca pemanggil. Worker memakai ulang
+   * satu konteks untuk semua potongan dalam satu langkah, alih-alih membaca
+   * ulang seluruh tabel produk dan varian setiap 40 baris.
+   */
+  context?: OfferContext;
+  /** Jenis sumber untuk jejak asal: CSV atau tarik otomatis. */
+  source?: "import" | "scrape";
+  /** true = satu potongan penerapan bertahap; audit dan revalidasi oleh worker. */
+  quiet?: boolean;
+}): Promise<OfferImportReport & { rowResults: RowResult[] }> {
   const db = getInsforgeAdminClient().database;
   const uploadedAt = new Date();
-  const context = await loadOfferContext();
+  const context = providedContext ?? (await loadOfferContext());
   if (!context) {
-    return { error: "Katalog produk atau varian gagal dibaca untuk pencocokan harga.", summary: null };
+    return { error: "Katalog produk atau varian gagal dibaca untuk pencocokan harga.", summary: null, rowResults: [] };
   }
   const { catalogProducts } = context;
   const prepared = prepareOfferRows(rows, context, { defaultObservedAt, defaultSellerName, uploadedAt });
@@ -307,6 +322,17 @@ export async function runOfferImport({
   let updated = 0;
   let pricesRecorded = 0;
   let duplicatePrices = 0;
+  const rowResults: RowResult[] = [
+    ...prepared.skipped.flatMap(({ rowIndex, reason }) =>
+      rowIndex === undefined ? [] : [{ rowIndex, outcome: "skipped" as const, entityId: null, message: reason }]
+    ),
+    ...prepared.merged.map(({ item }) => ({
+      rowIndex: item.rowIndex,
+      outcome: "skipped" as const,
+      entityId: null,
+      message: "Warna lain dari varian yang sama; digabung ke listing termurah.",
+    })),
+  ];
 
   // Tahap 2: penawaran. Baris ganda untuk penawaran yang sama digabung; data
   // baris terakhir yang dipakai, sama seperti hasil akhir impor berurutan.
@@ -324,6 +350,7 @@ export async function runOfferImport({
     return {
       error: "Penawaran lama gagal diperiksa, jadi impor dibatalkan sebelum menulis apa pun.",
       summary: null,
+      rowResults: [],
     };
   }
   const existingByKey = new Map(
@@ -347,6 +374,9 @@ export async function runOfferImport({
     existingByKey.set(item.offerKey, previous);
     item.payload = { ...item.payload, url: item.url };
   }
+  // Jejak asal (Fase 4). Sengaja di luar `payload`: perbandingan "isi berubah?"
+  // tidak boleh terpicu hanya karena batchnya berbeda.
+  const lineage = { updated_by_batch_id: batchId, last_source: source };
   const offerIdByKey = new Map<string, string>();
   const offerFailure = new Map<string, string>();
 
@@ -363,7 +393,7 @@ export async function runOfferImport({
       const row = existingByKey.get(item.offerKey)!;
       const offerId = String(row.id);
       if (!samePayload(row, item.payload)) {
-        const { error } = await db.from("offers").update(item.payload).eq("id", offerId);
+        const { error } = await db.from("offers").update({ ...item.payload, ...lineage }).eq("id", offerId);
         if (error) {
           offerFailure.set(item.offerKey, "Gagal memperbarui penawaran.");
           return;
@@ -375,6 +405,8 @@ export async function runOfferImport({
 
   const newOfferRow = (item: PreparedItem) => ({
     ...item.payload,
+    ...lineage,
+    created_by_batch_id: batchId,
     variant_id: item.variantId,
     url: item.url,
     condition: "new",
@@ -481,6 +513,7 @@ export async function runOfferImport({
         price_idr: item.priceIdr,
         observed_at: item.observedAt,
         origin: item.origin,
+        batch_id: batchId,
       });
 
       const observationsToInsert: [string, PreparedItem][] = [];
@@ -495,7 +528,7 @@ export async function runOfferImport({
       await mapWithConcurrency(observationsToUpdate, UPDATE_CONCURRENCY, async ([key, item, id]) => {
         const { error } = await db
           .from("price_observations")
-          .update({ price_idr: item.priceIdr, origin: item.origin })
+          .update({ price_idr: item.priceIdr, origin: item.origin, batch_id: batchId })
           .eq("id", id);
         if (error) {
           observationFailure.set(key, "Penawaran tersimpan tetapi harganya gagal dicatat.");
@@ -524,6 +557,7 @@ export async function runOfferImport({
         attempted_at: item.observedAt,
         outcome: "success",
         error_summary: null,
+        batch_id: batchId,
       });
       const checksToInsert = [...latestItemByObservation].filter(
         ([key]) => !observationFailure.has(key) && !successfulCheckKeys.has(key)
@@ -561,21 +595,30 @@ export async function runOfferImport({
     const failure = offerFailure.get(item.offerKey);
     if (failure) {
       skipped.push({ label: item.label, reason: failure });
+      rowResults.push({ rowIndex: item.rowIndex, outcome: "failed", entityId: null, message: failure });
       continue;
     }
-    if (existingByKey.has(item.offerKey) || seenOffers.has(item.offerKey)) updated += 1;
+    const wasExisting = existingByKey.has(item.offerKey) || seenOffers.has(item.offerKey);
+    if (wasExisting) updated += 1;
     else created += 1;
     seenOffers.add(item.offerKey);
+    const offerId = offerIdByKey.get(item.offerKey) ?? null;
+    const outcome = wasExisting ? ("updated" as const) : ("created" as const);
 
     if (item.inferred) inferredBaseVariants += 1;
 
-    if (item.priceIdr === null || item.observedAt === null) continue;
+    if (item.priceIdr === null || item.observedAt === null) {
+      rowResults.push({ rowIndex: item.rowIndex, outcome, entityId: offerId, message: null });
+      continue;
+    }
     const key = observationKey(offerIdByKey.get(item.offerKey)!, item.observedAt);
     const priceFailure = observationFailure.get(key);
     if (priceFailure) {
       skipped.push({ label: item.label, reason: priceFailure });
+      rowResults.push({ rowIndex: item.rowIndex, outcome: "failed", entityId: offerId, message: priceFailure });
       continue;
     }
+    rowResults.push({ rowIndex: item.rowIndex, outcome, entityId: offerId, message: null });
     const recordedPrice = latestItemByObservation.get(key)?.priceIdr;
     const duplicate = seenObservations.has(key)
       ? recordedPrice === item.priceIdr
@@ -591,47 +634,40 @@ export async function runOfferImport({
   const galleryJobs = [
     ...new Map(listingImages.map((image) => [`${image.productId}|${image.url}`, image])).values(),
   ];
+  // Foto listing tidak diunduh di sini: diantrekan ke photo_jobs dan
+  // dikerjakan worker foto, berurutan per produk karena galeri dibatasi.
   const imageSkipped: { label: string; reason: string }[] = [];
-  let imagesAdded = 0;
-  let imagesUnchanged = 0;
+  const imagesAdded = 0;
+  const imagesUnchanged = 0;
+  let imagesQueued = 0;
   if (galleryJobs.length > 0 && !imageRights) {
     imageSkipped.push({
       label: `${galleryJobs.length} foto listing`,
       reason: "Dasar hak pakai foto belum dipilih, jadi foto tidak diunduh.",
     });
   } else if (galleryJobs.length > 0 && imageRights) {
-    const rights = imageRights;
-    const retrievedAt = new Date().toISOString();
-    const jobsByProduct = new Map<string, typeof galleryJobs>();
-    for (const job of galleryJobs) {
-      jobsByProduct.set(job.productId, [...(jobsByProduct.get(job.productId) ?? []), job]);
-    }
-    // Paralel antar-produk, berurutan di dalam satu produk: batas jumlah foto
-    // galeri dihitung dari isi tabel, jadi dua unggahan produk yang sama tidak
-    // boleh membaca hitungan yang sama.
-    await mapWithConcurrency([...jobsByProduct.values()], IMAGE_IMPORT_CONCURRENCY, async (jobs) => {
-      for (const job of jobs) {
-        const product = productById.get(job.productId)!;
-        const name = `${product.brand} ${product.model}`;
-        const result = await importGalleryImage({
+    const queued = await enqueuePhotoJobs(
+      galleryJobs.map((job) => {
+        const product = productById.get(job.productId);
+        return {
           productId: job.productId,
-          candidate: {
-            imageUrl: job.url,
-            source: job.marketplace,
-            sourceUrl: job.sourceUrl,
-            alt: `Foto ${name}`,
-            rights,
-          },
-          retrievedAt,
-        });
-        if (!result.ok) imageSkipped.push({ label: name, reason: result.reason });
-        else if (result.outcome === "unchanged") imagesUnchanged += 1;
-        else imagesAdded += 1;
-      }
-    });
+          kind: "gallery" as const,
+          imageUrl: job.url,
+          source: job.marketplace,
+          sourceUrl: job.sourceUrl,
+          alt: `Foto ${product ? `${product.brand} ${product.model}` : "produk"}`,
+          rights: imageRights,
+          batchId,
+        };
+      })
+    );
+    imagesQueued = queued.queued;
+    if (queued.failed > 0) {
+      imageSkipped.push({ label: `${queued.failed} foto listing`, reason: "Gagal masuk antrean foto." });
+    }
   }
 
-  await recordAudit(admin, "impor.penawaran", "dataset", null, {
+  if (!quiet) await recordAudit(admin, "impor.penawaran", "dataset", null, {
     berkas: fileName,
     baris: rows.length,
     baru: created,
@@ -639,7 +675,7 @@ export async function runOfferImport({
     format: [...sourceFormats],
     dipraproses: preprocessedRows,
     listing_digabung: mergedListings,
-    foto_baru: imagesAdded,
+    foto_diantrekan: imagesQueued,
     foto_dilewati: imageSkipped.length,
     varian_dasar_disimpulkan: inferredBaseVariants,
     harga: pricesRecorded,
@@ -647,14 +683,17 @@ export async function runOfferImport({
     dilewati: skipped.length,
   });
 
-  invalidateCatalogCache();
-  revalidatePath("/admin");
-  revalidatePath("/admin/products");
-  revalidatePath("/products");
-  revalidatePath("/");
+  if (!quiet) {
+    invalidateCatalogCache();
+    revalidatePath("/admin");
+    revalidatePath("/admin/products");
+    revalidatePath("/products");
+    revalidatePath("/");
+  }
 
   return {
     error: null,
+    rowResults,
     summary: {
       totalRows: rows.length,
       preprocessedRows,
@@ -663,6 +702,7 @@ export async function runOfferImport({
       sourceFormats: [...sourceFormats],
       imagesAdded,
       imagesUnchanged,
+      imagesQueued,
       imageSkipped,
       created,
       updated,

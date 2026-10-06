@@ -183,7 +183,9 @@ export function modelKey(
 ): ModelKey {
   const lower = decodeEntities(name).toLowerCase();
   const network: NetworkTag = /\b5g\b/.test(lower) ? "5g" : /\b4g\b/.test(lower) ? "4g" : null;
-  let base = lower.replace(/\b[45]g\b/g, " ");
+  // "+" adalah bagian nama model ("Galaxy S26+" bukan "Galaxy S26"), jadi
+  // disamakan dengan kata "plus" sebelum tanda baca dibuang.
+  let base = lower.replace(/\+/g, " plus ").replace(/\b[45]g\b/g, " ");
   for (const word of options.brandWords ?? []) {
     base = base.replace(new RegExp(`\\b${word}\\b`, "g"), " ");
   }

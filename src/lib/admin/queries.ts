@@ -2,7 +2,7 @@ import "server-only";
 
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectWhereIn } from "@/lib/backend/paged-read";
-import { requireAdmin } from "@/lib/auth/dal";
+import { requireStaff } from "@/lib/auth/dal";
 import { mapWithConcurrency } from "@/lib/import/batch";
 import { isFresh } from "@/lib/catalog/pricing";
 
@@ -11,7 +11,7 @@ import { isFresh } from "@/lib/catalog/pricing";
  *
  * Berbeda dari `src/lib/catalog/queries.ts` yang hanya melihat data
  * terpublikasi, modul ini sengaja melihat SEMUANYA termasuk draft. Karena itu
- * setiap fungsi di sini memanggil `requireAdmin()` lebih dulu, bukan
+ * setiap fungsi di sini memanggil `requireStaff([])` (hanya peran admin) lebih dulu, bukan
  * mengandalkan halaman pemanggilnya sudah memeriksa. Kalau suatu saat fungsi
  * ini dipanggil dari tempat baru yang lupa memeriksa, gerbangnya tetap menutup.
  */
@@ -50,19 +50,12 @@ export type AdminProductOverviewRow = Omit<
 > & {
   hasPhoto: boolean;
   priceStatus: "fresh" | "stale" | "missing";
-};
-
-export type AdminImportRun = {
-  id: string;
-  kind: "specifications" | "offers";
-  fileName: string;
-  totalRows: number;
-  created: number;
-  updated: number;
-  pricesRecorded: number;
-  skipped: number;
-  actorEmail: string | null;
-  createdAt: string;
+  /**
+   * Spesifikasi kunci yang belum tercatat. `hasNfc` null berarti sumbernya
+   * menulis "tergantung pasar" atau kosong; `ipRating` null bisa berarti
+   * memang tanpa sertifikasi. Keduanya perlu dicek manual, bukan ditarik ulang.
+   */
+  specGaps: ("nfc" | "ip")[];
 };
 
 export type AdminProductDetail = {
@@ -122,19 +115,8 @@ export type AuditRow = {
 };
 
 const ADMIN_PRODUCTS_PAGE_SIZE = 20;
-const IN_FILTER_CHUNK_SIZE = 50;
 const ADMIN_BRANDS_READ_SIZE = 500;
-const ADMIN_PRICE_OBSERVATIONS_READ_SIZE = 1000;
-const ADMIN_PRICE_OBSERVATIONS_MAX_PER_CHUNK = 10_000;
 const GENERIC_PRODUCT_IMAGE = "/images/generic-device.svg";
-
-function chunkValues<T>(values: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
-  return chunks;
-}
 
 function safeAdminImageSrc(src: string): string | null {
   if (src.startsWith("/") && !src.startsWith("//")) return src;
@@ -156,7 +138,7 @@ function safeAdminImageSrc(src: string): string | null {
 
 /** Opsi filter diambil dari semua produk, termasuk draft. */
 export async function listAdminProductBrands(): Promise<string[]> {
-  await requireAdmin();
+  await requireStaff([]);
   const db = getInsforgeAdminClient().database;
   const brands = new Set<string>();
 
@@ -198,7 +180,7 @@ export async function listAdminProductsPage({
   page?: number;
   pageSize?: number;
 } = {}): Promise<AdminProductPage> {
-  await requireAdmin();
+  await requireStaff([]);
   const db = getInsforgeAdminClient().database;
 
   const safePageSize = Math.min(Math.max(Math.trunc(pageSize), 1), 50);
@@ -314,44 +296,15 @@ export async function listAdminProductsPage({
   const priceableOfferRows = offerRows.filter(
     (offer) => offer.condition === "new" && offer.listing_status === "active"
   );
-  const priceObservationChunks = await Promise.all(
-    chunkValues(
-      priceableOfferRows.map((offer) => offer.id),
-      IN_FILTER_CHUNK_SIZE
-    ).map(async (offerIds) => {
-      const rows: {
-        offer_id: string;
-        price_idr: number | string;
-        observed_at: string;
-      }[] = [];
-
-      for (
-        let from = 0;
-        from < ADMIN_PRICE_OBSERVATIONS_MAX_PER_CHUNK;
-        from += ADMIN_PRICE_OBSERVATIONS_READ_SIZE
-      ) {
-        const result = await db
-          .from("price_observations")
-          .select("offer_id, price_idr, observed_at")
-          .in("offer_id", offerIds)
-          .order("observed_at", { ascending: false })
-          .range(from, from + ADMIN_PRICE_OBSERVATIONS_READ_SIZE - 1);
-
-        if (result.error) {
-          throw new Error("Gagal membaca harga produk admin.");
-        }
-
-        const page = (result.data ?? []) as typeof rows;
-        rows.push(...page);
-        if (page.length < ADMIN_PRICE_OBSERVATIONS_READ_SIZE) return rows;
-      }
-
-      throw new Error(
-        "Riwayat harga halaman ini terlalu besar. Ringkasan harga perlu dipindahkan ke query database."
-      );
-    })
-  );
-  const priceObservationRows = priceObservationChunks.flat();
+  // View `offer_latest_price` sudah satu baris per penawaran (pengamatan
+  // terbaru), jadi riwayat lengkap tidak perlu ditarik ke aplikasi.
+  const priceObservationRows = (await selectWhereIn(
+    "offer_latest_price",
+    "offer_id, price_idr, observed_at",
+    "offer_id",
+    priceableOfferRows.map((offer) => offer.id),
+    { uniqueKey: ["offer_id"] }
+  )) as { offer_id: string; price_idr: number | string; observed_at: string }[];
 
   const variantsByProduct = new Map<string, string[]>();
   const productByVariant = new Map<string, string>();
@@ -455,7 +408,7 @@ export async function listAdminProductsPage({
 export async function listAdminProducts(
   now = new Date()
 ): Promise<AdminProductOverviewRow[]> {
-  await requireAdmin();
+  await requireStaff([]);
   const db = getInsforgeAdminClient().database;
   const productRows: {
     id: string;
@@ -464,12 +417,15 @@ export async function listAdminProducts(
     model: string;
     status: "draft" | "published";
     updated_at: string;
+    nfc: unknown;
+    ip: unknown;
   }[] = [];
 
   for (let from = 0; ; from += ADMIN_BRANDS_READ_SIZE) {
+    // Hanya dua kunci JSON yang dibaca, bukan seluruh kolom `specs`.
     const result = await db
       .from("products")
-      .select("id, slug, brand, model, status, updated_at")
+      .select("id, slug, brand, model, status, updated_at, nfc:specs->hasNfc, ip:specs->ipRating")
       .order("brand", { ascending: true })
       .order("model", { ascending: true })
       .order("id", { ascending: true })
@@ -510,39 +466,13 @@ export async function listAdminProducts(
   const priceableOfferRows = offerRows.filter(
     (offer) => offer.condition === "new" && offer.listing_status === "active"
   );
-  const observationChunks = await Promise.all(
-    chunkValues(
-      priceableOfferRows.map((offer) => offer.id),
-      IN_FILTER_CHUNK_SIZE
-    ).map(async (offerIds) => {
-      const rows: { offer_id: string; observed_at: string }[] = [];
-
-      for (
-        let from = 0;
-        from < ADMIN_PRICE_OBSERVATIONS_MAX_PER_CHUNK;
-        from += ADMIN_PRICE_OBSERVATIONS_READ_SIZE
-      ) {
-        const result = await db
-          .from("price_observations")
-          .select("offer_id, observed_at")
-          .in("offer_id", offerIds)
-          .order("observed_at", { ascending: false })
-          .range(from, from + ADMIN_PRICE_OBSERVATIONS_READ_SIZE - 1);
-
-        if (result.error) {
-          throw new Error("Gagal membaca freshness harga dashboard admin.");
-        }
-        const page = (result.data ?? []) as typeof rows;
-        rows.push(...page);
-        if (page.length < ADMIN_PRICE_OBSERVATIONS_READ_SIZE) return rows;
-      }
-
-      throw new Error(
-        "Riwayat harga dashboard terlalu besar. Ringkasan perlu dipindahkan ke query database."
-      );
-    })
-  );
-  const observationRows = observationChunks.flat();
+  const observationRows = (await selectWhereIn(
+    "offer_latest_price",
+    "offer_id, observed_at",
+    "offer_id",
+    priceableOfferRows.map((offer) => offer.id),
+    { uniqueKey: ["offer_id"] }
+  )) as { offer_id: string; observed_at: string }[];
 
   const variantsByProduct = new Map<string, string[]>();
   for (const variant of variantRows) {
@@ -615,55 +545,16 @@ export async function listAdminProducts(
       ),
       hasPhoto: productsWithPhoto.has(product.id),
       priceStatus,
-    };
-  });
-}
-
-/** Riwayat impor ringkas dari audit; hasil baris detail tetap ada di form impor. */
-export async function listRecentImports(limit = 6): Promise<AdminImportRun[]> {
-  await requireAdmin();
-  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 20);
-  const { data, error } = await getInsforgeAdminClient()
-    .database.from("admin_audit")
-    .select("id, actor_email, operation, detail, created_at")
-    .in("operation", ["impor.csv", "impor.penawaran"])
-    .order("created_at", { ascending: false })
-    .limit(safeLimit);
-
-  if (error) throw new Error("Gagal membaca riwayat impor admin.");
-
-  const numberFrom = (detail: Record<string, unknown>, key: string) => {
-    const value = Number(detail[key]);
-    return Number.isFinite(value) && value >= 0 ? value : 0;
-  };
-
-  return ((data ?? []) as Record<string, unknown>[]).map((row) => {
-    const detail =
-      row.detail && typeof row.detail === "object"
-        ? (row.detail as Record<string, unknown>)
-        : {};
-    const operation = String(row.operation);
-
-    return {
-      id: String(row.id),
-      kind: operation === "impor.penawaran" ? "offers" : "specifications",
-      fileName:
-        typeof detail.berkas === "string" && detail.berkas.trim()
-          ? detail.berkas
-          : "Nama berkas tidak tercatat",
-      totalRows: numberFrom(detail, "baris"),
-      created: numberFrom(detail, "baru"),
-      updated: numberFrom(detail, "diperbarui"),
-      pricesRecorded: numberFrom(detail, "harga"),
-      skipped: numberFrom(detail, "dilewati"),
-      actorEmail: (row.actor_email as string | null) ?? null,
-      createdAt: String(row.created_at),
+      specGaps: [
+        ...(typeof product.nfc === "boolean" ? [] : (["nfc"] as const)),
+        ...(typeof product.ip === "string" && product.ip.trim() ? [] : (["ip"] as const)),
+      ],
     };
   });
 }
 
 export async function getAdminProduct(id: string): Promise<AdminProductDetail | null> {
-  await requireAdmin();
+  await requireStaff([]);
   const db = getInsforgeAdminClient().database;
 
   const productRes = await db.from("products").select().eq("id", id).limit(1);
@@ -790,7 +681,7 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
 }
 
 export async function listRecentAudit(limit = 20): Promise<AuditRow[]> {
-  await requireAdmin();
+  await requireStaff([]);
   const { data, error } = await getInsforgeAdminClient()
     .database.from("admin_audit")
     .select("id, actor_email, operation, object_type, object_id, created_at")
@@ -823,7 +714,7 @@ export type ImportQuality = {
  * seluruh baris.
  */
 export async function getImportQuality(now: Date): Promise<ImportQuality> {
-  await requireAdmin();
+  await requireStaff([]);
   const db = getInsforgeAdminClient().database;
   const count = async (query: PromiseLike<{ count: number | null; error: unknown }>) => {
     const { count: value, error } = await query;

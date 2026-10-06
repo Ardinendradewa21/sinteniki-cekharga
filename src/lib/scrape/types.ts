@@ -20,6 +20,12 @@ export const SCRAPE_BRANDS = [
 ] as const;
 export type ScrapeBrand = (typeof SCRAPE_BRANDS)[number];
 
+/** Nama merek bebas (mis. "iQOO", "OPPO") ke merek tarik otomatis, atau null. */
+export function scrapeBrandOf(value: string): ScrapeBrand | null {
+  const key = value.trim().toLowerCase();
+  return (SCRAPE_BRANDS as readonly string[]).includes(key) ? (key as ScrapeBrand) : null;
+}
+
 /**
  * Merek dengan sumber harga online di Indonesia. Apple tidak punya toko online
  * Indonesia, jadi harganya diambil dari Digimap (penjual, bukan Apple sendiri;

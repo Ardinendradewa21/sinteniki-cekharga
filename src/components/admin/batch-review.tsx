@@ -16,7 +16,51 @@ export type ReviewItem = {
   reason: string | null;
   view: Record<string, unknown>;
   changes: { field: string; before: string | null; after: string | null }[];
+  /** Diisi setelah batch diantrekan. */
+  selected?: boolean;
+  result?: "pending" | "done" | "failed" | "skipped" | null;
+  resultAction?: "created" | "updated" | "unchanged" | null;
+  resultMessage?: string | null;
 };
+
+const RESULT_LABEL = {
+  pending: "Menunggu",
+  done: "Berhasil",
+  failed: "Gagal",
+  skipped: "Dilewati saat diterapkan",
+} as const;
+
+const RESULT_TONE = {
+  pending: "bg-muted text-muted-foreground",
+  done: "bg-success-muted text-success",
+  failed: "bg-destructive/10 text-destructive",
+  skipped: "bg-warning-muted text-warning",
+} as const;
+
+const RESULT_ACTION_LABEL = { created: "dibuat", updated: "diperbarui", unchanged: "tanpa perubahan" } as const;
+
+/** Hasil penerapan satu baris; menandai bila aksinya berbeda dari pratinjau. */
+function ItemResultNote({ item }: { item: ReviewItem }) {
+  if (!item.result) {
+    return item.selected === false && item.action !== "skip" ? (
+      <p className="text-xs text-muted-foreground">Tidak dipilih untuk diterapkan.</p>
+    ) : null;
+  }
+  const expected = item.action === "create" ? "created" : item.action === "update" ? "updated" : null;
+  const drifted = item.result === "done" && expected && item.resultAction && item.resultAction !== expected;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className={cn("inline-flex rounded-pill px-2.5 py-0.5 font-semibold", RESULT_TONE[item.result])}>
+        {RESULT_LABEL[item.result]}
+        {item.result === "done" && item.resultAction ? ` · ${RESULT_ACTION_LABEL[item.resultAction]}` : ""}
+      </span>
+      {drifted ? (
+        <span className="text-warning">Berbeda dari pratinjau karena data katalog berubah sejak pratinjau dibuat.</span>
+      ) : null}
+      {item.resultMessage ? <span className="text-foreground">{item.resultMessage}</span> : null}
+    </div>
+  );
+}
 
 const ACTION_LABEL: Record<Action, string> = {
   create: "Baru",
@@ -40,7 +84,7 @@ function text(value: unknown): string | null {
   return String(value);
 }
 
-function ItemDetail({ item }: { item: ReviewItem }) {
+function ItemDetail({ item, prices }: { item: ReviewItem; prices?: string[] }) {
   const v = item.view;
   const facts =
     item.entity === "product"
@@ -74,6 +118,11 @@ function ItemDetail({ item }: { item: ReviewItem }) {
           {String(v.url)}
         </a>
       ) : null}
+      {prices && prices.length > 0 ? (
+        <p className="text-xs text-foreground">
+          <span className="font-semibold">Harga resmi:</span> {prices.join(" · ")}
+        </p>
+      ) : null}
       {item.reason ? (
         <p className="rounded-md bg-warning-muted px-2.5 py-1.5 text-xs text-foreground">{item.reason}</p>
       ) : null}
@@ -105,10 +154,13 @@ function ItemDetail({ item }: { item: ReviewItem }) {
  */
 export function BatchReview({
   items,
+  priceNotes = {},
   editable,
   applyAction,
 }: {
   items: ReviewItem[];
+  /** Harga resmi per kunci sumber produk (tarik otomatis). */
+  priceNotes?: Record<string, string[]>;
   editable: boolean;
   applyAction: (state: PreviewState, formData: FormData) => Promise<PreviewState>;
 }) {
@@ -221,7 +273,8 @@ export function BatchReview({
                 </div>
                 <div className="col-start-2 min-w-0 space-y-1.5 sm:col-start-3 sm:row-start-1">
                   <p className="text-sm font-semibold text-foreground">{item.label}</p>
-                  <ItemDetail item={item} />
+                  {editable ? null : <ItemResultNote item={item} />}
+                  <ItemDetail item={item} prices={priceNotes[String(item.view.sourceKey ?? "")]} />
                 </div>
               </li>
             );

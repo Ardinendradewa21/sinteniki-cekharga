@@ -31,17 +31,23 @@ import type { CatalogDataset } from "@/lib/catalog/schema";
  *    `revalidate` hanya jaring pengaman untuk penulisan yang tidak lewat
  *    aplikasi ini (mis. pemeriksaan harga otomatis dari luar).
  *
- * 2. Riwayat harga diringkas SEBELUM masuk cache. `price_observations` dan
+ * 2. Riwayat harga diringkas DI DATABASE. `price_observations` dan
  *    `price_checks` bertambah setiap impor, sedangkan aturan harga hanya butuh
  *    pengamatan terbaru dan pemeriksaan BERHASIL terakhir per penawaran
- *    (lihat `latestObservation` dan `lastSuccessfulCheckAt`). Menyimpan seluruh
- *    riwayat hanya membuat cache dan perhitungan membengkak tanpa mengubah hasil.
+ *    (lihat `latestObservation` dan `lastSuccessfulCheckAt`). View
+ *    `offer_latest_price` dan `offer_last_success_check` (security_invoker,
+ *    jadi RLS tabel dasar tetap berlaku) mengirim satu baris per penawaran,
+ *    sehingga ukuran dataset mengikuti jumlah penawaran, bukan panjang riwayat.
  *
  * 3. Dibaca per halaman (`range`), bukan dengan batas keras 1000 baris yang
  *    dulu membuat SELURUH situs gagal begitu tabel harga melewatinya. Batas
  *    `MAX_ROWS_PER_TABLE` tetap ada sebagai kegagalan yang kelihatan: kalau
- *    tersentuh, penyaringan harus dipindahkan ke database (mis. view
- *    `DISTINCT ON (offer_id)`), bukan angkanya dinaikkan.
+ *    tersentuh, pembacaan harus dipecah per halaman katalog, bukan angkanya
+ *    dinaikkan.
+ *
+ * 4. Ukuran dataset dicatat. Data cache Next.js tidak menyimpan entri di atas
+ *    2 MB (di mode dev malah melempar galat), jadi peringatan dimunculkan jauh
+ *    sebelum batas itu tersentuh.
  *
  * Dibaca memakai anon key, sehingga RLS database yang menjamin hanya data
  * terbit yang terbaca (termasuk varian, penawaran, dan harga milik produk
@@ -58,6 +64,9 @@ const CATALOG_REVALIDATE_SECONDS = 300;
 const PAGE_SIZE = 1000;
 
 const MAX_ROWS_PER_TABLE = 50_000;
+
+/** Batas entri data cache Next.js adalah 2 MB; peringatan dimunculkan lebih awal. */
+const CATALOG_SIZE_WARN_BYTES = 1.5 * 1024 * 1024;
 
 type Row = Record<string, unknown>;
 
@@ -108,21 +117,9 @@ async function fetchAllRows({
   }
 }
 
-/**
- * Menyisakan baris pertama per `offer_id`. Masukan WAJIB sudah terurut dari
- * yang terbaru, sehingga baris pertama yang ditemui adalah yang terbaru.
- */
-function keepLatestPerOffer(rows: Row[]): Row[] {
-  const seen = new Set<string>();
-  return rows.filter((row) => {
-    const offerId = String(row.offer_id);
-    if (seen.has(offerId)) return false;
-    seen.add(offerId);
-    return true;
-  });
-}
-
 const byId = [{ column: "id", ascending: true }];
+/** View ringkasan unik per `offer_id`, jadi kolom itu cukup sebagai urutan halaman. */
+const byOffer = [{ column: "offer_id", ascending: true }];
 
 async function fetchCatalogFromBackend(): Promise<CatalogDataset> {
   const [products, variants, assets, reviews, offers, observations, checks, stores, redirects] =
@@ -161,17 +158,18 @@ async function fetchCatalogFromBackend(): Promise<CatalogDataset> {
           "id, variant_id, marketplace, seller_name, url, warranty, listing_status, seller_verified, store_id",
         order: byId,
       }),
+      // Satu baris per penawaran: pengamatan terbaru.
       fetchAllRows({
-        table: "price_observations",
+        table: "offer_latest_price",
         columns: "id, offer_id, price_idr, observed_at, origin",
-        order: [{ column: "observed_at", ascending: false }, ...byId],
+        order: byOffer,
       }),
-      // Hanya percobaan BERHASIL yang memengaruhi harga publik (PRD §7 butir 6).
+      // Satu baris per penawaran: percobaan BERHASIL terakhir, karena hanya itu
+      // yang memengaruhi harga publik (PRD §7 butir 6).
       fetchAllRows({
-        table: "price_checks",
+        table: "offer_last_success_check",
         columns: "id, offer_id, attempted_at, outcome, error_summary",
-        order: [{ column: "attempted_at", ascending: false }, ...byId],
-        filters: [{ column: "outcome", value: "success" }],
+        order: byOffer,
       }),
       fetchAllRows({
         table: "stores",
@@ -186,17 +184,37 @@ async function fetchCatalogFromBackend(): Promise<CatalogDataset> {
       }),
     ]);
 
-  return {
+  const dataset: CatalogDataset = {
     products: mapProducts(products),
     variants: mapVariants(variants),
     assets: mapAssets(assets),
     reviews: mapReviews(reviews),
     offers: mapOffers(offers),
-    priceObservations: mapPriceObservations(keepLatestPerOffer(observations)),
-    priceChecks: mapPriceChecks(keepLatestPerOffer(checks)),
+    priceObservations: mapPriceObservations(observations),
+    priceChecks: mapPriceChecks(checks),
     stores: mapStores(stores),
     slugRedirects: mapSlugRedirects(redirects),
   };
+  reportDatasetSize(dataset);
+  return dataset;
+}
+
+/**
+ * Hanya berjalan saat cache diisi ulang (bukan setiap request), jadi biaya
+ * serialisasi tambahan ini kecil dibanding pembacaan dari database.
+ */
+function reportDatasetSize(dataset: CatalogDataset): void {
+  const bytes = Buffer.byteLength(JSON.stringify(dataset));
+  const kb = Math.round(bytes / 1024);
+  const counts = `${dataset.products.length} produk, ${dataset.offers.length} penawaran`;
+  if (bytes > CATALOG_SIZE_WARN_BYTES) {
+    console.warn(
+      `[katalog] dataset ${kb} KB (${counts}) mendekati batas data cache 2 MB. ` +
+        "Pecah pembacaan katalog per halaman sebelum batas tersentuh."
+    );
+  } else if (process.env.NODE_ENV !== "production") {
+    console.info(`[katalog] dataset ${kb} KB (${counts})`);
+  }
 }
 
 /**
@@ -205,7 +223,7 @@ async function fetchCatalogFromBackend(): Promise<CatalogDataset> {
  */
 export const loadCatalogFromBackend = unstable_cache(
   fetchCatalogFromBackend,
-  ["catalog-dataset", "v4-stores-redirects"],
+  ["catalog-dataset", "v5-latest-views"],
   { tags: [CATALOG_CACHE_TAG], revalidate: CATALOG_REVALIDATE_SECONDS }
 );
 

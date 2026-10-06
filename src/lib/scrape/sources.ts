@@ -39,7 +39,8 @@ import type { LineupItem, ScrapeBrand } from "@/lib/scrape/types";
  *   meminta URL sembarang (SSRF).
  */
 
-const USER_AGENT = "Mozilla/5.0 (compatible; CekHargaBot/1.0; admin-triggered catalog import)";
+// Dipakai tarik otomatis (dipicu admin) dan pemeriksaan harga harian (terjadwal).
+const USER_AGENT = "Mozilla/5.0 (compatible; CekHargaBot/1.0; catalog import and daily official price check)";
 const TIMEOUT_MS = 20_000;
 
 const MIN_INTERVAL_MS: Record<string, number> = {
@@ -374,6 +375,12 @@ const BRANDS: Record<ScrapeBrand, BrandConfig> = {
   itel: { gsmarenaBrand: "itel", gsmarenaListPage: "itel-phones-131.php", brandWords: ["itel"], official: null },
   motorola: { gsmarenaBrand: "Motorola", gsmarenaListPage: "motorola-phones-4.php", brandWords: ["motorola", "moto"], official: null },
 };
+
+/** Kunci nama model per merek, sama dengan yang dipakai saat menarik lineup. */
+export function modelKeyFor(brand: ScrapeBrand): (name: string) => ModelKey {
+  const config = BRANDS[brand];
+  return (name) => modelKey(name, { brandWords: config.brandWords, prefix: config.namePrefix });
+}
 
 export function officialSourceFor(brand: ScrapeBrand) {
   const official = BRANDS[brand].official;

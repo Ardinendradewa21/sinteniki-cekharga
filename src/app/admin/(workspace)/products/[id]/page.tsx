@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { OfferPanel, VariantPanel } from "@/components/admin/product-editor";
+import { ProductPhotoJobs } from "@/components/admin/product-photo-jobs";
 import { ReviewPanel } from "@/components/admin/review-panel";
 import { ProductForm } from "@/components/admin/product-form";
 import { Container } from "@/components/layout/container";
@@ -23,6 +24,8 @@ import {
   type ActionState,
 } from "@/lib/admin/actions";
 import { getAdminProduct } from "@/lib/admin/queries";
+import { productPhotoJobs } from "@/lib/import/photo-jobs";
+import { getProductLineage } from "@/lib/import/batches";
 
 export const metadata: Metadata = {
   title: "Sunting Produk",
@@ -48,6 +51,8 @@ export default async function AdminProductDetailPage({
   const query = await searchParams;
   const product = await getAdminProduct(id);
   if (!product) notFound();
+  const [photoJobs, lineage] = await Promise.all([productPhotoJobs(product.id), getProductLineage(product.id)]);
+  const SOURCE_LABEL = { import: "impor CSV", scrape: "tarik otomatis", manual: "suntingan manual" } as const;
 
   const galat = typeof query.galat === "string" ? GALAT[query.galat] : null;
   const published = product.status === "published";
@@ -93,6 +98,27 @@ export default async function AdminProductDetailPage({
               {published ? "Terbit" : "Draft"}
             </span>
           </p>
+          {lineage ? (
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="product-lineage">
+              Asal data:{" "}
+              {lineage.createdBy ? (
+                <Link href={`/admin/import/batch/${lineage.createdBy.id}`} className="underline underline-offset-2">
+                  dibuat oleh {lineage.createdBy.label}
+                </Link>
+              ) : (
+                "dibuat sebelum jejak impor dicatat"
+              )}
+              {lineage.updatedBy && lineage.updatedBy.id !== lineage.createdBy?.id ? (
+                <>
+                  {" · diperbarui oleh "}
+                  <Link href={`/admin/import/batch/${lineage.updatedBy.id}`} className="underline underline-offset-2">
+                    {lineage.updatedBy.label}
+                  </Link>
+                </>
+              ) : null}
+              {lineage.lastSource ? ` · terakhir dari ${SOURCE_LABEL[lineage.lastSource]}` : ""}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -118,6 +144,8 @@ export default async function AdminProductDetailPage({
       ) : null}
 
       <div className="mt-8 space-y-8">
+        <ProductPhotoJobs productId={product.id} jobs={photoJobs} />
+
         <VariantPanel
           product={product}
           addAction={addVariant}

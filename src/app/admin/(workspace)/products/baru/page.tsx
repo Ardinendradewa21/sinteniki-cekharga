@@ -5,7 +5,7 @@ import { ProductForm } from "@/components/admin/product-form";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { createProductAction } from "@/lib/admin/actions";
-import { requireAdmin } from "@/lib/auth/dal";
+import { requireStaff } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Tambah Produk",
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewProductPage() {
   // Gerbang tetap dipanggil walau form-nya sendiri juga memeriksa saat dikirim.
-  await requireAdmin();
+  await requireStaff([]);
 
   return (
     <Container className="py-10">

@@ -18,6 +18,8 @@ export type ImportReport = {
     imagesCreated: number;
     imagesUpdated: number;
     imagesUnchanged: number;
+    /** Foto yang masuk antrean foto (diproses terpisah setelah penerapan). */
+    imagesQueued?: number;
     imageSkipped: { label: string; reason: string }[];
     skipped: { label: string; reason: string }[];
     malformedLines: number[];
@@ -46,6 +48,8 @@ export type OfferImportReport = {
     /** Foto listing yang baru masuk galeri produk. */
     imagesAdded: number;
     imagesUnchanged: number;
+    /** Foto listing yang masuk antrean foto. */
+    imagesQueued?: number;
     imageSkipped: { label: string; reason: string }[];
     /** Penawaran yang baru pertama kali tercatat. */
     created: number;
@@ -74,3 +78,59 @@ export type PhotoReprocessReport = {
 };
 
 export const EMPTY_PHOTO_REPORT: PhotoReprocessReport = { error: null, summary: null };
+
+/**
+ * Hasil penulisan satu baris berkas. Dipakai worker penerapan bertahap untuk
+ * mengisi kolom hasil per item batch. `rowIndex` relatif terhadap baris yang
+ * diberikan ke runner (satu potongan), bukan seluruh berkas.
+ */
+export type RowResult = {
+  rowIndex: number;
+  outcome: "created" | "updated" | "unchanged" | "failed" | "skipped";
+  entityId: string | null;
+  message: string | null;
+};
+
+type SpecSummary = NonNullable<ImportReport["summary"]>;
+type OfferSummary = NonNullable<OfferImportReport["summary"]>;
+
+/**
+ * Menggabungkan laporan potongan menjadi laporan batch. Angka dijumlahkan,
+ * daftar disambung, dan format sumber disatukan tanpa duplikat.
+ */
+export function mergeSpecSummaries(a: SpecSummary | null, b: SpecSummary): SpecSummary {
+  if (!a) return b;
+  return {
+    totalRows: a.totalRows + b.totalRows,
+    created: a.created + b.created,
+    updated: a.updated + b.updated,
+    imagesCreated: a.imagesCreated + b.imagesCreated,
+    imagesUpdated: a.imagesUpdated + b.imagesUpdated,
+    imagesUnchanged: a.imagesUnchanged + b.imagesUnchanged,
+    imagesQueued: (a.imagesQueued ?? 0) + (b.imagesQueued ?? 0),
+    imageSkipped: [...a.imageSkipped, ...b.imageSkipped],
+    skipped: [...a.skipped, ...b.skipped],
+    malformedLines: a.malformedLines,
+  };
+}
+
+export function mergeOfferSummaries(a: OfferSummary | null, b: OfferSummary): OfferSummary {
+  if (!a) return b;
+  return {
+    totalRows: a.totalRows + b.totalRows,
+    preprocessedRows: a.preprocessedRows + b.preprocessedRows,
+    mergedListings: a.mergedListings + b.mergedListings,
+    inferredBaseVariants: a.inferredBaseVariants + b.inferredBaseVariants,
+    sourceFormats: [...new Set([...a.sourceFormats, ...b.sourceFormats])],
+    imagesAdded: a.imagesAdded + b.imagesAdded,
+    imagesUnchanged: a.imagesUnchanged + b.imagesUnchanged,
+    imagesQueued: (a.imagesQueued ?? 0) + (b.imagesQueued ?? 0),
+    imageSkipped: [...a.imageSkipped, ...b.imageSkipped],
+    created: a.created + b.created,
+    updated: a.updated + b.updated,
+    pricesRecorded: a.pricesRecorded + b.pricesRecorded,
+    duplicatePrices: a.duplicatePrices + b.duplicatePrices,
+    skipped: [...a.skipped, ...b.skipped],
+    malformedLines: a.malformedLines,
+  };
+}

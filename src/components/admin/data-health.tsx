@@ -6,10 +6,10 @@ import {
   Upload04Icon,
 } from "@hugeicons/core-free-icons";
 
-import type {
-  AdminImportRun,
-  AdminProductOverviewRow,
-} from "@/lib/admin/queries";
+import type { AdminProductOverviewRow } from "@/lib/admin/queries";
+import { batchStatusView } from "@/lib/import/batch-status";
+import type { BatchSummary } from "@/lib/import/batches";
+import { scrapeBrandOf } from "@/lib/scrape/types";
 import { cn } from "@/lib/utils";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("id-ID", {
@@ -46,8 +46,157 @@ function issuesFor(product: AdminProductOverviewRow): ProductIssue[] {
   if (!product.hasPhoto) {
     issues.push({ label: "Tanpa foto asli", severity: 2 });
   }
+  if (product.specGaps.length > 0) {
+    issues.push({ label: `${gapLabel(product.specGaps)} belum tercatat`, severity: 1 });
+  }
 
   return issues;
+}
+
+function gapLabel(gaps: AdminProductOverviewRow["specGaps"]): string {
+  return gaps.map((gap) => (gap === "nfc" ? "NFC" : "IP rating")).join(" & ");
+}
+
+/** Tautan ke tab Tarik otomatis yang sudah memilih merek dan mencari modelnya. */
+function rescrapeHref(product: AdminProductOverviewRow): string | null {
+  const brand = scrapeBrandOf(product.brand);
+  if (!brand) return null;
+  const params = new URLSearchParams({ tab: "tarik", merek: brand, cari: product.model });
+  return `/admin/import?${params}`;
+}
+
+const GAP_LIST_LIMIT = 40;
+
+type GapGroup = {
+  id: string;
+  title: string;
+  description: string;
+  items: AdminProductOverviewRow[];
+  action: { href: string; label: string };
+  /** Tarik ulang hanya membantu bila sumbernya memang bisa mengisi celah ini. */
+  rescrape: boolean;
+};
+
+/**
+ * Celah data pada produk yang SUDAH terbit, dikelompokkan per jenis tindakan.
+ * Produk draft sengaja tidak dihitung: belum tampil ke publik, dan biasanya
+ * memang masih dilengkapi.
+ */
+function PublishedGaps({ products }: { products: AdminProductOverviewRow[] }) {
+  const published = products.filter((product) => product.status === "published");
+  const groups: GapGroup[] = [
+    {
+      id: "tanpa-penawaran",
+      title: "Tanpa penawaran",
+      description:
+        "Halaman publiknya hanya menampilkan spesifikasi tanpa harga. Tarik ulang harga resmi, atau unggah CSV penawaran untuk toko lain.",
+      items: published.filter((product) => product.offerCount === 0),
+      action: { href: "/admin/import?tab=unggah", label: "Unggah CSV penawaran" },
+      rescrape: true,
+    },
+    {
+      id: "tanpa-foto",
+      title: "Tanpa foto asli",
+      description:
+        "Masih memakai ilustrasi generik. Tarik ulang dari sumbernya, lalu pantau hasil unduhannya di tab Foto.",
+      items: published.filter((product) => !product.hasPhoto),
+      action: { href: "/admin/import?tab=foto", label: "Buka antrean foto" },
+      rescrape: true,
+    },
+    {
+      id: "spesifikasi-kosong",
+      title: "NFC atau IP rating belum tercatat",
+      description:
+        "Sumber spesifikasi menulis “tergantung pasar” atau tidak mengisinya, jadi tarik ulang tidak mengubah apa pun. Cek situs resmi merek lalu isi di halaman sunting. IP kosong bisa berarti perangkat memang tanpa sertifikasi.",
+      items: published.filter((product) => product.specGaps.length > 0),
+      action: { href: "/admin/products", label: "Kelola produk" },
+      rescrape: false,
+    },
+  ];
+
+  return (
+    <section
+      aria-labelledby="celah-produk-terbit"
+      className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
+    >
+      <h2 id="celah-produk-terbit" className="text-lg font-bold text-foreground">
+        Celah data produk terbit
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {published.length} produk tampil di situs publik. Buka tiap kelompok untuk melihat produknya.
+      </p>
+
+      <div className="mt-4 space-y-3">
+        {groups.map((group) => (
+          <details
+            key={group.id}
+            data-testid={`gap-${group.id}`}
+            className="rounded-xl border border-border open:bg-muted/30"
+          >
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-2 focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="text-sm font-semibold text-foreground">{group.title}</span>
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-xs font-bold tabular-nums",
+                  group.items.length > 0 ? "bg-warning-muted text-warning" : "bg-success-muted text-success"
+                )}
+              >
+                {group.items.length} produk
+              </span>
+            </summary>
+            <div className="border-t border-border px-4 pb-4 pt-3">
+              <p className="max-w-prose text-xs leading-relaxed text-muted-foreground">{group.description}</p>
+              {group.items.length === 0 ? (
+                <p className="mt-3 text-sm text-success">Tidak ada produk terbit di kelompok ini.</p>
+              ) : (
+                <ul className="mt-3 divide-y divide-border">
+                  {group.items.slice(0, GAP_LIST_LIMIT).map((product) => {
+                    const rescrape = group.rescrape ? rescrapeHref(product) : null;
+                    return (
+                      <li key={product.id} className="flex flex-wrap items-center justify-between gap-x-4 py-1">
+                        <Link
+                          href={`/admin/products/${product.id}`}
+                          className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-lg text-sm font-medium text-foreground hover:text-brand focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="truncate">
+                            {product.brand} {product.model}
+                          </span>
+                          {group.id === "spesifikasi-kosong" ? (
+                            <span className="shrink-0 rounded-full bg-warning-muted px-2 py-0.5 text-[10px] font-bold text-warning">
+                              {gapLabel(product.specGaps)}
+                            </span>
+                          ) : null}
+                        </Link>
+                        {rescrape ? (
+                          <Link
+                            href={rescrape}
+                            className="inline-flex min-h-11 items-center text-xs font-bold text-brand hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            Tarik ulang
+                          </Link>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {group.items.length > GAP_LIST_LIMIT ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Menampilkan {GAP_LIST_LIMIT} dari {group.items.length} produk.
+                </p>
+              ) : null}
+              <Link
+                href={group.action.href}
+                className="mt-3 inline-flex min-h-11 items-center text-xs font-bold text-brand hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {group.action.label}
+              </Link>
+            </div>
+          </details>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function HealthMetric({
@@ -112,7 +261,8 @@ function HealthMetric({
   );
 }
 
-function ImportHistory({ imports }: { imports: AdminImportRun[] }) {
+function ImportHistory({ batches }: { batches: BatchSummary[] }) {
+  const now = new Date();
   return (
     <section
       aria-labelledby="riwayat-impor"
@@ -127,60 +277,68 @@ function ImportHistory({ imports }: { imports: AdminImportRun[] }) {
             <h2 id="riwayat-impor" className="text-lg font-bold text-foreground">
               Riwayat impor
             </h2>
-            <p className="text-sm text-muted-foreground">Enam proses terbaru dari audit admin.</p>
+            <p className="text-sm text-muted-foreground">
+              Enam batch terbaru buatan admin. Pemeriksaan harga harian ada di tab Riwayat.
+            </p>
           </div>
         </div>
         <Link
-          href="/admin/import"
+          href="/admin/import?tab=riwayat"
           className="inline-flex min-h-10 shrink-0 items-center text-xs font-bold text-brand hover:underline"
         >
-          Impor data
+          Semua batch
         </Link>
       </div>
 
-      {imports.length === 0 ? (
+      {batches.length === 0 ? (
         <p className="mt-5 rounded-xl bg-muted/50 p-4 text-sm text-muted-foreground">
-          Belum ada proses impor yang tercatat.
+          Belum ada batch impor.
         </p>
       ) : (
         <ol className="mt-4 divide-y divide-border">
-          {imports.map((run) => (
-            <li key={run.id} className="py-3 first:pt-0 last:pb-0">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground" title={run.fileName}>
-                    {run.fileName}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {run.kind === "offers" ? "Penawaran & harga" : "Spesifikasi produk"}
-                    {" · "}{run.totalRows} baris
-                    {run.actorEmail ? ` · ${run.actorEmail}` : ""}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDateTime(run.createdAt)}
-                </span>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
-                <span className="rounded-full bg-brand-muted px-2 py-1 text-brand">
-                  {run.created} baru
-                </span>
-                <span className="rounded-full bg-muted px-2 py-1 text-foreground">
-                  {run.updated} diperbarui
-                </span>
-                {run.kind === "offers" ? (
-                  <span className="rounded-full bg-success-muted px-2 py-1 text-success">
-                    {run.pricesRecorded} harga
-                  </span>
-                ) : null}
-                {run.skipped > 0 ? (
-                  <span className="rounded-full bg-warning-muted px-2 py-1 text-warning">
-                    {run.skipped} dilewati
-                  </span>
-                ) : null}
-              </div>
-            </li>
-          ))}
+          {batches.map((batch) => {
+            const created = batch.counts.create ?? 0;
+            const updated = batch.counts.update ?? 0;
+            return (
+              <li key={batch.id} className="py-3 first:pt-0 last:pb-0">
+                <Link
+                  href={`/admin/import/batch/${batch.id}`}
+                  className="group block rounded-lg focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p
+                        className="truncate text-sm font-semibold text-foreground group-hover:text-brand"
+                        title={batch.sourceLabel}
+                      >
+                        {batch.sourceLabel}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {batch.kind === "offers" ? "Penawaran & harga" : "Spesifikasi produk"}
+                        {batch.origin === "scrape" ? " · tarik otomatis" : " · CSV"}
+                        {batch.createdByEmail ? ` · ${batch.createdByEmail}` : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDateTime(batch.createdAt)}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
+                    <span className={cn("rounded-full px-2 py-1", batchStatusView(batch, now).tone)}>
+                      {batchStatusView(batch, now).label}
+                    </span>
+                    <span className="rounded-full bg-brand-muted px-2 py-1 text-brand">{created} baru</span>
+                    <span className="rounded-full bg-muted px-2 py-1 text-foreground">{updated} diperbarui</span>
+                    {batch.progress && batch.progress.failed > 0 ? (
+                      <span className="rounded-full bg-destructive/10 px-2 py-1 text-destructive">
+                        {batch.progress.failed} gagal
+                      </span>
+                    ) : null}
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
         </ol>
       )}
     </section>
@@ -193,10 +351,11 @@ export function AdminDataHealth({
   freshnessHours,
 }: {
   products: AdminProductOverviewRow[];
-  imports: AdminImportRun[];
+  imports: BatchSummary[];
   freshnessHours: number;
 }) {
   const total = products.length;
+  const published = products.filter((product) => product.status === "published").length;
   const productsWithPhoto = products.filter((product) => product.hasPhoto).length;
   const productsWithVariants = products.filter((product) => product.variantCount > 0).length;
   const freshPrices = products.filter((product) => product.priceStatus === "fresh").length;
@@ -212,8 +371,16 @@ export function AdminDataHealth({
         b.issues.length - a.issues.length ||
         a.product.brand.localeCompare(b.product.brand, "id")
     );
-  const publishedAttention = attention.filter(
-    (item) => item.product.status === "published"
+  // "Perlu ditinjau" hanya menghitung produk TERBIT yang halamannya kehilangan
+  // inti informasinya (tanpa varian/penawaran/harga). Harga kedaluwarsa sudah
+  // punya metrik sendiri dan diatasi pemeriksaan harian; spesifikasi kosong
+  // ada di panel celah data. Menggabungkan semuanya membuat angka ini selalu
+  // 100% sehingga tidak membantu memilih apa yang dikerjakan dulu.
+  const BLOCKING_SEVERITY = 4;
+  const publishedBlocked = attention.filter(
+    (item) =>
+      item.product.status === "published" &&
+      item.issues.some((issue) => issue.severity >= BLOCKING_SEVERITY)
   ).length;
 
   return (
@@ -252,13 +419,15 @@ export function AdminDataHealth({
           description={`Berdasarkan batas freshness ${freshnessHours} jam.`}
         />
         <HealthMetric
-          label="Perlu ditinjau"
-          value={attention.length}
-          total={total}
+          label="Terbit tanpa harga"
+          value={publishedBlocked}
+          total={published}
           inverse
-          description={`${publishedAttention} produk terbit ikut membutuhkan perhatian.`}
+          description="Produk terbit tanpa varian, penawaran, atau harga tercatat. Prioritas pertama."
         />
       </dl>
+
+      <PublishedGaps products={products} />
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
         <section
@@ -281,7 +450,7 @@ export function AdminDataHealth({
 
           {attention.length === 0 ? (
             <p className="mt-5 rounded-xl bg-success-muted p-4 text-sm text-success">
-              Semua produk sudah memiliki foto, varian, penawaran, dan harga segar.
+              Semua produk sudah memiliki foto, varian, penawaran, harga segar, NFC, dan IP rating.
             </p>
           ) : (
             <ul className="mt-4 divide-y divide-border">
@@ -329,7 +498,7 @@ export function AdminDataHealth({
           ) : null}
         </section>
 
-        <ImportHistory imports={imports} />
+        <ImportHistory batches={imports} />
       </div>
     </section>
   );

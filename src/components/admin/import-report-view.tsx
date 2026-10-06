@@ -30,18 +30,28 @@ export function SpecReportView({
           <dt className="text-sm text-muted-foreground">Diperbarui</dt>
           <dd className="text-lg font-bold text-foreground">{summary.updated}</dd>
         </div>
-        <div>
-          <dt className="text-sm text-muted-foreground">Gambar baru</dt>
-          <dd className="text-lg font-bold text-success">{summary.imagesCreated}</dd>
-        </div>
-        <div>
-          <dt className="text-sm text-muted-foreground">Gambar diperbarui</dt>
-          <dd className="text-lg font-bold text-foreground">{summary.imagesUpdated}</dd>
-        </div>
-        <div>
-          <dt className="text-sm text-muted-foreground">Gambar tetap</dt>
-          <dd className="text-lg font-bold text-foreground">{summary.imagesUnchanged}</dd>
-        </div>
+        {summary.imagesQueued !== undefined ? (
+          // Laporan baru: foto diproses antrean terpisah; progresnya di panel progres.
+          <div>
+            <dt className="text-sm text-muted-foreground">Foto diantrekan</dt>
+            <dd className="text-lg font-bold text-foreground">{summary.imagesQueued}</dd>
+          </div>
+        ) : (
+          <>
+            <div>
+              <dt className="text-sm text-muted-foreground">Gambar baru</dt>
+              <dd className="text-lg font-bold text-success">{summary.imagesCreated}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Gambar diperbarui</dt>
+              <dd className="text-lg font-bold text-foreground">{summary.imagesUpdated}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Gambar tetap</dt>
+              <dd className="text-lg font-bold text-foreground">{summary.imagesUnchanged}</dd>
+            </div>
+          </>
+        )}
         <div>
           <dt className="text-sm text-muted-foreground">Gambar dilewati</dt>
           <dd className="text-lg font-bold text-warning">{summary.imageSkipped.length}</dd>
@@ -159,13 +169,13 @@ export function OfferReportView({
         </p>
       ) : null}
 
-      {summary.imagesAdded + summary.imagesUnchanged > 0 ||
+      {summary.imagesAdded + summary.imagesUnchanged + (summary.imagesQueued ?? 0) > 0 ||
       summary.imageSkipped.length > 0 ? (
         <div className="mt-3 text-sm text-muted-foreground">
           <p>
-            Foto galeri: {summary.imagesAdded} ditambahkan atau
-            diperbarui, {summary.imagesUnchanged} sudah ada,{" "}
-            {summary.imageSkipped.length} dilewati.
+            {summary.imagesQueued !== undefined
+              ? `Foto galeri: ${summary.imagesQueued} diantrekan untuk diproses, ${summary.imageSkipped.length} dilewati.`
+              : `Foto galeri: ${summary.imagesAdded} ditambahkan atau diperbarui, ${summary.imagesUnchanged} sudah ada, ${summary.imageSkipped.length} dilewati.`}
           </p>
           {summary.imageSkipped.length > 0 ? (
             <ul className="mt-2 space-y-1">
