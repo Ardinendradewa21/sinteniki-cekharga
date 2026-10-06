@@ -14,24 +14,27 @@ import { Label } from "@/components/ui/label";
  * halaman, TETAPI tetap berupa <form action={...}> biasa: kalau JavaScript
  * gagal dimuat, form ini masih terkirim dan tetap bisa dipakai masuk. Itu pola
  * yang sama dengan seluruh form di situs ini.
+ *
+ * Email TIDAK diisi otomatis: halaman ini publik, dan email akun staf yang
+ * terpampang di sana memudahkan tebak kata sandi. Field-nya juga harus bisa
+ * diisi, karena staf dengan peran berbeda (sales, adops, ...) memakai akun
+ * masing-masing.
  */
 const INITIAL: SignInState = { error: null };
-const DEFAULT_ADMIN_EMAIL = "sinteniki@gmail.com";
 
 export function LoginForm() {
   const [state, action, pending] = useActionState(signInAction, INITIAL);
 
   return (
-    <form action={action} autoComplete="off" className="space-y-4">
+    <form action={action} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
           name="email"
           type="email"
-          value={DEFAULT_ADMIN_EMAIL}
-          autoComplete="off"
-          readOnly
+          autoComplete="username"
+          inputMode="email"
           required
         />
       </div>
@@ -42,7 +45,7 @@ export function LoginForm() {
           id="password"
           name="password"
           type="password"
-          autoComplete="off"
+          autoComplete="current-password"
           required
         />
       </div>
