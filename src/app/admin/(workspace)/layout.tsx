@@ -17,7 +17,7 @@ export default async function AdminWorkspaceLayout({
   const initialTheme: AdminTheme = storedTheme === "dark" ? "dark" : "light";
 
   return (
-    <AdminShell email={admin.email} initialTheme={initialTheme}>
+    <AdminShell email={admin.email} role={admin.role} initialTheme={initialTheme}>
       {children}
     </AdminShell>
   );

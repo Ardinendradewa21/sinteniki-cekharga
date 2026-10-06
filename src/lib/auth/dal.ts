@@ -26,16 +26,22 @@ import { getSessionClient } from "@/lib/auth/insforge-ssr";
  * daftar admin).
  */
 
-export type AdminSession = {
+export type Session = {
   userId: string;
   email: string;
 };
+
+/** Peran staf (docs/ads/ADS-CONTEXT.md §7). `admin` memegang semua akses. */
+export const STAFF_ROLES = ["admin", "sales", "adops", "finance", "legal"] as const;
+export type StaffRole = (typeof STAFF_ROLES)[number];
+
+export type AdminSession = Session & { role: StaffRole };
 
 /**
  * Membaca sesi dari cookie dan memastikan tokennya benar-benar sah menurut
  * backend, bukan sekadar ada. Mengembalikan `null` kalau tidak ada sesi valid.
  */
-export const getSession = cache(async (): Promise<AdminSession | null> => {
+export const getSession = cache(async (): Promise<Session | null> => {
   const client = await getSessionClient();
   const { data, error } = await client.auth.getCurrentUser();
 
@@ -59,7 +65,7 @@ export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
 
   const { data, error } = await getInsforgeAdminClient()
     .database.from("admin_users")
-    .select("user_id")
+    .select("user_id, role")
     .eq("user_id", session.userId)
     .limit(1);
 
@@ -70,7 +76,13 @@ export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
     return null;
   }
 
-  return (data ?? []).length > 0 ? session : null;
+  const row = (data ?? [])[0] as { role?: string } | undefined;
+  if (!row) return null;
+  const role = (STAFF_ROLES as readonly string[]).includes(String(row.role))
+    ? (row.role as StaffRole)
+    : null;
+  // Peran tak dikenal = tidak berwenang, bukan dianggap admin.
+  return role ? { ...session, role } : null;
 });
 
 /**
@@ -89,6 +101,26 @@ export async function requireAdmin(): Promise<AdminSession> {
   if (!admin) redirect("/admin/login?alasan=bukan-admin");
 
   return admin;
+}
+
+/**
+ * Gerbang berbasis peran. `admin` selalu lolos; peran lain hanya bila
+ * tercantum di `roles`. Pengguna tanpa peran yang sesuai dikembalikan ke
+ * dasbor dengan alasan yang jelas, bukan ke halaman masuk.
+ */
+export async function requireStaff(roles: readonly StaffRole[]): Promise<AdminSession> {
+  const admin = await requireAdmin();
+  if (admin.role !== "admin" && !roles.includes(admin.role)) {
+    redirect("/admin?alasan=akses-ditolak");
+  }
+  return admin;
+}
+
+/** Sama dengan requireStaff, tetapi untuk Route Handler: null bila tidak berwenang. */
+export async function getStaffOrNull(roles: readonly StaffRole[]): Promise<AdminSession | null> {
+  const admin = await getAdminSession();
+  if (!admin) return null;
+  return admin.role === "admin" || roles.includes(admin.role) ? admin : null;
 }
 
 /**

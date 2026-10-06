@@ -1,3 +1,4 @@
+import { AdBand } from "@/components/ads/ad-slot";
 import { DataUnavailable } from "@/components/data-error";
 import { AssistantIntro } from "@/components/home/assistant-intro";
 import { ComparisonPreview } from "@/components/home/comparison-preview";
@@ -61,8 +62,10 @@ export default async function HomePage() {
   return (
     <>
       <Hero product={heroProduct} now={now} isDemo={isDemo} />
+      <AdBand code="home_top" />
       <Needs />
       <ProductShowcase products={products} now={now} isDemo={isDemo} />
+      <AdBand code="home_mid" />
       {comparison ? (
         <ComparisonPreview example={comparison} now={now} isDemo={isDemo} />
       ) : null}

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 
 import { CatalogFilters } from "@/components/catalog/catalog-filters";
+import { AdSlot, AdUnit, resolveAd } from "@/components/ads/ad-slot";
 import { CatalogResults } from "@/components/catalog/catalog-results";
 import { DataErrorBoundary, DataUnavailable } from "@/components/data-error";
 import { loadOrNull } from "@/lib/catalog/load";
@@ -52,6 +53,10 @@ async function CatalogView({
   const query = parseCatalogQuery(await searchParams);
   const now = new Date();
   const result = await loadOrNull(() => searchCatalog(now, query));
+  // Targeting kontekstual: bila katalog disaring ke satu merek, iklan merek
+  // itu didahulukan. In-feed dipilih di sini supaya baris kosong tidak dirender.
+  const adBrand = query.brands.length === 1 ? query.brands[0] : null;
+  const inFeedAd = await resolveAd("catalog_infeed", { brand: adBrand });
   if (!result) return <DataUnavailable area="Katalog" />;
   const isDemo = isDemoData();
 
@@ -71,12 +76,15 @@ async function CatalogView({
         interpretation={result.interpretation}
       />
 
+      <AdSlot code="catalog_top" brand={adBrand} className="mt-8" />
+
       <div className="mt-8">
         <CatalogResults
           result={result}
           query={query}
           now={now}
           isDemo={isDemo}
+          inFeedAd={inFeedAd ? <AdUnit creative={inFeedAd.creative} slot={inFeedAd.slot} /> : null}
         />
       </div>
     </>

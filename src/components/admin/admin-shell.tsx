@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Cancel01Icon,
-  CloudDownloadIcon,
+  Megaphone01Icon,
   DashboardSquare01Icon,
   DatabaseImportIcon,
   Logout01Icon,
@@ -21,34 +21,54 @@ import { Button } from "@/components/ui/button";
 import { setAdminThemeAction } from "@/lib/admin/preferences";
 import type { AdminTheme } from "@/lib/admin/preferences-config";
 import { signOutAction } from "@/lib/auth/actions";
+import type { StaffRole } from "@/lib/auth/dal";
 import { cn } from "@/lib/utils";
 
-const ADMIN_NAV = [
+/**
+ * `roles` = peran staf selain `admin` yang boleh membuka menu ini. `admin`
+ * selalu boleh. Menu hanya disembunyikan untuk kenyamanan; batas akses yang
+ * sebenarnya ada di requireStaff() setiap halaman dan aksi.
+ */
+const ADMIN_NAV: readonly {
+  href: string;
+  label: string;
+  description: string;
+  icon: typeof DashboardSquare01Icon;
+  roles: readonly StaffRole[];
+}[] = [
   {
     href: "/admin",
     label: "Dashboard",
     description: "Ringkasan dan aktivitas",
     icon: DashboardSquare01Icon,
+    roles: ["sales", "adops", "finance", "legal"],
   },
   {
     href: "/admin/products",
     label: "Kelola produk",
     description: "Cari, sunting, dan terbitkan",
     icon: Package01Icon,
+    roles: [],
   },
   {
     href: "/admin/import",
     label: "Impor data",
-    description: "Produk dan penawaran",
+    description: "CSV, tarik otomatis, foto",
     icon: DatabaseImportIcon,
+    roles: [],
   },
   {
-    href: "/admin/scrape",
-    label: "Tarik otomatis",
-    description: "GSMArena dan situs resmi",
-    icon: CloudDownloadIcon,
+    href: "/admin/iklan",
+    label: "Iklan",
+    description: "Advertiser, IO, materi, laporan",
+    icon: Megaphone01Icon,
+    roles: ["sales", "adops", "finance", "legal"],
   },
-] as const;
+];
+
+function navFor(role: StaffRole) {
+  return ADMIN_NAV.filter((item) => role === "admin" || item.roles.includes(role));
+}
 
 function isActive(pathname: string, href: string) {
   return href === "/admin"
@@ -58,9 +78,11 @@ function isActive(pathname: string, href: string) {
 
 function AdminNavigation({
   pathname,
+  role,
   onNavigate,
 }: {
   pathname: string;
+  role: StaffRole;
   onNavigate?: () => void;
 }) {
   return (
@@ -69,7 +91,7 @@ function AdminNavigation({
         Menu utama
       </p>
       <ul className="mt-3 space-y-1">
-        {ADMIN_NAV.map((item) => {
+        {navFor(role).map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <li key={item.href}>
@@ -117,10 +139,12 @@ function AdminNavigation({
 function SidebarContent({
   pathname,
   email,
+  role,
   onNavigate,
 }: {
   pathname: string;
   email: string;
+  role: StaffRole;
   onNavigate?: () => void;
 }) {
   return (
@@ -139,7 +163,7 @@ function SidebarContent({
             <span className="block text-xs text-muted-foreground">Admin workspace</span>
           </span>
         </Link>
-        <AdminNavigation pathname={pathname} onNavigate={onNavigate} />
+        <AdminNavigation pathname={pathname} role={role} onNavigate={onNavigate} />
       </div>
       <div className="border-t border-border pt-4">
         <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -162,10 +186,12 @@ function SidebarContent({
 
 export function AdminShell({
   email,
+  role,
   initialTheme,
   children,
 }: {
   email: string;
+  role: StaffRole;
   initialTheme: AdminTheme;
   children: React.ReactNode;
 }) {
@@ -246,7 +272,7 @@ export function AdminShell({
       )}
     >
       <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-border bg-card p-5 transition-colors duration-300 lg:flex">
-        <SidebarContent pathname={pathname} email={email} />
+        <SidebarContent pathname={pathname} email={email} role={role} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col lg:overflow-y-auto">
@@ -366,7 +392,7 @@ export function AdminShell({
                 />
               </button>
             </div>
-            <SidebarContent pathname={pathname} email={email} onNavigate={closeMenu} />
+            <SidebarContent pathname={pathname} email={email} role={role} onNavigate={closeMenu} />
           </motion.aside>
         </motion.div>
         ) : null}

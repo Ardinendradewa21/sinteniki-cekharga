@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment, type ReactNode } from "react";
 
 import { CatalogPagination } from "@/components/catalog/catalog-pagination";
 import { RevealItem } from "@/components/motion/reveal-item";
@@ -78,16 +79,22 @@ function buildSuggestions(query: CatalogQuery): Suggestion[] {
   return suggestions;
 }
 
+/** Posisi iklan in-feed: setelah 10 produk (dua baris di layar lebar). */
+const IN_FEED_AFTER = 10;
+
 export function CatalogResults({
   result,
   query,
   now,
   isDemo,
+  inFeedAd,
 }: {
   result: CatalogSearchResult;
   query: CatalogQuery;
   now: Date;
   isDemo: boolean;
+  /** Slot iklan in-feed (dirender server), opsional. */
+  inFeedAd?: ReactNode;
 }) {
   const activeCount = countActiveFilters(query);
   const suggestions = buildSuggestions(query);
@@ -157,7 +164,13 @@ export function CatalogResults({
       ) : (
         <ul className="-mx-2 mt-6 grid grid-cols-2 gap-2 sm:mx-0 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
           {result.items.map((product, index) => (
-            <RevealItem key={product.id} index={index}>
+            <Fragment key={product.id}>
+            {/* Iklan in-feed selebar satu baris, setelah 10 produk pertama:
+                terpisah jelas dari hasil, bukan berbentuk kartu produk. */}
+            {inFeedAd && index === IN_FEED_AFTER && result.items.length > IN_FEED_AFTER ? (
+              <li className="col-span-full px-2 py-2 sm:px-0">{inFeedAd}</li>
+            ) : null}
+            <RevealItem index={index}>
               <ProductCard
                 product={product}
                 now={now}
@@ -182,6 +195,7 @@ export function CatalogResults({
                 </div>
               ))}
             </RevealItem>
+            </Fragment>
           ))}
         </ul>
       )}

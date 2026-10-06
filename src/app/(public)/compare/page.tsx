@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AdSlot } from "@/components/ads/ad-slot";
 import { ComparePicker } from "@/components/compare/compare-picker";
 import { CompareSummary } from "@/components/compare/compare-summary";
 import { CompareTable } from "@/components/compare/compare-table";
@@ -111,6 +112,8 @@ async function CompareView({
           <CompareSummary result={result} />
         </section>
       ) : null}
+
+      {result.items.length > 0 ? <AdSlot code="compare_bottom" className="mt-12" /> : null}
     </>
   );
 }

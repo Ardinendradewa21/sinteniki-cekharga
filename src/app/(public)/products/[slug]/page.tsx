@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 
+import { AdSlot } from "@/components/ads/ad-slot";
 import { DemoBadge, DemoNotice } from "@/components/demo-marker";
 import { Container } from "@/components/layout/container";
 import { PriceDisplay } from "@/components/price-display";
@@ -186,9 +187,15 @@ export default async function ProductDetailPage(
         />
       </div>
 
-      <div className="mt-16 grid gap-12 lg:grid-cols-2 lg:gap-14">
+      <AdSlot code="product_inline" brand={detail.brand} className="mt-12" />
+
+      <div className="mt-12 grid gap-12 lg:grid-cols-2 lg:gap-14">
         <SpecTable specs={detail.specs} source={detail.specsSource} />
-        <ReviewList reviews={detail.reviews} />
+        <div className="flex flex-col gap-10">
+          <ReviewList reviews={detail.reviews} />
+          {/* Sidebar 300×250 hanya di layar lebar (tanpa ukuran mobile). */}
+          <AdSlot code="product_sidebar" brand={detail.brand} className="lg:sticky lg:top-24 lg:mx-auto lg:max-w-[300px]" />
+        </div>
       </div>
     </Container>
   );

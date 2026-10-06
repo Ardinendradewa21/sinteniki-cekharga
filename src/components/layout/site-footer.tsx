@@ -239,7 +239,13 @@ export function SiteFooter() {
             © {year} {COMPANY.legalName}. Versi awal. Cakupan masih terbatas
             pada smartphone baru, bahasa Indonesia, dan Rupiah.
           </p>
-          <p>
+          <p className="flex flex-wrap gap-x-4 gap-y-2">
+            <Link
+              href="/iklan"
+              className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+            >
+              Beriklan
+            </Link>
             <Link
               href="/terms"
               className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground"

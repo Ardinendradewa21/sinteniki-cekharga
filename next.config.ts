@@ -34,6 +34,12 @@ const nextConfig: NextConfig = {
             hostname: insforgeStorageHostname,
             pathname: "/api/storage/buckets/product-images/objects/**",
           },
+          {
+            // Materi iklan mitra (slot iklan situs publik).
+            protocol: "https",
+            hostname: insforgeStorageHostname,
+            pathname: "/api/storage/buckets/ad-creatives/objects/**",
+          },
         ],
       }
     : undefined,

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="600" viewBox="0 0 160 600" font-family="Arial, Helvetica, sans-serif">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fb923c"/><stop offset="1" stop-color="#be123c"/></linearGradient></defs>
+  <rect width="160" height="600" fill="url(#g)"/>
+  <text x="80" y="30" fill="#ffedd5" font-size="10" font-weight="700" text-anchor="middle" letter-spacing="2">CONTOH IKLAN</text>
+  <text x="80" y="78" fill="#fff" font-size="20" font-weight="800" text-anchor="middle">Contoh</text>
+  <text x="80" y="102" fill="#fff" font-size="20" font-weight="800" text-anchor="middle">Brand B</text>
+  <text x="80" y="136" fill="#ffedd5" font-size="12" text-anchor="middle">Kamera baru,</text>
+  <text x="80" y="152" fill="#ffedd5" font-size="12" text-anchor="middle">desain baru</text>
+  <rect x="40" y="190" width="80" height="150" rx="14" fill="#fff7ed" stroke="#fff" stroke-width="3"/>
+  <circle cx="62" cy="214" r="10" fill="#1f2937"/><circle cx="62" cy="240" r="10" fill="#1f2937"/>
+  <text x="80" y="400" fill="#fff" font-size="13" text-anchor="middle">Ruang ini untuk</text>
+  <text x="80" y="418" fill="#fff" font-size="13" text-anchor="middle">materi iklan mitra</text>
+  <rect x="24" y="520" width="112" height="36" rx="18" fill="#fff"/>
+  <text x="80" y="543" fill="#be123c" font-size="13" font-weight="700" text-anchor="middle">Lihat promo</text>
+  <text x="80" y="588" fill="#ffe4e6" font-size="9" text-anchor="middle">160 × 600</text>
+</svg>
