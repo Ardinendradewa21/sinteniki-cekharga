@@ -9,7 +9,13 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:assistant": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/assistant.test.ts",
-    "test:import": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/import.test.ts"
+    "test:import": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/import.test.ts",
+    "test:catalog": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/catalog.test.ts",
+    "test:integration": "node --env-file=.env.local --import ./scripts/tests/register.mjs --experimental-strip-types --test --test-concurrency=1 scripts/tests/integration/import-flow.test.ts",
+    "qa:sql": "node scripts/qa/sql-checks.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --grep @smoke",
+    "test:e2e:regression": "playwright test --grep \"@smoke|@regression\""
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.3.0",
@@ -31,6 +37,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
