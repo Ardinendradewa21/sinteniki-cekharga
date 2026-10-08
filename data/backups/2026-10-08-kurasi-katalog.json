@@ -1,0 +1,860 @@
+{
+ "createdAt": "2026-10-08T14:29:18.101Z",
+ "note": "Cadangan sebelum kurasi katalog 2026-10-08. Produk dihapus + produk yang diturunkan ke draft.",
+ "deleted": {
+  "products": [
+   {
+    "id": "1720bc40-0e81-4a87-a51b-95a384988681",
+    "slug": "oppo-reno16c",
+    "brand": "OPPO",
+    "model": "Reno16c",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_reno16c_5g-14768",
+    "specs": {
+     "is5G": true,
+     "hasNfc": false,
+     "chipset": "Mediatek Dimensity 7300 Energy (4 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 16, ColorOS 16",
+     "batteryMah": 7000,
+     "has35mmJack": false,
+     "releaseYear": 2026,
+     "weightGrams": 195,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Stellar Purple",
+      "Twilight Violet",
+      "Starry White"
+     ],
+     "mainCameraMp": 50,
+     "displayInches": 6.57,
+     "refreshRateHz": 120,
+     "cameraLensCount": 3,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": true,
+     "cameraHasUltrawide": true,
+     "cameraOpticalZoomX": 3.5
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_reno16c_5g-14768.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:28.848246+00:00"
+   },
+   {
+    "id": "1c5b7dd1-63c0-40c7-88d5-c09458c0f487",
+    "slug": "oppo-f33",
+    "brand": "OPPO",
+    "model": "F33",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_f33_5g-14602",
+    "specs": {
+     "is5G": true,
+     "hasNfc": false,
+     "chipset": "Mediatek Dimensity 6360 Max (6 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 16, ColorOS 16",
+     "batteryMah": 7000,
+     "has35mmJack": false,
+     "releaseYear": 2026,
+     "weightGrams": 189,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Pearl White",
+      "Forest Green"
+     ],
+     "mainCameraMp": 50,
+     "displayInches": 6.57,
+     "refreshRateHz": 120,
+     "cameraLensCount": 2,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": false,
+     "cameraHasUltrawide": false,
+     "cameraOpticalZoomX": null
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_f33_5g-14602.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:31.201209+00:00"
+   },
+   {
+    "id": "1cc1c0c0-3cbb-411d-95fe-d3c3d3043392",
+    "slug": "oppo-find-x9s-pro",
+    "brand": "OPPO",
+    "model": "Find X9s Pro",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_find_x9s_pro-14592",
+    "specs": {
+     "is5G": true,
+     "hasNfc": true,
+     "chipset": "Mediatek Dimensity 9500 (3 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 16, ColorOS 16.0",
+     "batteryMah": 7025,
+     "has35mmJack": false,
+     "releaseYear": 2026,
+     "weightGrams": 198,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Blue/Green",
+      "Orange",
+      "Titanium",
+      "White"
+     ],
+     "mainCameraMp": 200,
+     "displayInches": 6.32,
+     "refreshRateHz": 144,
+     "cameraLensCount": 3,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": true,
+     "cameraHasUltrawide": true,
+     "cameraOpticalZoomX": 2.8
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_find_x9s_pro-14592.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:30.626251+00:00"
+   },
+   {
+    "id": "20f99b8e-439c-4317-823b-3fc703c645a9",
+    "slug": "oppo-f31-pro-plus",
+    "brand": "OPPO",
+    "model": "F31 Pro+",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_f31_pro_plus_5g-14148",
+    "specs": {
+     "is5G": true,
+     "hasNfc": false,
+     "chipset": "Qualcomm SM7550-AB Snapdragon 7 Gen 3 (4 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 15, ColorOS 15",
+     "batteryMah": 7000,
+     "has35mmJack": false,
+     "releaseYear": 2025,
+     "weightGrams": 195,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Festival Pink",
+      "Himalayan White",
+      "Gemstone Blue"
+     ],
+     "mainCameraMp": 50,
+     "displayInches": 6.8,
+     "refreshRateHz": 120,
+     "cameraLensCount": 2,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": false,
+     "cameraHasUltrawide": false,
+     "cameraOpticalZoomX": null
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_f31_pro_plus_5g-14148.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:37.616379+00:00"
+   },
+   {
+    "id": "2367ce6e-9bee-48ea-97f8-d821c6c5009a",
+    "slug": "oppo-f31",
+    "brand": "OPPO",
+    "model": "F31",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_f31_5g-14248",
+    "specs": {
+     "is5G": true,
+     "hasNfc": false,
+     "chipset": "Mediatek Dimensity 6300 (6 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 15, ColorOS 15",
+     "batteryMah": 7000,
+     "has35mmJack": false,
+     "releaseYear": 2025,
+     "weightGrams": 185,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Midnight Blue",
+      "Bloom Red",
+      "Cloud Green"
+     ],
+     "mainCameraMp": 50,
+     "displayInches": 6.57,
+     "refreshRateHz": 120,
+     "cameraLensCount": 2,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": false,
+     "cameraHasUltrawide": false,
+     "cameraOpticalZoomX": null
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_f31_5g-14248.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:37.964828+00:00"
+   },
+   {
+    "id": "6ac7bbb8-e2eb-491d-9a55-203d117f15e0",
+    "slug": "oppo-a6s-pro",
+    "brand": "OPPO",
+    "model": "A6s Pro",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_a6s_pro-14523",
+    "specs": {
+     "is5G": false,
+     "hasNfc": null,
+     "chipset": "Mediatek Helio G100 Max (6 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 16, ColorOS 16",
+     "batteryMah": 7000,
+     "has35mmJack": false,
+     "releaseYear": 2026,
+     "weightGrams": 190,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Lumina Frost",
+      "Eclipse Blue"
+     ],
+     "mainCameraMp": 50,
+     "displayInches": 6.57,
+     "refreshRateHz": 120,
+     "cameraLensCount": 2,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": false,
+     "cameraHasUltrawide": false,
+     "cameraOpticalZoomX": null
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_a6s_pro-14523.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:32.55999+00:00"
+   },
+   {
+    "id": "738e3c9c-339b-4a18-a3af-213c63fa1418",
+    "slug": "oppo-reno-15c",
+    "brand": "OPPO",
+    "model": "Reno 15c",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_reno_15c_5g-14347",
+    "specs": {
+     "is5G": true,
+     "hasNfc": true,
+     "chipset": "Qualcomm SM7750-AB Snapdragon 7 Gen 4 (4 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 16, ColorOS 16",
+     "batteryMah": 6500,
+     "has35mmJack": false,
+     "releaseYear": 2025,
+     "weightGrams": 197,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Dark blue",
+      "Aurora blue",
+      "White"
+     ],
+     "mainCameraMp": 50,
+     "displayInches": 6.59,
+     "refreshRateHz": 120,
+     "cameraLensCount": 3,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": true,
+     "cameraHasUltrawide": true,
+     "cameraOpticalZoomX": 3.5
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_reno_15c_5g-14347.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:36.382056+00:00"
+   },
+   {
+    "id": "8d1ac3b0-d2b9-4672-bf9a-d5ef83308196",
+    "slug": "oppo-f33-pro",
+    "brand": "OPPO",
+    "model": "F33 Pro",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_f33_pro_5g-14601",
+    "specs": {
+     "is5G": true,
+     "hasNfc": false,
+     "chipset": "Mediatek Dimensity 6360 Max (6 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 16, ColorOS 16",
+     "batteryMah": 7000,
+     "has35mmJack": false,
+     "releaseYear": 2026,
+     "weightGrams": 194,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Misty Forest",
+      "Passion Red",
+      "Starry Blue"
+     ],
+     "mainCameraMp": 50,
+     "displayInches": 6.57,
+     "refreshRateHz": 120,
+     "cameraLensCount": 2,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": false,
+     "cameraHasUltrawide": false,
+     "cameraOpticalZoomX": null
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_f33_pro_5g-14601.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:30.996911+00:00"
+   },
+   {
+    "id": "945abe60-8a07-4d58-a40f-1e55c98dcb98",
+    "slug": "oppo-reno15-fs",
+    "brand": "OPPO",
+    "model": "Reno15 FS",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_reno15_fs_5g-14373",
+    "specs": {
+     "is5G": true,
+     "hasNfc": null,
+     "chipset": "Qualcomm SM6450 Snapdragon 6 Gen 1 (4 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 16, ColorOS 16",
+     "batteryMah": 6500,
+     "has35mmJack": false,
+     "releaseYear": 2026,
+     "weightGrams": 189,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Blue",
+      "Navy Blue"
+     ],
+     "mainCameraMp": 50,
+     "displayInches": 6.57,
+     "refreshRateHz": 120,
+     "cameraLensCount": 3,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": false,
+     "cameraHasUltrawide": true,
+     "cameraOpticalZoomX": null
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_reno15_fs_5g-14373.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:32.970149+00:00"
+   },
+   {
+    "id": "9bc3ddae-5a77-47af-b2fc-2a9301eb8212",
+    "slug": "oppo-reno16-fs",
+    "brand": "OPPO",
+    "model": "Reno16 FS",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_reno16_fs_5g-14752",
+    "specs": {
+     "is5G": true,
+     "hasNfc": null,
+     "chipset": "Mediatek Dimensity 7300 Energy (4 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 16, ColorOS 16",
+     "batteryMah": 6500,
+     "has35mmJack": false,
+     "releaseYear": 2026,
+     "weightGrams": 194,
+     "chargingWatt": 45,
+     "colorOptions": [
+      "Pop White",
+      "Dream Purple"
+     ],
+     "mainCameraMp": 50,
+     "displayInches": 6.57,
+     "refreshRateHz": 120,
+     "cameraLensCount": 3,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": true,
+     "cameraHasUltrawide": true,
+     "cameraOpticalZoomX": 3.5
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_reno16_fs_5g-14752.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:30.118834+00:00"
+   },
+   {
+    "id": "b379d7df-3357-43c0-a179-84b77cb9ad1e",
+    "slug": "oppo-find-n6",
+    "brand": "OPPO",
+    "model": "Find N6",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_find_n6_5g-14389",
+    "specs": {
+     "is5G": true,
+     "hasNfc": true,
+     "chipset": "Qualcomm SM8850-AC Snapdragon 8 Elite Gen 5 (3 nm)",
+     "ipRating": "IP58",
+     "osVersion": "Android 16, ColorOS 16",
+     "batteryMah": 6000,
+     "has35mmJack": false,
+     "releaseYear": 2026,
+     "weightGrams": 225,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Blossom Orange",
+      "Stellar Titanium",
+      "Pearl Black"
+     ],
+     "mainCameraMp": 200,
+     "displayInches": 8.12,
+     "refreshRateHz": 120,
+     "cameraLensCount": 3,
+     "displayTechnology": "Foldable LTPO OLED",
+     "cameraHasTelephoto": true,
+     "cameraHasUltrawide": true,
+     "cameraOpticalZoomX": 3
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_find_n6_5g-14389.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:32.190086+00:00"
+   },
+   {
+    "id": "dc83197c-44c4-49db-b660-ff5767f218b5",
+    "slug": "oppo-reno15-pro-mini",
+    "brand": "OPPO",
+    "model": "Reno15 Pro Mini",
+    "status": "draft",
+    "source_key": "gsmarena:oppo_reno15_pro_mini_5g-14393",
+    "specs": {
+     "is5G": true,
+     "hasNfc": null,
+     "chipset": "Mediatek Dimensity 8450 (4 nm)",
+     "ipRating": "IP68",
+     "osVersion": "Android 16, ColorOS 16",
+     "batteryMah": 6200,
+     "has35mmJack": false,
+     "releaseYear": 2026,
+     "weightGrams": 187,
+     "chargingWatt": 80,
+     "colorOptions": [
+      "Dusk Brown",
+      "Aurora Blue",
+      "Glacier White",
+      "Crystal Pink"
+     ],
+     "mainCameraMp": 200,
+     "displayInches": 6.32,
+     "refreshRateHz": 120,
+     "cameraLensCount": 3,
+     "displayTechnology": "AMOLED",
+     "cameraHasTelephoto": true,
+     "cameraHasUltrawide": true,
+     "cameraOpticalZoomX": 3.5
+    },
+    "specs_source": "GSMArena",
+    "specs_source_url": "https://www.gsmarena.com/oppo_reno15_pro_mini_5g-14393.php",
+    "specs_retrieved_at": "2026-09-10T08:11:28.896+00:00",
+    "created_at": "2026-09-10T08:11:35.425188+00:00"
+   }
+  ],
+  "variants": [
+   {
+    "id": "0fcbd2ae-3a4b-446a-bdfd-8aef90725b8c",
+    "product_id": "738e3c9c-339b-4a18-a3af-213c63fa1418",
+    "ram_gb": 12,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "124b90ca-8a1f-4f15-abe3-f2303412559b",
+    "product_id": "1c5b7dd1-63c0-40c7-88d5-c09458c0f487",
+    "ram_gb": 8,
+    "storage_gb": 128,
+    "region": null
+   },
+   {
+    "id": "1f98409d-56ba-42fb-a580-334831416db2",
+    "product_id": "20f99b8e-439c-4317-823b-3fc703c645a9",
+    "ram_gb": 8,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "28a24476-1160-4134-abdf-c6676c0a1628",
+    "product_id": "b379d7df-3357-43c0-a179-84b77cb9ad1e",
+    "ram_gb": 12,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "357f64e7-5605-4f3a-be22-747fbf601213",
+    "product_id": "1c5b7dd1-63c0-40c7-88d5-c09458c0f487",
+    "ram_gb": 8,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "38fa5902-88a0-4078-ae08-7ad1805c5109",
+    "product_id": "945abe60-8a07-4d58-a40f-1e55c98dcb98",
+    "ram_gb": 8,
+    "storage_gb": 512,
+    "region": null
+   },
+   {
+    "id": "49a7005a-73b8-4a2d-a04d-af7f3c684ff7",
+    "product_id": "8d1ac3b0-d2b9-4672-bf9a-d5ef83308196",
+    "ram_gb": 8,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "578e1e71-d292-4946-825b-cceaeda4fbdb",
+    "product_id": "dc83197c-44c4-49db-b660-ff5767f218b5",
+    "ram_gb": 12,
+    "storage_gb": 512,
+    "region": null
+   },
+   {
+    "id": "61f7cbc5-228d-4ae0-a2b5-a2bab808667d",
+    "product_id": "2367ce6e-9bee-48ea-97f8-d821c6c5009a",
+    "ram_gb": 8,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "69fd66a8-82af-4ed2-820d-6561bb4dd338",
+    "product_id": "738e3c9c-339b-4a18-a3af-213c63fa1418",
+    "ram_gb": 12,
+    "storage_gb": 512,
+    "region": null
+   },
+   {
+    "id": "6a91db70-10ad-4836-b10f-28a49be254f8",
+    "product_id": "1720bc40-0e81-4a87-a51b-95a384988681",
+    "ram_gb": 8,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "6aa13276-e0af-4a38-a43b-a851c5617f60",
+    "product_id": "8d1ac3b0-d2b9-4672-bf9a-d5ef83308196",
+    "ram_gb": 8,
+    "storage_gb": 128,
+    "region": null
+   },
+   {
+    "id": "7760b12a-afda-48d6-af4d-a87b327b4eb7",
+    "product_id": "1cc1c0c0-3cbb-411d-95fe-d3c3d3043392",
+    "ram_gb": 16,
+    "storage_gb": 1024,
+    "region": null
+   },
+   {
+    "id": "7b155bc4-5713-4a81-ac08-2c25d7e0310d",
+    "product_id": "2367ce6e-9bee-48ea-97f8-d821c6c5009a",
+    "ram_gb": 8,
+    "storage_gb": 128,
+    "region": null
+   },
+   {
+    "id": "7cb96f37-8add-4db3-8c97-bee17bd82505",
+    "product_id": "1cc1c0c0-3cbb-411d-95fe-d3c3d3043392",
+    "ram_gb": 12,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "7d031152-1e0a-4869-a13c-3b78d4818b0a",
+    "product_id": "b379d7df-3357-43c0-a179-84b77cb9ad1e",
+    "ram_gb": 16,
+    "storage_gb": 1024,
+    "region": null
+   },
+   {
+    "id": "b7ff4a9e-e3ca-4eeb-a845-d5cd3d9e0db9",
+    "product_id": "1cc1c0c0-3cbb-411d-95fe-d3c3d3043392",
+    "ram_gb": 12,
+    "storage_gb": 512,
+    "region": null
+   },
+   {
+    "id": "c42af7af-4647-44c6-b5c2-051ab647a4bf",
+    "product_id": "9bc3ddae-5a77-47af-b2fc-2a9301eb8212",
+    "ram_gb": 8,
+    "storage_gb": 512,
+    "region": null
+   },
+   {
+    "id": "c8df8e01-6e42-421c-a713-ff2bdc51193a",
+    "product_id": "1c5b7dd1-63c0-40c7-88d5-c09458c0f487",
+    "ram_gb": 6,
+    "storage_gb": 128,
+    "region": null
+   },
+   {
+    "id": "d4bc4189-f8df-4870-9a28-a3e237099d9e",
+    "product_id": "945abe60-8a07-4d58-a40f-1e55c98dcb98",
+    "ram_gb": 8,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "dde43927-583b-4299-82db-15264c2564e8",
+    "product_id": "1720bc40-0e81-4a87-a51b-95a384988681",
+    "ram_gb": 12,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "df0b0f13-48f2-41b1-af09-ab41a183e4f5",
+    "product_id": "6ac7bbb8-e2eb-491d-9a55-203d117f15e0",
+    "ram_gb": 8,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "df43804e-5cd4-4fb7-9ff7-b4dd81c08e03",
+    "product_id": "1cc1c0c0-3cbb-411d-95fe-d3c3d3043392",
+    "ram_gb": 16,
+    "storage_gb": 512,
+    "region": null
+   },
+   {
+    "id": "e2e86ad9-0ddb-46e9-9bae-20a2716a9490",
+    "product_id": "dc83197c-44c4-49db-b660-ff5767f218b5",
+    "ram_gb": 12,
+    "storage_gb": 256,
+    "region": null
+   },
+   {
+    "id": "e4c31e2e-92e3-48a9-9046-ec4ef623c0cd",
+    "product_id": "1720bc40-0e81-4a87-a51b-95a384988681",
+    "ram_gb": 8,
+    "storage_gb": 128,
+    "region": null
+   },
+   {
+    "id": "e730f720-c659-4b1d-8bd2-71f77e17cf94",
+    "product_id": "b379d7df-3357-43c0-a179-84b77cb9ad1e",
+    "ram_gb": 16,
+    "storage_gb": 512,
+    "region": null
+   },
+   {
+    "id": "eb8a4446-3bcd-424e-84e3-84d389c03278",
+    "product_id": "20f99b8e-439c-4317-823b-3fc703c645a9",
+    "ram_gb": 12,
+    "storage_gb": 256,
+    "region": null
+   }
+  ],
+  "assets": []
+ },
+ "unpublished": [
+  {
+   "id": "05015a2b-451a-4ea1-bf80-345d433eaaa3",
+   "slug": "apple-iphone-16e",
+   "brand": "Apple",
+   "model": "iPhone 16e"
+  },
+  {
+   "id": "064870ef-84f5-4f7d-9be3-485b8aa8377a",
+   "slug": "vivo-x-fold5",
+   "brand": "vivo",
+   "model": "X Fold5"
+  },
+  {
+   "id": "072f176d-8f49-4f97-a884-d8e14447c594",
+   "slug": "apple-iphone-15-pro",
+   "brand": "Apple",
+   "model": "iPhone 15 Pro"
+  },
+  {
+   "id": "08b81647-dc5a-43b9-a1da-4ae65cc4fa03",
+   "slug": "apple-iphone-17e",
+   "brand": "Apple",
+   "model": "iPhone 17e"
+  },
+  {
+   "id": "1011bad1-d008-4d8f-ac4c-ae61d57f156c",
+   "slug": "infinix-gt-50-pro",
+   "brand": "Infinix",
+   "model": "GT 50 Pro"
+  },
+  {
+   "id": "12ddcf99-aec6-4d8c-b4a5-d63c1fb2b1f9",
+   "slug": "xiaomi-poco-x8-pro",
+   "brand": "Xiaomi",
+   "model": "Poco X8 Pro"
+  },
+  {
+   "id": "1b89e621-f69e-4678-8838-b4fe87fc1c69",
+   "slug": "oppo-a6t",
+   "brand": "OPPO",
+   "model": "A6t"
+  },
+  {
+   "id": "1e6b7424-ac14-478b-9a6f-ce0f6fd1acc0",
+   "slug": "xiaomi-poco-f7-ultra",
+   "brand": "Xiaomi",
+   "model": "Poco F7 Ultra"
+  },
+  {
+   "id": "2e97dcc4-d28a-495c-902f-73e1a6357b42",
+   "slug": "vivo-y31d",
+   "brand": "vivo",
+   "model": "Y31d"
+  },
+  {
+   "id": "3371ff87-43ee-45e8-b83b-215d23d7ecf4",
+   "slug": "xiaomi-redmi-note-15-pro-plus",
+   "brand": "Xiaomi",
+   "model": "Redmi Note 15 Pro+"
+  },
+  {
+   "id": "37c46208-9906-4a05-86b6-331ad5b1e97e",
+   "slug": "xiaomi-15t-pro",
+   "brand": "Xiaomi",
+   "model": "15T Pro"
+  },
+  {
+   "id": "407860c8-fb8c-4435-9da7-4b13954d3b4a",
+   "slug": "vivo-v60-lite-4g",
+   "brand": "vivo",
+   "model": "V60 Lite 4G"
+  },
+  {
+   "id": "5c0abaca-3b80-4a65-a98d-490ec20be14e",
+   "slug": "apple-iphone-12",
+   "brand": "Apple",
+   "model": "iPhone 12"
+  },
+  {
+   "id": "5ddd9733-411e-44dd-aeef-2832e74d232d",
+   "slug": "vivo-y29",
+   "brand": "vivo",
+   "model": "Y29"
+  },
+  {
+   "id": "69da82ab-b2f7-4976-be3b-c02bd7ee7873",
+   "slug": "huawei-mate-x7",
+   "brand": "Huawei",
+   "model": "Mate X7"
+  },
+  {
+   "id": "75d29c26-ff2d-47c2-adad-5b63e28ef242",
+   "slug": "infinix-note-edge",
+   "brand": "Infinix",
+   "model": "Note Edge"
+  },
+  {
+   "id": "77b9d0a2-ec7c-454e-a704-a960ac72da01",
+   "slug": "apple-iphone-16-pro",
+   "brand": "Apple",
+   "model": "iPhone 16 Pro"
+  },
+  {
+   "id": "7ca7196b-3803-4e91-af8f-45dc824df405",
+   "slug": "infinix-note-60-pro",
+   "brand": "Infinix",
+   "model": "Note 60 Pro"
+  },
+  {
+   "id": "7f3b90ce-503b-4622-865e-4addf788dec9",
+   "slug": "itel-super-26-ultra",
+   "brand": "itel",
+   "model": "Super 26 Ultra"
+  },
+  {
+   "id": "80e3b068-b3cf-4a3a-8ae2-16bc0fd13857",
+   "slug": "vivo-y19s-gt",
+   "brand": "vivo",
+   "model": "Y19s GT"
+  },
+  {
+   "id": "8aec33fc-a6f5-46a0-b520-65f6870b6ffe",
+   "slug": "apple-iphone-13",
+   "brand": "Apple",
+   "model": "iPhone 13"
+  },
+  {
+   "id": "8bec4deb-683a-47b8-b49c-8bee838746b3",
+   "slug": "vivo-y03t",
+   "brand": "vivo",
+   "model": "Y03t"
+  },
+  {
+   "id": "9380e40e-ca54-4534-a2db-e3728c91b0a5",
+   "slug": "vivo-v50-lite",
+   "brand": "vivo",
+   "model": "V50 Lite"
+  },
+  {
+   "id": "9716b0a0-da43-45c8-a6cc-e35678a5cd9c",
+   "slug": "infinix-note-60-ultra",
+   "brand": "Infinix",
+   "model": "Note 60 Ultra"
+  },
+  {
+   "id": "a0b4149d-c1f9-4746-9641-83ca00bc27f1",
+   "slug": "huawei-pura-90s-pro",
+   "brand": "Huawei",
+   "model": "Pura 90s Pro"
+  },
+  {
+   "id": "a54282f3-8f92-4137-997d-c0578baf7ace",
+   "slug": "vivo-y19s-pro",
+   "brand": "vivo",
+   "model": "Y19s Pro"
+  },
+  {
+   "id": "baf0cc97-e2fe-462b-9ed8-c193fa3a6f2f",
+   "slug": "itel-a100cs",
+   "brand": "itel",
+   "model": "A100Cs"
+  },
+  {
+   "id": "bc78fe9a-9f3d-4ad1-bd1a-310cb3ea47c6",
+   "slug": "itel-power-80",
+   "brand": "itel",
+   "model": "Power 80"
+  },
+  {
+   "id": "c6767356-5b5b-41f5-9a86-4f96bc10c441",
+   "slug": "huawei-nova-14-pro",
+   "brand": "Huawei",
+   "model": "nova 14 Pro"
+  },
+  {
+   "id": "ce58dff3-40df-4838-af04-679be257bb76",
+   "slug": "apple-iphone-14",
+   "brand": "Apple",
+   "model": "iPhone 14"
+  },
+  {
+   "id": "dfbe3504-a1bc-4629-95de-953eadc5af3f",
+   "slug": "vivo-t5",
+   "brand": "vivo",
+   "model": "T5"
+  },
+  {
+   "id": "e23a6583-5ef9-4928-b6d8-2eb96a8dabc5",
+   "slug": "huawei-mate-80-pro",
+   "brand": "Huawei",
+   "model": "Mate 80 Pro"
+  },
+  {
+   "id": "e598acf7-559e-4e53-8bbc-239680f3bb9a",
+   "slug": "oppo-reno15-pro",
+   "brand": "OPPO",
+   "model": "Reno15 Pro"
+  },
+  {
+   "id": "e6c9bcc7-62c9-4728-9a78-bfbf8f46cb6d",
+   "slug": "infinix-hot-70",
+   "brand": "Infinix",
+   "model": "Hot 70"
+  },
+  {
+   "id": "ea5cf326-f142-4026-ac03-8cd19857fda3",
+   "slug": "oppo-find-x9-pro",
+   "brand": "OPPO",
+   "model": "Find X9 Pro"
+  },
+  {
+   "id": "f320a1c6-dac2-4662-963b-988295feff59",
+   "slug": "vivo-t5-pro",
+   "brand": "vivo",
+   "model": "T5 Pro"
+  }
+ ]
+}

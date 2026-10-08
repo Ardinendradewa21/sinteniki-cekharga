@@ -438,3 +438,40 @@ test("modelKey: tanda + bagian dari nama model", () => {
   assert.equal(key("Galaxy S26+"), key("Samsung Galaxy S26 Plus"));
   assert.equal(key("Galaxy A27 5G"), key("Samsung Galaxy A27"));
 });
+
+test("modelKey: label penjualan [Online Exclusive] dan PO bukan bagian nama model", () => {
+  const key = (name: string) => modelKey(name, { brandWords: ["oppo"] });
+  assert.deepEqual(key("OPPO A6t [Online Exclusive]"), key("Oppo A6t"));
+  assert.deepEqual(key("OPPO A6t Pro 5G [Online Exclusive]"), key("A6t Pro 5G"));
+  assert.deepEqual(key("OPPO A7 Pro Max 5G PO"), key("Oppo A7 Pro Max 5G"));
+  // "POCO" adalah nama seri, bukan label pre-order.
+  assert.equal(modelKey("POCO X8 Pro", { brandWords: ["xiaomi"] }).base, "pocox8pro");
+});
+
+// Kontrak templat unduhan: templat yang diberikan ke tim harus lolos importer
+// apa adanya. Kalau importer berubah tetapi templat tidak, tes ini gagal.
+import { parseCsv } from "@/lib/import/csv-parser";
+import { mapRow, SPEC_COLUMNS, templateSpesifikasi } from "@/lib/import/gsmarena";
+import { mapOfferRow, OFFER_COLUMNS, templatePenawaran } from "@/lib/import/offers";
+
+test("templat spesifikasi lolos mapRow dan mengisi semua spesifikasi", () => {
+  const parsed = parseCsv(templateSpesifikasi());
+  assert.deepEqual(parsed.headers, [...SPEC_COLUMNS]);
+  assert.equal(parsed.rows.length, 1);
+  const outcome = mapRow(parsed.rows[0]!);
+  assert.ok(outcome.ok, outcome.ok ? "" : outcome.reason);
+  assert.equal(outcome.candidate.slug, "oppo-reno16c");
+  assert.equal(outcome.candidate.sourceKey, "gsmarena:oppo_reno16c_5g-14768");
+  assert.equal(outcome.candidate.variants.length, 3);
+  const kosong = Object.entries(outcome.candidate.specs).filter(([, v]) => v === null);
+  assert.deepEqual(kosong, [], "contoh templat harus memperlihatkan semua kolom terisi");
+});
+
+test("templat penawaran lolos mapOfferRow; harga kosong tetap null, bukan nol", () => {
+  const parsed = parseCsv(templatePenawaran());
+  assert.deepEqual(parsed.headers, [...OFFER_COLUMNS]);
+  const outcomes = parsed.rows.map(mapOfferRow);
+  assert.ok(outcomes.every((o) => o.ok));
+  const tanpaHarga = outcomes.find((o) => o.ok && o.row.slug === "oppo-a6c");
+  assert.ok(tanpaHarga?.ok && tanpaHarga.row.priceIdr === null);
+});

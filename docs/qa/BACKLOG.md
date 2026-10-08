@@ -23,6 +23,9 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 11 | PB-12 | Structured data `Product` + `Offer`/`AggregateOffer` di halaman detail (tanpa `aggregateRating`/`review` karangan, AGENTS.md) dan uji Rich Results | UX-22 | 8 | 3 | 3 | 3 | **4.7** | Siap setelah PB-01 |
 | 12 | PB-13 | Konfirmasi nama badan hukum (PT Sinteniki vs PT Sinteniki Digital Solusi) lalu seragamkan situs dan dokumen | UX-23 | 3 | 5 | 5 | 1 | **13.0** | ✅ Selesai 2026-10-08 |
 | 13 | PB-14 | Selaraskan batas harga segar dengan jadwal cron (±30 jam atau cron 2×/hari) | UX-24 | 5 | 3 | 3 | 1 | **11.0** | ✅ Selesai 2026-10-08 (30 jam) |
+| 14 | PB-15 | Gerbang terbit: tombol Terbitkan menolak produk tanpa varian atau tanpa penawaran aktif, dengan alasan yang jelas (SOP impor §7). Per 2026-10-08 ada 29 produk terbit tanpa penawaran | SOP-IMPOR §10 | 5 | 5 | 3 | 2 | **6.5** | Disetujui PO 2026-10-08 (wajib ≥1 penawaran aktif); kode belum |
+| 15 | PB-16 | Tarik otomatis "harga saja" untuk produk katalog yang sudah ada: membuat penawaran resmi dari lineup tanpa menarik ulang spesifikasi GSMArena (yang sering terkena Turnstile) | SOP-IMPOR §5.1 | 8 | 5 | 5 | 3 | **6.0** | Usulan |
+| 16 | PB-17 | Sumber harga e-commerce yang sah (program afiliasi marketplace atau kerja sama toko). Saat ini Shopee/Erafone hanya lewat CSV dan basi setelah 30 jam | SOP-IMPOR §5.1 | 8 | 3 | 5 | 8 | **2.0** | Perlu riset bisnis |
 | – | PB-10 | Modul iklan: Fase 3–4 (laporan otomatis, invoice, portal advertiser, sponsored listing) | ADS-CONTEXT §10 | – | – | – | – | – | **Ditahan** oleh pemilik produk |
 
 ### Catatan prioritas

@@ -96,7 +96,7 @@ export async function planSpecImport(
     changes: [],
   }));
 
-  const [existing, slugOwners] = await Promise.all([
+  const [existing, slugOwners, exclusions] = await Promise.all([
     selectWhereIn(
       "products",
       "id, source_key, slug, brand, model, specs, status",
@@ -104,7 +104,11 @@ export async function planSpecImport(
       valid.map((entry) => entry.candidate.sourceKey)
     ),
     selectWhereIn("products", "id, slug, source_key", "slug", valid.map((entry) => entry.candidate.slug)),
+    selectWhereIn("catalog_exclusions", "source_key, reason", "source_key", valid.map((entry) => entry.candidate.sourceKey), {
+      uniqueKey: ["source_key"],
+    }),
   ]);
+  const excludedReason = new Map(exclusions.map((row) => [String(row.source_key), String(row.reason)]));
   const existingByKey = new Map(existing.map((row) => [String(row.source_key), row]));
   const existingIds = existing.map((row) => String(row.id));
   const [variants, photos] = await Promise.all([
@@ -133,6 +137,21 @@ export async function planSpecImport(
     };
     const label = `${candidate.brand} ${candidate.model}`;
     const current = existingByKey.get(candidate.sourceKey);
+
+    // Model yang sengaja dibuang dari katalog tidak boleh kembali lewat impor.
+    const excluded = excludedReason.get(candidate.sourceKey);
+    if (excluded) {
+      items.push({
+        entity: "product",
+        action: "skip",
+        label,
+        reason: `Dikecualikan dari katalog: ${excluded}`,
+        rowIndexes: [rowIndex],
+        view,
+        changes: [],
+      });
+      continue;
+    }
 
     if (!current) {
       const owner = slugOwners.find((row) => row.slug === candidate.slug);

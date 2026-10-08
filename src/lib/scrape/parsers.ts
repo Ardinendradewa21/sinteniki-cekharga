@@ -181,7 +181,15 @@ export function modelKey(
   name: string,
   options: { brandWords?: readonly string[]; prefix?: string } = {}
 ): ModelKey {
-  const lower = decodeEntities(name).toLowerCase();
+  // Label penjualan bukan bagian nama model. Situs OPPO Indonesia menulis
+  // "OPPO A6t [Online Exclusive]" dan "OPPO A7 Pro Max 5G PO" (pre-order);
+  // tanpa dibuang, model yang jelas dijual itu tidak cocok dengan katalog.
+  const lower = decodeEntities(name)
+    .toLowerCase()
+    .replace(/\[[^\]]*\]/g, " ")
+    .trim()
+    .replace(/\b(?:po|pre[- ]?order)$/, "")
+    .trim();
   const network: NetworkTag = /\b5g\b/.test(lower) ? "5g" : /\b4g\b/.test(lower) ? "4g" : null;
   // "+" adalah bagian nama model ("Galaxy S26+" bukan "Galaxy S26"), jadi
   // disamakan dengan kata "plus" sebelum tanda baca dibuang.
