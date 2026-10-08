@@ -473,9 +473,9 @@ export function buildDemoDataset(now: Date): CatalogDataset {
       { id: "obs-3", offerId: "o-aksa5pro-habis", priceIdr: 2_899_000, observedAt: hoursAgo(6), origin: "manual" },
       { id: "obs-4", offerId: "o-arc3-8-128", priceIdr: 4_199_000, observedAt: hoursAgo(4), origin: "manual" },
       { id: "obs-5", offerId: "o-arc3-8-256", priceIdr: 4_699_000, observedAt: hoursAgo(3), origin: "manual" },
-      // Kedaluwarsa (> 24 jam): tidak layak jadi harga aktif.
+      // Kedaluwarsa (> 30 jam, PRICING_POLICY): tidak layak jadi harga aktif.
       { id: "obs-6", offerId: "o-arc3-12-256", priceIdr: 5_299_000, observedAt: hoursAgo(40), origin: "manual" },
-      { id: "obs-7", offerId: "o-arc3u-12-256", priceIdr: 6_499_000, observedAt: hoursAgo(30), origin: "manual" },
+      { id: "obs-7", offerId: "o-arc3u-12-256", priceIdr: 6_499_000, observedAt: hoursAgo(36), origin: "manual" },
       { id: "obs-8", offerId: "o-meridian-resmi", priceIdr: 12_499_000, observedAt: hoursAgo(1), origin: "manual" },
       { id: "obs-9", offerId: "o-meridian-ambigu", priceIdr: 11_999_000, observedAt: hoursAgo(1), origin: "manual" },
     ],

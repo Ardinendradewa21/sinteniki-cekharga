@@ -21,13 +21,15 @@ export function getDataSourceMode(): DataSourceMode {
 /**
  * Kebijakan harga & freshness (PRD §7).
  *
- * Nilai di bawah adalah "usulan teknis" PRD (pemeriksaan harian, batas
- * freshness 24 jam) dan HARUS dikonfirmasi pemilik produk sebelum publikasi,
- * menyesuaikan sumber harga yang benar-benar dipakai.
+ * Batas freshness 30 jam: keputusan pemilik produk 2026-10-08 (PRD §7),
+ * menggantikan usulan awal 24 jam. Pemeriksaan harga otomatis berjalan sekali
+ * sehari (cron 06.00 WIB) dan cron Vercel tidak presisi; dengan 24 jam, harga
+ * sempat tampil "kedaluwarsa" setiap pagi sebelum pemeriksaan selesai. Selisih
+ * 6 jam memberi ruang keterlambatan tanpa membuat harga lama tampak segar.
  */
 export const PRICING_POLICY = {
   /** Umur maksimum pengamatan harga agar masih layak jadi basis "mulai dari". */
-  freshnessWindowHours: 24,
+  freshnessWindowHours: 30,
   /** Mata uang yang didukung versi awal. */
   currency: "IDR",
   /** Versi awal hanya kondisi baru (PRD §3). */

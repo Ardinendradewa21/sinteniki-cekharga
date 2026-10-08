@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
 import { MotionProvider } from "@/components/motion/motion-provider";
+import { siteUrl } from "@/lib/site-url";
 
 import "./globals.css";
 
@@ -12,6 +13,14 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  // URL absolut untuk Open Graph/canonical hanya bila domain produksi sudah
+  // ditetapkan (SITE_URL); tidak ada domain yang dikarang.
+  metadataBase: siteUrl() ?? undefined,
+  openGraph: {
+    type: "website",
+    siteName: "CekHarga",
+    locale: "id_ID",
+  },
   title: {
     default: "CekHarga, bantu pilih smartphone sesuai kebutuhan",
     template: "%s · CekHarga",

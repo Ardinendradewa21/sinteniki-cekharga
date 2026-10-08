@@ -12,6 +12,7 @@ import {
   listProductSummaries,
 } from "@/lib/catalog/queries";
 import { loadOrNull } from "@/lib/catalog/load";
+import { pickComparisonPair, pickHeroProduct } from "@/lib/catalog/showcase";
 
 /**
  * Dirender per permintaan, bukan di-prerender saat build.
@@ -37,27 +38,18 @@ export const dynamic = "force-dynamic";
  * markup.
  */
 
-/** Produk yang dipakai panel harga di hero. */
-const HERO_PRODUCT_SLUG = "volt-arc-3";
-
-/** Dua kandidat untuk contoh perbandingan. */
-const COMPARISON_SLUGS = ["nusa-aksa-5", "volt-arc-3"] as const;
-
 export default async function HomePage() {
   const now = new Date();
   const isDemo = isDemoData();
 
   const products = await loadOrNull(() => listProductSummaries(now));
-  const comparison = await loadOrNull(() =>
-    getComparisonExample(now, COMPARISON_SLUGS)
-  );
   if (!products) return <DataUnavailable area="Beranda" />;
 
-  const heroProduct =
-    products.find((product) => product.slug === HERO_PRODUCT_SLUG) ??
-    products.find((product) => product.price.status === "available") ??
-    products[0] ??
-    null;
+  // Dipilih dari katalog yang aktif (demo maupun live), bukan slug fixture
+  // yang ditulis langsung; lihat src/lib/catalog/showcase.ts.
+  const heroProduct = pickHeroProduct(products);
+  const pair = pickComparisonPair(products);
+  const comparison = pair ? await loadOrNull(() => getComparisonExample(now, pair)) : null;
 
   return (
     <>
