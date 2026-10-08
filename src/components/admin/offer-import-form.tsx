@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileDrop } from "@/components/admin/file-drop";
 import { ImageRightsFields } from "@/components/admin/image-rights-fields";
+import { TemplateDownloadButton } from "@/components/admin/template-download-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { previewOffersAction, type PreviewState } from "@/lib/import/batch-actions";
@@ -28,16 +29,6 @@ export function OfferImportForm({
     previewOffersAction,
     { error: null }
   );
-
-  const unduhTemplat = (content: string, filename: string) => {
-    const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="space-y-6">
@@ -86,22 +77,12 @@ export function OfferImportForm({
           <Button type="submit" disabled={pending}>
             {pending ? "Menyiapkan pratinjau..." : "Buat pratinjau"}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => unduhTemplat(template, "templat-penawaran-cekharga.csv")}
-          >
+          <TemplateDownloadButton content={template} filename="templat-penawaran-cekharga.csv">
             Templat CekHarga
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              unduhTemplat(shopeeTemplate, "templat-scraper-shopee.csv")
-            }
-          >
+          </TemplateDownloadButton>
+          <TemplateDownloadButton content={shopeeTemplate} filename="templat-scraper-shopee.csv">
             Templat scraper Shopee
-          </Button>
+          </TemplateDownloadButton>
         </div>
 
         {state.error ? (

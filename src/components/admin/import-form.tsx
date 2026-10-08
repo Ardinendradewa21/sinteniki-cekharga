@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileDrop } from "@/components/admin/file-drop";
 import { ImageRightsFields } from "@/components/admin/image-rights-fields";
+import { TemplateDownloadButton } from "@/components/admin/template-download-button";
 import { previewSpecsAction, type PreviewState } from "@/lib/import/batch-actions";
 
 /**
@@ -12,7 +13,7 @@ import { previewSpecsAction, type PreviewState } from "@/lib/import/batch-action
  * penyeragamannya disimpan sebagai batch pratinjau dulu, lalu admin meninjau
  * tabelnya sebelum menerapkan.
  */
-export function ImportForm() {
+export function ImportForm({ template }: { template: string }) {
   const [state, action, pending] = useActionState<PreviewState, FormData>(
     previewSpecsAction,
     { error: null }
@@ -26,7 +27,7 @@ export function ImportForm() {
           name="berkas"
           required
           label="Berkas CSV"
-          hint="Kolom yang dibaca mengikuti format ekspor GSMArena. Harga di berkas tidak pernah diimpor."
+          hint="Kolom mengikuti format ekspor GSMArena; unduh templat untuk daftar kolom yang dibaca. Wajib: brand, model_name, memory_variants_summary, dan url GSMArena sebagai kunci produk. Harga di berkas tidak pernah diimpor."
         />
 
         <ImageRightsFields
@@ -34,9 +35,14 @@ export function ImportForm() {
           hint="CSV boleh memakai kolom image_url atau marketplace_image_url. Pilihan ini berlaku untuk foto yang tidak membawa kolom image_usage_rights sendiri. Tanpa dasar hak pakai, spesifikasi tetap masuk dan foto dilewati. Foto yang valid diperkecil maksimal 1200 px, latar putihnya dihapus, lalu disimpan sebagai WebP."
         />
 
-        <Button type="submit" className="mt-5" disabled={pending}>
-          {pending ? "Menyiapkan pratinjau..." : "Buat pratinjau"}
-        </Button>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button type="submit" disabled={pending}>
+            {pending ? "Menyiapkan pratinjau..." : "Buat pratinjau"}
+          </Button>
+          <TemplateDownloadButton content={template} filename="templat-spesifikasi-cekharga.csv">
+            Templat spesifikasi
+          </TemplateDownloadButton>
+        </div>
 
         {state.error ? (
           <p role="alert" className="mt-4 text-sm font-medium text-destructive">

@@ -48,6 +48,25 @@ test.describe("Pusat Impor", () => {
     await page.goto("/admin/scrape");
     await expect(page).toHaveURL(/\/admin\/import\?tab=tarik/);
   });
+
+  test("TC-IMP-03 templat spesifikasi dan penawaran bisa diunduh dengan header importer @regression", async ({ page }) => {
+    await page.goto("/admin/import?tab=unggah");
+    const cases = [
+      { button: "Templat spesifikasi", file: "templat-spesifikasi-cekharga.csv", header: /^﻿?brand,model_name,memory_variants_summary,url,/ },
+      { button: "Templat CekHarga", file: "templat-penawaran-cekharga.csv", header: /^﻿?slug,ram_gb,storage_gb,marketplace,/ },
+    ];
+    for (const { button, file, header } of cases) {
+      const [download] = await Promise.all([
+        page.waitForEvent("download"),
+        page.getByRole("button", { name: button }).click(),
+      ]);
+      expect(download.suggestedFilename()).toBe(file);
+      const stream = await download.createReadStream();
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) chunks.push(chunk as Buffer);
+      expect(Buffer.concat(chunks).toString("utf8")).toMatch(header);
+    }
+  });
 });
 
 // ---------------------------------------------------------------- peran staf

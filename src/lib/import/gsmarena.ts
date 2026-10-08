@@ -249,3 +249,82 @@ export function mapRow(row: CsvRow): RowOutcome {
     },
   };
 }
+
+/**
+ * Kolom CSV spesifikasi yang benar-benar dibaca `mapRow`, urut dari yang
+ * wajib. Kolom lain di berkas (mis. ekspor GSMArena lengkap) boleh ada dan
+ * diabaikan, termasuk `price_raw`, yang sengaja tidak pernah diimpor.
+ *
+ * Dua kolom cadangan juga diterima tanpa masuk templat: `memory_variants_raw`
+ * (bila ringkasan varian kosong) dan `status_raw` (bila `announced` kosong).
+ * Kolom foto mengikuti `readProductImage`.
+ */
+export const SPEC_COLUMNS = [
+  "brand",
+  "model_name",
+  "memory_variants_summary",
+  "url",
+  "device_type",
+  "announced",
+  "network_technology",
+  "display_size_inches",
+  "display_type_raw",
+  "refresh_rate_hz",
+  "chipset",
+  "battery_capacity_mah",
+  "charging",
+  "main_camera_count",
+  "main_camera_raw",
+  "weight_raw",
+  "nfc",
+  "ip_rating",
+  "jack_3_5mm",
+  "os",
+  "colors",
+  "image_url",
+  "image_usage_basis",
+  "image_usage_rights",
+] as const;
+
+function csvCell(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/**
+ * Isi templat CSV spesifikasi untuk tombol unduh di Pusat Impor.
+ *
+ * Contohnya baris asli dari dataset OPPO (Reno16c) yang sudah ada di katalog,
+ * jadi bila templat terunggah tanpa diubah, pratinjaunya hanya menunjukkan
+ * produk yang sama, bukan produk karangan baru.
+ */
+export function templateSpesifikasi(): string {
+  const contoh: Record<(typeof SPEC_COLUMNS)[number], string> = {
+    brand: "OPPO",
+    model_name: "Reno16c",
+    memory_variants_summary: "128GB/8GB; 256GB/8GB; 256GB/12GB",
+    url: "oppo_reno16c_5g-14768.php",
+    device_type: "phone",
+    announced: "2026, July 02",
+    network_technology: "GSM / HSPA / LTE / 5G",
+    display_size_inches: "6.57",
+    display_type_raw: "AMOLED, 1B colors, 120Hz, 600 nits (typ), 1400 nits (HBM)",
+    refresh_rate_hz: "120",
+    chipset: "Mediatek Dimensity 7300 Energy (4 nm)",
+    battery_capacity_mah: "7000",
+    charging: "80W wired, 55W PPS, 13.5W PD/QC",
+    main_camera_count: "Triple",
+    main_camera_raw:
+      "50 MP, f/1.8, 26mm (wide), PDAF, OIS 50 MP, f/2.8, 92mm (telephoto), PDAF, OIS, 3.5x optical zoom 8 MP, f/2.2, (ultrawide)",
+    weight_raw: "195 g (6.88 oz)",
+    nfc: "No",
+    ip_rating: "IP68",
+    jack_3_5mm: "No",
+    os: "Android 16, ColorOS 16",
+    colors: "Stellar Purple, Twilight Violet, Starry White",
+    image_url: "",
+    image_usage_basis: "",
+    image_usage_rights: "",
+  };
+  const line = SPEC_COLUMNS.map((column) => csvCell(contoh[column])).join(",");
+  return `${SPEC_COLUMNS.join(",")}\n${line}\n`;
+}

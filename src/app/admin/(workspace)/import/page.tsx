@@ -15,6 +15,7 @@ import {
   DRAFT_TTL_DAYS,
 } from "@/lib/import/batch-status";
 import { listBatches, type BatchSummary } from "@/lib/import/batches";
+import { templateSpesifikasi } from "@/lib/import/gsmarena";
 import { templatePenawaran, templateShopeeScrape } from "@/lib/import/offers";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
 import { getSession, listRecentSessions } from "@/lib/scrape/sessions";
@@ -136,7 +137,7 @@ function UploadTab() {
           Mengisi identitas dan spesifikasi dari dataset. Hasilnya masuk sebagai draft.
         </p>
         <div className="mt-5">
-          <ImportForm />
+          <ImportForm template={templateSpesifikasi()} />
         </div>
       </section>
 
