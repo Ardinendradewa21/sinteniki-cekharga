@@ -117,7 +117,7 @@ export function FileDrop({
         onDrop={onDrop}
         className={cn(
           "relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors",
-          "has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50",
+          "has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-ring",
           dragging
             ? "border-accent-warm bg-accent-warm-soft"
             : picked

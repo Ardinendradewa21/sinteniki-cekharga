@@ -1,6 +1,6 @@
 # CekHarga — PRD dan Kebutuhan Sistem
 
-Versi: 2.0 • Tanggal: 3 September 2026
+Versi: 2.0 • Tanggal: 3 September 2026 • Pembaruan §8: 7 Oktober 2026 (keputusan pemilik produk, lihat "Keputusan visual" di §8)
 
 Status: baseline perencanaan untuk implementasi AI Agent, berdasarkan keputusan produk dalam percakapan. Dokumen ini bukan laporan audit repository atau bukti bahwa fitur telah tersedia.
 
@@ -161,7 +161,7 @@ Ini model domain, bukan perintah mengganti semua tabel/contract existing. Gunaka
 6. Tampilkan waktu pemeriksaan berhasil terakhir. Percobaan gagal tidak boleh memperbarui waktu keberhasilan. Penyuntingan metadata juga tidak membuat harga terlihat baru.
 7. Pembelian dan harga akhir mengikuti marketplace; perubahan harga tidak otomatis membuktikan adanya promo.
 
-**Usulan teknis yang dapat diubah:** mulai dengan jadwal pemeriksaan harian dan batas freshness 24 jam, hanya jika sumber mendukung. Simpan sebagai konfigurasi, bukan angka tersebar di UI. Nilai operasional harus dikonfirmasi sebelum publikasi; hasil manual mengikuti aturan yang sama. Uji waktu dengan clock yang dapat dikendalikan agar test deterministik.
+**Usulan teknis yang dapat diubah:** mulai dengan jadwal pemeriksaan harian dan batas freshness 24 jam, hanya jika sumber mendukung. **Keputusan 8 Oktober 2026:** batas freshness menjadi **30 jam** (pemeriksaan otomatis harian 06.00 WIB; selisih 6 jam menampung keterlambatan jadwal). Simpan sebagai konfigurasi, bukan angka tersebar di UI. Nilai operasional harus dikonfirmasi sebelum publikasi; hasil manual mengikuti aturan yang sama. Uji waktu dengan clock yang dapat dikendalikan agar test deterministik.
 
 Target otomatisasi tidak boleh menghambat seluruh produk: jika akses tidak layak, gunakan pembaruan manual dan tampilkan waktunya secara jujur. Tidak ada janji mendeteksi diskon otomatis dalam versi awal.
 
@@ -188,7 +188,7 @@ Hex di atas adalah acuan desain, bukan hasil sampling screenshot atau kontrak wa
 - Container desktop sekitar 1200–1280 px; padding mobile sekitar 16 px. Ritme spacing konsisten.
 - Header: logo/wordmark, navigasi kapsul, tombol ikon bulat untuk fungsi yang tersedia. Tidak ada cart atau favorit palsu.
 - Hero: dua kolom desktop, satu kolom mobile; copy dan dua CTA di kiri, perangkat besar di kanan dengan bidang lingkaran abu lembut dan panel harga/freshness kecil.
-- Katalog: kartu putih ber-radius sekitar 24–32 px, area visual dominan, metadata ringkas. Grid 3/2/1 untuk desktop/tablet/mobile; filter mobile berupa disclosure.
+- Katalog: kartu putih ber-radius sekitar 24–32 px, area visual dominan, metadata ringkas. Grid desktop lebar (≥1280 px) **5 kolom** (keputusan 7 Oktober 2026, menggantikan 3 kolom), lalu 4/3/2 di layar lebih kecil; filter mobile berupa disclosure.
 - Detail: visual kiri, ringkasan keputusan kanan; mobile berurutan visual → identitas/varian → harga/freshness → aksi → penawaran dan bukti.
 - Perbandingan: perbedaan terlihat jelas, label/nama tetap dekat nilainya pada mobile. Jangan memaksa tabel lebar yang tak terbaca.
 - AI: percakapan lapang dengan kartu rekomendasi senada; tidak harus menyerupai dashboard kerja.
@@ -197,6 +197,12 @@ Hex di atas adalah acuan desain, bukan hasil sampling screenshot atau kontrak wa
 Foto harus sesuai produk/varian dan boleh digunakan. Selama belum ada, gunakan SVG perangkat generik lokal dengan keterangan yang tepat; dekorasi `aria-hidden`. Jangan gunakan inisial besar sebagai gambar produk atau membuat render generik tampak sebagai foto model asli.
 
 ### Motion dan aksesibilitas
+
+### Keputusan visual (7 Oktober 2026)
+
+- **CTA utama charcoal** (`--primary`), sesuai tabel palet di atas; teal kembali menjadi aksen terbatas (`--brand`: status harga, tautan aksen, logo) dan warna ring fokus. Di tema gelap publik, CTA dibalik menjadi terang dengan teks gelap.
+- **Tanpa gaya kaca:** tombol dan navigasi padat bertoken, tanpa backdrop blur, gradien, bayangan `rgba` mentah, efek terangkat, atau glow pada menu aktif. Menu aktif ditandai latar `muted` dan `aria-current`.
+- **Grid katalog desktop 5 kolom** (lihat Komposisi). Catatan: ponsel saat ini 2 kolom, berbeda dari acuan awal 1 kolom; belum diputuskan terpisah.
 
 Motion adalah tambahan implementasi, bukan perilaku yang dapat dibuktikan dari screenshot referensi. Gunakan micro-interaction sekitar 120–180 ms dan entrance 280–420 ms dengan opacity/transform. Hero/SVG boleh bergerak halus sekali; hindari loop, parallax, glow, dan scroll hijacking.
 

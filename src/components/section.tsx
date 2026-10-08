@@ -22,7 +22,7 @@ export function Section({
       <Container>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
-            <h2 className="text-2xl font-extrabold tracking-tight text-foreground md:text-3xl">
+            <h2 className="heading-section-lg text-foreground">
               {title}
             </h2>
             {description ? (

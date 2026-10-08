@@ -34,7 +34,12 @@ export function Composer({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card shadow-sm",
+        "rounded-xl border border-border bg-card shadow-sm transition-[border-color,box-shadow] duration-150",
+        // Kolom isian di dalam composer sengaja tanpa bingkai sendiri, jadi
+        // indikator fokusnya dipindah ke kotak composer (PRD §8, WCAG 2.4.7).
+        // Hanya kolom bertanda data-composer-field yang menyalakannya; tombol
+        // Kirim dan pil opsi sudah punya ring sendiri, jadi tidak dobel.
+        "has-[[data-composer-field]:focus-visible]:border-ring has-[[data-composer-field]:focus-visible]:ring-2 has-[[data-composer-field]:focus-visible]:ring-ring",
         className
       )}
     >
@@ -94,7 +99,7 @@ export function OptionPill({
         required={required}
         className="peer sr-only"
       />
-      <span className="flex min-h-11 items-center rounded-pill border border-border-strong bg-card px-4 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted peer-checked:border-foreground peer-checked:bg-foreground peer-checked:text-background peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50">
+      <span className="flex min-h-11 items-center rounded-pill border border-border-strong bg-card px-4 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted peer-checked:border-foreground peer-checked:bg-foreground peer-checked:text-background peer-focus-visible:ring-2 peer-focus-visible:ring-ring">
         {label}
       </span>
     </label>

@@ -2,8 +2,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowUpRight01Icon, Clock01Icon } from "@hugeicons/core-free-icons";
 
 import { MarketplaceLogo, marketplaceKey } from "@/components/product/marketplace-logo";
+import { Button } from "@/components/ui/button";
 import { formatCheckedAt, formatIdr } from "@/lib/catalog/pricing";
 import type { ProductDetailOffer } from "@/lib/catalog/queries";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 /**
@@ -30,18 +32,7 @@ const STATUS_LABEL: Record<Exclude<ProductDetailOffer["listingStatus"], "active"
 };
 
 function Chip({ tone, children }: { tone: "strong" | "warning" | "brand"; children: string }) {
-  return (
-    <span
-      className={cn(
-        "rounded-pill px-2 py-0.5 text-[11px] leading-4 font-semibold whitespace-nowrap",
-        tone === "strong" && "bg-foreground text-background",
-        tone === "warning" && "bg-warning-muted text-warning",
-        tone === "brand" && "bg-brand-muted text-brand"
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <Badge variant={tone === "strong" ? "default" : tone}>{children}</Badge>;
 }
 
 function OfferCard({ offer, now }: { offer: ProductDetailOffer; now: Date }) {
@@ -112,17 +103,21 @@ function OfferCard({ offer, now }: { offer: ProductDetailOffer; now: Date }) {
         ) : null}
       </div>
 
-      <a
-        href={offer.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={`${cta}${isOfficialSite ? ` (${offer.marketplace})` : ""}, membuka tab baru`}
-        className="col-span-3 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-pill bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:col-span-1"
-      >
-        <span className="sm:hidden">{cta}</span>
-        <span className="hidden sm:inline">Buka</span>
-        <HugeiconsIcon icon={ArrowUpRight01Icon} size={16} strokeWidth={2} aria-hidden />
-      </a>
+      {/* Tombol sistem (Button asChild), bukan gaya buatan sendiri: CTA paling
+          penting harus ikut setiap perubahan tema tombol. Slot Radix tidak
+          menambah role="button", jadi tetap tautan bagi pembaca layar. */}
+      <Button asChild className="col-span-3 sm:col-span-1">
+        <a
+          href={offer.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`${cta}${isOfficialSite ? ` (${offer.marketplace})` : ""}, membuka tab baru`}
+        >
+          <span className="sm:hidden">{cta}</span>
+          <span className="hidden sm:inline">Buka</span>
+          <HugeiconsIcon icon={ArrowUpRight01Icon} size={16} strokeWidth={2} aria-hidden />
+        </a>
+      </Button>
     </li>
   );
 }
@@ -139,7 +134,7 @@ export function OfferList({
   return (
     <section>
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">
+        <h2 className="heading-section text-foreground">
           Penawaran
           {offers.length > 0 ? (
             <span className="ml-2 text-base font-semibold text-muted-foreground">

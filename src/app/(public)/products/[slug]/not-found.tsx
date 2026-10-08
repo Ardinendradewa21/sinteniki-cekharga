@@ -16,7 +16,7 @@ export default function ProductNotFound() {
     <Container className="py-16 md:py-24">
       <div className="max-w-2xl">
         <p className="text-sm font-semibold text-muted-foreground">404</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+        <h1 className="mt-2 heading-page text-foreground">
           Produk tidak ditemukan
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">

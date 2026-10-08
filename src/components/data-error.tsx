@@ -40,7 +40,7 @@ function DataErrorFallback(
       className="rounded-xl border border-border bg-card p-6"
     >
       <p className="text-sm font-semibold text-warning">Gagal memuat data</p>
-      <h2 className="mt-1 text-base font-bold text-foreground">
+      <h2 className="mt-1 heading-card text-foreground">
         {props.area ?? "Bagian ini"} tidak bisa ditampilkan sekarang
       </h2>
       <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
@@ -90,7 +90,7 @@ export function DataUnavailable({ area }: { area?: string }) {
   return (
     <div role="alert" className="rounded-xl border border-border bg-card p-6">
       <p className="text-sm font-semibold text-warning">Gagal memuat data</p>
-      <h2 className="mt-1 text-base font-bold text-foreground">
+      <h2 className="mt-1 heading-card text-foreground">
         {area ?? "Bagian ini"} tidak bisa ditampilkan sekarang
       </h2>
       <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,15 +84,9 @@ export function ReviewPanel({
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">
                     {r.channelName}
-                    <span
-                      className={
-                        r.status === "published"
-                          ? "ml-3 rounded-pill bg-success-muted px-2.5 py-0.5 text-xs font-semibold text-success"
-                          : "ml-3 rounded-pill bg-warning-muted px-2.5 py-0.5 text-xs font-semibold text-warning"
-                      }
-                    >
+                    <Badge variant={r.status === "published" ? "success" : "warning"} className="ml-3">
                       {r.status === "published" ? "Terbit" : "Draft"}
-                    </span>
+                    </Badge>
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {r.aspect} · {new Date(r.publishedAt).toLocaleDateString("id-ID")}

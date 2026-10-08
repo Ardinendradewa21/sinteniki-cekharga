@@ -39,7 +39,7 @@ export default function RouteError({
     <Container className="py-16 md:py-24">
       <div className="max-w-2xl">
         <p className="text-sm font-semibold text-warning">Terjadi gangguan</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+        <h1 className="mt-2 heading-page text-foreground">
           Bagian ini gagal dimuat
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">

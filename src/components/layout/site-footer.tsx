@@ -9,7 +9,7 @@ import {
 
 import { Container } from "@/components/layout/container";
 import { MAIN_NAV } from "@/lib/navigation";
-import { COMPANY, SOCIAL_LINKS, SUPPORT_NAV } from "@/lib/site-config";
+import { COMPANY, formatIndonesianPhone, SOCIAL_LINKS, SUPPORT_NAV } from "@/lib/site-config";
 
 /**
  * Footer situs (PRD §8): panel putih luas, navigasi nyata dan transparansi.
@@ -19,9 +19,10 @@ import { COMPANY, SOCIAL_LINKS, SUPPORT_NAV } from "@/lib/site-config";
  * di sini KARENA halamannya benar-benar dibuat, bukan sekadar mengisi kolom.
  *
  * Tautan sosial dan data perusahaan dibaca dari src/lib/site-config.ts. Entri
- * yang masih `null` dirender sebagai teks berlabel "segera" dan tidak bisa
- * diklik, supaya pengunjung tidak mengira ada akun atau kanal kontak yang
- * sebenarnya belum ada.
+ * yang masih `null` TIDAK dirender (audit UX-14): menampilkan ikon mati dan
+ * label "segera" di setiap halaman hanya menambah noise. Tetap jujur karena
+ * tidak ada kanal yang diklaim; begitu nilainya diisi di site-config, kanalnya
+ * muncul sendiri.
  */
 
 const SOCIAL_ICONS: Record<string, typeof InstagramIcon> = {
@@ -33,73 +34,27 @@ const SOCIAL_ICONS: Record<string, typeof InstagramIcon> = {
 
 function FooterHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-sm font-semibold text-foreground">{children}</h2>
-  );
-}
-
-/** Baris data perusahaan yang belum diisi: jujur kosong, bukan dikarang. */
-function PendingValue({ label }: { label: string }) {
-  return (
-    <span className="text-muted-foreground">
-      {label}
-      <span className="ml-2 rounded-pill bg-muted px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground">
-        segera
-      </span>
-    </span>
+    <h2 className="heading-label text-foreground">{children}</h2>
   );
 }
 
 function SocialRow() {
   return (
     <ul className="mt-4 flex flex-wrap gap-2">
-      {SOCIAL_LINKS.map((social) => {
-        const icon = SOCIAL_ICONS[social.label];
-        const inner = (
-          <>
-            <HugeiconsIcon
-              icon={icon}
-              size={18}
-              strokeWidth={1.8}
-              aria-hidden
-            />
+      {SOCIAL_LINKS.filter((social) => social.href).map((social) => (
+        <li key={social.label}>
+          <a
+            href={social.href!}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={social.handle ?? social.label}
+            className="flex size-11 items-center justify-center rounded-pill border border-border bg-card text-muted-foreground transition-colors duration-150 hover:border-border-strong hover:text-foreground"
+          >
+            <HugeiconsIcon icon={SOCIAL_ICONS[social.label]} size={18} strokeWidth={1.8} aria-hidden />
             <span className="sr-only">{social.label}</span>
-          </>
-        );
-
-        return (
-          <li key={social.label}>
-            {social.href ? (
-              <a
-                href={social.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={social.handle ?? social.label}
-                className="flex size-11 items-center justify-center rounded-pill border border-border bg-card text-muted-foreground transition-colors duration-150 hover:border-border-strong hover:text-foreground"
-              >
-                {inner}
-              </a>
-            ) : (
-              /*
-                Belum ada akunnya. Dirender sebagai elemen mati yang terlihat
-                nonaktif, bukan tautan, supaya tidak ada yang mengkliknya dan
-                mengira kanalnya sudah jalan.
-              */
-              <span
-                title={`${social.label} belum tersedia`}
-                className="flex size-11 items-center justify-center rounded-pill border border-dashed border-border bg-card text-muted-foreground/60"
-              >
-                <HugeiconsIcon
-                  icon={icon}
-                  size={18}
-                  strokeWidth={1.8}
-                  aria-hidden
-                />
-                <span className="sr-only">{social.label}, belum tersedia</span>
-              </span>
-            )}
-          </li>
-        );
-      })}
+          </a>
+        </li>
+      ))}
     </ul>
   );
 }
@@ -197,39 +152,29 @@ export function SiteFooter() {
               <FooterHeading>Kontak</FooterHeading>
             </div>
             <ul className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
-              <li>
-                {COMPANY.email ? (
+              {COMPANY.email ? (
+                <li>
                   <a
                     href={`mailto:${COMPANY.email}`}
                     className="inline-flex min-h-11 items-center transition-colors duration-150 hover:text-foreground"
                   >
                     {COMPANY.email}
                   </a>
-                ) : (
-                  <PendingValue label="Email" />
-                )}
-              </li>
-              <li>
-                {COMPANY.whatsapp ? (
+                </li>
+              ) : null}
+              {COMPANY.whatsapp ? (
+                <li>
                   <a
                     href={`https://wa.me/${COMPANY.whatsapp}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex min-h-11 items-center transition-colors duration-150 hover:text-foreground"
                   >
-                    WhatsApp +62 858-1058-2323
+                    WhatsApp {formatIndonesianPhone(COMPANY.whatsapp)}
                   </a>
-                ) : (
-                  <PendingValue label="WhatsApp" />
-                )}
-              </li>
-              <li>
-                {COMPANY.address ? (
-                  <span>{COMPANY.address}</span>
-                ) : (
-                  <PendingValue label="Alamat kantor" />
-                )}
-              </li>
+                </li>
+              ) : null}
+              {COMPANY.address ? <li>{COMPANY.address}</li> : null}
             </ul>
           </div>
         </div>
@@ -239,16 +184,17 @@ export function SiteFooter() {
             © {year} {COMPANY.legalName}. Versi awal. Cakupan masih terbatas
             pada smartphone baru, bahasa Indonesia, dan Rupiah.
           </p>
-          <p className="flex flex-wrap gap-x-4 gap-y-2">
+          {/* Baris tautan, bukan teks dalam kalimat: tiap tautan setinggi 44px (PRD §8). */}
+          <p className="flex flex-wrap gap-x-4">
             <Link
               href="/iklan"
-              className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+              className="inline-flex min-h-11 items-center underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
             >
               Beriklan
             </Link>
             <Link
               href="/terms"
-              className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+              className="inline-flex min-h-11 items-center underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
             >
               Ketentuan Layanan
             </Link>

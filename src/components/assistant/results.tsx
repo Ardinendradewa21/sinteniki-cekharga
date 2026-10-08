@@ -39,7 +39,7 @@ export function AssistantResults({
     <div className="mt-8 space-y-8 border-t border-border pt-8">
       {result.appliedHardRules.length > 0 ? (
         <div className="rounded-2xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">Syarat wajib yang dipakai menyaring</h2>
+          <h2 className="heading-label text-foreground">Syarat wajib yang dipakai menyaring</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
             {result.appliedHardRules.map((rule) => (
               <li key={rule}>{rule}</li>
@@ -58,7 +58,7 @@ export function AssistantResults({
 
       {totals.matches > 0 ? (
         <section aria-labelledby="hasil-cocok">
-          <h2 id="hasil-cocok" className="text-xl font-bold tracking-tight text-foreground">
+          <h2 id="hasil-cocok" className="heading-section text-foreground">
             {totals.matches === 1
               ? "Satu kandidat yang memenuhi syaratmu"
               : `${count(result.matches.length, totals.matches)} kandidat yang memenuhi syaratmu`}
@@ -76,7 +76,7 @@ export function AssistantResults({
 
       {totals.staleMatches > 0 ? (
         <section aria-labelledby="hasil-harga-lama">
-          <h2 id="hasil-harga-lama" className="text-xl font-bold tracking-tight text-foreground">
+          <h2 id="hasil-harga-lama" className="heading-section text-foreground">
             Harga terakhir masuk budget, tetapi perlu dicek ulang
           </h2>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
@@ -94,7 +94,7 @@ export function AssistantResults({
 
       {nothing ? (
         <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="text-base font-bold text-foreground">Tidak ada kandidat yang memenuhi semua syaratmu</h2>
+          <h2 className="heading-card text-foreground">Tidak ada kandidat yang memenuhi semua syaratmu</h2>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
             Saya tidak melonggarkan syaratmu diam-diam supaya daftar ini terisi. Coba ubah salah satu syarat, atau lihat
             alasan di bawah.
@@ -116,7 +116,7 @@ export function AssistantResults({
 
       {totals.overBudget > 0 ? (
         <section aria-labelledby="hasil-luar-budget">
-          <h2 id="hasil-luar-budget" className="text-xl font-bold tracking-tight text-foreground">
+          <h2 id="hasil-luar-budget" className="heading-section text-foreground">
             Di luar budget, kalau mau menimbang ulang
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">

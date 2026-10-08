@@ -87,7 +87,7 @@ function AdminNavigation({
 }) {
   return (
     <nav aria-label="Navigasi admin" className="mt-8">
-      <p className="px-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+      <p className="px-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
         Menu utama
       </p>
       <ul className="mt-3 space-y-1">
@@ -166,7 +166,7 @@ function SidebarContent({
         <AdminNavigation pathname={pathname} role={role} onNavigate={onNavigate} />
       </div>
       <div className="border-t border-border pt-4">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
           Akun aktif
         </p>
         <p className="mt-1 truncate text-sm font-semibold" title={email}>
@@ -278,19 +278,21 @@ export function AdminShell({
       <div className="flex min-w-0 flex-1 flex-col lg:overflow-y-auto">
         <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-border bg-card/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <button
+            <Button
               ref={menuButtonRef}
               type="button"
+              variant="outline"
+              size="icon"
               aria-label="Buka menu admin"
               aria-expanded={menuOpen}
               aria-controls="menu-admin-mobile"
               onClick={() => setMenuOpen(true)}
-              className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-card transition-[background-color,transform] duration-150 hover:-translate-y-0.5 hover:bg-muted lg:hidden"
+              className="lg:hidden"
             >
               <HugeiconsIcon icon={Menu02Icon} size={21} strokeWidth={1.8} aria-hidden />
-            </button>
+            </Button>
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Admin / {currentSection}
               </p>
               <p className="truncate text-sm font-bold text-foreground sm:text-base">
@@ -299,32 +301,22 @@ export function AdminShell({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon"
               onClick={toggleTheme}
               disabled={themePending}
               aria-label={theme === "dark" ? "Gunakan tema terang" : "Gunakan tema gelap"}
               aria-pressed={theme === "dark"}
-              className="flex size-11 items-center justify-center rounded-xl border border-border-strong bg-card text-foreground transition-[background-color,color,transform] duration-150 hover:-translate-y-0.5 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60"
             >
-              <motion.span
-                key={theme}
-                initial={
-                  shouldReduceMotion
-                    ? { opacity: 0 }
-                    : { opacity: 0, rotate: -35, scale: 0.8 }
-                }
-                animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                transition={{ duration: shouldReduceMotion ? 0.01 : 0.18 }}
-              >
-                <HugeiconsIcon
-                  icon={theme === "dark" ? Sun02Icon : Moon02Icon}
-                  size={20}
-                  strokeWidth={1.8}
-                  aria-hidden
-                />
-              </motion.span>
-            </button>
+              <HugeiconsIcon
+                icon={theme === "dark" ? Sun02Icon : Moon02Icon}
+                size={20}
+                strokeWidth={1.8}
+                aria-hidden
+              />
+            </Button>
             <form action={signOutAction}>
               <Button type="submit" variant="outline" size="sm" className="gap-2">
                 <HugeiconsIcon
@@ -377,12 +369,13 @@ export function AdminShell({
             className="relative flex h-full w-[min(19rem,85vw)] flex-col justify-between overflow-y-auto border-r border-border bg-card p-5 shadow-xl"
           >
             <div className="absolute right-4 top-4">
-              <button
+              <Button
                 ref={closeButtonRef}
                 type="button"
+                variant="outline"
+                size="icon"
                 aria-label="Tutup menu"
                 onClick={closeMenu}
-                className="flex size-11 items-center justify-center rounded-xl border border-border-strong bg-card transition-colors hover:bg-muted"
               >
                 <HugeiconsIcon
                   icon={Cancel01Icon}
@@ -390,7 +383,7 @@ export function AdminShell({
                   strokeWidth={1.8}
                   aria-hidden
                 />
-              </button>
+              </Button>
             </div>
             <SidebarContent pathname={pathname} email={email} role={role} onNavigate={closeMenu} />
           </motion.aside>

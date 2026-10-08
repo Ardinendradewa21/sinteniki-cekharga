@@ -1,7 +1,5 @@
-import Link from "next/link";
-
 import type { ProductDetailVariant } from "@/lib/catalog/queries";
-import { cn } from "@/lib/utils";
+import { VariantPicker } from "@/components/product/variant-picker";
 
 /**
  * Pemilih varian (PRD FR-03: "pilihan varian yang benar-benar tercatat").
@@ -29,38 +27,17 @@ export function VariantSelector({
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-foreground">Varian tercatat</h2>
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {variants.map((variant) => (
-          <li key={variant.id}>
-            <Link
-              href={variant.href}
-              aria-current={variant.isSelected ? "true" : undefined}
-              replace
-              className={cn(
-                "flex min-h-11 flex-col justify-center rounded-lg border px-4 py-2 transition-colors duration-150",
-                variant.isSelected
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border-strong bg-card text-foreground hover:bg-muted"
-              )}
-            >
-              <span className="text-sm font-semibold">{variant.label}</span>
-              <span
-                className={cn(
-                  "text-xs",
-                  variant.isSelected
-                    ? "text-background/75"
-                    : "text-muted-foreground"
-                )}
-              >
-                {variant.price.status === "available"
-                  ? "Ada penawaran"
-                  : "Harga belum tersedia"}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <h2 className="heading-label text-foreground">Varian tercatat</h2>
+      <VariantPicker
+        className="mt-3"
+        options={variants.map((variant) => ({
+          key: variant.id,
+          label: variant.label,
+          href: variant.href,
+          selected: variant.isSelected,
+          note: variant.price.status === "available" ? "Ada penawaran" : "Harga belum tersedia",
+        }))}
+      />
 
       {variants.some((variant) => variant.region) ? (
         <ul className="mt-3 space-y-1 text-xs text-muted-foreground">

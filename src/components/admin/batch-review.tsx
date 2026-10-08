@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { PreviewState } from "@/lib/import/batch-actions";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type Action = "create" | "update" | "unchanged" | "skip";
@@ -69,11 +70,11 @@ const ACTION_LABEL: Record<Action, string> = {
   skip: "Dilewati",
 };
 
-const ACTION_TONE: Record<Action, string> = {
-  create: "bg-success-muted text-success",
-  update: "bg-brand-muted text-brand",
-  unchanged: "bg-muted text-muted-foreground",
-  skip: "bg-warning-muted text-warning",
+const ACTION_BADGE: Record<Action, "success" | "brand" | "muted" | "warning"> = {
+  create: "success",
+  update: "brand",
+  unchanged: "muted",
+  skip: "warning",
 };
 
 const FILTERS: (Action | "all")[] = ["all", "create", "update", "unchanged", "skip"];
@@ -262,14 +263,7 @@ export function BatchReview({
                   )}
                 </div>
                 <div className="sm:pt-0.5">
-                  <span
-                    className={cn(
-                      "inline-flex rounded-pill px-2.5 py-0.5 text-xs font-semibold",
-                      ACTION_TONE[item.action]
-                    )}
-                  >
-                    {ACTION_LABEL[item.action]}
-                  </span>
+                  <Badge variant={ACTION_BADGE[item.action]}>{ACTION_LABEL[item.action]}</Badge>
                 </div>
                 <div className="col-start-2 min-w-0 space-y-1.5 sm:col-start-3 sm:row-start-1">
                   <p className="text-sm font-semibold text-foreground">{item.label}</p>

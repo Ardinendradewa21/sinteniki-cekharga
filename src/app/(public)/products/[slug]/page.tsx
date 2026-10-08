@@ -125,7 +125,7 @@ export default async function ProductDetailPage(
             {isDemo ? <DemoBadge /> : null}
           </div>
 
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+          <h1 className="mt-1 heading-page text-foreground">
             {detail.model}
           </h1>
 

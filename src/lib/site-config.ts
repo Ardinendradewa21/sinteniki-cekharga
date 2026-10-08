@@ -12,7 +12,8 @@
 
 export const COMPANY = {
   /** Badan hukum yang menerbitkan CekHarga. */
-  legalName: "PT Sinteniki",
+  /** Dikonfirmasi pemilik produk 2026-10-08 (sebelumnya tertulis "PT Sinteniki"). */
+  legalName: "PT Sinteniki Digital Solusi",
   /** Nama yang dipakai perusahaan di situs resminya. */
   brandName: "Sinteniki Agency",
   product: "CekHarga",
@@ -29,6 +30,17 @@ export const COMPANY = {
   /** Situs perusahaan induk. */
   website: "https://sinteniki.com" as string | null,
 } as const;
+
+/**
+ * "6285810582323" -> "+62 858-1058-2323". Satu sumber nomor: tampilan selalu
+ * diturunkan dari nilai konfigurasi, tidak ditulis ulang di komponen.
+ */
+export function formatIndonesianPhone(international: string): string {
+  const digits = international.replace(/\D/g, "");
+  const local = digits.startsWith("62") ? digits.slice(2) : digits.replace(/^0/, "");
+  const groups = [local.slice(0, 3), local.slice(3, 7), local.slice(7)].filter(Boolean);
+  return `+62 ${groups.join("-")}`;
+}
 
 export type SocialLink = {
   label: string;

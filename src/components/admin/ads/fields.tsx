@@ -1,8 +1,9 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { NavTabs } from "@/components/ui/nav-tabs";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,7 +13,7 @@ import { cn } from "@/lib/utils";
  */
 
 const CONTROL =
-  "flex min-h-11 w-full rounded-lg border border-input bg-card px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "flex min-h-11 w-full rounded-lg border border-input bg-card px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function Field({
   name,
@@ -166,19 +167,16 @@ export function Panel({
   );
 }
 
-const TONE: Record<string, string> = {
-  neutral: "bg-muted text-muted-foreground",
-  good: "bg-brand-muted text-brand",
-  warn: "bg-accent-warm-soft text-foreground",
-  bad: "bg-destructive/10 text-destructive",
-};
+/** Nada Pill lama dipetakan ke varian Badge bertoken (kontras teruji). */
+const TONE = {
+  neutral: "muted",
+  good: "brand",
+  warn: "warning",
+  bad: "destructive",
+} as const;
 
 export function Pill({ tone = "neutral", children }: { tone?: keyof typeof TONE; children: ReactNode }) {
-  return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold", TONE[tone])}>
-      {children}
-    </span>
-  );
+  return <Badge variant={TONE[tone]}>{children}</Badge>;
 }
 
 export function Notice({ tone = "neutral", children }: { tone?: "neutral" | "warn"; children: ReactNode }) {
@@ -206,27 +204,22 @@ const NAV = [
 /** Sub-navigasi modul iklan. `current` = href halaman aktif. */
 export function AdsNav({ current, pendingReview }: { current: string; pendingReview?: number }) {
   return (
-    <nav aria-label="Menu iklan" className="-mx-1 flex gap-1 overflow-x-auto pb-1">
-      {NAV.map((item) => {
-        const active = item.href === current;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors",
-              active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            {item.label}
-            {item.href === "/admin/iklan/review" && pendingReview ? (
-              <span className="rounded-full bg-accent-warm px-1.5 text-xs text-white">{pendingReview}</span>
-            ) : null}
-          </Link>
-        );
-      })}
-    </nav>
+    <NavTabs
+      label="Menu iklan"
+      items={NAV.map((item) => ({
+        href: item.href,
+        label: item.label,
+        active: item.href === current,
+        // accent-warm hanya untuk ilustrasi (globals.css), jadi hitungan
+        // memakai Badge warning yang kontrasnya teruji.
+        count:
+          item.href === "/admin/iklan/review" && pendingReview ? (
+            <Badge variant="warning" aria-label={`${pendingReview} menunggu review`}>
+              {pendingReview}
+            </Badge>
+          ) : undefined,
+      }))}
+    />
   );
 }
 

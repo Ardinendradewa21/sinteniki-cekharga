@@ -38,7 +38,7 @@ function Article({
 }) {
   return (
     <section id={id} className="scroll-mt-8 border-t border-border pt-8">
-      <h2 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
+      <h2 className="heading-section text-foreground">
         {title}
       </h2>
       <div className="mt-3 space-y-3 text-base leading-relaxed text-muted-foreground">
@@ -52,7 +52,7 @@ export default function TermsPage() {
   return (
     <Container className="py-10 md:py-14">
       <header className="max-w-2xl">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+        <h1 className="heading-page text-foreground">
           Ketentuan Layanan
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">

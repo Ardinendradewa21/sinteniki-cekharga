@@ -59,7 +59,7 @@ export function TransparencyTeaser() {
         <div className="rounded-xl border border-border bg-card p-6 md:p-10">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
             <div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-foreground md:text-3xl">
+              <h2 className="heading-section-lg text-foreground">
                 Supaya kamu tahu angkanya dari mana
               </h2>
               <p className="mt-3 text-base leading-relaxed text-muted-foreground">

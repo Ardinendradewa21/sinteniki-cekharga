@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import { CompareSearch } from "@/components/compare/compare-search";
 import { MAX_COMPARE_ITEMS } from "@/lib/catalog/compare-params";
 import type { CompareResult } from "@/lib/catalog/queries";
@@ -11,16 +12,16 @@ export function ComparePicker({ result }: { result: CompareResult }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-brand">Langkah 1</p>
-          <h2 id="pilih-kandidat" className="mt-1 text-lg font-bold text-foreground sm:text-xl">
+          <h2 id="pilih-kandidat" className="mt-1 heading-section text-foreground">
             Pilih produk
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Pilih dua atau tiga produk. Varian dapat diganti setelah produk dipilih.
           </p>
         </div>
-        <span className="rounded-full bg-brand-muted px-3 py-1.5 text-xs font-bold text-brand">
+        <Badge variant="brand" className="px-3 py-1.5">
           {result.items.length}/{MAX_COMPARE_ITEMS} dipilih
-        </span>
+        </Badge>
       </div>
 
       {result.items.length > 0 ? (

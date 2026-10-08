@@ -5,7 +5,7 @@ import {
   CompromiseScaleGlyph,
   HonestEmptyGlyph,
   RequirementSplitGlyph,
-  StatusPulse,
+  StatusDot,
 } from "@/components/illustrations/concept-glyphs";
 import { StaggerItem, StaggerList } from "@/components/motion/reveal";
 import { hasAiCredentials } from "@/lib/assistant/ai/client";
@@ -55,6 +55,12 @@ const BEHAVIOURS = [
   },
 ];
 
+const STARTERS = [
+  { label: "Budget 2,5 juta untuk media sosial", href: "/assistant?tanya=form&budget=2500000&budget_wajib=ya&kegiatan=sosial-media" },
+  { label: "Budget 4 juta, utamakan kamera", href: "/assistant?tanya=form&budget=4000000&budget_wajib=ya&kegiatan=foto" },
+  { label: "Budget 7 juta untuk main game", href: "/assistant?tanya=form&budget=7000000&budget_wajib=ya&kegiatan=game" },
+] as const;
+
 export function AssistantIntro() {
   // Sama dengan penentu tampilan di /assistant: chat AI bila kunci model
   // tersedia, konsultasi bertahap bila tidak. Status di beranda wajib cocok
@@ -82,10 +88,10 @@ export function AssistantIntro() {
           ))}
         </StaggerList>
 
-        <div className="flex flex-col justify-between gap-5 rounded-xl border border-border bg-card p-6">
+        <div className="flex flex-col gap-5 rounded-xl border border-border bg-card p-6">
           <div>
             <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground">
-              <StatusPulse />
+              <StatusDot tone={aiReady ? "success" : "warning"} />
               {aiReady ? "Asisten AI aktif" : "Asisten AI sedang tidak tersedia"}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -95,7 +101,29 @@ export function AssistantIntro() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          {/* Titik mulai yang benar-benar berfungsi: konsultasi dengan budget dan
+              kegiatan sudah terisi (kontrak URL src/lib/assistant/needs.ts).
+              Bukan rekomendasi; kandidatnya tetap disaring dari katalog. */}
+          <div>
+            <p className="heading-label text-foreground">Coba mulai dari</p>
+            <ul className="mt-2 flex flex-col gap-1">
+              {STARTERS.map((starter) => (
+                <li key={starter.href}>
+                  <Link
+                    href={starter.href}
+                    className="flex min-h-11 items-center justify-between gap-3 rounded-lg px-3 text-sm text-foreground transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {starter.label}
+                    <span aria-hidden className="text-muted-foreground">
+                      →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-auto flex flex-wrap gap-3">
             <Button asChild>
               <Link href="/assistant">Tanya AI</Link>
             </Button>

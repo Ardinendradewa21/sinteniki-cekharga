@@ -6,6 +6,8 @@ import { AnimatePresence, motion, type PanInfo } from "motion/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 
+import { DevicePlaceholder } from "@/components/product/device-placeholder";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Photo = { src: string; alt: string; source: string };
@@ -38,8 +40,8 @@ export function ProductGallery({
   name,
 }: {
   photos: Photo[];
-  /** Ilustrasi generik bila produk belum punya foto asli (PRD §8). */
-  fallback: { src: string; alt: string };
+  /** Gambar utama produk; bila ilustrasi generik, tampil sebagai placeholder (PRD §8). */
+  fallback: { src: string; alt: string; isGenericIllustration?: boolean };
   name: string;
 }) {
   const [[index, direction], setPage] = useState<[number, number]>([0, 0]);
@@ -49,15 +51,19 @@ export function ProductGallery({
     const photo = photos[0];
     return (
       <figure className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-8">
-        <div className="relative h-72 w-full sm:h-96">
-          <Image
-            src={photo?.src ?? fallback.src}
-            alt={photo?.alt ?? fallback.alt}
-            fill
-            sizes="(min-width: 1024px) 40vw, 90vw"
-            preload
-            className="object-contain"
-          />
+        <div className="relative flex h-72 w-full items-center justify-center sm:h-96">
+          {photo || !fallback.isGenericIllustration ? (
+            <Image
+              src={photo?.src ?? fallback.src}
+              alt={photo?.alt ?? fallback.alt}
+              fill
+              sizes="(min-width: 1024px) 40vw, 90vw"
+              preload
+              className="object-contain"
+            />
+          ) : (
+            <DevicePlaceholder size="lg" />
+          )}
         </div>
         {photo ? <PhotoSource source={photo.source} /> : null}
       </figure>
@@ -138,7 +144,7 @@ export function ProductGallery({
 
         <p
           aria-hidden="true"
-          className="absolute right-2 top-2 rounded-full bg-background/80 px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground shadow-sm backdrop-blur"
+          className="absolute right-2 top-2 rounded-pill border border-border bg-card px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground"
         >
           {index + 1}/{count}
         </p>
@@ -202,19 +208,18 @@ function GalleryButton({
   children: ReactNode;
 }) {
   return (
-    <motion.button
+    // Tombol sistem (outline, 44px) agar sama dengan tombol lain; tanpa blur
+    // kaca atau efek membesar. shadow-sm memisahkannya dari foto di belakangnya.
+    <Button
       type="button"
+      variant="outline"
+      size="icon"
       aria-label={label}
       onClick={onClick}
-      whileHover={{ scale: 1.06 }}
-      whileTap={{ scale: 0.92 }}
-      className={cn(
-        "absolute top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-border bg-background/85 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        className
-      )}
+      className={cn("absolute top-1/2 z-10 -translate-y-1/2 shadow-sm", className)}
     >
       {children}
-    </motion.button>
+    </Button>
   );
 }
 

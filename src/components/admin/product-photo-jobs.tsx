@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { RetryPhotosButton } from "@/components/admin/retry-photos-button";
 import type { ProductPhotoJob } from "@/lib/import/photo-jobs";
 
@@ -45,16 +46,10 @@ export function ProductPhotoJobs({ productId, jobs }: { productId: string; jobs:
               </a>
               {job.lastError ? <span className="block text-xs text-destructive">{job.lastError}</span> : null}
             </span>
-            <span
-              className={
-                job.status === "failed"
-                  ? "rounded-pill bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive"
-                  : "rounded-pill bg-warning-muted px-2.5 py-0.5 text-xs font-semibold text-warning"
-              }
-            >
+            <Badge variant={job.status === "failed" ? "destructive" : "warning"}>
               {STATUS_LABEL[job.status] ?? job.status}
               {job.status === "failed" ? ` (${job.attempts}x)` : ""}
-            </span>
+            </Badge>
           </li>
         ))}
       </ul>

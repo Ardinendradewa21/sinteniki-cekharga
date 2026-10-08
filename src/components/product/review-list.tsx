@@ -36,7 +36,7 @@ function formatPublishedAt(iso: string): string {
 export function ReviewList({ reviews }: { reviews: ProductReview[] }) {
   return (
     <section>
-      <h2 className="text-xl font-bold tracking-tight text-foreground">
+      <h2 className="heading-section text-foreground">
         Pengalaman reviewer
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">

@@ -142,9 +142,16 @@
 }
 
 /*
-  Identitas publik CekHarga: teal = keputusan tepercaya/data harga, navy =
-  struktur, terracotta = aksen hangat terbatas. Semua komponen publik memakai
-  token semantik ini, jadi dark mode tidak membutuhkan warna per halaman.
+  Identitas publik CekHarga: charcoal = headline dan CTA utama (PRD §8;
+  keputusan pemilik produk 2026-10-07 mengembalikan CTA dari teal ke
+  charcoal), teal = aksen terbatas untuk data harga/status (--brand) dan ring
+  fokus, navy = struktur, terracotta = aksen hangat terbatas. Semua komponen
+  publik memakai token semantik ini, jadi dark mode tidak membutuhkan warna per
+  halaman.
+
+  Kontras --primary: terang #303030 vs putih 13.2:1; gelap #e8f5f2 vs
+  #071716 16.6:1 (dibalik seperti palet netral shadcn: tombol terang di atas
+  latar gelap).
 */
 .public-theme[data-theme="light"] {
   --background: #f3f7f6;
@@ -154,7 +161,7 @@
   --popover: #ffffff;
   --popover-foreground: #102a2a;
 
-  --primary: #0f766e;
+  --primary: #303030;
   --primary-foreground: #ffffff;
   --secondary: #e2efed;
   --secondary-foreground: #173a37;
@@ -194,8 +201,8 @@
   --popover: #102825;
   --popover-foreground: #e8f5f2;
 
-  --primary: #5eead4;
-  --primary-foreground: #062824;
+  --primary: #e8f5f2;
+  --primary-foreground: #071716;
   --secondary: #173532;
   --secondary-foreground: #e8f5f2;
   --muted: #142e2c;
@@ -290,7 +297,8 @@
 }
 
 .draw-outline {
-  animation: ch-draw-outline 500ms ease-out forwards;
+  /* 420ms = batas atas entrance PRD §8 (280–420ms). */
+  animation: ch-draw-outline 420ms ease-out forwards;
 }
 
 /*
@@ -305,6 +313,12 @@
   inset: 0;
   z-index: -1;
   overflow: hidden;
+  /*
+    Pudar di tepi atas/bawah (padanan utility mask-y-from/mask-y-to Tailwind
+    v4). Tanpa ini, lingkaran blur terpotong overflow tepat di batas seksi dan
+    tampak sebagai garis keras, paling jelas di tema gelap (audit UX-15).
+  */
+  mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
 }
 
 .warmth-blob::before,
@@ -330,6 +344,77 @@
   background: var(--brand-muted);
 }
 
+/*
+  Skala heading terkunci (audit UX-07). Halaman memakai utility ini, bukan
+  kombinasi ukuran dan ketebalan teks bebas, supaya hierarki sama di semua halaman dan
+  heading tingkat lebih rendah tidak pernah lebih besar dari induknya.
+  Nilai = skala bawaan Tailwind (text-3xl dst.) ditulis literal, karena
+  Tailwind v4 hanya mengeluarkan variabel tema yang dipakai utility.
+    heading-page        H1 halaman             30 → 36px  extrabold
+    heading-section-lg  H2 seksi beranda       24 → 30px  extrabold
+    heading-section     H2 seksi halaman       20 → 24px  bold
+    heading-sub         H3 subseksi            18 → 20px  bold
+    heading-card        judul kartu            16px       bold
+    heading-label       label grup / footer    14px       semibold
+  Breakpoint ganda memakai md (48rem).
+*/
+@utility heading-page {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  @media (width >= 48rem) {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+  }
+}
+
+@utility heading-section-lg {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  @media (width >= 48rem) {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+}
+
+@utility heading-section {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  @media (width >= 48rem) {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+}
+
+@utility heading-sub {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  @media (width >= 48rem) {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+}
+
+@utility heading-card {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+@utility heading-label {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -349,6 +434,11 @@
     Fokus keyboard harus selalu terlihat (PRD §8: focus terlihat, elemen UI 3:1).
     Komponen shadcn sudah punya focus-visible sendiri; aturan ini menjadi
     jaring pengaman untuk link dan elemen interaktif lain.
+
+    Pola fokus komponen satu saja: `focus-visible:ring-2 focus-visible:ring-ring`
+    (pekat). Pola bawaan shadcn `ring-ring/50` sengaja tidak dipakai: teal 50%
+    di atas putih hanya ±2.15:1, gagal syarat 3:1 untuk indikator fokus
+    (PRD §8, WCAG 1.4.11); ring pekat 5.47:1 (audit UX-12).
   */
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;

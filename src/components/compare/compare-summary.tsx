@@ -21,7 +21,7 @@ export function CompareSummary({ result }: { result: CompareResult }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-border bg-card p-5">
-        <h3 className="text-sm font-semibold text-foreground">Selisih harga</h3>
+        <h3 className="heading-label text-foreground">Selisih harga</h3>
 
         {priceSpread === null ? (
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
@@ -54,7 +54,7 @@ export function CompareSummary({ result }: { result: CompareResult }) {
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
-        <h3 className="text-sm font-semibold text-foreground">
+        <h3 className="heading-label text-foreground">
           Konteks pengalaman
         </h3>
         <p className="mt-1.5 text-sm text-muted-foreground">

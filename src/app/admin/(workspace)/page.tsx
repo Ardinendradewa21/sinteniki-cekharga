@@ -106,17 +106,17 @@ export default async function AdminPage(props: PageProps<"/admin">) {
         <StaggerItem as="div" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
           <dt className="text-xs font-medium text-muted-foreground sm:text-sm">Total produk</dt>
           <dd className="mt-3 text-2xl font-extrabold tabular-nums text-foreground sm:text-3xl">{products.length}</dd>
-          <p className="mt-1 text-xs text-muted-foreground">Tercatat di katalog</p>
+          <dd className="mt-1 text-xs text-muted-foreground">Tercatat di katalog</dd>
         </StaggerItem>
         <StaggerItem as="div" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
           <dt className="text-xs font-medium text-muted-foreground sm:text-sm">Terbit</dt>
           <dd className="mt-3 text-2xl font-extrabold tabular-nums text-foreground sm:text-3xl">{publishedCount}</dd>
-          <p className="mt-1 text-xs text-muted-foreground">Tampil di situs publik</p>
+          <dd className="mt-1 text-xs text-muted-foreground">Tampil di situs publik</dd>
         </StaggerItem>
         <StaggerItem as="div" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
           <dt className="text-xs font-medium text-muted-foreground sm:text-sm">Draft</dt>
           <dd className="mt-3 text-2xl font-extrabold tabular-nums text-foreground sm:text-3xl">{draftCount}</dd>
-          <p className="mt-1 text-xs text-muted-foreground">Belum tampil ke publik</p>
+          <dd className="mt-1 text-xs text-muted-foreground">Belum tampil ke publik</dd>
         </StaggerItem>
         <StaggerItem as="div" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
           <dt className="text-xs font-medium text-muted-foreground sm:text-sm">Status backend</dt>
@@ -124,7 +124,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
             <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-full ${backendReady ? "bg-success" : "bg-warning"}`} />
             {backendLabel}
           </dd>
-          <p className="mt-2 text-xs text-muted-foreground">Mode data: {sourceMode === "live" ? "Database live" : "Demo"}</p>
+          <dd className="mt-2 text-xs text-muted-foreground">Mode data: {sourceMode === "live" ? "Database live" : "Demo"}</dd>
         </StaggerItem>
       </StaggerList>
 

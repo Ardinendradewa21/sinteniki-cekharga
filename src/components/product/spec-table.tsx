@@ -23,7 +23,7 @@ export function SpecTable({
 
   return (
     <section>
-      <h2 className="text-xl font-bold tracking-tight text-foreground">
+      <h2 className="heading-section text-foreground">
         Spesifikasi
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">

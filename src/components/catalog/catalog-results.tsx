@@ -131,7 +131,7 @@ export function CatalogResults({
 
       {result.items.length === 0 ? (
         <div className="mt-6 rounded-xl border border-border bg-card p-8">
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="heading-card text-foreground">
             {hasReviewTopic ? "Belum ada bukti ulasan yang cocok" : "Tidak ada produk yang cocok"}
           </h2>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">

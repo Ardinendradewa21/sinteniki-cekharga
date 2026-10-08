@@ -70,7 +70,7 @@ async function CompareView({
 
       {!hasEnough ? (
         <div role="status" className="mt-5 rounded-xl border border-border bg-muted/40 p-4 sm:p-5">
-          <h2 className="text-sm font-bold text-foreground">
+          <h2 className="heading-label text-foreground">
             {result.items.length === 0
               ? "Mulai dengan memilih produk pertama"
               : "Perlu satu kandidat lagi"}
@@ -87,7 +87,7 @@ async function CompareView({
         <section aria-labelledby="hasil-bandingkan" className="mt-10">
           <div className="mb-5">
             <p className="text-xs font-bold uppercase tracking-widest text-brand">Langkah 2</p>
-            <h2 id="hasil-bandingkan" className="mt-1 text-xl font-bold text-foreground sm:text-2xl">
+            <h2 id="hasil-bandingkan" className="mt-1 heading-section text-foreground">
               {hasEnough ? "Lihat perbedaan" : "Produk yang dipilih"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -103,7 +103,7 @@ async function CompareView({
       {hasEnough ? (
         <section aria-labelledby="konteks-bandingkan" className="mt-10">
           <p className="text-xs font-bold uppercase tracking-widest text-brand">Langkah 3</p>
-          <h2 id="konteks-bandingkan" className="mt-1 text-xl font-bold text-foreground sm:text-2xl">
+          <h2 id="konteks-bandingkan" className="mt-1 heading-section text-foreground">
             Baca konteksnya
           </h2>
           <p className="mt-1 mb-5 text-sm text-muted-foreground">
@@ -124,7 +124,7 @@ export default function ComparePage(props: PageProps<"/compare">) {
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
           <p className="text-xs font-bold uppercase tracking-widest text-brand">CekHarga / Bandingkan</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+          <h1 className="mt-2 heading-page text-foreground">
             Bandingkan produk
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">

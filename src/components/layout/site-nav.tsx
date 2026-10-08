@@ -1,6 +1,6 @@
 "use client";
 
-import { GlassmorphismNavBar } from "@/components/ui/glassmorphism-navigation";
+import { MainNavBar } from "@/components/layout/main-nav";
 import { MAIN_NAV } from "@/lib/navigation";
 import type { PublicTheme } from "@/lib/public/preferences-config";
 
@@ -11,6 +11,6 @@ import type { PublicTheme } from "@/lib/public/preferences-config";
  */
 export function SiteNav({ initialTheme }: { initialTheme: PublicTheme }) {
   return (
-    <GlassmorphismNavBar items={MAIN_NAV} initialTheme={initialTheme} />
+    <MainNavBar items={MAIN_NAV} initialTheme={initialTheme} />
   );
 }

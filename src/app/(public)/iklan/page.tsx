@@ -4,6 +4,7 @@ import { ActionForm } from "@/components/admin/ads/action-form";
 import { Checkbox, Field, TextArea } from "@/components/admin/ads/fields";
 import { AdLabel } from "@/components/ads/ad-label";
 import { Container } from "@/components/layout/container";
+import { Button } from "@/components/ui/button";
 import { PRICING_LABEL } from "@/lib/ads/billing";
 import { submitLeadAction } from "@/lib/ads/lead-actions";
 import { getMediaKit } from "@/lib/ads/media-kit";
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} aria-labelledby={`${id}-judul`} className="scroll-mt-8 border-t border-border pt-10">
-      <h2 id={`${id}-judul`} className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
+      <h2 id={`${id}-judul`} className="heading-section text-foreground">
         {title}
       </h2>
       <div className="mt-4 space-y-4 text-base leading-relaxed text-muted-foreground">{children}</div>
@@ -66,7 +67,7 @@ export default async function AdvertisePage() {
     <Container className="py-10 md:py-14">
       <header className="max-w-3xl">
         <p className="text-xs font-bold uppercase tracking-widest text-brand">CekHarga / Beriklan</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground md:text-5xl">
+        <h1 className="mt-2 heading-page text-foreground">
           Jangkau orang yang sedang membandingkan smartphone
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
@@ -74,18 +75,12 @@ export default async function AdvertisePage() {
           halaman beranda, katalog, detail produk, dan perbandingan, dengan label yang jelas dan pengukuran yang transparan.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <a
-            href="#ajukan"
-            className="inline-flex min-h-11 items-center rounded-pill bg-primary px-6 text-sm font-semibold text-primary-foreground hover:opacity-90"
-          >
-            Ajukan kerja sama
-          </a>
-          <a
-            href="#slot"
-            className="inline-flex min-h-11 items-center rounded-pill border border-border px-6 text-sm font-semibold text-foreground hover:bg-muted"
-          >
-            Lihat slot & ukuran
-          </a>
+          <Button asChild>
+            <a href="#ajukan">Ajukan kerja sama</a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="#slot">Lihat slot & ukuran</a>
+          </Button>
         </div>
       </header>
 

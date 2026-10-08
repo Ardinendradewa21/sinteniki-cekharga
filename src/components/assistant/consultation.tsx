@@ -228,6 +228,7 @@ export function Consultation({
               name={NEEDS_PARAM.budget}
               placeholder="Contoh: 3000000"
               aria-label="Budget dalam Rupiah"
+              data-composer-field=""
               required
               className="mt-4 border-0 bg-transparent px-0 text-lg shadow-none focus-visible:ring-0"
             />

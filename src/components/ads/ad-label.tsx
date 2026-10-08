@@ -9,7 +9,9 @@ export function AdLabel({ preview = false, className }: { preview?: boolean; cla
   return (
     <span
       className={cn(
-        "pointer-events-none inline-flex items-center rounded-full bg-black/70 px-2 py-0.5 text-[11px] leading-4 font-semibold tracking-wide text-white backdrop-blur-sm",
+        // 12px minimum dan token tema (bukan hitam/putih mentah): tetap kontras
+        // tinggi di atas gambar terang maupun gelap pada kedua tema.
+        "pointer-events-none inline-flex items-center rounded-pill bg-foreground/85 px-2 py-0.5 text-xs leading-4 font-semibold tracking-wide text-background backdrop-blur-sm",
         className
       )}
     >

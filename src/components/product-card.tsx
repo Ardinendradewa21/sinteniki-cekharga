@@ -5,6 +5,7 @@ import { DemoBadge } from "@/components/demo-marker";
 import { CardPriceMeta, CardPriceValue } from "@/components/price-display";
 import { buildCompareHref } from "@/lib/catalog/compare-params";
 import type { ProductSummary } from "@/lib/catalog/queries";
+import { DevicePlaceholder } from "@/components/product/device-placeholder";
 import { cn } from "@/lib/utils";
 
 /**
@@ -58,16 +59,20 @@ export function ProductCard({
       ) : null}
 
       <div className="flex aspect-square w-full items-center justify-center bg-muted/20 p-2 sm:p-4">
-        <Image
-          src={product.image.src}
-          alt={product.image.alt}
-          width={140}
-          height={210}
-          loading={eager ? "eager" : "lazy"}
-          // dark:rounded-md: foto lama yang latarnya belum bisa dihapus (ponsel
-          // menempel ke tepi) tampil sebagai kartu rapi, bukan kotak bersudut.
-          className="h-[76%] max-h-40 w-auto transition-transform duration-150 group-hover:scale-[1.03] dark:rounded-md sm:h-[68%]"
-        />
+        {product.image.isGenericIllustration ? (
+          <DevicePlaceholder size="sm" />
+        ) : (
+          <Image
+            src={product.image.src}
+            alt={product.image.alt}
+            width={140}
+            height={210}
+            loading={eager ? "eager" : "lazy"}
+            // dark:rounded-md: foto lama yang latarnya belum bisa dihapus (ponsel
+            // menempel ke tepi) tampil sebagai kartu rapi, bukan kotak bersudut.
+            className="h-[76%] max-h-40 w-auto transition-transform duration-150 group-hover:scale-[1.03] dark:rounded-md sm:h-[68%]"
+          />
+        )}
       </div>
 
       <div className="flex flex-1 flex-col p-2 sm:p-3.5">

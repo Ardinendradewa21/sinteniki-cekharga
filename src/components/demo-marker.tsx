@@ -1,6 +1,7 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 /**
@@ -13,12 +14,7 @@ import { cn } from "@/lib/utils";
 
 export function DemoBadge({ className }: { className?: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-pill bg-warning-muted px-2.5 py-1 text-xs font-semibold text-warning",
-        className
-      )}
-    >
+    <Badge variant="warning" className={cn("gap-1.5 px-2.5 py-1", className)}>
       <HugeiconsIcon
         icon={InformationCircleIcon}
         size={14}
@@ -26,7 +22,7 @@ export function DemoBadge({ className }: { className?: string }) {
         aria-hidden
       />
       Data demo
-    </span>
+    </Badge>
   );
 }
 

@@ -11,7 +11,7 @@ import type { PublicTheme } from "@/lib/public/preferences-config";
  */
 export function SiteHeader({ initialTheme }: { initialTheme: PublicTheme }) {
   return (
-    <header className="relative z-50 border-b border-white/55 bg-background/78 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10">
+    <header className="relative z-50 border-b border-border bg-background">
       <Container className="flex h-20 items-center justify-between gap-4">
         <Link
           href="/"

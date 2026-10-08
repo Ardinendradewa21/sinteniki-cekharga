@@ -1,3 +1,4 @@
+import type * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -5,18 +6,25 @@ import { CompareColumnSwitch } from "@/components/compare/compare-column-switch"
 import { SpecIcon } from "@/components/compare/spec-icons";
 import { DemoBadge } from "@/components/demo-marker";
 import { CardPriceMeta, CardPriceValue } from "@/components/price-display";
+import { DevicePlaceholder } from "@/components/product/device-placeholder";
+import { VariantPicker } from "@/components/product/variant-picker";
 import type {
   CompareItem,
   CompareResult,
-  CompareRow,
   CompareSpecIcon,
 } from "@/lib/catalog/queries";
 import { cn } from "@/lib/utils";
 
 /**
- * Perbandingan (PRD FR-04), dengan tata letak ala lembar "Spesifikasi Utama"
- * situs produsen: bar nama produk yang menempel di atas, lalu bagian per topik
- * (Layar, Kamera, ...) dengan ikon, label kecil, dan nilai tebal per kolom.
+ * Perbandingan (PRD FR-04): bar nama produk yang menempel di atas, kartu
+ * produk, lalu tabel "Spesifikasi utama" per topik (Layar, Kamera, ...).
+ *
+ * Tabel spesifikasi berbentuk baris per atribut (audit UX-09): label di kiri,
+ * nilai tiap produk sejajar di kanannya, sehingga perbandingan dibaca dalam
+ * satu garis mata. Semantik tabel lewat peran ARIA (table/row/rowheader/cell)
+ * supaya pembaca layar menyebut atribut dan produknya. Di layar kecil label
+ * pindah ke baris penuh tepat di atas nilainya: label tetap dekat nilai dan
+ * tidak ada tabel lebar yang harus digeser (PRD §8).
  *
  * Yang sengaja TIDAK dilakukan, karena PRD melarangnya:
  *
@@ -25,16 +33,18 @@ import { cn } from "@/lib/utils";
  * - Nilai yang tidak diketahui tidak pernah dihitung sebagai kalah dan tidak
  *   ditulis "-" yang bisa terbaca "tidak ada". Atribut yang kosong di SEMUA
  *   kolom disebut terbuka di catatan, bukan diisi baris kosong.
- *
- * Kolom selalu sejajar karena setiap baris adalah grid sendiri dengan jumlah
- * kolom sama dengan jumlah produk. Di layar kecil kolomnya menyempit (teks dan
- * ikon mengecil) alih-alih memaksa tabel lebar yang harus digeser (PRD §8).
  */
 
 const GRID_COLS: Record<number, string> = {
   1: "grid-cols-1",
   2: "grid-cols-2",
   3: "grid-cols-3",
+};
+/** Baris tabel spesifikasi: kolom label + N kolom nilai mulai md. */
+const ROW_GRID: Record<number, string> = {
+  1: "grid-cols-1 md:grid-cols-[minmax(9rem,13rem)_minmax(0,1fr)]",
+  2: "grid-cols-2 md:grid-cols-[minmax(9rem,13rem)_repeat(2,minmax(0,1fr))]",
+  3: "grid-cols-3 md:grid-cols-[minmax(9rem,13rem)_repeat(3,minmax(0,1fr))]",
 };
 const MD_GRID_COLS: Record<number, string> = {
   1: "md:grid-cols-1",
@@ -44,52 +54,6 @@ const MD_GRID_COLS: Record<number, string> = {
 
 function formatStorage(gb: number): string {
   return gb >= 1024 && gb % 1024 === 0 ? `${gb / 1024} TB` : `${gb} GB`;
-}
-
-function SpecCell({
-  row,
-  item,
-  index,
-  isComparing,
-}: {
-  row: CompareRow;
-  item: CompareItem;
-  index: number;
-  isComparing: boolean;
-}) {
-  const value = row.values[index] ?? null;
-  const different = isComparing && row.state === "different";
-
-  return (
-    <div className="flex min-w-0 flex-col items-center text-center">
-      <SpecIcon name={row.icon} className="size-8 text-foreground sm:size-12" />
-      <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
-        {different ? (
-          <span
-            aria-hidden="true"
-            className="mr-1.5 inline-block size-1.5 -translate-y-px rounded-full bg-brand align-middle"
-          />
-        ) : null}
-        {row.label}
-        <span className="sr-only">
-          , {item.name}
-          {different ? " (berbeda antar produk)" : ""}
-        </span>
-      </p>
-      <p
-        className={cn(
-          "mt-1 max-w-full font-bold wrap-break-word text-foreground",
-          row.headline && value ? "text-lg tracking-tight sm:text-2xl" : "text-sm sm:text-base"
-        )}
-      >
-        {value ?? (
-          <span className="text-xs font-normal text-muted-foreground italic sm:text-sm">
-            Belum diketahui
-          </span>
-        )}
-      </p>
-    </div>
-  );
 }
 
 function OptionList({
@@ -102,7 +66,7 @@ function OptionList({
   format: (value: number) => string;
 }) {
   return (
-    <ul className="mt-2 space-y-1 text-sm font-bold text-foreground sm:text-base">
+    <ul className="space-y-0.5">
       {values.map((value) =>
         has.has(value) ? (
           <li key={value}>{format(value)}</li>
@@ -117,58 +81,83 @@ function OptionList({
   );
 }
 
-/** Pilihan varian tercatat, disejajarkan per ukuran seperti lembar produsen. */
-function VariantOptions({ items, gridCols }: { items: CompareItem[]; gridCols: string }) {
-  const rowsFor = (pick: (option: CompareItem["variantOptions"][number]) => number) => {
-    const all = [...new Set(items.flatMap((item) => item.variantOptions.map(pick)))].sort(
-      (a, b) => a - b
-    );
-    return {
-      all,
-      perItem: items.map((item) => new Set(item.variantOptions.map(pick))),
-    };
-  };
-  const storage = rowsFor((option) => option.storageGb);
-  const ram = rowsFor((option) => option.ramGb);
-  if (storage.all.length === 0) return null;
+type SpecTableRow = {
+  label: string;
+  icon: CompareSpecIcon;
+  different: boolean;
+  headline?: boolean;
+  cells: React.ReactNode[];
+};
 
-  const blocks: {
-    label: string;
-    icon: CompareSpecIcon;
-    data: ReturnType<typeof rowsFor>;
-    format: (value: number) => string;
-  }[] = [
-    { label: "Penyimpanan", icon: "storage", data: storage, format: formatStorage },
-    { label: "RAM", icon: "memory", data: ram, format: (value) => `${value} GB` },
-  ];
-
+/** Satu topik spesifikasi sebagai tabel ARIA: baris = atribut, kolom = produk. */
+function SpecTable({
+  id,
+  title,
+  items,
+  rows,
+  rowGrid,
+  note,
+}: {
+  id: string;
+  title: string;
+  items: CompareItem[];
+  rows: SpecTableRow[];
+  rowGrid: string;
+  note?: string;
+}) {
   return (
-    <section aria-labelledby="bagian-varian" className="mt-12">
-      <h4
-        id="bagian-varian"
-        className="border-b border-border pb-3 text-lg font-bold text-foreground sm:text-xl"
-      >
-        Pilihan varian tercatat
+    <section aria-labelledby={`bagian-${id}`} className="mt-10">
+      <h4 id={`bagian-${id}`} className="heading-card text-foreground">
+        {title}
       </h4>
-      <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
-        Kombinasi yang tercatat di katalog. Tanda – berarti ukuran itu tidak
-        tercatat untuk produk tersebut, bukan pasti tidak dijual.
-      </p>
-      <div className="mt-6 space-y-8">
-        {blocks.map((block) => (
-          <div key={block.label} className={cn("grid gap-3 sm:gap-8", gridCols)}>
-            {items.map((item, index) => (
-              <div key={item.slug} className="flex min-w-0 flex-col items-center text-center">
-                <SpecIcon name={block.icon} className="size-8 text-foreground sm:size-12" />
-                <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
-                  {block.label}
-                  <span className="sr-only">, {item.name}</span>
-                </p>
-                <OptionList
-                  values={block.data.all}
-                  has={block.data.perItem[index]!}
-                  format={block.format}
-                />
+      {note ? <p className="mt-1 text-sm text-muted-foreground">{note}</p> : null}
+      <div
+        role="table"
+        aria-labelledby={`bagian-${id}`}
+        className="mt-3 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
+      >
+        <div role="row" className="sr-only">
+          <span role="columnheader">Atribut</span>
+          {items.map((item) => (
+            <span key={item.slug} role="columnheader">
+              {item.name}
+            </span>
+          ))}
+        </div>
+        {rows.map((row) => (
+          <div
+            key={row.label}
+            role="row"
+            className={cn("grid items-start gap-x-4 gap-y-1.5 px-4 py-3", rowGrid)}
+          >
+            <div
+              role="rowheader"
+              className="col-span-full flex items-center gap-2 text-sm text-muted-foreground md:col-span-1"
+            >
+              <SpecIcon name={row.icon} className="size-5 shrink-0 text-muted-foreground" />
+              <span>
+                {row.label}
+                {row.different ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="ml-1.5 inline-block size-1.5 -translate-y-px rounded-full bg-brand align-middle"
+                    />
+                    <span className="sr-only"> (berbeda antar produk)</span>
+                  </>
+                ) : null}
+              </span>
+            </div>
+            {row.cells.map((cell, index) => (
+              <div
+                key={items[index]?.slug ?? index}
+                role="cell"
+                className={cn(
+                  "min-w-0 font-semibold wrap-break-word text-foreground",
+                  row.headline ? "text-base md:text-lg" : "text-sm"
+                )}
+              >
+                {cell}
               </div>
             ))}
           </div>
@@ -176,6 +165,35 @@ function VariantOptions({ items, gridCols }: { items: CompareItem[]; gridCols: s
       </div>
     </section>
   );
+}
+
+const UNKNOWN = (
+  <span className="text-sm font-normal text-muted-foreground italic">Belum diketahui</span>
+);
+
+/** Pilihan varian tercatat, disejajarkan per ukuran seperti lembar produsen. */
+function variantRows(items: CompareItem[]): SpecTableRow[] {
+  const rowsFor = (pick: (option: CompareItem["variantOptions"][number]) => number) => {
+    const all = [...new Set(items.flatMap((item) => item.variantOptions.map(pick)))].sort(
+      (a, b) => a - b
+    );
+    return { all, perItem: items.map((item) => new Set(item.variantOptions.map(pick))) };
+  };
+  const storage = rowsFor((option) => option.storageGb);
+  const ram = rowsFor((option) => option.ramGb);
+  if (storage.all.length === 0) return [];
+
+  return [
+    { label: "Penyimpanan", icon: "storage", data: storage, format: formatStorage },
+    { label: "RAM", icon: "memory", data: ram, format: (value: number) => `${value} GB` },
+  ].map((block) => ({
+    label: block.label,
+    icon: block.icon as CompareSpecIcon,
+    different: false,
+    cells: items.map((_, index) => (
+      <OptionList key={index} values={block.data.all} has={block.data.perItem[index]!} format={block.format} />
+    )),
+  }));
 }
 
 function ProductColumn({
@@ -192,19 +210,23 @@ function ProductColumn({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground">{item.brand}</p>
-          <h3 className="text-base font-bold tracking-tight text-foreground">{item.model}</h3>
+          <h3 className="heading-card text-foreground">{item.model}</h3>
         </div>
         {isDemo ? <DemoBadge /> : null}
       </div>
 
-      <div className="mt-4 flex items-center justify-center rounded-lg bg-muted/60 py-6">
-        <Image
-          src={item.image.src}
-          alt={item.image.alt}
-          width={96}
-          height={144}
-          className="h-36 w-auto"
-        />
+      <div className="mt-4 flex h-48 items-center justify-center rounded-lg bg-muted/60">
+        {item.image.isGenericIllustration ? (
+          <DevicePlaceholder size="md" />
+        ) : (
+          <Image
+            src={item.image.src}
+            alt={item.image.alt}
+            width={96}
+            height={144}
+            className="h-36 w-auto"
+          />
+        )}
       </div>
 
       {/*
@@ -227,26 +249,17 @@ function ProductColumn({
       {item.variantOptions.length > 1 ? (
         <div className="mt-4">
           <p className="text-xs text-muted-foreground">Ganti varian</p>
-          <ul className="mt-1.5 flex flex-wrap gap-1.5">
-            {item.variantOptions.map((option) => (
-              <li key={option.key}>
-                <Link
-                  href={option.href}
-                  replace
-                  scroll={false}
-                  aria-current={option.key === item.variantKey ? "true" : undefined}
-                  className={cn(
-                    "flex min-h-11 items-center rounded-pill border px-3 text-xs font-medium transition-colors duration-150",
-                    option.key === item.variantKey
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border-strong bg-card text-foreground hover:bg-muted"
-                  )}
-                >
-                  {option.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <VariantPicker
+            mode="compact"
+            scroll={false}
+            className="mt-1.5"
+            options={item.variantOptions.map((option) => ({
+              key: option.key,
+              label: option.label,
+              href: option.href,
+              selected: option.key === item.variantKey,
+            }))}
+          />
         </div>
       ) : null}
 
@@ -280,6 +293,7 @@ export function CompareTable({
   const { items, sections } = result;
   const isComparing = items.length >= 2;
   const gridCols = GRID_COLS[items.length] ?? GRID_COLS[3]!;
+  const rowGrid = ROW_GRID[items.length] ?? ROW_GRID[3]!;
   const candidates = result.addable.map(({ slug, name }) => ({ slug, name }));
 
   // Baris yang kosong di semua kolom tidak memberi perbandingan apa pun;
@@ -323,7 +337,7 @@ export function CompareTable({
       <section aria-labelledby="spesifikasi-utama" className="mt-14">
         <h3
           id="spesifikasi-utama"
-          className="text-center text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl"
+          className="text-center heading-sub text-foreground"
         >
           Spesifikasi utama
         </h3>
@@ -342,36 +356,32 @@ export function CompareTable({
         ) : null}
 
         {visibleSections.map((section) => (
-          <section
+          <SpecTable
             key={section.id}
-            aria-labelledby={`bagian-${section.id}`}
-            className="mt-12"
-          >
-            <h4
-              id={`bagian-${section.id}`}
-              className="border-b border-border pb-3 text-lg font-bold text-foreground sm:text-xl"
-            >
-              {section.title}
-            </h4>
-            <div className="mt-6 space-y-8">
-              {section.rows.map((row) => (
-                <div key={row.label} className={cn("grid gap-3 sm:gap-8", gridCols)}>
-                  {items.map((item, index) => (
-                    <SpecCell
-                      key={item.slug}
-                      row={row}
-                      item={item}
-                      index={index}
-                      isComparing={isComparing}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </section>
+            id={section.id}
+            title={section.title}
+            items={items}
+            rowGrid={rowGrid}
+            rows={section.rows.map((row) => ({
+              label: row.label,
+              icon: row.icon,
+              different: isComparing && row.state === "different",
+              headline: row.headline,
+              cells: items.map((_, index) => row.values[index] ?? UNKNOWN),
+            }))}
+          />
         ))}
 
-        <VariantOptions items={items} gridCols={gridCols} />
+        {variantRows(items).length > 0 ? (
+          <SpecTable
+            id="varian"
+            title="Pilihan varian tercatat"
+            note="Kombinasi yang tercatat di katalog. Tanda – berarti ukuran itu tidak tercatat untuk produk tersebut, bukan pasti tidak dijual."
+            items={items}
+            rowGrid={rowGrid}
+            rows={variantRows(items)}
+          />
+        ) : null}
 
         {emptyLabels.length > 0 ? (
           <p className="mt-10 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">

@@ -95,7 +95,7 @@ export default function ProductsPage(props: PageProps<"/products">) {
   return (
     <Container className="py-10 md:py-14">
       <header className="mb-8 max-w-2xl">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+        <h1 className="heading-page text-foreground">
           Katalog smartphone
         </h1>
         <p className="mt-3 text-base leading-relaxed text-muted-foreground">

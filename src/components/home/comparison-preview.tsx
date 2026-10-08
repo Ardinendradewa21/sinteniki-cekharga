@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import { StaggerItem, StaggerList } from "@/components/motion/reveal";
 import { Section } from "@/components/section";
 import { Button } from "@/components/ui/button";
@@ -34,11 +35,19 @@ export function ComparisonPreview({
   const [first, second] = example.items;
   if (!first || !second) return null;
 
+  // "beda" hanya bila KEDUA nilai diketahui dan berbeda. Nilai yang belum
+  // diketahui tidak dinilai, sama seperti halaman perbandingan (PRD FR-04:
+  // data kosong tidak dianggap lebih buruk atau berbeda).
   const differingLabels = new Set(
     first.attributes
       .filter((attribute, index) => {
         const other = second.attributes[index];
-        return other && attribute.value !== other.value;
+        return (
+          other !== undefined &&
+          attribute.value !== null &&
+          other.value !== null &&
+          attribute.value !== other.value
+        );
       })
       .map((attribute) => attribute.label)
   );
@@ -75,7 +84,7 @@ export function ComparisonPreview({
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-base font-bold tracking-tight text-foreground">
+                <h3 className="heading-card text-foreground">
                   {item.name}
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -106,9 +115,9 @@ export function ComparisonPreview({
                   <dt className="text-muted-foreground">
                     {attribute.label}
                     {differingLabels.has(attribute.label) ? (
-                      <span className="ml-1.5 rounded-pill bg-brand-muted px-1.5 py-0.5 text-[0.6875rem] font-semibold text-brand">
+                      <Badge variant="brand" className="ml-1.5">
                         beda
-                      </span>
+                      </Badge>
                     ) : null}
                   </dt>
                   <dd className="text-right font-medium text-foreground">

@@ -320,7 +320,7 @@ export function ScrapeWorkbench({
               value={brand}
               onChange={(event) => setBrand(event.target.value as ScrapeBrand)}
               disabled={loadingLineup || running}
-              className="mt-2 h-11 w-full rounded-lg border border-input bg-card px-4 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="mt-2 h-11 w-full rounded-lg border border-input bg-card px-4 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
             >
               {SCRAPE_BRANDS.map((option) => (
                 <option key={option} value={option}>

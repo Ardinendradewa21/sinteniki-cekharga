@@ -5,6 +5,7 @@ import { AdLabel } from "@/components/ads/ad-label";
 import { AdViewTracker } from "@/components/ads/ad-view-tracker";
 import { AdsenseUnit } from "@/components/ads/adsense-unit";
 import { Container } from "@/components/layout/container";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { decide, getSlot, type LiveSlot, type ServedCreative, type SlotCode } from "@/lib/ads/decision";
 import { adsenseSlotId, getAdSettings } from "@/lib/ads/settings";
 import { cn } from "@/lib/utils";
@@ -71,7 +72,7 @@ function DisplayAd({ creative, slot }: { creative: ServedCreative; slot: LiveSlo
         className={cn(
           // contain, bukan cover: teks di materi tidak boleh terpotong. Unggahan
           // baru sudah divalidasi rasionya, jadi umumnya tanpa bingkai kosong.
-          "object-contain transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100",
+          "object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100",
           mobileImage && "hidden sm:block"
         )}
       />
@@ -81,7 +82,7 @@ function DisplayAd({ creative, slot }: { creative: ServedCreative; slot: LiveSlo
           alt={creative.altText}
           fill
           sizes="100vw"
-          className="object-contain transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none sm:hidden"
+          className="object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03] motion-reduce:transition-none sm:hidden"
         />
       ) : null}
       <AdLabel preview={creative.kind === "preview"} className="absolute top-2 left-2" />
@@ -110,7 +111,7 @@ function NativeAd({ creative }: { creative: ServedCreative }) {
             alt={creative.altText}
             fill
             sizes="(min-width: 640px) 40vw, 100vw"
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
         ) : null}
         <AdLabel preview={creative.kind === "preview"} className="absolute top-3 left-3" />
@@ -131,7 +132,9 @@ function NativeAd({ creative }: { creative: ServedCreative }) {
         {creative.body ? (
           <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{creative.body}</p>
         ) : null}
-        <span className="mt-auto inline-flex min-h-11 w-fit items-center gap-2 rounded-pill bg-primary px-5 text-sm font-semibold text-primary-foreground transition-[gap] duration-300 group-hover:gap-3 motion-reduce:transition-none">
+        {/* Teks CTA di dalam kartu yang seluruhnya tautan: tampil seperti tombol
+            sistem (buttonVariants), tetapi bukan elemen interaktif tersendiri. */}
+        <span className={cn(buttonVariants(), "pointer-events-none mt-auto w-fit")}>
           {creative.ctaLabel || "Selengkapnya"}
           <span aria-hidden="true">→</span>
         </span>

@@ -27,7 +27,7 @@ export function PagePlaceholder({
   return (
     <Container className="py-16 md:py-24">
       <div className="max-w-2xl">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+        <h1 className="heading-page text-foreground">
           {title}
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">

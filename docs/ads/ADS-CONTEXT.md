@@ -274,7 +274,7 @@ Pertanyaan terbuka sebelumnya sudah dijawab dengan rekomendasi praktik standar. 
 1. **Cakupan produk.** PRD v1 hanya smartphone. Modul iklan tetap bebas kategori, tetapi slot hanya ada di halaman yang sudah ada.
 2. **Sponsored listing.** Mengikuti 12.1 butir 1. Tidak ada kartu sponsor sebelum Fase 4.
 3. **Fallback programatik (AdSense/GAM).** Infrastruktur disiapkan (kolom `ad_slots.fallback`, banner consent, `ads.txt`), tetapi default setiap slot `none`. AdSense hanya dimuat bila ID publisher sudah diisi, slot di-set `adsense`, dan pengunjung memberi consent iklan.
-4. **Tema warna.** Komponen iklan memakai token desain yang sudah ada di `src/app/globals.css` (teal). Usulan "indigo/amber/sage" ditunda sampai pemilik produk meminta perubahan tema.
+4. **Tema warna.** Komponen iklan memakai token desain yang sudah ada di `src/app/globals.css`: CTA charcoal (`--primary`, keputusan 2026-10-07 di PRD §8) dan aksen teal (`--brand`). CTA iklan native memakai `buttonVariants()` agar sama dengan tombol situs. Usulan "indigo/amber/sage" ditunda sampai pemilik produk meminta perubahan tema.
 5. **Klaim trafik.** Media kit `/iklan` tidak menampilkan angka trafik sampai ada sumber terukur (GA4 atau `ad_events`). Angka tidak boleh dikarang.
 6. **Struktur folder.** Repo bukan monorepo. Padanannya: `src/lib/ads/` (pengganti `packages/ads-core`), `src/app/admin/(workspace)/iklan/`, `src/app/(public)/iklan/`, `src/app/api/ads/`, `src/components/ads/`.
 
@@ -290,7 +290,7 @@ Pertanyaan terbuka sebelumnya sudah dijawab dengan rekomendasi praktik standar. 
 
 ## 13. Pertanyaan Terbuka
 
-1. Status PKP PT Sinteniki dan tarif PPN yang berlaku pada invoice.
+1. Status PKP PT Sinteniki Digital Solusi dan tarif PPN yang berlaku pada invoice.
 2. ID publisher AdSense, bila programatik akan dipakai.
 3. Alamat email atau WhatsApp tim sales untuk halaman `/iklan`.
 

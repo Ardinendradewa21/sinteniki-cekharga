@@ -19,30 +19,36 @@ import { setPublicThemeAction } from "@/lib/public/preferences"
 import type { PublicTheme } from "@/lib/public/preferences-config"
 import { cn } from "@/lib/utils"
 
-export type GlassmorphismNavItem = {
+export type MainNavItem = {
   href: string
   label: string
   description?: string
 }
 
-type GlassmorphismNavBarProps = {
-  items: readonly GlassmorphismNavItem[]
+type MainNavBarProps = {
+  items: readonly MainNavItem[]
   className?: string
   searchHref?: string
   initialTheme: PublicTheme
 }
 
 /**
- * Navigasi glassmorphism yang tetap memakai Link untuk perpindahan halaman.
+ * Navigasi kapsul publik (PRD §8: "navigasi kapsul, tombol ikon bulat").
+ *
+ * Gaya padat bertoken: tanpa blur kaca, bayangan rgba mentah, atau glow pada
+ * menu aktif (keputusan pemilik produk 2026-10-07; PRD §8 "hindari glow").
+ * Menu aktif ditandai latar `muted` + teks penuh + `aria-current`, jadi tidak
+ * bergantung pada warna saja.
+ *
  * Path aktif berasal dari router, bukan state visual lokal, sehingga tombol
  * Back/Forward dan deep link selalu menunjukkan tab yang benar.
  */
-export function GlassmorphismNavBar({
+export function MainNavBar({
   items,
   className,
   searchHref = "/products",
   initialTheme,
-}: GlassmorphismNavBarProps) {
+}: MainNavBarProps) {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = React.useState(false)
   const [theme, setTheme] = React.useState<PublicTheme>(initialTheme)
@@ -86,35 +92,17 @@ export function GlassmorphismNavBar({
     theme === "dark" ? "Gunakan tema terang" : "Gunakan tema gelap"
 
   const themeIcon = (
-    <motion.span
-      key={theme}
-      initial={
-        shouldReduceMotion
-          ? { opacity: 0 }
-          : { opacity: 0, rotate: -35, scale: 0.8 }
-      }
-      animate={{ opacity: 1, rotate: 0, scale: 1 }}
-      transition={{ duration: shouldReduceMotion ? 0.01 : 0.18 }}
-    >
-      <HugeiconsIcon
-        icon={theme === "dark" ? Sun02Icon : Moon02Icon}
-        size={20}
-        strokeWidth={1.8}
-        aria-hidden
-      />
-    </motion.span>
+    <HugeiconsIcon
+      icon={theme === "dark" ? Sun02Icon : Moon02Icon}
+      size={20}
+      strokeWidth={1.8}
+      aria-hidden
+    />
   )
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div
-        className={cn(
-          "hidden items-center rounded-pill border border-white/70 bg-card/55 p-1 dark:border-white/15",
-          "shadow-[0_8px_30px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.82)]",
-          "dark:shadow-[0_8px_30px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.10)]",
-          "backdrop-blur-2xl backdrop-saturate-150 md:flex"
-        )}
-      >
+      <div className="hidden items-center rounded-pill border border-border bg-card p-1 shadow-sm md:flex">
         <nav aria-label="Navigasi utama">
           <ul className="flex items-center gap-0.5">
             {items.map((item) => {
@@ -127,21 +115,25 @@ export function GlassmorphismNavBar({
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "relative isolate flex h-11 items-center rounded-pill px-4 text-sm font-medium",
-                      "transition-colors duration-150 outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                      "transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isActive
                         ? "text-foreground"
-                        : "text-muted-foreground hover:bg-white/35 hover:text-foreground dark:hover:bg-white/8"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
                     {isActive ? (
+                      // Latar aktif bergeser antarmenu (layoutId); tanpa
+                      // bayangan atau glow. Reduced motion: langsung pindah.
                       <motion.span
-                        layoutId="header-glass-active"
+                        layoutId="header-nav-active"
                         aria-hidden
-                        className="absolute inset-0 -z-10 rounded-pill border border-white/75 bg-muted/75 shadow-[0_3px_12px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] dark:border-white/15 dark:shadow-[0_3px_12px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.10)]"
-                        transition={{ type: "spring", stiffness: 380, damping: 34 }}
-                      >
-                        <span className="absolute -top-1 left-1/2 h-1 w-7 -translate-x-1/2 rounded-pill bg-brand shadow-[0_0_10px_color-mix(in_oklch,var(--brand)_45%,transparent)]" />
-                      </motion.span>
+                        className="absolute inset-0 -z-10 rounded-pill bg-muted"
+                        transition={
+                          shouldReduceMotion
+                            ? { duration: 0 }
+                            : { type: "spring", stiffness: 420, damping: 38 }
+                        }
+                      />
                     ) : null}
                     <span className="relative z-10">{item.label}</span>
                   </Link>
@@ -151,20 +143,13 @@ export function GlassmorphismNavBar({
           </ul>
         </nav>
 
-        <span aria-hidden className="mx-1 h-6 w-px bg-border/70" />
+        <span aria-hidden className="mx-1 h-6 w-px bg-border" />
 
-        <Button
-          asChild
-          variant="ghost"
-          size="icon"
-          className="border-0 bg-transparent shadow-none hover:bg-white/40 hover:shadow-none dark:hover:bg-white/8"
-        >
+        <Button asChild variant="ghost" size="icon">
           <Link href={searchHref} aria-label="Cari produk">
             <HugeiconsIcon icon={Search01Icon} size={20} strokeWidth={1.8} aria-hidden />
           </Link>
         </Button>
-
-        <span aria-hidden className="mx-1 h-6 w-px bg-border/70" />
 
         <Button
           type="button"
@@ -175,7 +160,6 @@ export function GlassmorphismNavBar({
           aria-label={themeLabel}
           aria-pressed={theme === "dark"}
           title={themeLabel}
-          className="border-0 bg-transparent shadow-none hover:bg-white/40 hover:shadow-none dark:hover:bg-white/8"
         >
           {themeIcon}
         </Button>
@@ -190,7 +174,6 @@ export function GlassmorphismNavBar({
           aria-expanded={isMenuOpen}
           aria-controls="menu-navigasi-mobile"
           aria-label={isMenuOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
-          className="border-white/75 bg-card/60 dark:border-white/15"
         >
           <HugeiconsIcon
             icon={isMenuOpen ? Cancel01Icon : Menu01Icon}
@@ -200,12 +183,7 @@ export function GlassmorphismNavBar({
           />
         </Button>
 
-        <Button
-          asChild
-          variant="outline"
-          size="icon"
-          className="border-white/75 bg-card/60 dark:border-white/15"
-        >
+        <Button asChild variant="outline" size="icon">
           <Link href={searchHref} aria-label="Cari produk">
             <HugeiconsIcon icon={Search01Icon} size={20} strokeWidth={1.8} aria-hidden />
           </Link>
@@ -220,7 +198,6 @@ export function GlassmorphismNavBar({
           aria-label={themeLabel}
           aria-pressed={theme === "dark"}
           title={themeLabel}
-          className="border-white/75 bg-card/60 dark:border-white/15"
         >
           {themeIcon}
         </Button>
@@ -231,13 +208,13 @@ export function GlassmorphismNavBar({
           <motion.nav
             id="menu-navigasi-mobile"
             aria-label="Navigasi utama (mobile)"
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: shouldReduceMotion ? 0 : -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -8 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
-            className="absolute inset-x-0 top-full z-40 border-b border-white/70 bg-background/95 px-4 pb-4 shadow-[0_18px_36px_rgba(15,23,42,0.12)] backdrop-blur-3xl backdrop-saturate-150 dark:border-white/10 dark:shadow-[0_18px_36px_rgba(0,0,0,0.32)] md:hidden"
+            className="absolute inset-x-0 top-full z-40 border-b border-border bg-background px-4 pb-4 shadow-md md:hidden"
           >
-            <ul className="mx-auto flex max-w-7xl flex-col gap-1 rounded-2xl border border-white/75 bg-card/90 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] dark:border-white/15 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]">
+            <ul className="mx-auto flex max-w-7xl flex-col gap-1 rounded-2xl border border-border bg-card p-2">
               {items.map((item) => {
                 const isActive = isActivePath(pathname, item.href)
 
@@ -248,10 +225,8 @@ export function GlassmorphismNavBar({
                       aria-current={isActive ? "page" : undefined}
                       onClick={() => setIsMenuOpen(false)}
                       className={cn(
-                        "flex min-h-12 flex-col justify-center rounded-xl border px-4 py-2 outline-none transition-colors duration-150 focus-visible:ring-3 focus-visible:ring-ring/50",
-                        isActive
-                          ? "border-white/75 bg-muted/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] dark:border-white/15 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]"
-                          : "border-transparent hover:border-white/55 hover:bg-white/35 dark:hover:border-white/10 dark:hover:bg-white/8"
+                        "flex min-h-12 flex-col justify-center rounded-xl px-4 py-2 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                        isActive ? "bg-muted" : "hover:bg-muted"
                       )}
                     >
                       <span

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Analytics01Icon, ChartBarLineIcon } from "@hugeicons/core-free-icons";
+import { Badge } from "@/components/ui/badge";
 
 export type AdminBrandDatum = {
   brand: string;
@@ -123,9 +124,7 @@ export function AdminDashboardCharts({
             analytics, kebijakan privasi, dan lingkungan deployment telah dipilih.
           </p>
         </div>
-        <span className="inline-flex min-h-9 shrink-0 items-center rounded-full bg-warning-muted px-3 text-xs font-bold text-warning">
-          Menunggu deployment
-        </span>
+        <Badge variant="warning">Menunggu deployment</Badge>
       </article>
     </section>
   );

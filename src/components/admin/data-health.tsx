@@ -10,6 +10,7 @@ import type { AdminProductOverviewRow } from "@/lib/admin/queries";
 import { batchStatusView } from "@/lib/import/batch-status";
 import type { BatchSummary } from "@/lib/import/batches";
 import { scrapeBrandOf } from "@/lib/scrape/types";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("id-ID", {
@@ -135,14 +136,9 @@ function PublishedGaps({ products }: { products: AdminProductOverviewRow[] }) {
           >
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-2 focus-visible:ring-2 focus-visible:ring-ring">
               <span className="text-sm font-semibold text-foreground">{group.title}</span>
-              <span
-                className={cn(
-                  "rounded-full px-2.5 py-1 text-xs font-bold tabular-nums",
-                  group.items.length > 0 ? "bg-warning-muted text-warning" : "bg-success-muted text-success"
-                )}
-              >
+              <Badge variant={group.items.length > 0 ? "warning" : "success"} className="tabular-nums">
                 {group.items.length} produk
-              </span>
+              </Badge>
             </summary>
             <div className="border-t border-border px-4 pb-4 pt-3">
               <p className="max-w-prose text-xs leading-relaxed text-muted-foreground">{group.description}</p>
@@ -162,9 +158,7 @@ function PublishedGaps({ products }: { products: AdminProductOverviewRow[] }) {
                             {product.brand} {product.model}
                           </span>
                           {group.id === "spesifikasi-kosong" ? (
-                            <span className="shrink-0 rounded-full bg-warning-muted px-2 py-0.5 text-[10px] font-bold text-warning">
-                              {gapLabel(product.specGaps)}
-                            </span>
+                            <Badge variant="warning">{gapLabel(product.specGaps)}</Badge>
                           ) : null}
                         </Link>
                         {rescrape ? (
@@ -215,48 +209,44 @@ function HealthMetric({
   const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
   const progress = percentage;
 
+  // Struktur <dl> yang valid: setiap kartu adalah grup div berisi tepat satu
+  // <dt> dan satu <dd>. Angka, persentase, progres, dan keterangan semuanya
+  // menjelaskan istilah yang sama, jadi berada di dalam <dd>.
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
-          <dd className="mt-2 text-2xl font-extrabold tabular-nums text-foreground">
+      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+      <dd className="mt-2">
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-2xl font-extrabold tabular-nums text-foreground">
             {value}
             <span className="ml-1 text-xs font-medium text-muted-foreground">
               / {total}
             </span>
-          </dd>
+          </span>
+          <Badge variant={inverse && value > 0 ? "warning" : "brand"} className="tabular-nums">
+            {percentage}%
+          </Badge>
         </div>
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-bold tabular-nums",
-            inverse && value > 0
-              ? "bg-warning-muted text-warning"
-              : "bg-brand-muted text-brand"
-          )}
-        >
-          {percentage}%
-        </span>
-      </div>
-      <div
-        role="progressbar"
-        aria-label={`${label}: ${value} dari ${total}`}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={progress}
-        className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
-      >
         <div
-          className={cn(
-            "h-full rounded-full",
-            inverse && value > 0 ? "bg-warning" : "bg-brand"
-          )}
-          style={{ width: `${Math.max(0, Math.min(progress, 100))}%` }}
-        />
-      </div>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        {description}
-      </p>
+          role="progressbar"
+          aria-label={`${label}: ${value} dari ${total}`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
+          className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
+        >
+          <div
+            className={cn(
+              "h-full rounded-full",
+              inverse && value > 0 ? "bg-warning" : "bg-brand"
+            )}
+            style={{ width: `${Math.max(0, Math.min(progress, 100))}%` }}
+          />
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      </dd>
     </div>
   );
 }
@@ -284,7 +274,7 @@ function ImportHistory({ batches }: { batches: BatchSummary[] }) {
         </div>
         <Link
           href="/admin/import?tab=riwayat"
-          className="inline-flex min-h-10 shrink-0 items-center text-xs font-bold text-brand hover:underline"
+          className="inline-flex min-h-11 shrink-0 items-center text-xs font-bold text-brand hover:underline"
         >
           Semua batch
         </Link>
@@ -323,16 +313,15 @@ function ImportHistory({ batches }: { batches: BatchSummary[] }) {
                       {formatDateTime(batch.createdAt)}
                     </span>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
-                    <span className={cn("rounded-full px-2 py-1", batchStatusView(batch, now).tone)}>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {/* Warna status mengikuti BATCH_STATUS_TONE (sumber tunggal status batch). */}
+                    <Badge variant="muted" className={batchStatusView(batch, now).tone}>
                       {batchStatusView(batch, now).label}
-                    </span>
-                    <span className="rounded-full bg-brand-muted px-2 py-1 text-brand">{created} baru</span>
-                    <span className="rounded-full bg-muted px-2 py-1 text-foreground">{updated} diperbarui</span>
+                    </Badge>
+                    <Badge variant="brand">{created} baru</Badge>
+                    <Badge variant="muted">{updated} diperbarui</Badge>
                     {batch.progress && batch.progress.failed > 0 ? (
-                      <span className="rounded-full bg-destructive/10 px-2 py-1 text-destructive">
-                        {batch.progress.failed} gagal
-                      </span>
+                      <Badge variant="destructive">{batch.progress.failed} gagal</Badge>
                     ) : null}
                   </div>
                 </Link>
@@ -466,25 +455,15 @@ export function AdminDataHealth({
                       </span>
                       <span className="mt-1 flex flex-wrap gap-1.5">
                         {issues.map((issue) => (
-                          <span
-                            key={issue.label}
-                            className="rounded-full bg-warning-muted px-2 py-0.5 text-[10px] font-bold text-warning"
-                          >
+                          <Badge key={issue.label} variant="warning">
                             {issue.label}
-                          </span>
+                          </Badge>
                         ))}
                       </span>
                     </span>
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full px-2 py-1 text-[10px] font-bold",
-                        product.status === "published"
-                          ? "bg-success-muted text-success"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
+                    <Badge variant={product.status === "published" ? "success" : "muted"}>
                       {product.status === "published" ? "Terbit" : "Draft"}
-                    </span>
+                    </Badge>
                   </Link>
                 </li>
               ))}

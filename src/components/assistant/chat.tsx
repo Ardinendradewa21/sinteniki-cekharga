@@ -73,7 +73,7 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
         <span className="inline-flex size-11 items-center justify-center rounded-pill bg-brand-muted text-brand">
           <HugeiconsIcon icon={AiMagicIcon} size={22} strokeWidth={1.8} aria-hidden />
         </span>
-        <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+        <h1 className="mt-5 heading-page text-foreground">
           Mau cari HP seperti apa?
         </h1>
         <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">

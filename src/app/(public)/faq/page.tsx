@@ -176,7 +176,7 @@ const CONTENT: Faq[] = [
 function FaqGroup({ title, items }: { title: string; items: Faq[] }) {
   return (
     <section className="border-t border-border pt-8">
-      <h2 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
+      <h2 className="heading-section text-foreground">
         {title}
       </h2>
       <StaggerList as="div" className="mt-4 space-y-3">
@@ -210,7 +210,7 @@ export default function FaqPage() {
   return (
     <Container className="py-10 md:py-14">
       <header className="max-w-2xl">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+        <h1 className="heading-page text-foreground">
           Pertanyaan umum
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -239,7 +239,7 @@ export default function FaqPage() {
         <FaqGroup title="Data, ulasan, dan asisten" items={CONTENT} />
 
         <section className="rounded-xl border border-border bg-card p-6">
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="heading-card text-foreground">
             Pertanyaanmu belum terjawab?
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">

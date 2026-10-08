@@ -1,6 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -135,7 +136,7 @@ export function CatalogFilters({
               id="katalog-urut"
               name={PARAM.sort}
               defaultValue={query.sort}
-              className="mt-2 h-11 w-full rounded-lg border border-input bg-card px-4 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="mt-2 h-11 w-full rounded-lg border border-input bg-card px-4 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
             >
               {SORT_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -200,9 +201,7 @@ export function CatalogFilters({
         <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-5 py-3 text-sm font-semibold text-foreground">
           Filter lainnya
           {groupFilterCount > 0 ? (
-            <span className="rounded-pill bg-brand-muted px-2 py-0.5 text-xs font-semibold text-brand">
-              {groupFilterCount} aktif
-            </span>
+            <Badge variant="brand">{groupFilterCount} aktif</Badge>
           ) : null}
         </summary>
 

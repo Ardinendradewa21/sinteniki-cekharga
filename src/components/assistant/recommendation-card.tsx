@@ -68,10 +68,10 @@ export function RecommendationCard({
         <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-x-3 gap-y-2">
           <div className="min-w-0">
             <p className="text-xs font-medium text-muted-foreground">{candidate.brand}</p>
-            <h3 className="text-base font-bold tracking-tight text-foreground">{candidate.model}</h3>
+            <h3 className="heading-card text-foreground">{candidate.model}</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">Varian {candidate.variantLabel}</p>
             {candidate.image.isGenericIllustration ? (
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Gambar ilustrasi, bukan foto produk</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Foto belum tersedia (ilustrasi)</p>
             ) : null}
           </div>
           <div className="sm:text-right">

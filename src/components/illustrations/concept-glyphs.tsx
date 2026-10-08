@@ -1,7 +1,9 @@
 "use client";
 
-import { motion, useReducedMotion, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
 import type { ReactNode } from "react";
+
+import { cn } from "@/lib/utils";
 
 /**
  * Diagram konsep beranimasi untuk dua section yang menjelaskan CARA KERJA:
@@ -343,42 +345,22 @@ export function ReviewSourceGlyph() {
 }
 
 /**
- * Penanda status "sedang dikerjakan" untuk kartu asisten.
+ * Titik status statis untuk bagian asisten di beranda.
  *
- * Ini satu-satunya gerak berulang di situs, dan alasannya bukan dekorasi:
- * denyutnya mewakili keadaan nyata (antarmuka sedang dibangun, integrasi belum
- * terpasang). Warnanya warning dan selalu berdampingan dengan kalimat
- * "Asisten belum aktif", jadi maknanya tidak pernah bergantung pada gerak saja.
- * `once: false` membuatnya berhenti saat keluar viewport, sesuai anjuran Motion
- * agar animasi tak-hingga tidak berjalan di luar layar.
- *
- * Saat pengguna meminta reduced motion, denyutnya dihilangkan sepenuhnya, bukan
- * diperlambat: `MotionConfig` tetap membiarkan animasi opacity berjalan, dan
- * satu-satunya gerak berulang di situs justru yang paling mengganggu kalau
- * dibiarkan. Titik statis plus kalimatnya sudah menyampaikan maksud yang sama.
+ * Dulu berdenyut tanpa henti (`repeat: Infinity`) dan selalu berwarna warning,
+ * baik saat AI aktif maupun tidak. Keduanya keliru: PRD §8 meminta menghindari
+ * loop, dan "aktif" bukan peringatan. Sekarang statis, hijau saat aktif dan
+ * amber saat tidak tersedia; arti tetap disampaikan kalimat di sebelahnya,
+ * bukan warna saja.
  */
-export function StatusPulse() {
-  const prefersReducedMotion = useReducedMotion();
-
-  if (prefersReducedMotion) {
-    return (
-      <span
-        className="inline-flex size-2.5 shrink-0 rounded-pill bg-warning"
-        aria-hidden
-      />
-    );
-  }
-
+export function StatusDot({ tone }: { tone: "success" | "warning" }) {
   return (
-    <span className="relative inline-flex size-2.5 shrink-0" aria-hidden>
-      <motion.span
-        className="absolute inset-0 rounded-pill bg-warning"
-        initial={{ opacity: 0.5, scale: 1 }}
-        whileInView={{ opacity: [0.5, 0, 0.5], scale: [1, 2.4, 1] }}
-        viewport={{ once: false }}
-        transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut" }}
-      />
-      <span className="relative inline-flex size-2.5 rounded-pill bg-warning" />
-    </span>
+    <span
+      className={cn(
+        "inline-flex size-2.5 shrink-0 rounded-pill",
+        tone === "success" ? "bg-success" : "bg-warning"
+      )}
+      aria-hidden
+    />
   );
 }

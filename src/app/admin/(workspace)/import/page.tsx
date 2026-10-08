@@ -7,6 +7,7 @@ import { PhotoReprocessForm } from "@/components/admin/photo-reprocess-form";
 import { ScrapeWorkbench } from "@/components/admin/scrape-workbench";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
+import { NavTabs } from "@/components/ui/nav-tabs";
 import { requireStaff } from "@/lib/auth/dal";
 import {
   batchAgeDays,
@@ -284,23 +285,15 @@ export default async function ImportPage(props: PageProps<"/admin/import">) {
         </Button>
       </div>
 
-      <nav aria-label="Sumber impor" className="mt-6 flex gap-1 overflow-x-auto border-b border-border">
-        {TABS.map((item) => (
-          <Link
-            key={item.id}
-            href={`/admin/import?tab=${item.id}`}
-            aria-current={tab === item.id ? "page" : undefined}
-            className={cn(
-              "-mb-px inline-flex min-h-11 shrink-0 items-center border-b-2 px-4 text-sm font-semibold transition-colors",
-              tab === item.id
-                ? "border-brand text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+      <NavTabs
+        label="Sumber impor"
+        className="mt-6"
+        items={TABS.map((item) => ({
+          href: `/admin/import?tab=${item.id}`,
+          label: item.label,
+          active: tab === item.id,
+        }))}
+      />
 
       <div className="mt-8">
         {tab === "unggah" ? (

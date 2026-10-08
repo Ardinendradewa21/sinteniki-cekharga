@@ -113,7 +113,7 @@ async function FormFallback({
   return (
     <Container className="py-10 md:py-14">
       <div className="text-center">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+        <h1 className="heading-page text-foreground">
           Jelaskan kebutuhanmu
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-muted-foreground">

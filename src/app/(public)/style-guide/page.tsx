@@ -69,7 +69,7 @@ function Section({
 }) {
   return (
     <section className="border-t border-border py-12 first:border-t-0">
-      <h2 className="text-xl font-bold tracking-tight text-foreground">
+      <h2 className="heading-section text-foreground">
         {title}
       </h2>
       {description ? (
@@ -96,7 +96,7 @@ export default async function StyleGuidePage() {
   return (
     <Container className="py-12">
       <header className="max-w-2xl">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+        <h1 className="heading-page text-foreground">
           Design system CekHarga
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -271,7 +271,7 @@ export default async function StyleGuidePage() {
           ))}
         </ul>
 
-        <h3 className="mt-10 text-base font-bold text-foreground">
+        <h3 className="mt-10 heading-card text-foreground">
           Harga versi halaman detail
         </h3>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">

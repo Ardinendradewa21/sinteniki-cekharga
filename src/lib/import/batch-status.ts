@@ -56,8 +56,8 @@ export const BATCH_STATUS_TONE: Record<BatchStatus, string> = {
   applied: "bg-success-muted text-success",
   partial: "bg-warning-muted text-warning",
   failed: "bg-destructive/10 text-destructive",
-  discarded: "bg-muted text-muted-foreground",
-  reverted: "bg-muted text-muted-foreground",
+  discarded: "bg-muted text-foreground",
+  reverted: "bg-muted text-foreground",
 };
 
 export function batchAgeDays(createdAt: string, now: Date): number {
