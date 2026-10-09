@@ -48,8 +48,18 @@ export const DEFAULT_MODEL = "google/gemini-2.5-flash-lite";
 export const AI_LIMITS = {
   /** Panjang maksimum kalimat pengguna yang diterima. */
   maxInputChars: 600,
-  /** Timeout satu panggilan. Lebih dari ini, pengguna lebih baik pakai form. */
-  timeoutMs: 12_000,
+  /**
+   * Timeout satu percobaan. Dengan satu percobaan ulang, waktu tunggu terburuk
+   * sekitar 21 detik; lebih dari itu pengguna lebih baik pakai form.
+   */
+  timeoutMs: 10_000,
+  /**
+   * Percobaan ulang SDK (aturan system design 7). SDK hanya mengulang galat
+   * koneksi, timeout, 408, 409, 429, dan 5xx, dengan backoff eksponensial.
+   * Satu kali saja: setiap percobaan bisa ditagih, dan kuota harian di bawah
+   * dihitung per giliran, bukan per percobaan.
+   */
+  maxRetries: 1,
   /** Token keluaran maksimum untuk pengurai satu kalimat. JSON pendek. */
   maxOutputTokens: 300,
   /** Percakapan butuh ruang lebih: ada balasan dan pilihan cepat di dalamnya. */
@@ -64,6 +74,10 @@ export const AI_LIMITS = {
   /** Panggilan total per instance per jendela waktu, lintas semua klien. */
   globalRequestsPerWindow: 120,
   windowMs: 60_000,
+  /** Kuota harian per pengunjung (HMAC IP), dihitung bersama di database. */
+  dailyPerClient: 60,
+  /** Kuota harian total semua pengunjung; batas biaya terburuk per hari. */
+  dailyGlobal: 3000,
   /** Panjang maksimum satu pesan di riwayat (balasan model maks. 400). */
   maxHistoryMessageChars: 600,
   /** Jumlah pesan riwayat yang diterima dari klien sebelum ditolak. */
@@ -90,9 +104,7 @@ export function getAiClient(): OpenAI {
     baseURL: "https://openrouter.ai/api/v1",
     apiKey: parsed.data.OPENROUTER_API_KEY,
     timeout: AI_LIMITS.timeoutMs,
-    // Tanpa percobaan ulang otomatis: kegagalan lebih baik dilaporkan ke
-    // pengguna beserta tombol coba lagi daripada diam-diam menggandakan biaya.
-    maxRetries: 0,
+    maxRetries: AI_LIMITS.maxRetries,
   });
 
   return cached;

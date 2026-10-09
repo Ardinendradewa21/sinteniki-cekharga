@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { AI_LIMITS, rateLimit } from "@/lib/assistant/ai/client";
 import { runChatTurn } from "@/lib/assistant/ai/chat";
+import { consumeDailyQuota, quotaMessage } from "@/lib/assistant/ai/quota";
 import {
   CHAT_START,
   collectedSchema,
@@ -20,7 +21,8 @@ import { toResultView } from "@/lib/assistant/results";
  *
  * Urutannya penting dan disengaja:
  *
- *   1. Batasi laju    — endpoint ini memanggil model berbayar (PRD §10).
+ *   1. Batasi laju    — endpoint ini memanggil model berbayar (PRD §10):
+ *                       per menit di memori, lalu kuota harian di database.
  *   2. Model bicara   — mengobrol, bertanya, mengumpulkan kebutuhan.
  *   3. Kode mencari   — kalau datanya sudah cukup, `recommend()` yang
  *                       menentukan kandidat, bukan model.
@@ -79,12 +81,20 @@ export async function sendChatMessage(
     };
   }
 
-  const limit = rateLimit(await clientIp());
+  const ip = await clientIp();
+  const limit = rateLimit(ip);
   if (!limit.allowed) {
     return {
       ...prev,
       error: `Terlalu cepat. Tunggu ${limit.retryAfterSec} detik lagi.`,
     };
+  }
+
+  // Jatah harian dipakai tepat sebelum model dipanggil, setelah semua
+  // validasi murah lolos, supaya pesan yang ditolak tidak memakan kuota.
+  const quota = await consumeDailyQuota(ip);
+  if (!quota.allowed) {
+    return { ...prev, error: quotaMessage(quota.reason) };
   }
 
   // Pesan pengguna langsung masuk daftar supaya tetap terlihat walau

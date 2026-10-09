@@ -1,3 +1,4 @@
+import { purgeAiUsage } from "@/lib/assistant/ai/quota";
 import { bearerMatches } from "@/lib/backend/bearer";
 import { expireStaleDrafts, purgeScheduledBatches } from "@/lib/import/batches";
 import { listWorkableBatches, processBatchStep } from "@/lib/import/jobs";
@@ -47,6 +48,7 @@ export async function GET(request: Request) {
     purgedSessions: await task(() => purgeOldSessions()),
     purgedPhotoJobs: await task(() => purgePhotoJobs()),
     purgedScheduledBatches: await task(() => purgeScheduledBatches()),
+    purgedAiUsage: await task(() => purgeAiUsage()),
     priceRefresh: await task(() => runPriceRefresh()),
   };
 

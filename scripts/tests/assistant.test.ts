@@ -223,3 +223,25 @@ test("URL rusak tidak menggagalkan halaman", () => {
   assert.equal(parsed.priority, null);
   assert.equal(parsed.brands[0].length, 30);
 });
+
+// Kuota harian AI (PB-21): IP tidak pernah tersimpan mentah, dan pesan
+// penolakan selalu menunjuk jalur form yang tidak memanggil model.
+import { quotaMessage, quotaSubject } from "@/lib/assistant/ai/quota";
+import { AI_LIMITS } from "@/lib/assistant/ai/client";
+
+test("kuota AI: subjek adalah HMAC IP yang stabil, bukan IP mentah", () => {
+  const a = quotaSubject("203.0.113.7", "rahasia-1");
+  assert.equal(a, quotaSubject("203.0.113.7", "rahasia-1"));
+  assert.notEqual(a, quotaSubject("203.0.113.8", "rahasia-1"));
+  assert.notEqual(a, quotaSubject("203.0.113.7", "rahasia-2"));
+  assert.ok(!a.includes("203"), "subjek tidak boleh memuat IP");
+  assert.match(a, /^[0-9a-f]{40}$/);
+});
+
+test("kuota AI: penolakan menyarankan form, dan batas retry tetap terbatas", () => {
+  for (const reason of ["client", "global", "unavailable"] as const) {
+    assert.match(quotaMessage(reason), /form/);
+  }
+  assert.ok(AI_LIMITS.maxRetries >= 1 && AI_LIMITS.maxRetries <= 2);
+  assert.ok(AI_LIMITS.dailyPerClient < AI_LIMITS.dailyGlobal);
+});
