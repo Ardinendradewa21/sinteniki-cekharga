@@ -3,3 +3,19 @@
 ## Modul Iklan
 Sebelum mengerjakan apa pun terkait iklan, banner, sponsor, slot, kampanye, atau laporan iklan,
 baca @docs/ads/ADS-CONTEXT.md dan ikuti seluruh aturan di dalamnya.
+
+## Aturan System Design (wajib diikuti)
+
+Ditetapkan pemilik produk pada 9 Oktober 2026 dan berlaku selama masa pengembangan. Celah kode lama terhadap aturan ini dicatat di `docs/qa/BACKLOG.md` (PB-18 sampai PB-22).
+
+1. Rate limit & kuota: semua endpoint yang memanggil LLM wajib punya rate limit per IP/user dan kuota harian. Jangan buat endpoint AI tanpa pembatas.
+2. Caching: data spesifikasi pakai cache-aside dengan TTL panjang. Cache harga WAJIB di-invalidate setiap kali scraper menyimpan harga baru. Tampilkan timestamp "terakhir diperbarui" pada setiap harga.
+3. Background job: scraping, normalisasi, dan regenerasi embedding tidak boleh berjalan di dalam request user. Status job dicatat di tabel scrape_jobs.
+4. Query: dilarang query database di dalam loop (N+1). Gunakan JOIN atau include. Laporkan jika menemukan pola N+1 di kode lama.
+5. Authorization: setiap endpoint admin dan dashboard iklan wajib mengecek hak akses di server, bukan hanya menyembunyikan tombol di UI. Gunakan UUID untuk ID kampanye iklan dan resource milik brand.
+6. Idempotency: penyimpanan price_history dan job scraping harus aman jika dijalankan ulang (gunakan unique constraint/upsert).
+7. Kegagalan layanan luar: panggilan ke OpenRouter dan marketplace wajib punya timeout, retry terbatas dengan backoff, dan fallback. Dilarang retry tanpa batas.
+8. Penghapusan data: produk, toko, dan kampanye iklan memakai soft delete (deleted_at). raw_listings dihapus permanen setelah masa retensi. price_history tidak dihapus.
+9. Git: kerjakan setiap tiket di branch terpisah dan commit sebelum perubahan besar.
+
+Padanan nama di kode saat ini: `price_history` = tabel `price_observations` (riwayat harga) dan `price_checks` (riwayat pemeriksaan). Job impor dan scraping saat ini tercatat di `import_batches`/`import_items`, `scrape_sessions`, dan `photo_jobs`; tabel `scrape_jobs` belum ada (PB-19). Skrip operasional yang menulis harga harus lewat endpoint aplikasi (mis. `/api/cron/daily`), bukan skrip Node langsung, karena hanya di dalam aplikasi cache katalog ikut di-invalidate (aturan 2).
