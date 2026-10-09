@@ -193,7 +193,7 @@ export async function listIos(contractIds?: string[]): Promise<InsertionOrder[]>
 }
 
 export async function getIo(id: string): Promise<InsertionOrder | null> {
-  const rows = must<InsertionOrder[]>(await db().from("insertion_orders").select("*").eq("id", id).limit(1), "IO");
+  const rows = must<InsertionOrder[]>(await db().from("insertion_orders").select("*").eq("id", id).is("deleted_at", null).limit(1), "IO");
   return rows[0] ?? null;
 }
 

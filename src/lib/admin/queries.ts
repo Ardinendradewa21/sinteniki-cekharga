@@ -148,6 +148,7 @@ export async function listAdminProductBrands(): Promise<string[]> {
     const { data, error } = await db
       .from("products")
       .select("id, brand")
+      .is("deleted_at", null)
       .order("brand", { ascending: true })
       .order("id", { ascending: true })
       .range(from, from + ADMIN_BRANDS_READ_SIZE - 1);
@@ -198,6 +199,7 @@ export async function listAdminProductsPage({
       .select("id, slug, brand, model, status, updated_at", {
         count: withCount ? "exact" : undefined,
       })
+      .is("deleted_at", null)
       .order("brand", { ascending: true })
       .order("model", { ascending: true })
       .order("id", { ascending: true });
@@ -426,6 +428,7 @@ export async function listAdminProducts(
     const result = await db
       .from("products")
       .select("id, slug, brand, model, status, updated_at, nfc:specs->hasNfc, ip:specs->ipRating")
+      .is("deleted_at", null)
       .order("brand", { ascending: true })
       .order("model", { ascending: true })
       .order("id", { ascending: true })
@@ -557,7 +560,7 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
   await requireStaff([]);
   const db = getInsforgeAdminClient().database;
 
-  const productRes = await db.from("products").select().eq("id", id).limit(1);
+  const productRes = await db.from("products").select().eq("id", id).is("deleted_at", null).limit(1);
   // Kegagalan baca tidak boleh tampil sebagai "produk tidak ada" atau "belum
   // ada penawaran"; admin bisa mengambil keputusan dari data yang salah.
   if (productRes.error) throw new Error("Gagal membaca produk admin.");
@@ -583,12 +586,14 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
         .from("price_observations")
         .select("price_idr, observed_at")
         .eq("offer_id", offerId)
+        .is("voided_at", null)
         .order("observed_at", { ascending: false })
         .limit(1),
       db
         .from("price_checks")
         .select("outcome, attempted_at, error_summary")
         .eq("offer_id", offerId)
+        .is("voided_at", null)
         .order("attempted_at", { ascending: false })
         .limit(5),
     ]);
@@ -726,7 +731,7 @@ export async function getImportQuality(now: Date): Promise<ImportQuality> {
   const [pendingBatches, offersWithoutStore, totalPhotos, photosWithoutProof, failedChecks7d] =
     await Promise.all([
       count(db.from("import_batches").select("id", { count: "exact", head: true }).eq("status", "draft")),
-      count(db.from("offers").select("id", { count: "exact", head: true }).is("store_id", null)),
+      count(db.from("offers").select("id", { count: "exact", head: true }).is("store_id", null).is("deleted_at", null)),
       count(db.from("product_assets").select("id", { count: "exact", head: true }).eq("kind", "photo")),
       count(
         db
@@ -740,6 +745,7 @@ export async function getImportQuality(now: Date): Promise<ImportQuality> {
           .from("price_checks")
           .select("id", { count: "exact", head: true })
           .eq("outcome", "failure")
+          .is("voided_at", null)
           .gte("attempted_at", weekAgo)
       ),
     ]);

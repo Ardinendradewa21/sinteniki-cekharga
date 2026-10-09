@@ -68,6 +68,21 @@ function describeError(error: unknown): { message: string; status?: unknown; cod
 export type OrderBy = { column: string; ascending: boolean };
 
 /**
+ * Kolom penanda hapus lunak per tabel (aturan system design 8, migrasi
+ * soft-delete). Pembacaan lewat helper di berkas ini otomatis mengabaikan
+ * baris yang terhapus/dibatalkan; pemanggil yang memang butuh baris itu
+ * (mis. impor yang memulihkan produk terhapus) meminta `includeDeleted`.
+ */
+export const SOFT_DELETE_COLUMN: Readonly<Record<string, "deleted_at" | "voided_at">> = {
+  products: "deleted_at",
+  offers: "deleted_at",
+  stores: "deleted_at",
+  insertion_orders: "deleted_at",
+  price_observations: "voided_at",
+  price_checks: "voided_at",
+};
+
+/**
  * Semua baris yang `column` bernilai salah satu `values`. Urutan selalu diakhiri
  * kolom unik (`id`, atau `uniqueKey` untuk tabel berkunci gabungan tanpa `id`)
  * supaya paginasi deterministik. Melempar error bila backend gagal.
@@ -87,8 +102,11 @@ export async function selectWhereIn(
      * tabel tanpa kolom `id` selalu gagal.
      */
     uniqueKey?: string[];
+    /** Ikut membaca baris yang dihapus lunak / dibatalkan. */
+    includeDeleted?: boolean;
   } = {}
 ): Promise<Row[]> {
+  const softColumn = options.includeDeleted ? undefined : SOFT_DELETE_COLUMN[table];
   const db = getInsforgeAdminClient().database;
   const order = [
     ...(options.order ?? []),
@@ -99,6 +117,7 @@ export async function selectWhereIn(
   for (const group of chunkForUrl([...new Set(values)])) {
     for (let from = 0; ; from += PAGE_SIZE) {
       let query = db.from(table).select(columns).in(column, group);
+      if (softColumn) query = query.is(softColumn, null);
       if (options.range) {
         query = query
           .gte(options.range.column, options.range.gte)
@@ -121,13 +140,18 @@ export async function selectWhereIn(
 }
 
 /** Semua baris satu tabel, tanpa batas diam-diam. */
-export async function selectAll(table: string, columns: string): Promise<Row[]> {
+export async function selectAll(
+  table: string,
+  columns: string,
+  options: { includeDeleted?: boolean } = {}
+): Promise<Row[]> {
   const db = getInsforgeAdminClient().database;
+  const softColumn = options.includeDeleted ? undefined : SOFT_DELETE_COLUMN[table];
   const rows: Row[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await db
-      .from(table)
-      .select(columns)
+    let query = db.from(table).select(columns);
+    if (softColumn) query = query.is(softColumn, null);
+    const { data, error } = await query
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) {

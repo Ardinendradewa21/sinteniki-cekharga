@@ -39,8 +39,10 @@ const officialPrice = (tag: string, n: number, idr: number) => ({
 });
 
 async function cleanup() {
-  const products = ((await db.from("products").select("id").eq("brand", "QAUji")).data ?? []) as { id: string }[];
-  if (products.length) await db.from("products").delete().in("id", products.map((p) => p.id));
+  // Produk dan riwayat harga tidak bisa dihapus permanen (aturan system
+  // design 8); data uji dibersihkan lewat RPC khusus merek QAUji.
+  const purged = await db.rpc("qa_purge_test_data");
+  if (purged.error) throw new Error(`Data uji gagal dibersihkan: ${purged.error.message}`);
   for (const key of storageKeys.splice(0)) await bucket.remove(key);
   await db.from("photo_jobs").delete().like("image_url", "https://qa-uji.invalid/%");
   const labelled = ((await db.from("import_batches").select("id").like("source_label", "QA-UJI%")).data ?? []) as { id: string }[];
@@ -58,8 +60,11 @@ async function applyAll(batchId: string) {
 }
 
 async function productsByModel() {
-  const rows = ((await db.from("products").select("id, model, status, created_by_batch_id, last_source").eq("brand", "QAUji")).data ??
-    []) as Record<string, string>[];
+  const rows = ((await db
+    .from("products")
+    .select("id, model, status, created_by_batch_id, last_source")
+    .eq("brand", "QAUji")
+    .is("deleted_at", null)).data ?? []) as Record<string, string>[];
   return Object.fromEntries(rows.map((row) => [row.model, row]));
 }
 
@@ -99,8 +104,41 @@ test("INT-01 tarik otomatis: spesifikasi + harga resmi, jejak asal, undo terbata
   const result = await executeUndo(created.id, actor);
   assert.ok(result.ok, JSON.stringify(result));
   assert.deepEqual(Object.keys(await productsByModel()).sort(), ["Undo 2", "Undo 3"]);
-  const offersLeft = ((await db.from("offers").select("url").like("url", "https://www.vivo.com/id/products/qauji-undo-%")).data ?? []) as { url: string }[];
+  const offersLeft = ((await db
+    .from("offers")
+    .select("url")
+    .like("url", "https://www.vivo.com/id/products/qauji-undo-%")
+    .is("deleted_at", null)).data ?? []) as { url: string }[];
   assert.deepEqual(offersLeft.map((o) => o.url.split("/").pop()), ["qauji-undo-3"], "penawaran produk terbit dilindungi");
+
+  // Hapus lunak (aturan system design 8): baris produk dan riwayat harganya
+  // tetap ada, hanya ditandai terhapus/batal.
+  const hidden = ((await db.from("products").select("deleted_at, status").eq("id", byModel["Undo 1"].id)).data ?? []) as {
+    deleted_at: string | null; status: string;
+  }[];
+  assert.ok(hidden[0]?.deleted_at, "produk yang diurungkan dihapus lunak, bukan permanen");
+  assert.equal(hidden[0]?.status, "draft");
+  const prices = ((await db.from("price_observations").select("voided_at").eq("batch_id", childId)).data ?? []) as {
+    voided_at: string | null;
+  }[];
+  assert.ok(prices.length >= 2, "riwayat harga batch yang diurungkan tetap tersimpan");
+  assert.equal(prices.filter((p) => p.voided_at).length, prices.length - 1, "hanya harga produk terbit yang tidak dibatalkan");
+  const hardDelete = await db.from("price_observations").delete().eq("batch_id", childId);
+  assert.ok(hardDelete.error, "database menolak penghapusan riwayat harga");
+
+  // Impor ulang data yang sama memulihkan produk yang diurungkan sebagai draft.
+  const again = await createBatch({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI impor ulang", options: {},
+    rows: [spec("Undo", 1)], malformedLines: [], admin: actor,
+  });
+  assert.ok(again.ok);
+  batches.push(again.id);
+  const againItems = (await getBatch(again.id))!.items;
+  assert.equal(againItems[0]?.action, "update", "produk terhapus dikenali, bukan dibuat ganda");
+  await applyAll(again.id);
+  const revived = await productsByModel();
+  assert.ok(revived["Undo 1"], "produk dipulihkan oleh impor ulang");
+  assert.equal(revived["Undo 1"].status, "draft");
   assert.equal((await getBatch(created.id))!.status, "reverted");
   assert.equal((await executeUndo(created.id, actor)).ok, false, "undo kedua ditolak");
 });

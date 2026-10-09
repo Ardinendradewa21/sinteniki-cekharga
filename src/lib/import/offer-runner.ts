@@ -340,11 +340,14 @@ export async function runOfferImport({
 
   let existingOffers: Awaited<ReturnType<typeof selectWhereIn>>;
   try {
+    // Penawaran yang dihapus lunak ikut dibaca: kuncinya (varian + URL) tetap
+    // terpakai, dan impor ulang memulihkannya beserta riwayat harganya.
     existingOffers = await selectWhereIn(
       "offers",
-      "id, variant_id, url, marketplace, seller_name, warranty, listing_status, seller_verified, store_id",
+      "id, variant_id, url, marketplace, seller_name, warranty, listing_status, seller_verified, store_id, deleted_at",
       "variant_id",
-      items.map((item) => item.variantId)
+      items.map((item) => item.variantId),
+      { includeDeleted: true }
     );
   } catch {
     return {
@@ -392,8 +395,11 @@ export async function runOfferImport({
     async (item) => {
       const row = existingByKey.get(item.offerKey)!;
       const offerId = String(row.id);
-      if (!samePayload(row, item.payload)) {
-        const { error } = await db.from("offers").update({ ...item.payload, ...lineage }).eq("id", offerId);
+      if (!samePayload(row, item.payload) || row.deleted_at) {
+        const { error } = await db
+          .from("offers")
+          .update({ ...item.payload, ...lineage, deleted_at: null })
+          .eq("id", offerId);
         if (error) {
           offerFailure.set(item.offerKey, "Gagal memperbarui penawaran.");
           return;
@@ -410,6 +416,7 @@ export async function runOfferImport({
     variant_id: item.variantId,
     url: item.url,
     condition: "new",
+    deleted_at: null,
   });
 
   const offersToInsert = [...latestItemByOffer.values()].filter(
@@ -482,11 +489,15 @@ export async function runOfferImport({
     let existingChecks: Awaited<ReturnType<typeof selectWhereIn>> | null = null;
     try {
       [existingObservations, existingChecks] = await Promise.all([
-        selectWhereIn("price_observations", "id, offer_id, observed_at, price_idr", "offer_id", offerIds, {
+        // Baris yang dibatalkan undo ikut dibaca: kunci uniknya tetap terpakai,
+        // dan impor ulang data yang sama memulihkannya, bukan menduplikasi.
+        selectWhereIn("price_observations", "id, offer_id, observed_at, price_idr, voided_at", "offer_id", offerIds, {
           range: { column: "observed_at", ...window },
+          includeDeleted: true,
         }),
-        selectWhereIn("price_checks", "id, offer_id, attempted_at, outcome", "offer_id", offerIds, {
+        selectWhereIn("price_checks", "id, offer_id, attempted_at, outcome, voided_at", "offer_id", offerIds, {
           range: { column: "attempted_at", ...window },
+          includeDeleted: true,
         }),
       ]);
     } catch {
@@ -502,10 +513,14 @@ export async function runOfferImport({
           row,
         ])
       );
+      const successfulChecks = existingChecks.filter((row) => row.outcome === "success");
       const successfulCheckKeys = new Set(
-        existingChecks
-          .filter((row) => row.outcome === "success")
-          .map((row) => observationKey(String(row.offer_id), String(row.attempted_at)))
+        successfulChecks.map((row) => observationKey(String(row.offer_id), String(row.attempted_at)))
+      );
+      const voidedCheckIdByKey = new Map(
+        successfulChecks
+          .filter((row) => row.voided_at)
+          .map((row) => [observationKey(String(row.offer_id), String(row.attempted_at)), String(row.id)])
       );
 
       const observationRow = (key: string, item: PreparedItem) => ({
@@ -514,6 +529,7 @@ export async function runOfferImport({
         observed_at: item.observedAt,
         origin: item.origin,
         batch_id: batchId,
+        voided_at: null,
       });
 
       const observationsToInsert: [string, PreparedItem][] = [];
@@ -521,14 +537,14 @@ export async function runOfferImport({
       for (const [key, item] of latestItemByObservation) {
         const existing = existingObservationByKey.get(key);
         if (!existing) observationsToInsert.push([key, item]);
-        else if (Number(existing.price_idr) === item.priceIdr) unchangedObservations.add(key);
+        else if (Number(existing.price_idr) === item.priceIdr && !existing.voided_at) unchangedObservations.add(key);
         else observationsToUpdate.push([key, item, String(existing.id)]);
       }
 
       await mapWithConcurrency(observationsToUpdate, UPDATE_CONCURRENCY, async ([key, item, id]) => {
         const { error } = await db
           .from("price_observations")
-          .update({ price_idr: item.priceIdr, origin: item.origin, batch_id: batchId })
+          .update({ price_idr: item.priceIdr, origin: item.origin, batch_id: batchId, voided_at: null })
           .eq("id", id);
         if (error) {
           observationFailure.set(key, "Penawaran tersimpan tetapi harganya gagal dicatat.");
@@ -562,6 +578,17 @@ export async function runOfferImport({
       const checksToInsert = [...latestItemByObservation].filter(
         ([key]) => !observationFailure.has(key) && !successfulCheckKeys.has(key)
       );
+      // Pemeriksaan berhasil yang dibatalkan undo dipulihkan bersama harganya.
+      const checksToRestore = [...latestItemByObservation.keys()]
+        .filter((key) => !observationFailure.has(key) && voidedCheckIdByKey.has(key))
+        .map((key) => voidedCheckIdByKey.get(key)!);
+      for (const group of chunk(checksToRestore, INSERT_CHUNK)) {
+        const { error } = await db
+          .from("price_checks")
+          .update({ voided_at: null, batch_id: batchId })
+          .in("id", group);
+        if (error) console.error("[impor-harga] pemeriksaan batal gagal dipulihkan:", error);
+      }
       for (const group of chunk(checksToInsert, INSERT_CHUNK)) {
         const { error } = await db
           .from("price_checks")

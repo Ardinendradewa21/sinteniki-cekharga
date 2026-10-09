@@ -53,14 +53,15 @@ export function UndoBatchPanel({
         Urungkan batch ini
       </h2>
       <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
-        Undo terbatas: hanya menghapus data yang DIBUAT batch ini dan belum disunting, diterbitkan, atau diperbarui
-        sejak batch selesai. Perubahan pada data yang sudah ada sebelumnya tidak dikembalikan.
+        Undo terbatas: hanya menyembunyikan data yang DIBUAT batch ini dan belum disunting, diterbitkan, atau
+        diperbarui sejak batch selesai. Perubahan pada data yang sudah ada sebelumnya tidak dikembalikan. Riwayat
+        harga tidak dihapus, hanya ditandai batal sehingga tidak tampil di situs.
       </p>
       <ul className="mt-3 space-y-1 text-sm text-foreground">
-        <li>{summary.removeProducts.length} produk draft akan dihapus (beserta varian, penawaran, dan fotonya)</li>
-        <li>{summary.removeOffers} penawaran baru akan dihapus</li>
+        <li>{summary.removeProducts.length} produk draft akan dihapus lunak (fotonya dihapus)</li>
+        <li>{summary.removeOffers} penawaran baru akan dihapus lunak</li>
         <li>
-          {summary.observations} catatan harga dan {summary.checks} catatan pemeriksaan dari batch ini akan dihapus
+          {summary.observations} catatan harga dan {summary.checks} catatan pemeriksaan dari batch ini akan ditandai batal
         </li>
         {summary.removePhotos > 0 ? (
           <li>{summary.removePhotos} foto yang ditambahkan batch ini ke produk draft akan dihapus</li>
@@ -98,7 +99,7 @@ export function UndoBatchPanel({
       <form
         action={formAction}
         onSubmit={(event) => {
-          if (!window.confirm("Urungkan batch ini? Data yang disebut di atas akan dihapus permanen.")) event.preventDefault();
+          if (!window.confirm("Urungkan batch ini? Data yang disebut di atas akan disembunyikan, dan harganya ditandai batal.")) event.preventDefault();
         }}
         className="mt-4 flex flex-wrap items-center gap-3"
       >

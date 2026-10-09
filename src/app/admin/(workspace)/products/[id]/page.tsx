@@ -41,6 +41,8 @@ const GALAT: Record<string, string> = {
   status: "Gagal mengubah status produk.",
   "alasan-kosong": "Pemeriksaan gagal harus disertai alasan, supaya riwayatnya bisa dibaca ulang.",
   hapus: "Gagal menghapus produk.",
+  "varian-terpakai":
+    "Varian ini pernah punya penawaran, jadi riwayat harganya harus tetap tersimpan. Hapus penawarannya saja bila tidak dijual lagi.",
 };
 
 export default async function AdminProductDetailPage({
@@ -184,9 +186,9 @@ export default async function AdminProductDetailPage({
         <section className="rounded-xl border border-destructive/40 bg-card p-6">
           <h2 className="text-base font-bold text-foreground">Hapus produk</h2>
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
-            Menghapus produk ikut menghapus seluruh varian, penawaran, dan
-            riwayat harganya. Tidak bisa dibatalkan. Ketik slug produk untuk
-            memastikan kamu menghapus yang benar.
+            Produk disembunyikan dari situs dan daftar admin, tetapi varian,
+            penawaran, dan riwayat harganya tetap tersimpan (hapus lunak).
+            Ketik slug produk untuk memastikan kamu menghapus yang benar.
           </p>
           <form action={deleteProductAction} className="mt-4 flex flex-wrap items-end gap-3">
             <input type="hidden" name="productId" value={product.id} />
@@ -203,7 +205,7 @@ export default async function AdminProductDetailPage({
               />
             </div>
             <Button type="submit" variant="destructive">
-              Hapus permanen
+              Hapus produk
             </Button>
           </form>
         </section>

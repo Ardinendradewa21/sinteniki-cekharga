@@ -198,19 +198,20 @@ Panel **Data Health** di halaman Ringkasan admin (`/admin`) mendaftar produk ter
 
 1. Pastikan model itu tidak tercantum di situs resmi merek Indonesia dan tidak punya penawaran dari toko Indonesia.
 2. Catat kunci sumbernya (`products.source_key`, misalnya `gsmarena:oppo_k15_5g-14810`) di tabel `catalog_exclusions` beserta alasannya.
-3. Hapus produknya dari halaman admin produk.
+3. Hapus produknya dari halaman admin produk. Penghapusan bersifat lunak: produk hilang dari situs dan daftar admin, tetapi varian, penawaran, dan riwayat harganya tetap tersimpan (aturan system design 8).
 
-Langkah 2 mencegah model itu muncul lagi. Impor spesifikasi berikutnya melewati kunci yang tercantum dengan alasan "Dikecualikan dari katalog". Bila model itu belakangan rilis di Indonesia, hapus barisnya dari `catalog_exclusions`, lalu impor ulang.
+Langkah 2 mencegah model itu muncul lagi. Tanpa langkah 2, impor berikutnya akan memulihkan produk yang dihapus lunak sebagai draft. Impor spesifikasi berikutnya melewati kunci yang tercantum dengan alasan "Dikecualikan dari katalog". Bila model itu belakangan rilis di Indonesia, hapus barisnya dari `catalog_exclusions`, lalu impor ulang.
 
 ## 8. Membatalkan impor (undo)
 
-Undo tersedia untuk batch berstatus "Diterapkan" atau "Sebagian gagal", dan hanya oleh admin.
+Undo tersedia untuk batch berstatus "Diterapkan" atau "Sebagian gagal", dan hanya oleh admin. Sejak 9 Oktober 2026 undo tidak menghapus permanen; database menolak penghapusan riwayat harga.
 
-- **Yang dihapus:**
-  - produk buatan batch itu yang masih draft dan belum disunting
-  - penawaran buatan batch itu, beserta harga dan pemeriksaannya
-  - harga dan pemeriksaan yang ditambahkan batch itu ke penawaran lama
-  - foto buatan batch itu
+- **Yang disembunyikan (hapus lunak) atau ditandai batal:**
+  - produk buatan batch itu yang masih draft dan belum disunting (dihapus lunak)
+  - penawaran buatan batch itu (dihapus lunak)
+  - harga dan pemeriksaan yang ditambahkan batch itu, ditandai batal sehingga tidak tampil di situs
+- **Yang dihapus:** foto buatan batch itu, karena foto bukan riwayat harga.
+- **Impor ulang** berkas yang sama memulihkan produk, penawaran, dan harga yang tadi diurungkan. Pratinjau menandainya sebagai "Status data: Terhapus, dipulihkan sebagai draft".
 - **Yang tidak dikembalikan:**
   - produk yang sudah terbit atau sudah disunting
   - perubahan pada data lama

@@ -56,6 +56,7 @@ async function officialOffers(host: string): Promise<RefreshOffer[]> {
       .from("offers")
       .select("id, variant_id, url, warranty, seller_verified")
       .like("url", `https://${host}/%`)
+      .is("deleted_at", null)
       .order("id", { ascending: true })
       .range(from, from + 999);
     if (error) throw new Error(`Penawaran ${host} gagal dibaca.`);

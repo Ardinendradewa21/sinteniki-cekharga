@@ -179,7 +179,7 @@ export function AdminProductList({
               const confirmed =
                 selected.size > 0 &&
                 window.confirm(
-                  `Hapus permanen ${selected.size} produk beserta seluruh data terkait? Tindakan ini tidak bisa dibatalkan.`
+                  `Hapus ${selected.size} produk? Produk disembunyikan dari situs dan admin; riwayat harganya tetap tersimpan.`
                 );
               if (!confirmed) event.preventDefault();
             }}

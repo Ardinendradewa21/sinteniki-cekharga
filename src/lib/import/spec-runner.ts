@@ -84,6 +84,10 @@ function productPayload({ candidate, specs }: ValidCandidate, retrievedAt: strin
     // Impor memang mengambil ulang data dari sumber, jadi di sinilah waktu
     // pengambilan yang benar untuk dimajukan.
     specs_retrieved_at: retrievedAt,
+    // Produk yang pernah dihapus lunak (mis. lewat undo) dipulihkan sebagai
+    // draft bila diimpor ulang. Model yang memang tidak boleh kembali dicatat
+    // di catalog_exclusions dan sudah dilewati perencana.
+    deleted_at: null,
   };
 }
 
@@ -136,7 +140,8 @@ async function saveCandidates(
     "products",
     "id, source_key",
     "source_key",
-    candidates.map((c) => c.candidate.sourceKey)
+    candidates.map((c) => c.candidate.sourceKey),
+    { includeDeleted: true }
   );
   const existingByKey = new Map(
     existingRows.map((row) => [String(row.source_key), String(row.id)])

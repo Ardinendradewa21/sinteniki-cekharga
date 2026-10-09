@@ -21,7 +21,7 @@ import {
  * Undo terbatas satu batch impor (rencana kerja impor, Fase 4.2).
  *
  * `planUndo` hanya membaca dan menghitung apa yang akan terjadi, untuk layar
- * konfirmasi. `executeUndo` menghapus dengan perhitungan yang SAMA
+ * konfirmasi. `executeUndo` membatalkan dengan perhitungan yang SAMA
  * (`selectRemovable`), dan syarat utamanya ditulis ulang di setiap query hapus
  * (dibuat batch ini, belum disentuh sejak applied_at). Baris yang berubah di
  * antara pratinjau dan konfirmasi tetap aman, dan undo dua kali tidak
@@ -32,6 +32,11 @@ import {
  *   - produk yang sudah diterbitkan atau disunting setelah batch,
  *   - penawaran, harga, dan pemeriksaan milik produk TERBIT: menghapusnya
  *     langsung mengubah halaman publik yang sudah diputuskan admin.
+ *
+ * Sejak aturan system design 8 (migrasi soft-delete), undo tidak menghapus
+ * permanen: produk dan penawaran diberi `deleted_at`, dan harga/pemeriksaan
+ * batch ini diberi `voided_at`. Database menolak DELETE pada tabel-tabel itu.
+ * Foto tetap dihapus, karena foto bukan riwayat harga.
  *
  * Batch spesifikasi hasil tarik otomatis ikut membatalkan batch harga resmi
  * lanjutannya, karena keduanya satu keputusan admin.
@@ -151,8 +156,9 @@ async function selectRemovable(batchId: string, appliedAt: string) {
   ]);
   const removableOffers = untouched.filter((id) => !protectedOffers.has(id));
   const removedOffers = new Set(removableOffers);
-  // Harga pada penawaran yang ikut dihapus hilang lewat cascade; harga milik
-  // produk terbit dilindungi; sisanya dihapus per baris.
+  // Harga milik produk terbit dilindungi. Harga pada penawaran yang ikut
+  // dihapus lunak dihitung terpisah ("cascaded") hanya untuk layar konfirmasi;
+  // keduanya sama-sama ditandai batal saat eksekusi.
   const removablePrice = (row: PriceRow) => !protectedOffers.has(row.offerId) && !removedOffers.has(row.offerId);
   const cascaded = (row: PriceRow) => removedOffers.has(row.offerId);
   const shielded = (row: PriceRow) => protectedOffers.has(row.offerId);
@@ -161,6 +167,8 @@ async function selectRemovable(batchId: string, appliedAt: string) {
     removableOffers,
     observations: observations.filter(removablePrice).map((row) => row.id),
     checks: checks.filter(removablePrice).map((row) => row.id),
+    cascadedObservationIds: observations.filter(cascaded).map((row) => row.id),
+    cascadedCheckIds: checks.filter(cascaded).map((row) => row.id),
     cascadedObservations: observations.filter(cascaded).length,
     cascadedChecks: checks.filter(cascaded).length,
     protectedPrices: observations.filter(shielded).length + checks.filter(shielded).length,
@@ -238,62 +246,80 @@ async function undoOne(batch: BatchRow, admin: AdminSession): Promise<UndoResult
   const result: UndoResult = { products: 0, offers: 0, observations: 0, checks: 0, photos: 0, storageObjects: 0 };
   const removable = await selectRemovable(batch.id, appliedAt);
 
-  // 1. Penawaran buatan batch yang belum disentuh dan bukan milik produk terbit.
+  const now = new Date().toISOString();
+
+  // 1. Penawaran buatan batch yang belum disentuh dan bukan milik produk
+  //    terbit: dihapus lunak, riwayat harganya tetap ada.
   for (const group of chunk(removable.removableOffers, 80)) {
-    const deleted = await db()
+    const hidden = await db()
       .from("offers")
-      .delete()
+      .update({ deleted_at: now })
       .in("id", group)
       .eq("created_by_batch_id", batch.id)
       .lte("updated_at", appliedAt)
+      .is("deleted_at", null)
       .select("id");
-    if (deleted.error) return { error: "Penawaran gagal dihapus; undo dihentikan sebelum langkah lain." };
-    result.offers += (deleted.data ?? []).length;
+    if (hidden.error) return { error: "Penawaran gagal dihapus; undo dihentikan sebelum langkah lain." };
+    result.offers += (hidden.data ?? []).length;
   }
-  result.observations += removable.cascadedObservations;
-  result.checks += removable.cascadedChecks;
 
-  // 2. Harga dan pemeriksaan yang ditambahkan batch ini pada penawaran lain.
+  // 2. Harga dan pemeriksaan yang ditambahkan batch ini (pada penawaran yang
+  //    baru dihapus lunak maupun penawaran lain) ditandai batal, tidak dihapus.
   const priceTables = [
-    { table: "price_observations", ids: removable.observations, key: "observations" },
-    { table: "price_checks", ids: removable.checks, key: "checks" },
+    { table: "price_observations", ids: [...removable.observations, ...removable.cascadedObservationIds], key: "observations" },
+    { table: "price_checks", ids: [...removable.checks, ...removable.cascadedCheckIds], key: "checks" },
   ] as const;
   for (const { table, ids, key } of priceTables) {
     for (const group of chunk(ids, 80)) {
-      const deleted = await db().from(table).delete().in("id", group).eq("batch_id", batch.id).select("id");
-      if (deleted.error) return { error: "Catatan harga gagal dihapus." };
-      result[key] += (deleted.data ?? []).length;
+      const voided = await db()
+        .from(table)
+        .update({ voided_at: now })
+        .in("id", group)
+        .eq("batch_id", batch.id)
+        .is("voided_at", null)
+        .select("id");
+      if (voided.error) return { error: "Catatan harga gagal ditandai batal." };
+      result[key] += (voided.data ?? []).length;
     }
   }
 
-  // 3. Produk buatan batch yang masih draft dan belum disentuh.
+  // 3. Produk buatan batch yang masih draft dan belum disentuh: dihapus lunak.
   const deletedIds = new Set<string>();
   if (batch.kind === "specs") {
     const candidates = await selectWhereIn("products", "id", "created_by_batch_id", [batch.id]);
     const candidateIds = candidates.map((row) => String(row.id));
-    const assets = await selectWhereIn("product_assets", "product_id, storage_key", "product_id", candidateIds);
     for (const group of chunk(candidateIds, 80)) {
-      const deleted = await db()
+      const hidden = await db()
         .from("products")
-        .delete()
+        .update({ deleted_at: now })
         .in("id", group)
         .eq("created_by_batch_id", batch.id)
         .eq("status", "draft")
         .lte("updated_at", appliedAt)
+        .is("deleted_at", null)
         .select("id");
-      if (deleted.error) return { error: "Produk gagal dihapus." };
-      for (const row of (deleted.data ?? []) as { id: string }[]) deletedIds.add(row.id);
+      if (hidden.error) return { error: "Produk gagal dihapus." };
+      for (const row of (hidden.data ?? []) as { id: string }[]) deletedIds.add(row.id);
     }
     result.products = deletedIds.size;
 
-    // Baris database sudah hilang; objek foto dihapus sesudahnya. Bila gagal,
-    // yang tersisa hanya file yatim, bukan referensi ke file yang hilang.
+    // Foto produk yang dihapus lunak ikut dihapus (foto bukan riwayat harga):
+    // baris dulu, objek storage sesudahnya. Bila objek gagal dihapus, yang
+    // tersisa hanya file yatim, bukan referensi ke file yang hilang.
     const bucket = getInsforgeAdminClient().storage.from(PRODUCT_IMAGE_BUCKET);
-    for (const asset of assets) {
-      if (!deletedIds.has(String(asset.product_id)) || !asset.storage_key) continue;
-      const removed = await bucket.remove(String(asset.storage_key));
-      if (removed.error) console.error("[undo] objek foto gagal dihapus:", asset.storage_key, removed.error);
-      else result.storageObjects += 1;
+    for (const group of chunk([...deletedIds], 80)) {
+      const removedAssets = await db()
+        .from("product_assets")
+        .delete()
+        .in("product_id", group)
+        .select("storage_key");
+      if (removedAssets.error) return { error: "Foto produk yang diurungkan gagal dihapus." };
+      for (const asset of (removedAssets.data ?? []) as { storage_key: string | null }[]) {
+        if (!asset.storage_key) continue;
+        const removed = await bucket.remove(asset.storage_key);
+        if (removed.error) console.error("[undo] objek foto gagal dihapus:", asset.storage_key, removed.error);
+        else result.storageObjects += 1;
+      }
     }
   }
 

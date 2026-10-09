@@ -302,6 +302,7 @@ Ringkasan kode yang mewujudkan dokumen ini. Ubah bagian ini setiap kali struktur
 
 - `migrations/20261001120000_ads-normalized-model.sql`: seluruh tabel di §6 plus `ad_slots`, `ad_stats_daily`, `ad_rate_card`, `ads_txt_entries`, `ad_settings`, view `ad_daily_report`, fungsi `ad_rollup_and_purge`, dan tiga fungsi publik `ad_live_creatives()`, `ad_active_slots()`, `ad_ads_txt()` (SECURITY DEFINER, satu-satunya jalur baca anon). Semua tabel ber-RLS dan tertutup untuk anon.
 - `migrations/20261001130000_ad-events-dedupe-index.sql`: indeks unik `dedupe_key` dibuat non-parsial agar `upsert ... ignoreDuplicates` bisa dipakai. NULL tetap boleh berulang.
+- `migrations/20261009120000_soft-delete.sql` (aturan system design 8): `insertion_orders.deleted_at`, dan trigger menolak DELETE permanen pada kampanye. Belum ada aksi hapus kampanye; pembatalan tetap lewat status `cancelled`. Detail IO mengabaikan baris yang `deleted_at`-nya terisi.
 
 ### 14.2 Penyajian publik
 

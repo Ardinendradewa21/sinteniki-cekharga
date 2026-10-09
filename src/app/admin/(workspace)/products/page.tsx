@@ -105,7 +105,7 @@ export default async function AdminProductsPage({
           role="status"
           className="mt-6 rounded-xl border border-success/30 bg-success-muted p-4 text-sm text-foreground"
         >
-          {changedCount} produk berhasil dihapus permanen.
+          {changedCount} produk berhasil dihapus. Riwayat harganya tetap tersimpan.
         </p>
       ) : null}
 

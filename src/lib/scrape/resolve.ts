@@ -140,6 +140,7 @@ export async function resolveLineupItem(lineup: LineupItem, pathOverride?: strin
         .database.from("products")
         .select("slug, status")
         .eq("source_key", candidate.sourceKey)
+        .is("deleted_at", null)
         .limit(1);
       const existing = (data ?? [])[0] as { slug: string; status: "draft" | "published" } | undefined;
       if (existing) catalog = { status: existing.status, slug: existing.slug };

@@ -97,13 +97,18 @@ export async function planSpecImport(
   }));
 
   const [existing, slugOwners, exclusions] = await Promise.all([
+    // Produk yang dihapus lunak ikut dibaca: kunci sumber dan slug-nya tetap
+    // terpakai, dan impor ulang memulihkannya (lihat spec-runner).
     selectWhereIn(
       "products",
-      "id, source_key, slug, brand, model, specs, status",
+      "id, source_key, slug, brand, model, specs, status, deleted_at",
       "source_key",
-      valid.map((entry) => entry.candidate.sourceKey)
+      valid.map((entry) => entry.candidate.sourceKey),
+      { includeDeleted: true }
     ),
-    selectWhereIn("products", "id, slug, source_key", "slug", valid.map((entry) => entry.candidate.slug)),
+    selectWhereIn("products", "id, slug, source_key", "slug", valid.map((entry) => entry.candidate.slug), {
+      includeDeleted: true,
+    }),
     selectWhereIn("catalog_exclusions", "source_key, reason", "source_key", valid.map((entry) => entry.candidate.sourceKey), {
       uniqueKey: ["source_key"],
     }),
@@ -180,6 +185,9 @@ export async function planSpecImport(
     }
 
     const changes: PlanChange[] = [];
+    if (current.deleted_at) {
+      changes.push({ field: "Status data", before: "Terhapus", after: "Dipulihkan sebagai draft" });
+    }
     if (current.brand !== candidate.brand) {
       changes.push({ field: "Merek", before: String(current.brand), after: candidate.brand });
     }

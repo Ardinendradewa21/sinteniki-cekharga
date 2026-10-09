@@ -341,21 +341,22 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
   const confirmSlug = String(formData.get("konfirmasi") ?? "").trim();
   const actualSlug = String(formData.get("slug") ?? "").trim();
 
-  // Penghapusan menghanyutkan varian, penawaran, dan seluruh riwayat harganya
-  // lewat ON DELETE CASCADE. Karena itu admin harus mengetik ulang slug-nya;
-  // satu klik tidak cukup untuk operasi yang tidak bisa dibatalkan.
+  // Hapus lunak (aturan system design 8): produk disembunyikan dari admin dan
+  // publik, tetapi varian, penawaran, dan riwayat harganya tetap tersimpan.
+  // Admin tetap mengetik ulang slug supaya tidak salah produk.
   if (!productId || confirmSlug !== actualSlug) {
     redirect(`/admin/products/${productId}?galat=konfirmasi`);
   }
 
   const { error } = await getInsforgeAdminClient()
     .database.from("products")
-    .delete()
-    .eq("id", productId);
+    .update({ deleted_at: new Date().toISOString(), status: "draft" })
+    .eq("id", productId)
+    .is("deleted_at", null);
 
   if (error) redirect(`/admin/products/${productId}?galat=hapus`);
 
-  await recordAudit(admin, "produk.hapus", "product", productId, { slug: actualSlug });
+  await recordAudit(admin, "produk.hapus", "product", productId, { slug: actualSlug, lunak: true });
   revalidateCatalog();
   redirect("/admin/products");
 }
@@ -384,6 +385,7 @@ export async function deleteProductsBulkAction(formData: FormData): Promise<void
     .from("products")
     .select("id, slug")
     .in("id", productIds)
+    .is("deleted_at", null)
     .limit(50);
 
   if (selected.error) {
@@ -395,15 +397,15 @@ export async function deleteProductsBulkAction(formData: FormData): Promise<void
     redirect(adminProductsResultHref(formData, { galat: "pilihan-hapus" }));
   }
 
-  // Relasi varian, penawaran, harga, aset, dan review memakai ON DELETE
-  // CASCADE, sama seperti penghapusan satu produk di halaman detail.
+  // Hapus lunak, sama seperti penghapusan satu produk di halaman detail.
   const { error } = await db
     .from("products")
-    .delete()
+    .update({ deleted_at: new Date().toISOString(), status: "draft" })
     .in(
       "id",
       rows.map((row) => row.id)
-    );
+    )
+    .is("deleted_at", null);
 
   if (error) {
     redirect(adminProductsResultHref(formData, { galat: "hapus-banyak" }));
@@ -412,6 +414,7 @@ export async function deleteProductsBulkAction(formData: FormData): Promise<void
   await recordAudit(admin, "produk.hapus-banyak", "product", null, {
     count: rows.length,
     products: rows,
+    lunak: true,
   });
   revalidateCatalog();
   redirect(
@@ -472,10 +475,16 @@ export async function deleteVariantAction(formData: FormData): Promise<void> {
   const productId = String(formData.get("productId") ?? "");
   if (!variantId) return;
 
-  const { error } = await getInsforgeAdminClient()
-    .database.from("variants")
-    .delete()
-    .eq("id", variantId);
+  const db = getInsforgeAdminClient().database;
+  // Varian yang pernah punya penawaran membawa riwayat harga, dan riwayat
+  // harga tidak boleh dihapus (aturan system design 8; database juga
+  // menolaknya). Hanya varian yang belum pernah dipakai yang boleh dihapus.
+  const used = await db.from("offers").select("id").eq("variant_id", variantId).limit(1);
+  if (used.error || (used.data ?? []).length > 0) {
+    redirect(`/admin/products/${productId}?galat=varian-terpakai`);
+  }
+
+  const { error } = await db.from("variants").delete().eq("id", variantId);
 
   if (!error) {
     await recordAudit(admin, "varian.hapus", "variant", variantId, { productId });
@@ -546,13 +555,15 @@ export async function deleteOfferAction(formData: FormData): Promise<void> {
   const productId = String(formData.get("productId") ?? "");
   if (!offerId) return;
 
+  // Hapus lunak: penawaran hilang dari situs, riwayat harganya tetap ada.
   const { error } = await getInsforgeAdminClient()
     .database.from("offers")
-    .delete()
-    .eq("id", offerId);
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", offerId)
+    .is("deleted_at", null);
 
   if (!error) {
-    await recordAudit(admin, "penawaran.hapus", "offer", offerId, { productId });
+    await recordAudit(admin, "penawaran.hapus", "offer", offerId, { productId, lunak: true });
   }
   revalidatePath(`/admin/products/${productId}`);
   revalidateCatalog();
