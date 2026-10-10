@@ -17,6 +17,7 @@ import {
   selectWhereIn,
 } from "@/lib/import/batch";
 import type { ImageRights } from "@/lib/import/image-rights";
+import { specsPatch } from "@/lib/import/patch-rules";
 import type { ProductImageCandidate } from "@/lib/import/product-images";
 import { enqueuePhotoJobs } from "@/lib/import/photo-jobs";
 import type { ImportReport, RowResult } from "@/lib/import/report";
@@ -150,22 +151,38 @@ async function saveCandidates(
   const toUpdate = candidates.filter((c) => existingByKey.has(c.candidate.sourceKey));
   const toInsert = candidates.filter((c) => !existingByKey.has(c.candidate.sourceKey));
 
-  // `status` dan `slug` sengaja tidak ikut diperbarui. Slug yang berubah akan
-  // memutus tautan yang sudah dibagikan orang, dan status terbit adalah
-  // keputusan manusia yang tidak boleh dicabut impor.
-  await mapWithConcurrency(toUpdate, UPDATE_CONCURRENCY, async (valid) => {
-    const productId = existingByKey.get(valid.candidate.sourceKey)!;
-    const { error } = await db
-      .from("products")
-      .update(productPayload(valid, retrievedAt, lineage))
-      .eq("id", productId);
-    results.set(
-      valid.candidate.sourceKey,
-      error
-        ? { failed: "Gagal memperbarui produk yang sudah ada." }
-        : { outcome: "updated", productId }
-    );
-  });
+  // Produk yang sudah ada diperbarui sebagai PATCH massal lewat RPC
+  // `import_patch_products`: satu panggilan per kelompok (bukan satu query per
+  // baris), dan spesifikasi digabung `specs || patch` sehingga sel kosong tidak
+  // menghapus nilai lama (patch-rules.ts). `status` dan `slug` sengaja tidak
+  // ikut diperbarui: slug yang berubah memutus tautan yang sudah dibagikan
+  // orang, dan status terbit adalah keputusan manusia.
+  for (const group of chunk(toUpdate, INSERT_CHUNK)) {
+    const { data, error } = await db.rpc("import_patch_products", {
+      p_rows: group.map((valid) => ({
+        id: existingByKey.get(valid.candidate.sourceKey)!,
+        brand: valid.candidate.brand,
+        model: valid.candidate.model,
+        specs_patch: specsPatch(valid.specs, valid.candidate.clearedSpecs),
+        specs_source: "GSMArena",
+        specs_source_url: valid.candidate.specsSourceUrl,
+        specs_retrieved_at: retrievedAt,
+        updated_by_batch_id: lineage.batchId,
+        last_source: lineage.source,
+      })),
+    });
+    const updated = new Set(((data ?? []) as { id: string }[]).map((row) => row.id));
+    for (const valid of group) {
+      const productId = existingByKey.get(valid.candidate.sourceKey)!;
+      results.set(
+        valid.candidate.sourceKey,
+        !error && updated.has(productId)
+          ? { outcome: "updated", productId }
+          : { failed: "Gagal memperbarui produk yang sudah ada." }
+      );
+    }
+    if (error) console.error("[impor-spesifikasi] patch produk gagal:", error);
+  }
 
   for (const group of chunk(toInsert, INSERT_CHUNK)) {
     const { data, error } = await db

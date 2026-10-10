@@ -490,3 +490,58 @@ test("retry tarik otomatis: hanya jaringan dan 5xx, blokir anti-bot tidak pernah
   assert.equal(scrapeBackoffMs(2, () => 0), 3_000);
   assert.ok(scrapeBackoffMs(2, () => 0.999) < 3_250);
 });
+
+// Patch semantics impor (langkah 1 impor terpadu): sel kosong = tidak diubah,
+// "-" = kosongkan.
+import { applyKeepExisting, mergeSpecs, specsPatch } from "@/lib/import/patch-rules";
+
+const specRowFor = (overrides: Record<string, string>) => {
+  const parsed = parseCsv(templateSpesifikasi());
+  return { ...parsed.rows[0]!, ...overrides };
+};
+
+test("patch spesifikasi: sel kosong tidak diubah, tanda - mengosongkan", () => {
+  const outcome = mapRow(specRowFor({ nfc: "", chipset: "-", ip_rating: "IP69" }));
+  assert.ok(outcome.ok);
+  assert.deepEqual(outcome.candidate.clearedSpecs, ["chipset"]);
+  const patch = specsPatch(outcome.candidate.specs, outcome.candidate.clearedSpecs);
+  assert.ok(!("hasNfc" in patch), "NFC kosong tidak ikut patch");
+  assert.equal(patch.chipset, null, "chipset sengaja dikosongkan");
+  assert.equal(patch.ipRating, "IP69");
+
+  const merged = mergeSpecs({ hasNfc: true, chipset: "Lama", ipRating: "IP68", batteryMah: 5000 }, patch);
+  assert.equal(merged.hasNfc, true, "isian admin tidak hilang");
+  assert.equal(merged.chipset, null);
+  assert.equal(merged.ipRating, "IP69");
+  assert.equal(merged.batteryMah, 7000, "nilai baru menimpa nilai lama");
+});
+
+test("patch spesifikasi: NFC 'market dependent' dianggap tidak diketahui, tidak menimpa", () => {
+  const outcome = mapRow(specRowFor({ nfc: "Yes (market/region dependent)" }));
+  assert.ok(outcome.ok);
+  const patch = specsPatch(outcome.candidate.specs, outcome.candidate.clearedSpecs);
+  assert.ok(!("hasNfc" in patch));
+});
+
+test("patch penawaran: kolom kosong mempertahankan suntingan admin", () => {
+  const base = "slug,ram_gb,storage_gb,marketplace,seller_name,url,warranty,listing_status,seller_verified,price_idr,observed_at\n";
+  const rows = parseCsv(
+    base +
+      "oppo-a6c,4,128,Blibli,Toko,https://www.blibli.com/p/x,,,,1999000,2026-10-10T10:00:00+07:00\n" +
+      "oppo-a6c,4,128,Blibli,Toko,https://www.blibli.com/p/x,-,inactive,tidak,,2026-10-10T10:00:00+07:00\n"
+  ).rows;
+  const empty = mapOfferRow(rows[0]!);
+  const explicit = mapOfferRow(rows[1]!);
+  assert.ok(empty.ok && explicit.ok);
+  assert.deepEqual(empty.row.keepExisting, ["warranty", "listing_status", "seller_verified"]);
+  assert.deepEqual(explicit.row.keepExisting, []);
+  assert.equal(explicit.row.warranty, null, "garansi '-' dikosongkan");
+
+  const existing = { warranty: "Resmi 1 tahun", listing_status: "out-of-stock", seller_verified: true };
+  const kept = applyKeepExisting(
+    { warranty: null, listing_status: "active", seller_verified: false },
+    existing,
+    empty.row.keepExisting
+  );
+  assert.deepEqual(kept, existing, "badge terverifikasi dan garansi tidak dicabut sel kosong");
+});

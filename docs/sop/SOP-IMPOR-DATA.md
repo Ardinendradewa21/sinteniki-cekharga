@@ -43,6 +43,17 @@ Merek yang didukung tarik otomatis: vivo, iQOO, OPPO, Samsung, Xiaomi, Digimap (
 
 Kolom wajib ditandai ✱. Baris yang kolom wajibnya kosong akan dilewati beserta alasannya.
 
+**Aturan sel kosong (berlaku sejak 10 Oktober 2026).** Impor ulang produk yang sudah ada bekerja sebagai *patch*:
+
+| Isi sel | Arti untuk produk yang sudah ada |
+| --- | --- |
+| kosong | tidak diubah; nilai lama di database tetap, termasuk isian manual admin |
+| nilai yang tidak terbaca (mis. NFC "market dependent") | tidak diubah |
+| `-` (satu tanda minus) | dikosongkan menjadi "tidak diketahui" |
+| nilai baru | menggantikan nilai lama; pratinjau menampilkan sebelum dan sesudah |
+
+Jadi berkas tidak perlu lengkap. Cukup isi kolom wajib dan kolom yang ingin diperbarui.
+
 | Kolom | Isi | Contoh | Masuk ke database |
 | --- | --- | --- | --- |
 | `brand` ✱ | Merek. Penulisan dikanonkan otomatis (Oppo → OPPO, Realme → realme, vivo iQOO → iQOO) | `OPPO` | `products.brand` |
@@ -108,6 +119,8 @@ Klik **Templat CekHarga** di bagian "Penawaran dan harga" untuk mengunduh `templ
 Catatan:
 
 - Bila `observed_at` kosong, sistem memakai waktu terakhir berkas diubah. Isi kolom ini supaya label "diperiksa …" di situs jujur.
+- Untuk penawaran yang sudah ada, sel `warranty`, `listing_status`, dan `seller_verified` yang kosong **tidak mengubah** nilai lama. Garansi dan badge terverifikasi yang disunting admin tidak hilang. Tulis `-` di `warranty` untuk mengosongkan garansi, dan `tidak` di `seller_verified` untuk mencabut badge.
+- Hasil scraper Shopee dan ekspor Erafone tidak membawa garansi dan bukti verifikasi, jadi keduanya selalu mempertahankan nilai lama.
 - Harga di atas Rp500.000.000 ditolak sebagai salah ketik.
 - Harga dianggap segar selama **30 jam** sejak `observed_at` (keputusan 8 Oktober 2026). Setelah itu situs menampilkan "perlu dicek ulang".
 

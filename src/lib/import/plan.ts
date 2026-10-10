@@ -9,6 +9,7 @@ import {
   prepareOfferRows,
   type PreparedItem,
 } from "@/lib/import/offer-runner";
+import { applyKeepExisting, mergeSpecs, specsPatch } from "@/lib/import/patch-rules";
 import { prepareSpecRows } from "@/lib/import/spec-runner";
 
 /**
@@ -194,10 +195,13 @@ export async function planSpecImport(
     if (current.model !== candidate.model) {
       changes.push({ field: "Model", before: String(current.model), after: candidate.model });
     }
+    // Pratinjau memakai penggabungan yang sama dengan penulisan
+    // (`specs || patch`): sel kosong tidak tampil sebagai "dihapus".
     const oldSpecs = (current.specs ?? {}) as Partial<ProductSpecs>;
+    const newSpecs = mergeSpecs(oldSpecs, specsPatch(specs, candidate.clearedSpecs));
     for (const key of Object.keys(SPEC_LABELS) as (keyof ProductSpecs)[]) {
       const before = display(oldSpecs[key]);
-      const after = display(specs[key]);
+      const after = display(newSpecs[key]);
       if (before !== after) changes.push({ field: SPEC_LABELS[key], before, after });
     }
     const productId = String(current.id);
@@ -308,11 +312,13 @@ export async function planOfferImport(
 
   const offerItems = [...latest.values()];
   const [existingOffers, stores] = await Promise.all([
+    // Penawaran yang dihapus lunak ikut dibaca: impor memulihkannya.
     selectWhereIn(
       "offers",
-      "id, variant_id, url, marketplace, seller_name, warranty, listing_status, seller_verified, store_id",
+      "id, variant_id, url, marketplace, seller_name, warranty, listing_status, seller_verified, store_id, deleted_at",
       "variant_id",
-      offerItems.map((item) => item.variantId)
+      offerItems.map((item) => item.variantId),
+      { includeDeleted: true }
     ),
     selectAll("stores", "id, name"),
   ]);
@@ -382,21 +388,24 @@ export async function planOfferImport(
     }
 
     const changes: PlanChange[] = [];
+    if (current.deleted_at) changes.push({ field: "Status data", before: "Terhapus", after: "Dipulihkan" });
     if (movedFrom) changes.push({ field: "URL listing", before: movedFrom, after: item.url });
+    // Sel kosong mempertahankan suntingan admin, sama seperti saat ditulis.
+    const payload = applyKeepExisting(item.payload, current, item.keepExisting);
     const compare = (field: string, before: unknown, after: unknown) => {
       const a = display(before);
       const b = display(after);
       if (a !== b) changes.push({ field, before: a, after: b });
     };
-    compare("Marketplace", current.marketplace, item.payload.marketplace);
-    compare("Penjual", current.seller_name, item.payload.seller_name);
-    compare("Garansi", current.warranty, item.payload.warranty);
+    compare("Marketplace", current.marketplace, payload.marketplace);
+    compare("Penjual", current.seller_name, payload.seller_name);
+    compare("Garansi", current.warranty, payload.warranty);
     compare(
       "Status listing",
       LISTING_STATUS_LABEL[String(current.listing_status)] ?? current.listing_status,
-      view.status
+      LISTING_STATUS_LABEL[String(payload.listing_status)] ?? payload.listing_status
     );
-    compare("Penjual terverifikasi", current.seller_verified, item.payload.seller_verified);
+    compare("Penjual terverifikasi", current.seller_verified, payload.seller_verified);
     compare(
       "Toko",
       current.store_id ? storeName.get(String(current.store_id)) : null,

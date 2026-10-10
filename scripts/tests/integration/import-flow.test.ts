@@ -226,3 +226,48 @@ test("INT-04 retensi antrean foto dan batch terjadwal, kunci harian unik", async
   const still = await db.from("import_batches").select("id").eq("id", (first.data as { id: string }[])[0].id);
   assert.equal((still.data ?? []).length, 0, "batch terjadwal > 30 hari terhapus");
 });
+
+test("INT-05 impor ulang sebagai patch: sel kosong tidak menghapus, '-' mengosongkan", async () => {
+  const first = await createBatch({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI patch 1", options: {},
+    rows: [{ ...spec("Patch", 1), nfc: "Yes", ip_rating: "IP68" }], malformedLines: [], admin: actor,
+  });
+  assert.ok(first.ok);
+  batches.push(first.id);
+  await applyAll(first.id);
+
+  // Impor ulang: NFC kosong (tidak diubah), chipset "-" (dikosongkan), IP baru.
+  const second = await createBatch({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI patch 2", options: {},
+    rows: [{ ...spec("Patch", 1), nfc: "", chipset: "-", ip_rating: "IP69" }], malformedLines: [], admin: actor,
+  });
+  assert.ok(second.ok);
+  batches.push(second.id);
+  const changes = (await getBatch(second.id))!.items[0]!.changes.map((c) => c.field).sort();
+  assert.deepEqual(changes, ["Chipset", "IP rating"], "pratinjau hanya menampilkan perubahan nyata");
+  await applyAll(second.id);
+  const product = ((await db.from("products").select("specs").eq("source_key", "gsmarena:qauji_patch_1-91")).data ?? [])[0] as
+    | { specs: Record<string, unknown> }
+    | undefined;
+  assert.equal(product?.specs.hasNfc, true, "NFC tidak terhapus oleh sel kosong");
+  assert.equal(product?.specs.chipset, null, "chipset dikosongkan oleh tanda -");
+  assert.equal(product?.specs.ipRating, "IP69");
+
+  // Penawaran: badge terverifikasi dan garansi tidak dicabut sel kosong.
+  const offerRow = (warranty: string, verified: string, price: string) => ({
+    slug: "qauji-patch-1", ram_gb: "8", storage_gb: "128", marketplace: "Blibli", seller_name: "Toko QA",
+    url: "https://www.blibli.com/p/qauji-patch-1", warranty, listing_status: "", seller_verified: verified,
+    price_idr: price, observed_at: new Date(Date.now() - 3_600_000).toISOString(),
+  });
+  for (const [label, row] of [
+    ["QA-UJI patch harga 1", offerRow("Resmi 1 tahun", "ya", "3000000")],
+    ["QA-UJI patch harga 2", offerRow("", "", "")],
+  ] as const) {
+    const batch = await createBatch({ kind: "offers", origin: "csv", sourceLabel: label, options: {}, rows: [row], malformedLines: [], admin: actor });
+    assert.ok(batch.ok, JSON.stringify(batch));
+    batches.push(batch.id);
+    await applyAll(batch.id);
+  }
+  const offer = ((await db.from("offers").select("warranty, seller_verified, listing_status").eq("url", "https://www.blibli.com/p/qauji-patch-1")).data ?? [])[0];
+  assert.deepEqual(offer, { warranty: "Resmi 1 tahun", seller_verified: true, listing_status: "active" });
+});

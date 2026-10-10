@@ -7,6 +7,7 @@ import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { invalidateCatalogCache } from "@/lib/backend/catalog-repository";
 import { recordAudit } from "@/lib/admin/audit";
 import type { CsvRow } from "@/lib/import/csv-parser";
+import { applyKeepExisting, type OfferKeepableField } from "@/lib/import/patch-rules";
 import {
   chunk,
   INSERT_CHUNK,
@@ -70,6 +71,8 @@ export type PreparedItem = {
   variantId: string;
   url: string;
   payload: OfferPayload;
+  /** Kolom yang dipertahankan dari penawaran lama karena selnya kosong. */
+  keepExisting: OfferKeepableField[];
   priceIdr: number | null;
   observedAt: string | null;
   origin: "manual" | "automatic";
@@ -224,6 +227,7 @@ export function prepareOfferRows(
         seller_verified: row.sellerVerified,
         store_id: storeFor(row.url),
       },
+      keepExisting: row.keepExisting,
       priceIdr: row.priceIdr,
       observedAt: row.observedAt,
       origin: outcome.origin,
@@ -395,10 +399,11 @@ export async function runOfferImport({
     async (item) => {
       const row = existingByKey.get(item.offerKey)!;
       const offerId = String(row.id);
-      if (!samePayload(row, item.payload) || row.deleted_at) {
+      const payload = applyKeepExisting(item.payload, row, item.keepExisting);
+      if (!samePayload(row, payload) || row.deleted_at) {
         const { error } = await db
           .from("offers")
-          .update({ ...item.payload, ...lineage, deleted_at: null })
+          .update({ ...payload, ...lineage, deleted_at: null })
           .eq("id", offerId);
         if (error) {
           offerFailure.set(item.offerKey, "Gagal memperbarui penawaran.");

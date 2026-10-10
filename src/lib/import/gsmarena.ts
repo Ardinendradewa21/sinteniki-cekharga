@@ -1,6 +1,7 @@
 import type { CsvRow } from "@/lib/import/csv-parser";
 import { canonicalBrandModel, toSlug } from "@/lib/catalog/brands";
 import type { ProductSpecs } from "@/lib/catalog/schema";
+import { CLEAR_TOKEN, clearedSpecKeys } from "@/lib/import/patch-rules";
 import {
   readProductImage,
   type ProductImageCandidate,
@@ -159,6 +160,12 @@ export type ImportCandidate = {
   variants: { ramGb: number; storageGb: number }[];
   image: ProductImageCandidate | null;
   imageIssue: string | null;
+  /**
+   * Kunci spesifikasi yang sengaja dikosongkan dengan tanda `-` di CSV.
+   * Kunci lain yang bernilai null berarti "tidak diubah" saat produk sudah ada
+   * (lihat patch-rules.ts).
+   */
+  clearedSpecs: (keyof ProductSpecs)[];
 };
 
 export type RowOutcome =
@@ -168,7 +175,17 @@ export type RowOutcome =
 const GSMARENA_BASE = "https://www.gsmarena.com/";
 
 export function mapRow(row: CsvRow): RowOutcome {
-  const get = (key: string) => fixEncoding(row[key] ?? "");
+  // Tanda `-` berarti "kosongkan nilai ini" (patch-rules.ts). Untuk pembacaan
+  // kolom ia diperlakukan seperti sel kosong, dan kolomnya dicatat.
+  const clearedColumns = new Set<string>();
+  const get = (key: string) => {
+    const value = fixEncoding(row[key] ?? "");
+    if (value === CLEAR_TOKEN) {
+      clearedColumns.add(key);
+      return "";
+    }
+    return value;
+  };
 
   // Merek resmi (OPPO, realme) dan sub-merek (iQOO) dikanonkan sebelum slug
   // dan kunci apa pun dibentuk.
@@ -246,6 +263,7 @@ export function mapRow(row: CsvRow): RowOutcome {
       variants,
       image: image.candidate,
       imageIssue: image.issue,
+      clearedSpecs: clearedSpecKeys(clearedColumns),
     },
   };
 }

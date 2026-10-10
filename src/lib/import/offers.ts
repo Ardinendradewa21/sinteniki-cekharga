@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { CsvRow } from "@/lib/import/csv-parser";
+import { CLEAR_TOKEN, OFFER_KEEPABLE_FIELDS } from "@/lib/import/patch-rules";
 
 /**
  * Penerjemah baris CSV penawaran (PRD §3, §7, FR-05).
@@ -74,6 +75,12 @@ export const offerRowSchema = z.object({
       .datetime({ offset: true, message: "Waktu pengamatan harga tidak valid" })
       .nullable()
   ),
+  /**
+   * Kolom yang selnya kosong. Untuk penawaran yang SUDAH ADA, nilainya tidak
+   * ditimpa nilai bawaan (patch-rules.ts): garansi, status, dan badge
+   * terverifikasi hasil suntingan admin tetap.
+   */
+  keepExisting: z.array(z.enum(OFFER_KEEPABLE_FIELDS)).default([]),
 });
 
 export type OfferRow = z.infer<typeof offerRowSchema>;
@@ -129,6 +136,18 @@ export function mapOfferRow(row: CsvRow): OfferOutcome {
       .filter(Boolean)
       .join(" ") || "(baris tanpa slug)";
 
+  // Sel kosong = "tidak diubah" untuk penawaran yang sudah ada; `-` di kolom
+  // garansi = "kosongkan" (patch-rules.ts).
+  const keepExisting = (
+    [
+      ["warranty", get("warranty")],
+      ["listing_status", get("listing_status")],
+      ["seller_verified", get("seller_verified")],
+    ] as const
+  )
+    .filter(([, value]) => value === "")
+    .map(([field]) => field);
+
   const parsed = offerRowSchema.safeParse({
     slug: get("slug"),
     ramGb: get("ram_gb"),
@@ -136,11 +155,12 @@ export function mapOfferRow(row: CsvRow): OfferOutcome {
     marketplace: get("marketplace"),
     sellerName: get("seller_name"),
     url: get("url"),
-    warranty: get("warranty"),
+    warranty: get("warranty") === CLEAR_TOKEN ? "" : get("warranty"),
     listingStatus: get("listing_status"),
     sellerVerified: get("seller_verified"),
     priceIdr: get("price_idr"),
     observedAt: get("observed_at"),
+    keepExisting,
   });
 
   if (!parsed.success) {
@@ -463,6 +483,8 @@ export function prepareOfferRow(
     sellerVerified: false,
     priceIdr: valueFrom(row, RAW_PRICE_COLUMNS),
     observedAt: valueFrom(row, RAW_OBSERVED_COLUMNS) || defaults.observedAt,
+    // Scraper tidak membawa garansi dan bukti verifikasi; suntingan admin tetap.
+    keepExisting: ["warranty", "seller_verified"],
   });
 
   if (!parsed.success) {
@@ -574,6 +596,7 @@ function prepareErafoneRow(
     sellerVerified: false,
     priceIdr: listing.priceText,
     observedAt: defaults.observedAt,
+    keepExisting: ["warranty", "seller_verified"],
   });
   if (!parsed.success) {
     return {
