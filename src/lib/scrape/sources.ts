@@ -20,6 +20,12 @@ import {
   type ModelKey,
   type OfficialProductRaw,
 } from "@/lib/scrape/parsers";
+import {
+  SCRAPE_MAX_ATTEMPTS,
+  isRetryableScrapeFailure,
+  scrapeBackoffMs,
+  type ScrapeFailure,
+} from "@/lib/scrape/retry-rules";
 import type { LineupItem, ScrapeBrand } from "@/lib/scrape/types";
 
 /**
@@ -56,17 +62,20 @@ const MIN_INTERVAL_MS: Record<string, number> = {
 };
 
 export class ScrapeBlockedError extends Error {}
-export class ScrapeSourceError extends Error {}
+export class ScrapeSourceError extends Error {
+  /** Jenis kegagalan, untuk menentukan boleh diulang atau tidak. */
+  readonly failure: ScrapeFailure | null;
+
+  constructor(message: string, failure: ScrapeFailure | null = null) {
+    super(message);
+    this.failure = failure;
+  }
+}
 
 /** Antrean per host: permintaan berikutnya menunggu jeda dari yang sebelumnya. */
 const hostQueues = new Map<string, Promise<number>>();
 
-async function politeFetch(url: URL, init: RequestInit = {}): Promise<string> {
-  const minInterval = MIN_INTERVAL_MS[url.hostname];
-  if (minInterval === undefined) {
-    throw new ScrapeSourceError(`Host ${url.hostname} tidak ada di daftar izin.`);
-  }
-
+async function waitForTurn(url: URL, minInterval: number): Promise<void> {
   const previous = hostQueues.get(url.hostname) ?? Promise.resolve(0);
   const turn = previous.then(async (lastAt) => {
     const wait = lastAt + minInterval - Date.now();
@@ -76,8 +85,14 @@ async function politeFetch(url: URL, init: RequestInit = {}): Promise<string> {
   // Rantai antrean tidak boleh putus walau satu permintaan gagal.
   hostQueues.set(url.hostname, turn.catch(() => Date.now()));
   await turn;
+}
+
+async function fetchOnce(url: URL, init: RequestInit, minInterval: number): Promise<string> {
+  // Setiap percobaan antre ulang, jadi jeda sopan per host tetap berlaku.
+  await waitForTurn(url, minInterval);
 
   let response: Response;
+  let body: string;
   try {
     response = await fetch(url, {
       ...init,
@@ -85,21 +100,49 @@ async function politeFetch(url: URL, init: RequestInit = {}): Promise<string> {
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",
     });
+    body = await response.text();
   } catch (error) {
     console.error("[scrape] permintaan gagal:", url.href, error);
-    throw new ScrapeSourceError(`Tidak bisa menghubungi ${url.hostname}.`);
+    throw new ScrapeSourceError(`Tidak bisa menghubungi ${url.hostname}.`, { kind: "network" });
   }
 
-  const body = await response.text();
   if (response.status === 429 || response.status === 403 || isBotChallenge(body)) {
     throw new ScrapeBlockedError(
       `${url.hostname} meminta verifikasi anti-bot atau membatasi akses. Proses dihentikan; coba lagi nanti, jangan dipaksa.`
     );
   }
   if (!response.ok) {
-    throw new ScrapeSourceError(`${url.hostname} membalas HTTP ${response.status}.`);
+    throw new ScrapeSourceError(`${url.hostname} membalas HTTP ${response.status}.`, {
+      kind: "http",
+      status: response.status,
+    });
   }
   return body;
+}
+
+/**
+ * Permintaan sopan dengan percobaan ulang terbatas (aturan system design 7):
+ * hanya galat jaringan dan 5xx yang diulang, maksimal SCRAPE_MAX_ATTEMPTS
+ * kali dengan backoff. Blokir anti-bot dan 4xx langsung dilempar.
+ */
+async function politeFetch(url: URL, init: RequestInit = {}): Promise<string> {
+  const minInterval = MIN_INTERVAL_MS[url.hostname];
+  if (minInterval === undefined) {
+    throw new ScrapeSourceError(`Host ${url.hostname} tidak ada di daftar izin.`);
+  }
+
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await fetchOnce(url, init, minInterval);
+    } catch (error) {
+      const retryable =
+        error instanceof ScrapeSourceError && error.failure !== null && isRetryableScrapeFailure(error.failure);
+      if (!retryable || attempt >= SCRAPE_MAX_ATTEMPTS) throw error;
+      const wait = scrapeBackoffMs(attempt);
+      console.warn(`[scrape] ${url.hostname} gagal (percobaan ${attempt}), diulang dalam ${wait} ms.`);
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
 }
 
 async function politeJson(url: URL, init: RequestInit, label: string): Promise<unknown> {

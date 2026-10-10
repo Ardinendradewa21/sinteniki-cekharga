@@ -30,7 +30,7 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 18 | PB-19 | Tarik otomatis sebagai background job: `loadLineupAction` dan `resolveModelAction` masih mengambil situs resmi/GSMArena di dalam request admin. Pindahkan ke tabel `scrape_jobs` + worker, UI hanya membaca status | Aturan SD-3 | 5 | 3 | 8 | 8 | **2.0** | Usulan |
 | 19 | PB-20 | Hapus pola N+1: detail produk admin membaca 2 query per penawaran (`admin/queries.ts`), dan penulisan per baris di `jobs.ts` (hasil item), `spec-runner.ts` (update produk), `offer-runner.ts` (update harga). Ganti dengan `.in()` + view, atau RPC update massal | Aturan SD-4 | 5 | 3 | 5 | 3 | **4.3** | Usulan |
 | 20 | PB-21 | Asisten AI: kuota harian (per IP dan total) di store bersama, bukan memori proses; retry 1x dengan backoff untuk 429/5xx (sekarang `maxRetries: 0`), fallback ke form tetap | Aturan SD-1, SD-7 | 5 | 5 | 8 | 2 | **9.0** | ✅ Selesai 2026-10-09 |
-| 21 | PB-22 | `politeFetch` (situs resmi/GSMArena): retry terbatas dengan backoff untuk galat jaringan dan 5xx; 403/429/Turnstile tetap berhenti tanpa retry | Aturan SD-7 | 3 | 3 | 5 | 2 | **5.5** | Usulan |
+| 21 | PB-22 | `politeFetch` (situs resmi/GSMArena): retry terbatas dengan backoff untuk galat jaringan dan 5xx; 403/429/Turnstile tetap berhenti tanpa retry | Aturan SD-7 | 3 | 3 | 5 | 2 | **5.5** | ✅ Selesai 2026-10-10 |
 | – | PB-10 | Modul iklan: Fase 3–4 (laporan otomatis, invoice, portal advertiser, sponsored listing) | ADS-CONTEXT §10 | – | – | – | – | – | **Ditahan** oleh pemilik produk |
 
 ### Catatan prioritas

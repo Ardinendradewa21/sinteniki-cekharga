@@ -475,3 +475,18 @@ test("templat penawaran lolos mapOfferRow; harga kosong tetap null, bukan nol", 
   const tanpaHarga = outcomes.find((o) => o.ok && o.row.slug === "oppo-a6c");
   assert.ok(tanpaHarga?.ok && tanpaHarga.row.priceIdr === null);
 });
+
+// Percobaan ulang pengambilan situs (PB-22, aturan system design 7).
+import { SCRAPE_MAX_ATTEMPTS, isRetryableScrapeFailure, scrapeBackoffMs } from "@/lib/scrape/retry-rules";
+
+test("retry tarik otomatis: hanya jaringan dan 5xx, blokir anti-bot tidak pernah diulang", () => {
+  assert.equal(isRetryableScrapeFailure({ kind: "network" }), true);
+  assert.equal(isRetryableScrapeFailure({ kind: "http", status: 503 }), true);
+  assert.equal(isRetryableScrapeFailure({ kind: "http", status: 404 }), false);
+  assert.equal(isRetryableScrapeFailure({ kind: "http", status: 429 }), false);
+  assert.equal(isRetryableScrapeFailure({ kind: "blocked" }), false);
+  assert.ok(SCRAPE_MAX_ATTEMPTS >= 2 && SCRAPE_MAX_ATTEMPTS <= 3, "retry terbatas");
+  assert.equal(scrapeBackoffMs(1, () => 0), 1_000);
+  assert.equal(scrapeBackoffMs(2, () => 0), 3_000);
+  assert.ok(scrapeBackoffMs(2, () => 0.999) < 3_250);
+});
