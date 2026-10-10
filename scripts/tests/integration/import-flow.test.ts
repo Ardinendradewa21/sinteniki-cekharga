@@ -271,3 +271,39 @@ test("INT-05 impor ulang sebagai patch: sel kosong tidak menghapus, '-' mengoson
   const offer = ((await db.from("offers").select("warranty, seller_verified, listing_status").eq("url", "https://www.blibli.com/p/qauji-patch-1")).data ?? [])[0];
   assert.deepEqual(offer, { warranty: "Resmi 1 tahun", seller_verified: true, listing_status: "active" });
 });
+
+test("INT-06 templat terpadu: produk baru + harga dalam satu berkas, harga lanjutan ditinjau dulu", async () => {
+  const { convertUnifiedRows } = await import("@/lib/import/unified");
+  const converted = convertUnifiedRows([
+    { merek: "QAUji", model: "Terpadu 1", ram: "8", storage: "128", chipset: "Chip QA", marketplace: "Blibli", toko: "Toko QA",
+      link: "https://www.blibli.com/p/qauji-terpadu-1", harga: "Rp 3.499.000", diperiksa: "10/10/2026 09:00" },
+    { merek: "QAUji", model: "Terpadu 1", ram: "8", storage: "256", marketplace: "Blibli", toko: "Toko QA",
+      link: "https://www.blibli.com/p/qauji-terpadu-1", harga: "", diperiksa: "10/10/2026 09:00" },
+  ]);
+  assert.equal(converted.specRows.length, 1);
+  const created = await createBatch({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI terpadu", rows: converted.specRows, malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: null,
+      followUpOffers: { sourceLabel: "QA-UJI terpadu (harga)", defaultObservedAt: new Date().toISOString(), rows: converted.followUpOfferRows } },
+  });
+  assert.ok(created.ok, JSON.stringify(created));
+  batches.push(created.id);
+  await applyAll(created.id);
+
+  const childId = (await getFollowUpBatchId(created.id))!;
+  assert.ok(childId, "batch harga lanjutan dibuat setelah produk tersimpan");
+  batches.push(childId);
+  const child = (await getBatch(childId))!;
+  assert.equal(child.status, "draft", "harga dari CSV ditinjau dulu, tidak langsung diterapkan");
+  assert.equal(child.origin, "csv");
+  assert.deepEqual(child.items.map((i) => i.action).sort(), ["create", "create"]);
+
+  await applyAll(childId);
+  const offers = ((await db.from("offers").select("id").eq("url", "https://www.blibli.com/p/qauji-terpadu-1")).data ?? []) as { id: string }[];
+  assert.equal(offers.length, 2, "satu penawaran per varian");
+  const prices = ((await db.from("price_observations").select("price_idr, observed_at").in("offer_id", offers.map((o) => o.id))).data ?? []) as
+    { price_idr: number; observed_at: string }[];
+  assert.equal(prices.length, 1, "harga kosong tidak dicatat sebagai nol");
+  assert.equal(Number(prices[0]!.price_idr), 3499000);
+  assert.equal(new Date(prices[0]!.observed_at).toISOString(), "2026-10-10T02:00:00.000Z", "09.00 WIB");
+});

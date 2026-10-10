@@ -21,6 +21,7 @@ Dokumen ini adalah prosedur baku tim PT Sinteniki Digital Solusi untuk memasukka
 
 | Kebutuhan | Jalur | Tab di Pusat Impor |
 | --- | --- | --- |
+| Menambah produk dan harganya sekaligus, atau hanya sebagian kolom | Templat terpadu (bagian 2a) | Unggah CSV |
 | Menambah produk baru beserta spesifikasi dan varian | CSV spesifikasi | Unggah CSV |
 | Menambah atau memperbarui harga di toko mana pun | CSV penawaran | Unggah CSV |
 | Mengambil lineup dan harga dari situs resmi merek | Tarik otomatis | Tarik otomatis |
@@ -32,6 +33,58 @@ Dokumen ini adalah prosedur baku tim PT Sinteniki Digital Solusi untuk memasukka
 Urutannya selalu: **produk dulu, baru harga.** CSV penawaran untuk produk yang belum ada akan dilewati dengan alasan "slug tidak ditemukan".
 
 Merek yang didukung tarik otomatis: vivo, iQOO, OPPO, Samsung, Xiaomi, Digimap (Apple), dan Infinix. Merek lain memakai CSV.
+
+## 2a. Templat terpadu (disarankan sejak 10 Oktober 2026)
+
+Spesifikasi dan harga cukup diisi dalam **satu berkas**. Unduh lewat tombol **Templat terpadu** di bagian "Spesifikasi produk" (`templat-terpadu-cekharga.csv`). Formulir mana pun boleh dipakai, karena jenis berkas dikenali dari isinya.
+
+### Bentuk berkas
+
+- **Satu baris = satu varian**, dan opsional satu listing toko untuk varian itu.
+- Kolom dibagi tiga kelompok. Tidak semua kolom harus diisi.
+
+| Kelompok | Kolom | Kapan diisi |
+| --- | --- | --- |
+| Identitas | `brand`, `model_name`, `ram_gb`, `storage_gb`; `gsmarena_url` untuk produk baru; `slug` untuk produk yang sudah ada | selalu |
+| Spesifikasi | `chipset`, `battery_capacity_mah`, `nfc`, `ip_rating`, dan seterusnya (lihat 3.2) | hanya untuk produk baru atau yang diperbarui; **cukup di satu baris per produk** |
+| Penawaran | `marketplace`, `seller_name`, `offer_url`, `price_idr`, `observed_at`, `warranty`, `listing_status`, `seller_verified` | bila ada harga atau listing toko |
+
+Sistem membaca baris menurut kelompok yang terisi:
+
+- **Produk di berkas ini.** Merek + model yang punya kolom spesifikasi (atau `gsmarena_url`) di baris mana pun dianggap produk dalam berkas ini. Semua baris dengan merek + model yang sama menjadi variannya, termasuk baris yang hanya berisi varian dan harga.
+- **Harga untuk produk yang sudah ada.** Baris yang hanya berisi identitas dan penawaran dibaca sebagai harga untuk produk di katalog. Isi `slug`, atau merek + model; slug akan dibentuk dari keduanya.
+- **Aturan sel kosong** di 3.2 tetap berlaku: kosong berarti tidak diubah, dan `-` berarti kosongkan.
+
+### Koreksi otomatis
+
+Nilai berikut dirapikan otomatis. Setiap koreksi tampil di panel **Koreksi otomatis** pada halaman pratinjau.
+
+| Ditulis | Dibaca sebagai |
+| --- | --- |
+| `Rp 7.999.000`, `7.999.000,00`, `7,999,000`, `7,5 jt` | `7999000`, `7999000`, `7999000`, `7500000` |
+| `8 GB`, `1TB`, varian `8/256GB` | `8`, `1024`, RAM 8 dan penyimpanan 256 |
+| `aktif`, `stok habis`, `nonaktif` | `active`, `out-of-stock`, `inactive` |
+| `Yes`, `y`, `1` / `No`, `0` | `ya` / `tidak` |
+| `10/10/2026 09:00`, `2026-10-10 09:00` | `2026-10-10T09:00:00+07:00`; waktu tanpa zona diasumsikan WIB |
+| `2026-10-10` (tanpa jam) | 00.00 WIB, sehingga harga terlihat lebih tua, bukan lebih segar |
+| `https://www.gsmarena.com/oppo_x-123.php` | `oppo_x-123.php` |
+| Header `Merek`, `Harga`, `Link`, `Toko`, `RAM`, `Penyimpanan`, `Garansi`, `Diperiksa` | `brand`, `price_idr`, `offer_url`, `seller_name`, `ram_gb`, `storage_gb`, `warranty`, `observed_at` |
+
+Yang **tidak** dikoreksi otomatis:
+
+- Harga yang ditulis dengan kata-kata.
+- Tanggal yang mustahil, misalnya 31/02.
+- Varian yang tidak terbaca.
+- Nama model yang mirip tapi tidak sama.
+
+Baris seperti itu dilewati dengan alasan. Bila dua baris memberi nilai berbeda untuk produk yang sama, nilai baris pertama dipakai dan konfliknya ditandai **Konflik**.
+
+### Alur penerapan
+
+1. Unggah berkas, lalu klik **Buat pratinjau**.
+2. **Berkas berisi produk:** halaman pratinjau menampilkan produknya. Penawaran untuk produk itu belum bisa dicocokkan, karena produknya belum ada di katalog. Setelah produk diterapkan, sistem membuat **batch harga lanjutan** berstatus draft.
+3. Buka batch harga lanjutan dari halaman batch produk, tinjau pratinjaunya (Baru, Berubah, Sama, Dilewati), lalu terapkan.
+4. **Berkas hanya berisi harga untuk produk yang sudah ada:** langsung menjadi satu batch penawaran biasa.
 
 ## 3. Impor spesifikasi (produk baru)
 

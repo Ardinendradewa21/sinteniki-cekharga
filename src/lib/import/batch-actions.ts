@@ -20,6 +20,8 @@ import { executeUndo } from "@/lib/import/undo";
 import { photoJobCounts, processPhotoStep, type PhotoJobCounts } from "@/lib/import/photo-jobs";
 import { defaultObservedAtFrom, readCsvFile } from "@/lib/import/upload";
 import { detectFileKind } from "@/lib/import/canonical";
+import { selectStoredCorrections, summarizeCorrections } from "@/lib/import/corrections";
+import { convertUnifiedRows } from "@/lib/import/unified";
 
 /** Langkah dari polling halaman lebih pendek supaya tiap panggilan cepat kembali. */
 const POLL_STEP_BUDGET_MS = 20_000;
@@ -51,6 +53,7 @@ async function preview(submittedAs: "specs" | "offers", formData: FormData): Pro
   // tetap diproses dengan benar, dan admin diberi tahu di halaman batch.
   const detected = detectFileKind(read.parsed.headers, read.parsed.rows);
   if (detected.kind === null) return { error: detected.reason };
+  if (detected.kind === "unified") return previewUnified(read, rightsFromForm(formData), formData, admin);
   const kind = detected.kind;
 
   const rights = readImageRights(formData.get("image_usage_basis"), formData.get("image_usage_rights"));
@@ -75,6 +78,76 @@ async function preview(submittedAs: "specs" | "offers", formData: FormData): Pro
     malformedLines: read.parsed.malformed.map((m) => m.line),
     admin,
   });
+  if (!created.ok) return { error: created.error };
+
+  revalidatePath("/admin/import");
+  redirect(`/admin/import/batch/${created.id}`);
+}
+
+function rightsFromForm(formData: FormData) {
+  return readImageRights(formData.get("image_usage_basis"), formData.get("image_usage_rights"));
+}
+
+/**
+ * Templat terpadu: baris dikoreksi dan digabung per produk (unified.ts), lalu
+ * menjadi SATU batch pratinjau:
+ *   - ada baris produk -> batch spesifikasi; penawarannya ikut sebagai batch
+ *     harga lanjutan yang dibuat setelah produk diterapkan (perlu produknya
+ *     dulu), dan untuk unggahan CSV batch itu tetap draft untuk ditinjau;
+ *   - hanya penawaran -> batch penawaran biasa.
+ * Catatan koreksi disimpan di batch supaya tampil di halaman pratinjau.
+ */
+async function previewUnified(
+  read: Extract<Awaited<ReturnType<typeof readCsvFile>>, { ok: true }>,
+  rights: ReturnType<typeof readImageRights>,
+  formData: FormData,
+  admin: Awaited<ReturnType<typeof requireStaff>>
+): Promise<PreviewState> {
+  if (!rights.ok) return { error: rights.error };
+  const converted = convertUnifiedRows(read.parsed.rows);
+  const defaultObservedAt = defaultObservedAtFrom(formData, new Date());
+  const corrections = {
+    items: selectStoredCorrections(converted.corrections),
+    summary: summarizeCorrections(converted.corrections),
+  };
+  const offerRows = [...converted.followUpOfferRows, ...converted.offerRows];
+  if (converted.specRows.length === 0 && offerRows.length === 0) {
+    return { error: "Tidak ada baris yang bisa dipakai. Periksa kolom merek, model, varian, dan offer_url." };
+  }
+
+  const created =
+    converted.specRows.length > 0
+      ? await createBatch({
+          kind: "specs",
+          origin: "csv",
+          sourceLabel: read.file.name,
+          options: {
+            sourceFormat: "unified",
+            imageRights: rights.rights,
+            corrections,
+            ...(offerRows.length > 0
+              ? { followUpOffers: { sourceLabel: `${read.file.name} (harga)`, defaultObservedAt, rows: offerRows } }
+              : {}),
+          },
+          rows: converted.specRows,
+          malformedLines: read.parsed.malformed.map((m) => m.line),
+          admin,
+        })
+      : await createBatch({
+          kind: "offers",
+          origin: "csv",
+          sourceLabel: read.file.name,
+          options: {
+            sourceFormat: "unified",
+            imageRights: rights.rights,
+            corrections,
+            defaultObservedAt,
+            defaultSellerName: String(formData.get("seller_name") ?? "").trim().slice(0, 160),
+          },
+          rows: converted.offerRows,
+          malformedLines: read.parsed.malformed.map((m) => m.line),
+          admin,
+        });
   if (!created.ok) return { error: created.error };
 
   revalidatePath("/admin/import");

@@ -66,6 +66,7 @@ Singkatan jenis: F = Functional, R = Regression, S = Smoke, Sec = Keamanan, A11y
 | TC-IMP-02 | US-20 | Buka `/admin/scrape` | Dialihkan ke `?tab=tarik` | R | `admin.spec.ts` | Lulus |
 | TC-IMP-03 | US-20 | Unduh "Templat spesifikasi" dan "Templat CekHarga" | Nama berkas benar, header sama dengan kolom importer (SOP impor §3.2, §4.1) | R | `admin.spec.ts` | Lulus |
 | TC-IMP-04 | US-20 | Unggah templat penawaran lewat formulir spesifikasi | Berkas dikenali sebagai penawaran, halaman batch menampilkan pemberitahuan, batch bisa dibatalkan | R | `admin.spec.ts` | Lulus |
+| TC-IMP-05 | US-20 | Unduh "Templat terpadu", unggah apa adanya | Panel "Koreksi otomatis" tampil (harga Rp dirapikan), pratinjau menyebut batch harga lanjutan, batch bisa dibatalkan | R | `admin.spec.ts` | Lulus |
 | TC-ROLE-01 | US-23 | Masuk sebagai `sales` sementara | Beranda staf; impor dan produk ditolak; iklan terbuka; akun dihapus setelah tes | Sec, S | `admin.spec.ts` | Lulus |
 | INT-01 | US-20, US-21 | Tarik otomatis → terapkan → harga resmi lanjutan → sunting/terbitkan → undo | Jejak asal tercatat; undo hanya menghapus draft yang belum disentuh; penawaran produk terbit dilindungi; undo kedua ditolak | Int, R | `scripts/tests/integration/import-flow.test.ts` | Lulus |
 | INT-02 | US-20 / DEF-005 | Terapkan draft berumur 20 hari | Ditolak server | Int, R | `import-flow.test.ts` | Lulus |

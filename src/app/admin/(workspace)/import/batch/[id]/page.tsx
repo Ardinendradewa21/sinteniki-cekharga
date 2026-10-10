@@ -8,6 +8,7 @@ import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { requireStaff } from "@/lib/auth/dal";
 import { BatchProgress } from "@/components/admin/batch-progress";
+import { CorrectionsPanel } from "@/components/admin/corrections-panel";
 import { RetryFailedButton } from "@/components/admin/retry-failed-button";
 import { UndoBatchPanel, type UndoSummary } from "@/components/admin/undo-batch-panel";
 import { applyBatchAction, discardBatchAction, retryFailedAction, undoBatchAction } from "@/lib/import/batch-actions";
@@ -92,7 +93,8 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
   for (const row of batch.options.followUpOffers?.rows ?? []) {
     const key = row.source_key ?? "";
     const storage = Number(row.storage_gb) >= 1024 ? `${Number(row.storage_gb) / 1024} TB` : `${row.storage_gb} GB`;
-    const price = `Rp${Number(row.price_idr).toLocaleString("id-ID")}`;
+    // Harga kosong bukan nol (PRD §7).
+    const price = row.price_idr ? `Rp${Number(row.price_idr).toLocaleString("id-ID")}` : "harga belum diisi";
     (priceNotes[key] ??= []).push(`${row.ram_gb}/${storage} ${price}${row.listing_status === "out-of-stock" ? " (stok habis)" : ""}`);
   }
 
@@ -172,9 +174,15 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
           pencocokan dihitung ulang terhadap data terkini.
           {batch.kind === "specs" ? " Produk baru selalu masuk sebagai draft." : ""}
           {pendingOffers > 0
-            ? ` ${pendingOffers} harga resmi dari tarik otomatis tampil di baris produknya dan ikut diterapkan otomatis untuk produk yang dipilih.`
+            ? batch.origin === "scrape"
+              ? ` ${pendingOffers} harga resmi dari tarik otomatis tampil di baris produknya dan ikut diterapkan otomatis untuk produk yang dipilih.`
+              : ` ${pendingOffers} penawaran dari berkas ini dibuat sebagai batch harga lanjutan setelah produk diterapkan, lalu ditinjau di sana sebelum disimpan.`
             : ""}
         </p>
+      ) : null}
+
+      {batch.options.corrections ? (
+        <CorrectionsPanel items={batch.options.corrections.items} summary={batch.options.corrections.summary} />
       ) : null}
 
       {batch.malformedLines.length > 0 ? (

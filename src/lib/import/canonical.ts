@@ -10,6 +10,7 @@ import {
   type OfferRow,
   type OfferSourceFormat,
 } from "@/lib/import/offers";
+import { looksLikeUnifiedHeaders } from "@/lib/import/unified";
 
 /**
  * Bentuk baris internal impor (langkah 2 rancangan impor terpadu, 2026-10-10).
@@ -60,6 +61,8 @@ export type CanonicalRow = {
 
 export type FileDetection =
   | { kind: ImportKind; format: SourceFormat | "mixed-offers" }
+  /** Templat terpadu (unified.ts): spesifikasi dan penawaran dalam satu berkas. */
+  | { kind: "unified"; format: "unified" }
   | { kind: null; reason: string };
 
 /** Jumlah baris yang diperiksa untuk mengenali ekspor Erafone (kolomnya tanpa nama tetap). */
@@ -72,6 +75,9 @@ const ERAFONE_SAMPLE_ROWS = 20;
  * pertama yang dibaca, jadi biayanya tetap kecil berapa pun ukuran berkas.
  */
 export function detectFileKind(headers: readonly string[], rows: readonly CsvRow[]): FileDetection {
+  // Templat terpadu dikenali lebih dulu: kolomnya (offer_url, gsmarena_url,
+  // brand + ram_gb) tidak dipakai format lama mana pun.
+  if (looksLikeUnifiedHeaders(headers)) return { kind: "unified", format: "unified" };
   const spec = hasColumn(headers, "brand") && hasColumn(headers, "model_name");
   const template = hasColumn(headers, "slug") || hasColumn(headers, "source_key");
   const shopee = looksLikeShopeeHeaders(headers);
@@ -82,7 +88,7 @@ export function detectFileKind(headers: readonly string[], rows: readonly CsvRow
     return {
       kind: null,
       reason:
-        "Berkas berisi kolom spesifikasi dan kolom penawaran sekaligus. Templat gabungan belum didukung; pisahkan menjadi berkas spesifikasi dan berkas penawaran.",
+        "Berkas mencampur kolom spesifikasi format lama dengan kolom penawaran. Gunakan templat terpadu (kolom gsmarena_url, ram_gb, storage_gb, offer_url) untuk menggabungkan keduanya.",
     };
   }
   if (spec) return { kind: "specs", format: "gsmarena-spec" };

@@ -13,7 +13,7 @@ import { previewSpecsAction, type PreviewState } from "@/lib/import/batch-action
  * penyeragamannya disimpan sebagai batch pratinjau dulu, lalu admin meninjau
  * tabelnya sebelum menerapkan.
  */
-export function ImportForm({ template }: { template: string }) {
+export function ImportForm({ template, unifiedTemplate }: { template: string; unifiedTemplate: string }) {
   const [state, action, pending] = useActionState<PreviewState, FormData>(
     previewSpecsAction,
     { error: null }
@@ -30,7 +30,7 @@ export function ImportForm({ template }: { template: string }) {
           // sini tetap mendapat waktu pengamatan dari tanggal berkas.
           lastModifiedName="file_last_modified"
           label="Berkas CSV"
-          hint="Kolom mengikuti format ekspor GSMArena; unduh templat untuk daftar kolom yang dibaca. Wajib: brand, model_name, memory_variants_summary, dan url GSMArena sebagai kunci produk. Harga di berkas tidak pernah diimpor."
+          hint="Menerima templat terpadu (spesifikasi dan harga dalam satu berkas, kolom boleh kosong) maupun format lama; jenis berkas dikenali dari isinya. Format GSMArena wajib berisi brand, model_name, memory_variants_summary, dan url sebagai kunci produk. Kolom harga dataset GSMArena tidak pernah diimpor."
         />
 
         <ImageRightsFields
@@ -42,6 +42,9 @@ export function ImportForm({ template }: { template: string }) {
           <Button type="submit" disabled={pending}>
             {pending ? "Menyiapkan pratinjau..." : "Buat pratinjau"}
           </Button>
+          <TemplateDownloadButton content={unifiedTemplate} filename="templat-terpadu-cekharga.csv">
+            Templat terpadu
+          </TemplateDownloadButton>
           <TemplateDownloadButton content={template} filename="templat-spesifikasi-cekharga.csv">
             Templat spesifikasi
           </TemplateDownloadButton>

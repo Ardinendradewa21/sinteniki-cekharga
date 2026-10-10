@@ -16,6 +16,7 @@ import {
 } from "@/lib/import/batch-status";
 import { listBatches, type BatchSummary } from "@/lib/import/batches";
 import { templateSpesifikasi } from "@/lib/import/gsmarena";
+import { templateTerpadu } from "@/lib/import/unified";
 import { templatePenawaran, templateShopeeScrape } from "@/lib/import/offers";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
 import { getSession, listRecentSessions } from "@/lib/scrape/sessions";
@@ -134,10 +135,12 @@ function UploadTab() {
       <section>
         <h2 className="text-xl font-bold tracking-tight text-foreground">Spesifikasi produk</h2>
         <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-          Mengisi identitas dan spesifikasi dari dataset. Hasilnya masuk sebagai draft.
+          Mengisi identitas dan spesifikasi dari dataset, atau spesifikasi dan harga sekaligus lewat templat
+          terpadu. Kolom boleh kosong; nilai yang dirapikan otomatis ditampilkan di pratinjau. Produk baru masuk
+          sebagai draft.
         </p>
         <div className="mt-5">
-          <ImportForm template={templateSpesifikasi()} />
+          <ImportForm template={templateSpesifikasi()} unifiedTemplate={templateTerpadu()} />
         </div>
       </section>
 

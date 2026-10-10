@@ -17,7 +17,7 @@ import {
   STEP_BUDGET_MS,
   type BatchStatus,
   type ItemOutcome,
-  type Progress,
+  type Progress, 
 } from "@/lib/import/batch-status";
 import {
   createBatch,
@@ -222,9 +222,11 @@ async function finalize(batch: LoadedBatch, progress: Progress, summary: ImportR
     const productIds = new Set(done.map((item) => String(item.entity_id ?? "")).filter(Boolean));
     const offerRows = await resolveFollowUpSlugs(followUp.rows, productIds);
     if (offerRows.length > 0) {
+      // Asal batch harga mengikuti induknya. "scrape" memicu pencatatan harga
+      // resmi yang hilang, yang tidak berlaku untuk berkas CSV.
       const created = await createBatch({
         kind: "offers",
-        origin: "scrape",
+        origin: batch.origin,
         sourceLabel: followUp.sourceLabel,
         options: { defaultObservedAt: followUp.defaultObservedAt, imageRights: null, parentBatchId: batch.id },
         rows: offerRows,
@@ -233,11 +235,14 @@ async function finalize(batch: LoadedBatch, progress: Progress, summary: ImportR
       });
       if (created.ok) {
         followUpBatchId = created.id;
-        // Harga resmi sudah ditinjau bersama spesifikasinya di batch ini, jadi
-        // langsung diantrekan; baris yang tidak cocok (mis. varian tak tercatat)
-        // tetap dilewati dengan alasan di batch harga.
-        const queued = await queuePlannedItems(created.id, created.plan, actorOf(batch));
-        if (!queued.ok) console.error("[impor-worker] batch harga resmi gagal diantrekan:", queued.error);
+        // Harga resmi tarik otomatis sudah ditinjau bersama spesifikasinya,
+        // jadi langsung diantrekan. Harga dari templat terpadu (CSV) tetap
+        // draft: pratinjau per penawaran baru bisa dihitung setelah produknya
+        // ada, dan admin meninjaunya sebelum disimpan.
+        if (batch.origin === "scrape") {
+          const queued = await queuePlannedItems(created.id, created.plan, actorOf(batch));
+          if (!queued.ok) console.error("[impor-worker] batch harga resmi gagal diantrekan:", queued.error);
+        }
       }
     }
   }

@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { AdminSession } from "@/lib/auth/dal";
+import type { CorrectionSummary } from "@/lib/import/corrections";
+import type { Correction } from "@/lib/import/normalize";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectWhereIn } from "@/lib/backend/paged-read";
 import { recordAudit } from "@/lib/admin/audit";
@@ -70,6 +72,8 @@ export type BatchOptions = {
   sourceFormat?: string;
   /** Formulir yang dipakai admin, bila berbeda dari jenis berkas yang dikenali. */
   submittedAs?: BatchKind;
+  /** Catatan koreksi otomatis templat terpadu (dipotong; ringkasannya lengkap). */
+  corrections?: { items: Correction[]; summary: CorrectionSummary };
 };
 
 export type BatchSummary = {
@@ -554,6 +558,9 @@ export async function resolveFollowUpSlugs(
       .map((row) => [String(row.source_key), String(row.slug)])
   );
   return rows.flatMap((row) => {
+    // Penawaran templat terpadu untuk produk yang sudah ada membawa slug
+    // langsung; tidak bergantung pada produk batch spesifikasi ini.
+    if (!row.source_key && row.slug) return [row];
     const slug = slugByKey.get(row.source_key ?? "");
     if (!slug) return [];
     const rest: CsvRow = { ...row, slug };

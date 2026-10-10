@@ -567,9 +567,10 @@ test("deteksi berkas: templat resmi dikenali dari isinya, bukan dari formulir", 
 });
 
 test("deteksi berkas: gabungan dan format asing ditolak dengan alasan, bukan ditebak", () => {
-  const mixed = detect("brand,model_name,slug,ram_gb,storage_gb\nOPPO,A6,oppo-a6,8,256\n");
+  // Format spesifikasi lama dicampur kolom penawaran lama: diarahkan ke templat terpadu.
+  const mixed = detect("brand,model_name,url,slug\nOPPO,A6,oppo_a6-1.php,oppo-a6\n");
   assert.equal(mixed.kind, null);
-  assert.ok(mixed.kind === null && /gabungan/.test(mixed.reason));
+  assert.ok(mixed.kind === null && /templat terpadu/.test(mixed.reason));
   const unknown = detect("nama,harga\nHP,1000\n");
   assert.ok(unknown.kind === null && /tidak dikenali/.test(unknown.reason));
 });
@@ -606,4 +607,113 @@ test("pencocokan judul berindeks: akhiran 5G hanya dibuang bila jaringan katalog
   assert.equal(match!.offer?.row.slug, "samsung-galaxy-a27");
   assert.equal(wrongNetwork!.offer, null, "A17 4G tidak boleh dicocokkan dengan judul 5G");
   assert.match(invalidTime!.issue ?? "", /Waktu pengamatan harga tidak valid/);
+});
+
+// Templat terpadu (langkah 3): alias header, koreksi pasti, penggabungan per produk.
+import {
+  canonicalHeader,
+  normalizeGsmarenaPath,
+  normalizeListingStatus,
+  normalizeMemoryGb,
+  normalizeObservedAt,
+  normalizePriceIdr,
+  normalizeYesNo,
+  parseVariantPair,
+} from "@/lib/import/normalize";
+import { convertUnifiedRows, templateTerpadu } from "@/lib/import/unified";
+
+test("normalisasi: hanya koreksi yang pasti, sisanya dibiarkan untuk ditolak", () => {
+  assert.equal(normalizePriceIdr("Rp 7.999.000").value, "7999000");
+  assert.equal(normalizePriceIdr("7.999.000,00").value, "7999000");
+  assert.equal(normalizePriceIdr("7,999,000").value, "7999000");
+  assert.equal(normalizePriceIdr("7,5 jt").value, "7500000");
+  assert.equal(normalizePriceIdr("7999000").note, null);
+  assert.equal(normalizePriceIdr("tujuh juta").value, "tujuh juta", "harga tidak ditebak");
+  assert.equal(normalizeMemoryGb("1TB").value, "1024");
+  assert.equal(normalizeMemoryGb("8 GB").value, "8");
+  assert.deepEqual(parseVariantPair("12/1TB"), { ramGb: 12, storageGb: 1024 });
+  assert.equal(parseVariantPair("8 256"), null);
+  assert.equal(normalizeListingStatus("Stok habis").value, "out-of-stock");
+  assert.equal(normalizeYesNo("Yes").value, "ya");
+  assert.equal(normalizeYesNo("mungkin").value, "mungkin");
+  assert.equal(normalizeObservedAt("10/10/2026 14.30").value, "2026-10-10T14:30:00+07:00");
+  assert.match(normalizeObservedAt("2026-10-10").note ?? "", /00\.00 WIB/);
+  assert.equal(normalizeObservedAt("31/02/2026").value, "31/02/2026", "tanggal mustahil tidak dikoreksi");
+  assert.equal(normalizeObservedAt("2026-10-10T09:00:00+07:00").note, null);
+  assert.equal(normalizeGsmarenaPath("https://www.gsmarena.com/oppo_reno16c_5g-14768.php").value, "oppo_reno16c_5g-14768.php");
+});
+
+test("alias header: nama Indonesia dikenali, kolom scraper Shopee tidak dibajak", () => {
+  assert.equal(canonicalHeader("Harga"), "price_idr");
+  assert.equal(canonicalHeader("Merek"), "brand");
+  assert.equal(canonicalHeader("Link"), "offer_url");
+  assert.equal(canonicalHeader("listing_url"), "listing_url");
+  assert.deepEqual(detect(templateTerpadu()), { kind: "unified", format: "unified" });
+  assert.deepEqual(detect(templateShopeeScrape()), { kind: "offers", format: "shopee-scrape" });
+});
+
+test("templat terpadu: produk digabung per varian, penawaran dipisah lanjutan vs produk lama", () => {
+  const converted = convertUnifiedRows(parseCsv(templateTerpadu()).rows);
+  assert.equal(converted.specRows.length, 1, "dua baris Reno16c menjadi satu produk");
+  const product = mapRow(converted.specRows[0]!);
+  assert.ok(product.ok);
+  assert.equal(product.candidate.sourceKey, "gsmarena:oppo_reno16c_5g-14768");
+  assert.deepEqual(product.candidate.variants, [{ ramGb: 8, storageGb: 128 }, { ramGb: 8, storageGb: 256 }]);
+
+  assert.equal(converted.followUpOfferRows.length, 2);
+  assert.ok(converted.followUpOfferRows.every((row) => row.source_key === product.candidate.sourceKey));
+  assert.equal(converted.followUpOfferRows[0]!.price_idr, "4999000");
+  assert.equal(converted.followUpOfferRows[1]!.price_idr, "", "harga kosong tetap kosong, bukan nol");
+  assert.equal(converted.offerRows.length, 1);
+  assert.equal(converted.offerRows[0]!.slug, "oppo-a6c");
+  assert.equal(converted.offerRows[0]!.listing_status, "active");
+
+  const offer = mapOfferRow({ ...converted.followUpOfferRows[0]!, slug: "oppo-reno16c" });
+  assert.ok(offer.ok, offer.ok ? "" : offer.reason);
+  assert.equal(offer.row.observedAt, "2026-10-10T02:00:00.000Z", "09.00 WIB");
+  const notes = converted.corrections.map((c) => `${c.line}:${c.column}`);
+  assert.ok(notes.includes("2:price_idr") && notes.includes("2:observed_at"));
+  assert.ok(converted.corrections.every((c) => c.level === "info"));
+});
+
+test("templat terpadu: konflik antarbaris dicatat dan nilai baris pertama dipakai", () => {
+  const rows: Record<string, string>[] = [
+    { merek: "QAUji", model: "Konflik 1", ram: "8", storage: "128", chipset: "Chip A" },
+    { merek: "QAUji", model: "Konflik 1", ram: "8", storage: "256", chipset: "Chip B" },
+    { merek: "", model: "", harga: "1000000" },
+  ];
+  const converted = convertUnifiedRows(rows);
+  assert.equal(converted.specRows[0]!.chipset, "Chip A");
+  const conflict = converted.corrections.find((c) => c.level === "warning");
+  assert.equal(conflict?.line, 3);
+  assert.match(conflict?.note ?? "", /baris 2/);
+  const skipped = converted.corrections.find((c) => c.level === "error");
+  assert.equal(skipped?.line, 4, "penawaran tanpa slug atau merek+model dilewati dengan alasan");
+});
+
+test("templat terpadu: baris varian + harga tanpa spesifikasi tetap milik produk di berkas, di atas maupun di bawah", () => {
+  const rows: Record<string, string>[] = [
+    { merek: "QAUji", model: "Urutan 1", ram: "8", storage: "256", link: "https://www.blibli.com/p/u1", harga: "Rp 4.000.000" },
+    { merek: "QAUji", model: "Urutan 1", ram: "8", storage: "128", chipset: "Chip QA", gsmarena_url: "qauji_urutan_1-1.php" },
+  ];
+  const converted = convertUnifiedRows(rows);
+  assert.equal(converted.offerRows.length, 0, "bukan penawaran untuk produk lama");
+  assert.equal(converted.followUpOfferRows[0]!.source_key, "gsmarena:qauji_urutan_1-1");
+  const product = mapRow(converted.specRows[0]!);
+  assert.ok(product.ok);
+  assert.equal(product.candidate.sourceKey, "gsmarena:qauji_urutan_1-1");
+  assert.deepEqual(product.candidate.variants.map((v) => v.storageGb).sort(), [128, 256]);
+});
+
+import { selectStoredCorrections } from "@/lib/import/corrections";
+
+test("catatan koreksi: konflik dan baris dilewati tidak tenggelam oleh ribuan koreksi info", () => {
+  const info = Array.from({ length: 2000 }, (_, i) => ({ line: i + 2, column: "price_idr", from: "Rp 1", to: "1", note: "", level: "info" as const }));
+  const late = [
+    { line: 1900, column: "chipset", from: "B", to: "A", note: "konflik", level: "warning" as const },
+    { line: 1999, column: "-", from: "", to: "", note: "dilewati", level: "error" as const },
+  ];
+  const stored = selectStoredCorrections([...info, ...late], 300);
+  assert.equal(stored.length, 300);
+  assert.deepEqual(stored.slice(0, 2).map((c) => c.level), ["error", "warning"]);
 });

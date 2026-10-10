@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import fs from "node:fs";
 
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
@@ -78,6 +79,26 @@ test.describe("Pusat Impor", () => {
     await page.waitForURL(/\/admin\/import\/batch\//, { timeout: 60_000 });
     await expect(page.getByRole("status").filter({ hasText: "formulir spesifikasi" })).toContainText("diproses sebagai penawaran");
     // Batch uji tidak diterapkan; dibatalkan supaya riwayat tetap bersih.
+    await page.getByRole("button", { name: "Batalkan batch ini" }).click();
+    await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
+  });
+
+  test("TC-IMP-05 templat terpadu: koreksi otomatis tampil dan harga menjadi batch lanjutan @regression", async ({ page }) => {
+    await page.goto("/admin/import?tab=unggah");
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Templat terpadu" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe("templat-terpadu-cekharga.csv");
+    const path = await download.path();
+    await page.locator("#berkas").setInputFiles({ name: "qa-e2e-terpadu.csv", mimeType: "text/csv", buffer: fs.readFileSync(path) });
+    await page.locator("form").filter({ has: page.locator("#berkas") }).getByRole("button", { name: "Buat pratinjau" }).click();
+    await page.waitForURL(/\/admin\/import\/batch\//, { timeout: 60_000 });
+    const panel = page.locator("section[aria-labelledby=koreksi-otomatis]");
+    await expect(panel).toContainText("nilai dirapikan");
+    await panel.getByText("Lihat rincian").click();
+    await expect(panel).toContainText("4999000");
+    await expect(page.locator("main")).toContainText("batch harga lanjutan");
     await page.getByRole("button", { name: "Batalkan batch ini" }).click();
     await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
   });
