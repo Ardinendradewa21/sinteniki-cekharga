@@ -26,6 +26,9 @@ export function ImportForm({ template }: { template: string }) {
           id="berkas"
           name="berkas"
           required
+          // Dikirim juga di formulir ini: berkas penawaran yang terunggah di
+          // sini tetap mendapat waktu pengamatan dari tanggal berkas.
+          lastModifiedName="file_last_modified"
           label="Berkas CSV"
           hint="Kolom mengikuti format ekspor GSMArena; unduh templat untuk daftar kolom yang dibaca. Wajib: brand, model_name, memory_variants_summary, dan url GSMArena sebagai kunci produk. Harga di berkas tidak pernah diimpor."
         />

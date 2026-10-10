@@ -1,0 +1,159 @@
+import { productSpecsSchema, type ProductSpecs } from "@/lib/catalog/schema";
+import type { CsvRow } from "@/lib/import/csv-parser";
+import { mapRow, type ImportCandidate } from "@/lib/import/gsmarena";
+import {
+  hasColumn,
+  looksLikeShopeeHeaders,
+  prepareOfferRow,
+  readErafoneListing,
+  type OfferCatalogProduct,
+  type OfferRow,
+  type OfferSourceFormat,
+} from "@/lib/import/offers";
+
+/**
+ * Bentuk baris internal impor (langkah 2 rancangan impor terpadu, 2026-10-10).
+ *
+ * Setiap format masuk (dataset spesifikasi GSMArena, templat penawaran
+ * CekHarga, hasil scraper Shopee, ekspor Erafone) diterjemahkan oleh
+ * adaptornya menjadi `CanonicalRow` yang sama. Tahap persiapan, pratinjau,
+ * dan penulisan hanya membaca bentuk ini, jadi format baru (termasuk templat
+ * terpadu pada langkah 3) cukup menambah satu adaptor.
+ *
+ * Satu baris bisa membawa bagian produk, bagian penawaran, atau keduanya.
+ * Format yang ada sekarang selalu membawa salah satu; bentuknya sudah
+ * disiapkan untuk templat terpadu yang membawa keduanya sekaligus.
+ *
+ * Modul ini murni (tanpa jaringan dan database): pencocokan penawaran
+ * memakai katalog yang sudah dibaca pemanggil.
+ */
+
+export type SourceFormat = "gsmarena-spec" | OfferSourceFormat;
+export type ImportKind = "specs" | "offers";
+
+export type CanonicalProduct = {
+  candidate: ImportCandidate;
+  /** Spesifikasi yang sudah lolos gerbang Zod katalog. */
+  specs: ProductSpecs;
+};
+
+export type CanonicalOffer = {
+  row: OfferRow;
+  origin: "manual" | "automatic";
+  /** True bila judul tidak menyebut memori dan varian dasar disimpulkan. */
+  inferredBaseVariant: boolean;
+  image: { url: string; productId: string } | null;
+};
+
+export type CanonicalRow = {
+  /** Posisi baris di berkas (0-based). */
+  rowIndex: number;
+  format: SourceFormat;
+  label: string;
+  product: CanonicalProduct | null;
+  offer: CanonicalOffer | null;
+  /** Alasan baris tidak bisa dipakai; null bila valid. */
+  issue: string | null;
+};
+
+/* ------------------------------------------------------- deteksi berkas */
+
+export type FileDetection =
+  | { kind: ImportKind; format: SourceFormat | "mixed-offers" }
+  | { kind: null; reason: string };
+
+/** Jumlah baris yang diperiksa untuk mengenali ekspor Erafone (kolomnya tanpa nama tetap). */
+const ERAFONE_SAMPLE_ROWS = 20;
+
+/**
+ * Mengenali jenis berkas dari header dan contoh baris, supaya berkas yang
+ * diunggah ke formulir yang salah tetap diproses sebagai jenisnya yang benar
+ * (keluhan "impornya berbeda template"). Hanya header dan beberapa baris
+ * pertama yang dibaca, jadi biayanya tetap kecil berapa pun ukuran berkas.
+ */
+export function detectFileKind(headers: readonly string[], rows: readonly CsvRow[]): FileDetection {
+  const spec = hasColumn(headers, "brand") && hasColumn(headers, "model_name");
+  const template = hasColumn(headers, "slug") || hasColumn(headers, "source_key");
+  const shopee = looksLikeShopeeHeaders(headers);
+  const erafone = rows.slice(0, ERAFONE_SAMPLE_ROWS).some((row) => readErafoneListing(row) !== null);
+  const offers = template || shopee || erafone;
+
+  if (spec && offers) {
+    return {
+      kind: null,
+      reason:
+        "Berkas berisi kolom spesifikasi dan kolom penawaran sekaligus. Templat gabungan belum didukung; pisahkan menjadi berkas spesifikasi dan berkas penawaran.",
+    };
+  }
+  if (spec) return { kind: "specs", format: "gsmarena-spec" };
+  if (template) return { kind: "offers", format: "template" };
+  // Shopee dan Erafone sama-sama dibaca per baris oleh adaptor penawaran.
+  if (shopee && erafone) return { kind: "offers", format: "mixed-offers" };
+  if (shopee) return { kind: "offers", format: "shopee-scrape" };
+  if (erafone) return { kind: "offers", format: "erafone-scrape" };
+  return {
+    kind: null,
+    reason:
+      "Format berkas tidak dikenali. Gunakan templat spesifikasi (kolom brand dan model_name) atau templat penawaran (kolom slug, ram_gb, storage_gb).",
+  };
+}
+
+/* --------------------------------------------------------------- adaptor */
+
+/** Adaptor dataset spesifikasi (format GSMArena / templat spesifikasi). */
+export function productRowsToCanonical(rows: readonly CsvRow[]): CanonicalRow[] {
+  return rows.map((row, rowIndex) => {
+    const outcome = mapRow(row);
+    if (!outcome.ok) {
+      return { rowIndex, format: "gsmarena-spec", label: outcome.label, product: null, offer: null, issue: outcome.reason };
+    }
+    // Spesifikasi tetap melewati gerbang Zod yang sama dengan sumber lain,
+    // supaya berkas CSV yang aneh tidak bisa menyelundupkan bentuk data baru.
+    const specs = productSpecsSchema.safeParse(outcome.candidate.specs);
+    if (!specs.success) {
+      return {
+        rowIndex,
+        format: "gsmarena-spec",
+        label: outcome.candidate.slug,
+        product: null,
+        offer: null,
+        issue: `Spesifikasi tidak lolos validasi: ${specs.error.issues[0]?.message}`,
+      };
+    }
+    return {
+      rowIndex,
+      format: "gsmarena-spec",
+      label: `${outcome.candidate.brand} ${outcome.candidate.model}`,
+      product: { candidate: outcome.candidate, specs: specs.data },
+      offer: null,
+      issue: null,
+    };
+  });
+}
+
+/** Adaptor penawaran: templat CekHarga, scraper Shopee, dan ekspor Erafone (dikenali per baris). */
+export function offerRowsToCanonical(
+  rows: readonly CsvRow[],
+  products: readonly OfferCatalogProduct[],
+  defaults: { observedAt: string; sellerName?: string }
+): CanonicalRow[] {
+  return rows.map((raw, rowIndex) => {
+    const outcome = prepareOfferRow(raw, products, defaults);
+    if (!outcome.ok) {
+      return { rowIndex, format: outcome.format, label: outcome.label, product: null, offer: null, issue: outcome.reason };
+    }
+    return {
+      rowIndex,
+      format: outcome.format,
+      label: `${outcome.row.slug} ${outcome.row.ramGb}/${outcome.row.storageGb}`,
+      product: null,
+      offer: {
+        row: outcome.row,
+        origin: outcome.origin,
+        inferredBaseVariant: outcome.inferredBaseVariant,
+        image: outcome.image,
+      },
+      issue: null,
+    };
+  });
+}

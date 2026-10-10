@@ -545,3 +545,65 @@ test("patch penawaran: kolom kosong mempertahankan suntingan admin", () => {
   );
   assert.deepEqual(kept, existing, "badge terverifikasi dan garansi tidak dicabut sel kosong");
 });
+
+// Bentuk baris internal (langkah 2 impor terpadu): semua format masuk lewat
+// adaptor ke CanonicalRow, dan jenis berkas dikenali dari isinya.
+import { detectFileKind, offerRowsToCanonical, productRowsToCanonical } from "@/lib/import/canonical";
+import { templateShopeeScrape } from "@/lib/import/offers";
+
+const detect = (csv: string) => {
+  const parsed = parseCsv(csv);
+  return detectFileKind(parsed.headers, parsed.rows);
+};
+
+test("deteksi berkas: templat resmi dikenali dari isinya, bukan dari formulir", () => {
+  assert.deepEqual(detect(templateSpesifikasi()), { kind: "specs", format: "gsmarena-spec" });
+  assert.deepEqual(detect(templatePenawaran()), { kind: "offers", format: "template" });
+  assert.deepEqual(detect(templateShopeeScrape()), { kind: "offers", format: "shopee-scrape" });
+  const erafone = detect(
+    "a,b,c,d\nhttps://erafone.com/produk/iqoo-z11-5g-8-256gb-black,https://cdnpro.eraspace.com/media/catalog/product/x.jpg,iQOO Z11 5G 8/256GB - Black,Rp 4.299.000\n"
+  );
+  assert.deepEqual(erafone, { kind: "offers", format: "erafone-scrape" });
+});
+
+test("deteksi berkas: gabungan dan format asing ditolak dengan alasan, bukan ditebak", () => {
+  const mixed = detect("brand,model_name,slug,ram_gb,storage_gb\nOPPO,A6,oppo-a6,8,256\n");
+  assert.equal(mixed.kind, null);
+  assert.ok(mixed.kind === null && /gabungan/.test(mixed.reason));
+  const unknown = detect("nama,harga\nHP,1000\n");
+  assert.ok(unknown.kind === null && /tidak dikenali/.test(unknown.reason));
+});
+
+test("adaptor kanonik: baris valid membawa bagiannya, baris rusak membawa alasan", () => {
+  const specRows = [
+    parseCsv(templateSpesifikasi()).rows[0]!,
+    { brand: "OPPO", model_name: "", memory_variants_summary: "128GB/8GB", url: "x.php" },
+  ];
+  const products = productRowsToCanonical(specRows);
+  assert.equal(products[0]!.product?.candidate.slug, "oppo-reno16c");
+  assert.equal(products[0]!.offer, null);
+  assert.equal(products[1]!.product, null);
+  assert.match(products[1]!.issue ?? "", /kosong/);
+
+  const catalog = [{ id: "p1", slug: "oppo-a6c", brand: "OPPO", model: "A6c", variants: [{ id: "v1", ramGb: 4, storageGb: 128 }] }];
+  const offers = offerRowsToCanonical(parseCsv(templatePenawaran()).rows, catalog, { observedAt: "2026-10-10T03:00:00.000Z" });
+  assert.equal(offers.length, 3);
+  assert.ok(offers.every((row) => row.format === "template" && row.product === null));
+  assert.equal(offers[2]!.offer?.row.priceIdr, null, "harga kosong tetap null");
+});
+
+test("pencocokan judul berindeks: akhiran 5G hanya dibuang bila jaringan katalog sama", () => {
+  const catalog = [
+    { id: "a27", slug: "samsung-galaxy-a27", brand: "Samsung", model: "Galaxy A27", is5G: true, variants: [{ id: "v1", ramGb: 8, storageGb: 256 }] },
+    { id: "a17", slug: "samsung-galaxy-a17", brand: "Samsung", model: "Galaxy A17", is5G: false, variants: [{ id: "v2", ramGb: 8, storageGb: 256 }] },
+  ];
+  const row = (title: string) => ({ listing_url: "https://shopee.co.id/x-i.1.2", title, price_idr: "4999000", seller_name: "Toko" });
+  const [match, wrongNetwork, invalidTime] = offerRowsToCanonical(
+    [row("Samsung Galaxy A27 5G (8/256GB)"), row("Samsung Galaxy A17 5G (8/256GB)"), { ...row("Samsung Galaxy A27 (8/256GB)"), scraped_at: "bukan tanggal" }],
+    catalog,
+    { observedAt: "2026-10-10T01:00:00.000Z" }
+  );
+  assert.equal(match!.offer?.row.slug, "samsung-galaxy-a27");
+  assert.equal(wrongNetwork!.offer, null, "A17 4G tidak boleh dicocokkan dengan judul 5G");
+  assert.match(invalidTime!.issue ?? "", /Waktu pengamatan harga tidak valid/);
+});

@@ -7,8 +7,9 @@ import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { invalidateCatalogCache } from "@/lib/backend/catalog-repository";
 import { recordAudit } from "@/lib/admin/audit";
 import type { CsvRow } from "@/lib/import/csv-parser";
-import { mapRow, type ImportCandidate } from "@/lib/import/gsmarena";
-import { productSpecsSchema, type ProductSpecs } from "@/lib/catalog/schema";
+import type { ImportCandidate } from "@/lib/import/gsmarena";
+import type { ProductSpecs } from "@/lib/catalog/schema";
+import { productRowsToCanonical } from "@/lib/import/canonical";
 import {
   chunk,
   INSERT_CHUNK,
@@ -285,28 +286,17 @@ export type SpecPreparation = {
 /** Tahap tanpa jaringan: petakan dan validasi seluruh baris. Dipakai pratinjau dan penulisan. */
 export function prepareSpecRows(rows: readonly CsvRow[]): SpecPreparation {
   const skipped: SpecPreparation["skipped"] = [];
-  // Tahap 1, tanpa jaringan: petakan dan validasi seluruh baris dulu.
+  // Tahap 1, tanpa jaringan: adaptor kanonik memetakan dan memvalidasi seluruh
+  // baris (canonical.ts), lalu baris ganda digabung di sini.
   const validByKey = new Map<string, ValidCandidate>();
-  for (const [rowIndex, row] of rows.entries()) {
-    const outcome = mapRow(row);
-    if (!outcome.ok) {
-      skipped.push({ label: outcome.label, reason: outcome.reason, rowIndex });
+  for (const row of productRowsToCanonical(rows)) {
+    if (!row.product) {
+      skipped.push({ label: row.label, reason: row.issue ?? "Baris tidak valid", rowIndex: row.rowIndex });
       continue;
     }
+    const { candidate, specs } = row.product;
 
-    // Spesifikasi tetap melewati gerbang Zod yang sama dengan sumber lain,
-    // supaya berkas CSV yang aneh tidak bisa menyelundupkan bentuk data baru.
-    const specs = productSpecsSchema.safeParse(outcome.candidate.specs);
-    if (!specs.success) {
-      skipped.push({
-        label: outcome.candidate.slug,
-        reason: `Spesifikasi tidak lolos validasi: ${specs.error.issues[0]?.message}`,
-        rowIndex,
-      });
-      continue;
-    }
-
-    const previous = validByKey.get(outcome.candidate.sourceKey);
+    const previous = validByKey.get(candidate.sourceKey);
     if (previous) {
       // Dua baris untuk produk yang sama: yang terakhir menang, sama seperti
       // hasil akhir impor berurutan dulu, tetapi kini dilaporkan terbuka.
@@ -316,11 +306,7 @@ export function prepareSpecRows(rows: readonly CsvRow[]): SpecPreparation {
         rowIndex: previous.rowIndex,
       });
     }
-    validByKey.set(outcome.candidate.sourceKey, {
-      candidate: outcome.candidate,
-      specs: specs.data,
-      rowIndex,
-    });
+    validByKey.set(candidate.sourceKey, { candidate, specs, rowIndex: row.rowIndex });
   }
 
   return { validByKey, skipped };

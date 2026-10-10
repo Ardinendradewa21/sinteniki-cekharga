@@ -127,6 +127,15 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
         </span>
       </header>
 
+      {batch.options.submittedAs ? (
+        <p role="status" className="mt-4 rounded-xl border border-border bg-muted p-4 text-sm text-foreground">
+          Berkas ini diunggah lewat formulir{" "}
+          {batch.options.submittedAs === "specs" ? "spesifikasi" : "penawaran"}, tetapi isinya dikenali sebagai{" "}
+          {batch.kind === "specs" ? "spesifikasi produk" : "penawaran dan harga"}, jadi diproses sebagai{" "}
+          {batch.kind === "specs" ? "spesifikasi" : "penawaran"}.
+        </p>
+      ) : null}
+
       {(batch.progress || photos) && batch.status !== "draft" && batch.status !== "discarded" ? (
         // key: komponen dipasang ulang saat status dari server berubah (mis. setelah coba ulang).
         <BatchProgress

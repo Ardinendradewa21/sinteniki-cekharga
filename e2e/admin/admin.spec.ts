@@ -67,6 +67,20 @@ test.describe("Pusat Impor", () => {
       expect(Buffer.concat(chunks).toString("utf8")).toMatch(header);
     }
   });
+
+  test("TC-IMP-04 berkas penawaran di formulir spesifikasi dikenali dan diproses sebagai penawaran @regression", async ({ page }) => {
+    await page.goto("/admin/import?tab=unggah");
+    const csv =
+      "slug,ram_gb,storage_gb,marketplace,seller_name,url,warranty,listing_status,seller_verified,price_idr,observed_at\n" +
+      "oppo-a6c,4,128,Blibli,Toko QA E2E,https://www.blibli.com/p/qa-e2e-tc-imp-04,,,,,\n";
+    await page.locator("#berkas").setInputFiles({ name: "qa-e2e-salah-formulir.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+    await page.locator("form").filter({ has: page.locator("#berkas") }).getByRole("button", { name: "Buat pratinjau" }).click();
+    await page.waitForURL(/\/admin\/import\/batch\//, { timeout: 60_000 });
+    await expect(page.getByRole("status").filter({ hasText: "formulir spesifikasi" })).toContainText("diproses sebagai penawaran");
+    // Batch uji tidak diterapkan; dibatalkan supaya riwayat tetap bersih.
+    await page.getByRole("button", { name: "Batalkan batch ini" }).click();
+    await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
+  });
 });
 
 // ---------------------------------------------------------------- peran staf

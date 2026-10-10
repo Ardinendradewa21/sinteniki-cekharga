@@ -19,6 +19,7 @@ import { processBatchStep } from "@/lib/import/jobs";
 import { executeUndo } from "@/lib/import/undo";
 import { photoJobCounts, processPhotoStep, type PhotoJobCounts } from "@/lib/import/photo-jobs";
 import { defaultObservedAtFrom, readCsvFile } from "@/lib/import/upload";
+import { detectFileKind } from "@/lib/import/canonical";
 
 /** Langkah dari polling halaman lebih pendek supaya tiap panggilan cepat kembali. */
 const POLL_STEP_BUDGET_MS = 20_000;
@@ -40,10 +41,17 @@ async function kick(batchId: string) {
 
 export type PreviewState = { error: string | null };
 
-async function preview(kind: "specs" | "offers", formData: FormData): Promise<PreviewState> {
+async function preview(submittedAs: "specs" | "offers", formData: FormData): Promise<PreviewState> {
   const admin = await requireStaff([]);
   const read = await readCsvFile(formData);
   if (!read.ok) return { error: read.error };
+
+  // Jenis batch mengikuti ISI berkas, bukan formulir yang dipakai: berkas
+  // penawaran yang terunggah lewat formulir spesifikasi (atau sebaliknya)
+  // tetap diproses dengan benar, dan admin diberi tahu di halaman batch.
+  const detected = detectFileKind(read.parsed.headers, read.parsed.rows);
+  if (detected.kind === null) return { error: detected.reason };
+  const kind = detected.kind;
 
   const rights = readImageRights(formData.get("image_usage_basis"), formData.get("image_usage_rights"));
   if (!rights.ok) return { error: rights.error };
@@ -52,14 +60,17 @@ async function preview(kind: "specs" | "offers", formData: FormData): Promise<Pr
     kind,
     origin: "csv",
     sourceLabel: read.file.name,
-    options:
-      kind === "specs"
+    options: {
+      sourceFormat: detected.format,
+      ...(kind !== submittedAs ? { submittedAs } : {}),
+      ...(kind === "specs"
         ? { imageRights: rights.rights }
         : {
             imageRights: rights.rights,
             defaultObservedAt: defaultObservedAtFrom(formData, new Date()),
             defaultSellerName: String(formData.get("seller_name") ?? "").trim().slice(0, 160),
-          },
+          }),
+    },
     rows: read.parsed.rows,
     malformedLines: read.parsed.malformed.map((m) => m.line),
     admin,

@@ -27,6 +27,8 @@ Dokumen ini adalah prosedur baku tim PT Sinteniki Digital Solusi untuk memasukka
 | Memproses ulang atau memantau foto | Foto | Foto |
 | Melihat, menerapkan, atau membatalkan batch | Riwayat batch | Riwayat batch |
 
+**Jenis berkas dikenali dari isinya** (sejak 10 Oktober 2026). Berkas penawaran yang terunggah lewat formulir spesifikasi, atau sebaliknya, tetap diproses sebagai jenisnya yang benar, dan halaman batch memberi tahu hal itu. Berkas yang berisi kolom spesifikasi dan kolom penawaran sekaligus, atau yang formatnya tidak dikenali, ditolak dengan alasan yang jelas.
+
 Urutannya selalu: **produk dulu, baru harga.** CSV penawaran untuk produk yang belum ada akan dilewati dengan alasan "slug tidak ditemukan".
 
 Merek yang didukung tarik otomatis: vivo, iQOO, OPPO, Samsung, Xiaomi, Digimap (Apple), dan Infinix. Merek lain memakai CSV.

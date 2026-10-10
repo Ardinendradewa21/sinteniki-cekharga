@@ -66,6 +66,10 @@ export type BatchOptions = {
   parentBatchId?: string;
   /** Kunci idempoten pemeriksaan harga harian ("<merek>:<tanggal WIB>"), unik di database. */
   refreshKey?: string;
+  /** Format berkas yang dikenali saat unggah (canonical.ts `detectFileKind`). */
+  sourceFormat?: string;
+  /** Formulir yang dipakai admin, bila berbeda dari jenis berkas yang dikenali. */
+  submittedAs?: BatchKind;
 };
 
 export type BatchSummary = {

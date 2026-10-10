@@ -17,11 +17,8 @@ import {
   timeKey,
 } from "@/lib/import/batch";
 import type { ImageRights } from "@/lib/import/image-rights";
-import {
-  prepareOfferRow,
-  type OfferCatalogProduct,
-  type OfferSourceFormat,
-} from "@/lib/import/offers";
+import { offerRowsToCanonical } from "@/lib/import/canonical";
+import type { OfferCatalogProduct, OfferSourceFormat } from "@/lib/import/offers";
 import { enqueuePhotoJobs } from "@/lib/import/photo-jobs";
 import type { OfferImportReport, RowResult } from "@/lib/import/report";
 import { loadSlugRedirects, loadStoreResolver, type StoreResolver } from "@/lib/import/stores";
@@ -170,20 +167,23 @@ export function prepareOfferRows(
   let mergedListings = 0;
   const listingImages: ListingImage[] = [];
 
-  // Tahap 1, tanpa jaringan: validasi dan cocokkan seluruh baris.
+  // Tahap 1, tanpa jaringan: adaptor kanonik (canonical.ts) menerjemahkan
+  // setiap format penawaran ke bentuk yang sama, lalu dicocokkan di sini.
   const items: PreparedItem[] = [];
-  for (const [rowIndex, raw] of rows.entries()) {
-    const outcome = prepareOfferRow(raw, catalogProducts, {
-      observedAt: defaultObservedAt,
-      sellerName: defaultSellerName,
-    });
-    sourceFormats.add(outcome.format);
-    if (outcome.format !== "template") preprocessedRows += 1;
-    if (!outcome.ok) {
-      skipped.push({ label: outcome.label, reason: outcome.reason, rowIndex });
+  const canonical = offerRowsToCanonical(rows, catalogProducts, {
+    observedAt: defaultObservedAt,
+    sellerName: defaultSellerName,
+  });
+  for (const { rowIndex, format, label: rowLabel, offer, issue } of canonical) {
+    if (format === "gsmarena-spec") continue;
+    sourceFormats.add(format);
+    if (format !== "template") preprocessedRows += 1;
+    if (!offer) {
+      skipped.push({ label: rowLabel, reason: issue ?? "Baris tidak valid", rowIndex });
       continue;
     }
-    const row = outcome.row;
+    const outcome = { ...offer, format };
+    const row = offer.row;
     const label = `${row.slug} ${row.ramGb}/${row.storageGb}`;
     if (outcome.image) {
       listingImages.push({ ...outcome.image, sourceUrl: row.url, marketplace: row.marketplace, rowIndex });
