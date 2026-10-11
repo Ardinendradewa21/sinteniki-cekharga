@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { ImportForm } from "@/components/admin/import-form";
-import { OfferImportForm } from "@/components/admin/offer-import-form";
+import { UploadForm } from "@/components/admin/upload-form";
 import { PhotoReprocessForm } from "@/components/admin/photo-reprocess-form";
 import { ScrapeWorkbench } from "@/components/admin/scrape-workbench";
 import { Container } from "@/components/layout/container";
@@ -133,26 +132,22 @@ function UploadTab() {
       </div>
 
       <section>
-        <h2 className="text-xl font-bold tracking-tight text-foreground">Spesifikasi produk</h2>
-        <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-          Mengisi identitas dan spesifikasi dari dataset, atau spesifikasi dan harga sekaligus lewat templat
-          terpadu. Kolom boleh kosong; nilai yang dirapikan otomatis ditampilkan di pratinjau. Produk baru masuk
-          sebagai draft.
-        </p>
-        <div className="mt-5">
-          <ImportForm template={templateSpesifikasi()} unifiedTemplate={templateTerpadu()} />
-        </div>
-      </section>
-
-      <section className="border-t border-border pt-10">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">Penawaran dan harga</h2>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Unggah data</h2>
         <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
-          Mengisi listing marketplace beserta harganya sekaligus. Hasil scraping Shopee dan ekspor ekstensi browser dari
-          erafone.com dipraproses otomatis. Produk dan varian harus sudah ada; listing multi-varian atau nama yang tidak
-          cocok tepat akan dilewati agar harga tidak menempel ke produk yang salah.
+          Satu formulir untuk spesifikasi produk dan harga. Pakai templat terpadu: satu baris per varian, kolom boleh
+          kosong, dan nilai yang dirapikan otomatis ditampilkan di pratinjau. Produk baru masuk sebagai draft, dan harga
+          hanya menempel ke varian yang benar-benar ada; listing yang namanya tidak cocok tepat dilewati beserta
+          alasannya.
         </p>
         <div className="mt-5">
-          <OfferImportForm template={templatePenawaran()} shopeeTemplate={templateShopeeScrape()} />
+          <UploadForm
+            templates={{
+              unified: templateTerpadu(),
+              specs: templateSpesifikasi(),
+              offers: templatePenawaran(),
+              shopee: templateShopeeScrape(),
+            }}
+          />
         </div>
       </section>
     </div>

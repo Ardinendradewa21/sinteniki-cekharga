@@ -50,16 +50,17 @@ test.describe("Pusat Impor", () => {
     await expect(page).toHaveURL(/\/admin\/import\?tab=tarik/);
   });
 
-  test("TC-IMP-03 templat spesifikasi dan penawaran bisa diunduh dengan header importer @regression", async ({ page }) => {
+  test("TC-IMP-03 templat terpadu dan templat format lama bisa diunduh dengan header importer @regression", async ({ page }) => {
     await page.goto("/admin/import?tab=unggah");
     const cases = [
-      { button: "Templat spesifikasi", file: "templat-spesifikasi-cekharga.csv", header: /^﻿?brand,model_name,memory_variants_summary,url,/ },
-      { button: "Templat CekHarga", file: "templat-penawaran-cekharga.csv", header: /^﻿?slug,ram_gb,storage_gb,marketplace,/ },
+      { button: "Templat terpadu", file: "templat-terpadu-cekharga.csv", header: /^\uFEFF?brand,model_name,slug,gsmarena_url,ram_gb,storage_gb,/ },
+      { button: "Templat spesifikasi", file: "templat-spesifikasi-cekharga.csv", header: /^\uFEFF?brand,model_name,memory_variants_summary,url,/ },
+      { button: "Templat penawaran", file: "templat-penawaran-cekharga.csv", header: /^\uFEFF?slug,ram_gb,storage_gb,marketplace,/ },
     ];
     for (const { button, file, header } of cases) {
       const [download] = await Promise.all([
         page.waitForEvent("download"),
-        page.getByRole("button", { name: button }).click(),
+        page.getByRole("button", { name: button, exact: true }).click(),
       ]);
       expect(download.suggestedFilename()).toBe(file);
       const stream = await download.createReadStream();
@@ -69,15 +70,17 @@ test.describe("Pusat Impor", () => {
     }
   });
 
-  test("TC-IMP-04 berkas penawaran di formulir spesifikasi dikenali dan diproses sebagai penawaran @regression", async ({ page }) => {
+  test("TC-IMP-04 satu formulir unggah: berkas penawaran format lama dikenali dari isinya @regression", async ({ page }) => {
     await page.goto("/admin/import?tab=unggah");
+    // Tidak ada lagi formulir terpisah untuk spesifikasi dan penawaran.
+    await expect(page.getByRole("button", { name: "Buat pratinjau" })).toHaveCount(1);
     const csv =
       "slug,ram_gb,storage_gb,marketplace,seller_name,url,warranty,listing_status,seller_verified,price_idr,observed_at\n" +
       "oppo-a6c,4,128,Blibli,Toko QA E2E,https://www.blibli.com/p/qa-e2e-tc-imp-04,,,,,\n";
-    await page.locator("#berkas").setInputFiles({ name: "qa-e2e-salah-formulir.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
-    await page.locator("form").filter({ has: page.locator("#berkas") }).getByRole("button", { name: "Buat pratinjau" }).click();
+    await page.locator("#berkas").setInputFiles({ name: "qa-e2e-satu-formulir.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+    await page.getByRole("button", { name: "Buat pratinjau" }).click();
     await page.waitForURL(/\/admin\/import\/batch\//, { timeout: 60_000 });
-    await expect(page.getByRole("status").filter({ hasText: "formulir spesifikasi" })).toContainText("diproses sebagai penawaran");
+    await expect(page.locator("main")).toContainText("Penawaran dan harga");
     // Batch uji tidak diterapkan; dibatalkan supaya riwayat tetap bersih.
     await page.getByRole("button", { name: "Batalkan batch ini" }).click();
     await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
@@ -92,7 +95,7 @@ test.describe("Pusat Impor", () => {
     expect(download.suggestedFilename()).toBe("templat-terpadu-cekharga.csv");
     const path = await download.path();
     await page.locator("#berkas").setInputFiles({ name: "qa-e2e-terpadu.csv", mimeType: "text/csv", buffer: fs.readFileSync(path) });
-    await page.locator("form").filter({ has: page.locator("#berkas") }).getByRole("button", { name: "Buat pratinjau" }).click();
+    await page.getByRole("button", { name: "Buat pratinjau" }).click();
     await page.waitForURL(/\/admin\/import\/batch\//, { timeout: 60_000 });
     const panel = page.locator("section[aria-labelledby=koreksi-otomatis]");
     await expect(panel).toContainText("nilai dirapikan");

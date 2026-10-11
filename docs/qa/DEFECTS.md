@@ -89,7 +89,7 @@ Total: 23 defect. 22 ditutup, 1 terbuka. Severity: Kritis 2, Tinggi 9, Sedang 10
 | Dampak bisnis | Tidak ada satu pun hasil tarik otomatis yang bisa disimpan. |
 | Akar masalah | Backend menolak filter `or(... and(...))` pada UPDATE dengan pesan menyesatkan "column ... does not exist". |
 | Perbaikan | Dipecah menjadi dua UPDATE atomik. Pola ini kini dipakai juga di pembatalan antrean foto. |
-| Catatan | Tes integrasinya masih berupa skrip sementara. Tindak lanjut: tambahkan INT-05 untuk `claimCommit` ke `scripts/tests/integration/`. |
+| Catatan | Tes integrasinya masih berupa skrip sementara. Tindak lanjut: tambahkan uji integrasi untuk `claimCommit` ke `scripts/tests/integration/` (nomor INT-05 sudah dipakai uji patch impor). |
 
 ### DEF-018 — URL penawaran Samsung basi (terbuka)
 

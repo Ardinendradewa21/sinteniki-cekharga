@@ -78,8 +78,6 @@ export type BatchOptions = {
   refreshKey?: string;
   /** Format berkas yang dikenali saat unggah (canonical.ts `detectFileKind`). */
   sourceFormat?: string;
-  /** Formulir yang dipakai admin, bila berbeda dari jenis berkas yang dikenali. */
-  submittedAs?: BatchKind;
   /** "Spesifikasi saja": batch harga lanjutan tidak dibuat saat batch ini selesai. */
   skipFollowUp?: boolean;
   /** Penawaran yang tidak ikut batch "harga saja" karena produknya belum ada di katalog. */

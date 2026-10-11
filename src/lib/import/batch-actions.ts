@@ -91,11 +91,10 @@ export async function applyPricesOnlyAction(batchId: string): Promise<PreviewSta
  * dipicu `after()` (tetap berjalan walau action memanggil redirect, sampai
  * maxDuration halaman), polling halaman batch, atau worker terjadwal.
  *
- * Jenis batch mengikuti ISI berkas, bukan formulir yang dipakai: berkas
- * penawaran yang terunggah lewat formulir spesifikasi (atau sebaliknya) tetap
- * diproses dengan benar, dan admin diberi tahu di halaman batch.
+ * Satu formulir untuk semua berkas: jenis batch mengikuti ISI berkas
+ * (`detectFileKind`), bukan pilihan admin.
  */
-async function preview(submittedAs: "specs" | "offers", formData: FormData): Promise<PreviewState> {
+export async function previewUploadAction(_prev: PreviewState, formData: FormData): Promise<PreviewState> {
   const admin = await requireStaff([]);
   const read = await readCsvFile(formData);
   if (!read.ok) return { error: read.error };
@@ -120,7 +119,6 @@ async function preview(submittedAs: "specs" | "offers", formData: FormData): Pro
     admin,
     options: {
       sourceFormat: detected.format,
-      ...(!unified && kind !== submittedAs ? { submittedAs } : {}),
       imageRights: rights.rights,
       defaultObservedAt: defaultObservedAtFrom(formData, new Date()),
       defaultSellerName: String(formData.get("seller_name") ?? "").trim().slice(0, 160),
@@ -131,14 +129,6 @@ async function preview(submittedAs: "specs" | "offers", formData: FormData): Pro
   after(() => kick(staged.id));
   revalidatePath("/admin/import");
   redirect(`/admin/import/batch/${staged.id}`);
-}
-
-export async function previewSpecsAction(_prev: PreviewState, formData: FormData): Promise<PreviewState> {
-  return preview("specs", formData);
-}
-
-export async function previewOffersAction(_prev: PreviewState, formData: FormData): Promise<PreviewState> {
-  return preview("offers", formData);
 }
 
 export async function applyBatchAction(

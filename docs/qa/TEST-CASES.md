@@ -64,14 +64,19 @@ Singkatan jenis: F = Functional, R = Regression, S = Smoke, Sec = Keamanan, A11y
 | TC-ADM-03 | US-22 / DEF-004 | Lihat riwayat impor dasbor | Hanya batch buatan admin, tanpa pemeriksaan harian | R | `admin.spec.ts` | Lulus |
 | TC-IMP-01 | US-20 | Buka Pusat Impor | Empat tab, tab riwayat menampilkan asal batch | F, S | `admin.spec.ts` | Lulus |
 | TC-IMP-02 | US-20 | Buka `/admin/scrape` | Dialihkan ke `?tab=tarik` | R | `admin.spec.ts` | Lulus |
-| TC-IMP-03 | US-20 | Unduh "Templat spesifikasi" dan "Templat CekHarga" | Nama berkas benar, header sama dengan kolom importer (SOP impor §3.2, §4.1) | R | `admin.spec.ts` | Lulus |
-| TC-IMP-04 | US-20 | Unggah templat penawaran lewat formulir spesifikasi | Berkas dikenali sebagai penawaran, halaman batch menampilkan pemberitahuan, batch bisa dibatalkan | R | `admin.spec.ts` | Lulus |
+| TC-IMP-03 | US-20 | Unduh "Templat terpadu", lalu tautan format lama "Templat spesifikasi" dan "Templat penawaran" | Nama berkas benar, header sama dengan kolom importer (SOP impor §2a, §3.2, §4.1) | R | `admin.spec.ts` | Lulus |
+| TC-IMP-04 | US-20 | Tab Unggah CSV hanya punya satu formulir; unggah templat penawaran format lama di formulir itu | Berkas dikenali sebagai penawaran (batch "Penawaran dan harga"), batch bisa dibatalkan | R | `admin.spec.ts` | Lulus |
 | TC-IMP-05 | US-20 | Unduh "Templat terpadu", unggah apa adanya | Panel "Koreksi otomatis" tampil (harga Rp dirapikan), pratinjau dikelompokkan per produk dengan pilihan "Spesifikasi saja" dan "Terapkan harga saja", batch bisa dibatalkan | R | `admin.spec.ts` | Lulus |
 | TC-ROLE-01 | US-23 | Masuk sebagai `sales` sementara | Beranda staf; impor dan produk ditolak; iklan terbuka; akun dihapus setelah tes | Sec, S | `admin.spec.ts` | Lulus |
-| INT-01 | US-20, US-21 | Tarik otomatis → terapkan → harga resmi lanjutan → sunting/terbitkan → undo | Jejak asal tercatat; undo hanya menghapus draft yang belum disentuh; penawaran produk terbit dilindungi; undo kedua ditolak | Int, R | `scripts/tests/integration/import-flow.test.ts` | Lulus |
+| INT-01 | US-20, US-21 | Tarik otomatis → terapkan → harga resmi lanjutan → sunting/terbitkan → undo | Jejak asal tercatat; undo hanya menghapus lunak draft yang belum disentuh dan menandai harganya batal (riwayat tidak dihapus); penawaran produk terbit dilindungi; undo kedua ditolak | Int, R | `scripts/tests/integration/import-flow.test.ts` | Lulus |
 | INT-02 | US-20 / DEF-005 | Terapkan draft berumur 20 hari | Ditolak server | Int, R | `import-flow.test.ts` | Lulus |
 | INT-03 | US-21 | Undo saat foto sedang diunggah, lalu setelah selesai | Ditolak dulu; kemudian foto draft dihapus (DB + storage), foto produk terbit tetap, antrean dibatalkan | Int, R | `import-flow.test.ts` | Lulus |
 | INT-04 | US-10 | Retensi dan kunci harian | Job foto > 30 hari dan batch terjadwal > 30 hari terhapus; kunci harian ganda ditolak DB | Int, R | `import-flow.test.ts` | Lulus |
+| INT-05 | US-20 | Impor ulang spesifikasi dan penawaran dengan sel kosong dan tanda `-` | Sel kosong tidak menghapus nilai lama (NFC, badge terverifikasi, garansi); `-` mengosongkan | Int, R | `import-flow.test.ts` | Lulus |
+| INT-06 | US-20 | Templat terpadu: produk baru + harga dalam satu berkas | Batch harga lanjutan dibuat setelah produk tersimpan dan tetap draft; harga kosong tidak dicatat nol; waktu tanpa zona dibaca WIB | Int, R | `import-flow.test.ts` | Lulus |
+| INT-07 | US-20 | Unggahan dianalisis di worker | Status analyzing lalu draft; baris di raw_listings; berkas tanpa baris berguna gagal dengan alasan; retensi tidak menyentuh batch baru | Int, R | `import-flow.test.ts` | Lulus |
+| INT-08 | US-20 | Tarik otomatis sebagai job | Hanya satu job per jenis berjalan; antre ulang tanpa duplikat; Hentikan membatalkan sisa; sesi terkirim membatalkan job; job daftar model membuat sesi | Int, R | `import-flow.test.ts` | Lulus |
+| INT-09 | US-20 | Pratinjau per produk | Harga lebih tua ditandai "Harga lama"; "Spesifikasi saja" tidak membuat batch harga; "Harga saja" hanya untuk produk yang sudah ada dan menghitung sisanya | Int, R | `import-flow.test.ts` | Lulus |
 
 ## 4. Integritas data (SQL)
 

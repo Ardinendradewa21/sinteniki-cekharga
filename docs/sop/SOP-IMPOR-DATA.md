@@ -21,22 +21,21 @@ Dokumen ini adalah prosedur baku tim PT Sinteniki Digital Solusi untuk memasukka
 
 | Kebutuhan | Jalur | Tab di Pusat Impor |
 | --- | --- | --- |
-| Menambah produk dan harganya sekaligus, atau hanya sebagian kolom | Templat terpadu (bagian 2a) | Unggah CSV |
-| Menambah produk baru beserta spesifikasi dan varian | CSV spesifikasi | Unggah CSV |
-| Menambah atau memperbarui harga di toko mana pun | CSV penawaran | Unggah CSV |
+| Menambah atau memperbarui produk, harga, atau keduanya | Templat terpadu (bagian 2a), lewat formulir **Unggah data** | Unggah CSV |
+| Berkas format lama: ekspor GSMArena, templat penawaran, scraper Shopee, ekspor Erafone | Formulir **Unggah data** yang sama (bagian 3 dan 4) | Unggah CSV |
 | Mengambil lineup dan harga dari situs resmi merek | Tarik otomatis | Tarik otomatis |
 | Memproses ulang atau memantau foto | Foto | Foto |
 | Melihat, menerapkan, atau membatalkan batch | Riwayat batch | Riwayat batch |
 
-**Jenis berkas dikenali dari isinya** (sejak 10 Oktober 2026). Berkas penawaran yang terunggah lewat formulir spesifikasi, atau sebaliknya, tetap diproses sebagai jenisnya yang benar, dan halaman batch memberi tahu hal itu. Berkas yang berisi kolom spesifikasi dan kolom penawaran sekaligus, atau yang formatnya tidak dikenali, ditolak dengan alasan yang jelas.
+**Satu formulir untuk semua berkas** (sejak 11 Oktober 2026). Tab **Unggah CSV** hanya berisi formulir **Unggah data**. Jenis berkas dikenali dari isinya, jadi tidak perlu memilih "spesifikasi" atau "penawaran". Berkas yang mencampur kolom spesifikasi format lama dengan kolom penawaran, atau yang formatnya tidak dikenali, ditolak dengan alasan yang jelas.
 
-Urutannya selalu: **produk dulu, baru harga.** CSV penawaran untuk produk yang belum ada akan dilewati dengan alasan "slug tidak ditemukan".
+Harga selalu menempel ke produk yang sudah ada. Dengan templat terpadu, urutan ini diatur sistem: produk baru diterapkan dulu, lalu harganya ditinjau sebagai batch harga lanjutan. Berkas format lama yang hanya berisi harga untuk produk yang belum ada akan dilewati dengan alasan "slug tidak ditemukan".
 
 Merek yang didukung tarik otomatis: vivo, iQOO, OPPO, Samsung, Xiaomi, Digimap (Apple), dan Infinix. Merek lain memakai CSV.
 
 ## 2a. Templat terpadu (disarankan sejak 10 Oktober 2026)
 
-Spesifikasi dan harga cukup diisi dalam **satu berkas**. Unduh lewat tombol **Templat terpadu** di bagian "Spesifikasi produk" (`templat-terpadu-cekharga.csv`). Formulir mana pun boleh dipakai, karena jenis berkas dikenali dari isinya.
+Spesifikasi dan harga cukup diisi dalam **satu berkas**. Unduh lewat tombol **Templat terpadu** di formulir **Unggah data** (`templat-terpadu-cekharga.csv`).
 
 ### Bentuk berkas
 
@@ -92,11 +91,13 @@ Di pratinjau batch produk yang membawa harga ada tiga pilihan:
 - **Terapkan harga saja**: spesifikasi di berkas diabaikan, dan langsung dibuat batch penawaran untuk produk yang sudah ada di katalog. Penawaran untuk produk yang belum ada tidak ikut, dan jumlahnya disebutkan di batch baru.
 4. **Berkas hanya berisi harga untuk produk yang sudah ada:** langsung menjadi satu batch penawaran biasa.
 
-## 3. Impor spesifikasi (produk baru)
+## 3. Impor spesifikasi format lama (dataset GSMArena)
+
+Bagian ini untuk berkas spesifikasi format lama. Untuk berkas baru, pakai templat terpadu (bagian 2a); kolom spesifikasinya sama.
 
 ### 3.1 Siapkan berkas
 
-1. Klik **Templat spesifikasi** di bagian "Spesifikasi produk" untuk mengunduh `templat-spesifikasi-cekharga.csv`.
+1. Di formulir **Unggah data**, klik tautan **Templat spesifikasi** di baris "Format lama" untuk mengunduh `templat-spesifikasi-cekharga.csv`.
 2. Isi satu baris per model. Ekspor GSMArena lengkap juga diterima apa adanya, karena kolom yang tidak dikenal diabaikan.
 3. Simpan sebagai CSV UTF-8 dengan pemisah koma. Di Excel, pilih "CSV UTF-8 (Comma delimited)".
 
@@ -149,9 +150,11 @@ Kolom cadangan yang tetap dibaca bila kolom utamanya kosong:
 
 ### 3.3 Unggah dan tinjau
 
-1. Buka **Impor data → Unggah CSV → Spesifikasi produk**.
-2. Pilih berkas. Bila berkas membawa foto, pilih dasar hak pakai. Bila hak pakainya belum jelas, lewati.
-3. Klik **Buat pratinjau**. Sistem membuat batch draft lalu membuka halaman tinjau.
+Langkah ini berlaku untuk semua berkas: templat terpadu maupun format lama.
+
+1. Buka **Impor data → Unggah CSV**, formulir **Unggah data**.
+2. Pilih berkas. Bila berkas membawa foto, pilih dasar hak pakai. Bila hak pakainya belum jelas, lewati. Untuk berkas scraper Shopee tanpa kolom `seller_name`, isi nama toko di **Opsi lanjutan**.
+3. Klik **Buat pratinjau**. Halaman batch terbuka dengan status **Sedang dianalisis**, lalu pratinjau muncul otomatis.
 4. Pratinjau dikelompokkan **per produk**: satu kartu berisi produk atau semua penawaran produk itu, dengan centang untuk seluruh kartu. Saring dengan tab status:
 
    | Status | Arti | Dicentang otomatis |
@@ -167,11 +170,13 @@ Kolom cadangan yang tetap dibaca bila kolom utamanya kosong:
 6. Klik **Terapkan N baris**. Proses berjalan bertahap; bar progres boleh ditinggal, dan tab boleh di-refresh.
 7. Setelah selesai, baca kolom **Hasil**. Untuk baris gagal, perbaiki penyebabnya lalu klik **Coba ulang N baris yang gagal**.
 
-## 4. Impor penawaran dan harga
+## 4. Impor penawaran format lama
+
+Bagian ini untuk berkas penawaran format lama. Untuk berkas baru, pakai templat terpadu (bagian 2a): kolom `offer_url` menggantikan `url`, dan produk bisa dirujuk dengan merek + model, tidak harus slug.
 
 ### 4.1 Siapkan berkas
 
-Klik **Templat CekHarga** di bagian "Penawaran dan harga" untuk mengunduh `templat-penawaran-cekharga.csv`. Satu baris berisi satu listing toko untuk satu varian.
+Di formulir **Unggah data**, klik tautan **Templat penawaran** di baris "Format lama" untuk mengunduh `templat-penawaran-cekharga.csv`. Satu baris berisi satu listing toko untuk satu varian.
 
 | Kolom | Isi | Contoh | Masuk ke database |
 | --- | --- | --- | --- |
@@ -214,9 +219,9 @@ Listing dari domain yang belum terdaftar tetap tersimpan, tetapi tanpa toko. Min
 
 ### 4.3 Format lain yang diterima
 
-Form yang sama juga menerima dua format lain dan menyeragamkannya sendiri:
+Formulir **Unggah data** juga menerima dua format lain dan menyeragamkannya sendiri:
 
-- **Hasil scraper Shopee.** Gunakan templat **Templat scraper Shopee**, dengan kolom `listing_url`, `image_url`, `title`, `price_idr`, `rating`, `sold_text`, `seller_name`, dan `scraped_at`.
+- **Hasil scraper Shopee.** Gunakan tautan **Templat scraper Shopee** di baris "Format lama", dengan kolom `listing_url`, `image_url`, `title`, `price_idr`, `rating`, `sold_text`, `seller_name`, dan `scraped_at`.
   - Produk dicocokkan dari judul.
   - Judul yang cocok ke lebih dari satu produk, atau menyebut beberapa varian, dilewati supaya harga tidak menempel ke produk yang salah.
   - Rating dan jumlah terjual tidak pernah dipakai.
@@ -346,9 +351,12 @@ Baris mentah berkas yang diunggah disimpan sementara (tabel `raw_listings`) dan 
 - **Penawaran:**
   - Toko yang sudah tercatat: Digimap, situs resmi OPPO/Xiaomi/Samsung/iQOO/vivo, Shopee, dan Erafone.
   - Belum ada penawaran dari Tokopedia, Blibli, Lazada, maupun TikTok Shop.
-- **Celah yang perlu ditutup:**
-  - 29 produk terbit belum punya penawaran.
-  - 23 produk terbit belum punya foto.
+- **Status per 11 Oktober 2026** (setelah kurasi):
+  - 65 produk terbit, semuanya punya minimal satu penawaran aktif.
+  - 4 produk terbit belum punya foto.
+  - Seluruh 187 harga aktif sudah lewat 30 jam, karena pemeriksaan harian baru berjalan otomatis setelah deploy (PB-01). Sampai saat itu, jalankan tarik otomatis per merek atau unggah templat terpadu berisi harga terbaru.
+- **Catatan 8 Oktober (sebelum kurasi):**
+  - 29 produk terbit belum punya penawaran, dan 23 belum punya foto.
   - Pemeriksaan harga situs resmi dijalankan manual pada 8 Oktober. Hasilnya, 156 penawaran resmi segar lagi (vivo, iQOO, OPPO, Samsung, Xiaomi, Digimap) dan 3 varian Samsung tercatat tidak lagi tercantum.
   - Penawaran Shopee (34) dan Erafone (24) belum diperbarui karena tidak punya sumber otomatis. Perlu CSV baru.
   - Situs resmi sudah mencantumkan harga untuk model katalog yang belum punya penawaran: vivo T5, T5 Pro, V50 Lite, V60 Lite, X Fold5, Y03t, Y19s GT, Y19s Pro, Y29, Y31d, Y500; OPPO A6s 4G, A6t, A6t 4G, A6t Pro 4G, A7 Pro Max, Reno15; POCO X8 Pro; serta iPhone 16e dan 17e (Digimap) dan seluruh model Infinix. Jalankan tarik otomatis per merek untuk membuat penawarannya.

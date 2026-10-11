@@ -11,10 +11,13 @@ export function TemplateDownloadButton({
   content,
   filename,
   children,
+  variant = "outline",
 }: {
   content: string;
   filename: string;
   children: React.ReactNode;
+  /** "default" untuk templat utama, "link" untuk format lama. */
+  variant?: "default" | "outline" | "link";
 }) {
   const unduh = () => {
     // BOM supaya Excel membaca UTF-8 dengan benar; parser CSV kita mengabaikannya.
@@ -28,7 +31,7 @@ export function TemplateDownloadButton({
   };
 
   return (
-    <Button type="button" variant="outline" onClick={unduh}>
+    <Button type="button" variant={variant} onClick={unduh}>
       {children}
     </Button>
   );

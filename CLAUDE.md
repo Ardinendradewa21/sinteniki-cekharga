@@ -6,7 +6,7 @@ baca @docs/ads/ADS-CONTEXT.md dan ikuti seluruh aturan di dalamnya.
 
 ## Aturan System Design (wajib diikuti)
 
-Ditetapkan pemilik produk pada 9 Oktober 2026 dan berlaku selama masa pengembangan. Celah kode lama terhadap aturan ini dicatat di `docs/qa/BACKLOG.md` (PB-18 sampai PB-22).
+Ditetapkan pemilik produk pada 9 Oktober 2026 dan berlaku selama masa pengembangan. Celah kode lama terhadap aturan ini dicatat di `docs/qa/BACKLOG.md` (PB-18 sampai PB-22); semuanya selesai per 11 Oktober 2026. Pekerjaan baru wajib mengikuti aturan ini sejak awal.
 
 1. Rate limit & kuota: semua endpoint yang memanggil LLM wajib punya rate limit per IP/user dan kuota harian. Jangan buat endpoint AI tanpa pembatas.
 2. Caching: data spesifikasi pakai cache-aside dengan TTL panjang. Cache harga WAJIB di-invalidate setiap kali scraper menyimpan harga baru. Tampilkan timestamp "terakhir diperbarui" pada setiap harga.
