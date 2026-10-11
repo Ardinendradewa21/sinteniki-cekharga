@@ -364,6 +364,8 @@ export async function planOfferImport(
       status: LISTING_STATUS_LABEL[item.payload.listing_status] ?? item.payload.listing_status,
       url: item.url,
       photos: photos === 0 ? null : imageRights ? `${photos} foto` : `${photos} foto dilewati (hak pakai)`,
+      // Judul toko tanpa memori: varian dasar disimpulkan importer, jadi ditandai "Perlu tinjau".
+      inferredVariant: item.inferred ? true : null,
     };
     const label = product ? `${product.name} ${product.variant}` : item.label;
 
@@ -382,8 +384,11 @@ export async function planOfferImport(
       movedFrom = current ? String(current.url) : null;
     }
 
+    const inferredNote = item.inferred
+      ? "Judul listing tidak menyebut RAM/penyimpanan; varian dasar disimpulkan. Periksa listingnya sebelum menerapkan."
+      : null;
     if (!current) {
-      items.push({ entity: "offer", action: "create", label, reason: null, rowIndexes, view, changes: [] });
+      items.push({ entity: "offer", action: "create", label, reason: inferredNote, rowIndexes, view, changes: [] });
       continue;
     }
 
@@ -413,7 +418,16 @@ export async function planOfferImport(
     );
 
     const observed = latestObservation.get(String(current.id));
-    if (item.priceIdr !== null && item.observedAt) {
+    // Harga yang lebih tua dari harga terakhir hanya masuk riwayat: katalog
+    // selalu menampilkan pengamatan terbaru, jadi harga tampil tidak berubah.
+    const stale =
+      item.priceIdr !== null &&
+      item.observedAt !== null &&
+      observed !== undefined &&
+      new Date(item.observedAt).getTime() < new Date(observed.observedAt).getTime();
+    if (stale && item.priceIdr !== null && item.observedAt) {
+      changes.push({ field: "Riwayat harga", before: null, after: `${rupiah(item.priceIdr)} (${item.observedAt})` });
+    } else if (item.priceIdr !== null && item.observedAt) {
       if (!observed || observed.price !== item.priceIdr) {
         changes.push({ field: "Harga", before: rupiah(observed?.price ?? null), after: rupiah(item.priceIdr) });
       } else if (new Date(item.observedAt).getTime() > new Date(observed.observedAt).getTime()) {
@@ -426,9 +440,11 @@ export async function planOfferImport(
       entity: "offer",
       action: changes.length > 0 ? "update" : "unchanged",
       label,
-      reason: null,
+      reason: stale
+        ? `Harga ini lebih lama dari harga terakhir (${rupiah(observed!.price)}, ${observed!.observedAt}); disimpan sebagai riwayat dan tidak mengganti harga yang tampil.`
+        : inferredNote,
       rowIndexes,
-      view,
+      view: stale ? { ...view, priceStale: true } : view,
       changes,
     });
   }

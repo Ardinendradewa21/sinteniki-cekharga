@@ -83,7 +83,13 @@ Baris seperti itu dilewati dengan alasan. Bila dua baris memberi nilai berbeda u
 
 1. Unggah berkas, lalu klik **Buat pratinjau**. Halaman batch langsung terbuka dengan status **Sedang dianalisis**: baris dirapikan, dicocokkan dengan katalog, dan dibandingkan dengan data yang ada di latar belakang. Pratinjau muncul otomatis begitu selesai, biasanya dalam beberapa detik. Halaman boleh ditutup; analisis tetap berjalan.
 2. **Berkas berisi produk:** halaman pratinjau menampilkan produknya. Penawaran untuk produk itu belum bisa dicocokkan, karena produknya belum ada di katalog. Setelah produk diterapkan, sistem membuat **batch harga lanjutan** berstatus draft.
-3. Buka batch harga lanjutan dari halaman batch produk, tinjau pratinjaunya (Baru, Berubah, Sama, Dilewati), lalu terapkan.
+3. Buka batch harga lanjutan dari halaman batch produk, tinjau pratinjaunya, lalu terapkan.
+
+Di pratinjau batch produk yang membawa harga ada tiga pilihan:
+
+- **Spesifikasi + harga** (bawaan): produk diterapkan dulu, lalu batch harga lanjutan dibuat untuk ditinjau.
+- **Spesifikasi saja**: hanya produk yang diterapkan; harga di berkas diabaikan.
+- **Terapkan harga saja**: spesifikasi di berkas diabaikan, dan langsung dibuat batch penawaran untuk produk yang sudah ada di katalog. Penawaran untuk produk yang belum ada tidak ikut, dan jumlahnya disebutkan di batch baru.
 4. **Berkas hanya berisi harga untuk produk yang sudah ada:** langsung menjadi satu batch penawaran biasa.
 
 ## 3. Impor spesifikasi (produk baru)
@@ -146,8 +152,18 @@ Kolom cadangan yang tetap dibaca bila kolom utamanya kosong:
 1. Buka **Impor data → Unggah CSV → Spesifikasi produk**.
 2. Pilih berkas. Bila berkas membawa foto, pilih dasar hak pakai. Bila hak pakainya belum jelas, lewati.
 3. Klik **Buat pratinjau**. Sistem membuat batch draft lalu membuka halaman tinjau.
-4. Periksa kolom aksi tiap baris: **Baru**, **Berubah**, **Sama**, atau **Dilewati** beserta alasannya.
-5. Hapus centang baris yang ragu.
+4. Pratinjau dikelompokkan **per produk**: satu kartu berisi produk atau semua penawaran produk itu, dengan centang untuk seluruh kartu. Saring dengan tab status:
+
+   | Status | Arti | Dicentang otomatis |
+   | --- | --- | --- |
+   | **Baru** | belum ada di katalog | ya |
+   | **Perbarui** | ada nilai yang berubah; sebelum dan sesudah ditampilkan | ya |
+   | **Harga lama** | harga lebih tua dari harga terakhir; hanya masuk riwayat, harga yang tampil tidak berubah | ya |
+   | **Perlu tinjau** | varian disimpulkan dari judul listing, atau data terhapus akan dipulihkan | **tidak**, periksa dulu |
+   | **Sama** | tidak ada perubahan; centang bila ingin memajukan waktu pemeriksaan | tidak |
+   | **Dilewati** | tidak bisa dipakai; alasannya tertulis | tidak bisa dipilih |
+
+5. Hapus centang baris yang ragu, dan centang baris **Perlu tinjau** yang sudah diperiksa.
 6. Klik **Terapkan N baris**. Proses berjalan bertahap; bar progres boleh ditinggal, dan tab boleh di-refresh.
 7. Setelah selesai, baca kolom **Hasil**. Untuk baris gagal, perbaiki penyebabnya lalu klik **Coba ulang N baris yang gagal**.
 

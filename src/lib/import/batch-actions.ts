@@ -8,7 +8,10 @@ import { requireStaff } from "@/lib/auth/dal";
 import {
   stageUpload,
   discardBatch,
+  followUpRowsOf,
+  getBatch,
   getBatchSummary,
+  resolveRowsForExistingProducts,
   getFollowUpBatchId,
   queueBatch,
   retryFailedItems,
@@ -40,6 +43,46 @@ async function kick(batchId: string) {
  */
 
 export type PreviewState = { error: string | null };
+
+/**
+ * Mode "harga saja" untuk batch spesifikasi yang membawa penawaran: hanya
+ * penawaran milik produk yang sudah ada di katalog yang dijadikan batch
+ * penawaran baru (dianalisis di worker, lalu ditinjau seperti biasa).
+ * Spesifikasi di batch ini tidak diterapkan, jadi batch ini dibatalkan.
+ */
+export async function applyPricesOnlyAction(batchId: string): Promise<PreviewState> {
+  const admin = await requireStaff([]);
+  const batch = await getBatch(batchId);
+  if (!batch || batch.status !== "draft" || batch.kind !== "specs" || !batch.options.followUpOffers) {
+    return { error: "Batch ini tidak membawa penawaran yang bisa diterapkan terpisah." };
+  }
+  const { rows, dropped } = await resolveRowsForExistingProducts(await followUpRowsOf(batch.id, batch.options));
+  if (rows.length === 0) {
+    return { error: "Semua penawaran di berkas ini milik produk yang belum ada di katalog. Terapkan spesifikasinya dulu." };
+  }
+  const staged = await stageUpload({
+    kind: "offers",
+    origin: batch.origin,
+    sourceLabel: `${batch.sourceLabel} (harga saja)`,
+    role: "row",
+    rows,
+    malformedLines: [],
+    admin,
+    options: {
+      sourceFormat: batch.options.sourceFormat,
+      imageRights: null,
+      defaultObservedAt: batch.options.followUpOffers.defaultObservedAt,
+      parentBatchId: batch.id,
+      ...(dropped > 0 ? { droppedNewProductOffers: dropped } : {}),
+    },
+  });
+  if (!staged.ok) return { error: staged.error };
+  await discardBatch(batch.id, admin);
+
+  after(() => kick(staged.id));
+  revalidatePath("/admin/import");
+  redirect(`/admin/import/batch/${staged.id}`);
+}
 
 /**
  * Unggah berkas: request ini HANYA membaca dan menyimpan baris berkas, lalu
@@ -106,8 +149,10 @@ export async function applyBatchAction(
   const admin = await requireStaff([]);
   const itemIds = formData.getAll("item").map(String).filter(Boolean);
   if (itemIds.length === 0) return { error: "Pilih minimal satu baris untuk diterapkan." };
+  // Mode "spesifikasi saja": batch harga lanjutan tidak dibuat setelah produk diterapkan.
+  const skipFollowUp = formData.get("mode") === "specs-only";
 
-  const result = await queueBatch(batchId, itemIds, admin);
+  const result = await queueBatch(batchId, itemIds, admin, { skipFollowUp });
   revalidatePath("/admin/import");
   revalidatePath(`/admin/import/batch/${batchId}`);
   if (!result.ok) return { error: result.error };

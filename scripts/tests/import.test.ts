@@ -717,3 +717,33 @@ test("catatan koreksi: konflik dan baris dilewati tidak tenggelam oleh ribuan ko
   assert.equal(stored.length, 300);
   assert.deepEqual(stored.slice(0, 2).map((c) => c.level), ["error", "warning"]);
 });
+
+// Pratinjau per produk (langkah 5): status tinjauan, kelompok, pilihan bawaan.
+import { countByStatus, groupReviewItems, reviewStatus, selectedByDefault } from "@/lib/import/review-groups";
+
+const reviewItem = (id: string, entity: "product" | "offer", action: "create" | "update" | "unchanged" | "skip", view: Record<string, unknown> = {}, changes: { field: string; before: string | null; after: string | null }[] = []) =>
+  ({ id, entity, action, label: id, reason: null, view, changes });
+
+test("pratinjau per produk: status rinci dan 'Perlu tinjau' tidak dicentang otomatis", () => {
+  const stale = reviewItem("a", "offer", "update", { priceStale: true, product: "OPPO A6", variant: "8/256 GB" });
+  const inferred = reviewItem("b", "offer", "create", { inferredVariant: true, product: "OPPO A6", variant: "8/128 GB" });
+  const restored = reviewItem("c", "product", "update", { sourceKey: "k" }, [{ field: "Status data", before: "Terhapus", after: "Dipulihkan sebagai draft" }]);
+  const plain = reviewItem("d", "offer", "update", { product: "OPPO A6", variant: "12/256 GB" });
+  assert.equal(reviewStatus(stale), "stale");
+  assert.equal(reviewStatus(inferred), "review");
+  assert.equal(reviewStatus(restored), "review");
+  assert.equal(reviewStatus(plain), "update");
+  assert.equal(reviewStatus(reviewItem("e", "offer", "skip")), "skip");
+  assert.deepEqual([stale, inferred, restored, plain].map(selectedByDefault), [true, false, false, true]);
+  assert.equal(countByStatus([stale, inferred, restored, plain]).review, 2);
+});
+
+test("pratinjau per produk: penawaran dikelompokkan per produk dan diurutkan per varian", () => {
+  const groups = groupReviewItems([
+    reviewItem("1", "offer", "update", { product: "OPPO A6", variant: "8/256 GB" }),
+    reviewItem("2", "offer", "create", { product: "vivo Y29", variant: "8/128 GB" }),
+    reviewItem("3", "offer", "create", { product: "OPPO A6", variant: "8/128 GB" }),
+  ]);
+  assert.deepEqual(groups.map((g) => g.title), ["OPPO A6", "vivo Y29"]);
+  assert.deepEqual(groups[0]!.items.map((i) => i.id), ["3", "1"]);
+});

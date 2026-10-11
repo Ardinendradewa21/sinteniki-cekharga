@@ -11,7 +11,13 @@ import { BatchProgress } from "@/components/admin/batch-progress";
 import { CorrectionsPanel } from "@/components/admin/corrections-panel";
 import { RetryFailedButton } from "@/components/admin/retry-failed-button";
 import { UndoBatchPanel, type UndoSummary } from "@/components/admin/undo-batch-panel";
-import { applyBatchAction, discardBatchAction, retryFailedAction, undoBatchAction } from "@/lib/import/batch-actions";
+import {
+  applyBatchAction,
+  applyPricesOnlyAction,
+  discardBatchAction,
+  retryFailedAction,
+  undoBatchAction,
+} from "@/lib/import/batch-actions";
 import { planUndo, type UndoPlan } from "@/lib/import/undo";
 import {
   batchStatusView,
@@ -181,6 +187,13 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
         </p>
       ) : null}
 
+      {batch.options.droppedNewProductOffers ? (
+        <p role="status" className="mt-4 rounded-xl border border-border bg-muted p-4 text-sm text-foreground">
+          {batch.options.droppedNewProductOffers} penawaran dari berkas asal tidak ikut, karena produknya belum ada di
+          katalog. Terapkan spesifikasi produk itu dulu, lalu unggah ulang harganya.
+        </p>
+      ) : null}
+
       {batch.options.corrections ? (
         <CorrectionsPanel items={batch.options.corrections.items} summary={batch.options.corrections.summary} />
       ) : null}
@@ -225,6 +238,8 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
           priceNotes={priceNotes}
           editable={editable}
           applyAction={applyBatchAction.bind(null, batch.id)}
+          followUpCount={batch.status === "draft" ? pendingOffers : 0}
+          pricesOnlyAction={batch.kind === "specs" && pendingOffers > 0 ? applyPricesOnlyAction.bind(null, batch.id) : undefined}
         />
       </section>
 

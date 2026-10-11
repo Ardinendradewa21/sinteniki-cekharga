@@ -80,6 +80,10 @@ export type BatchOptions = {
   sourceFormat?: string;
   /** Formulir yang dipakai admin, bila berbeda dari jenis berkas yang dikenali. */
   submittedAs?: BatchKind;
+  /** "Spesifikasi saja": batch harga lanjutan tidak dibuat saat batch ini selesai. */
+  skipFollowUp?: boolean;
+  /** Penawaran yang tidak ikut batch "harga saja" karena produknya belum ada di katalog. */
+  droppedNewProductOffers?: number;
   /** Catatan koreksi otomatis templat terpadu (dipotong; ringkasannya lengkap). */
   corrections?: { items: Correction[]; summary: CorrectionSummary };
 };
@@ -549,7 +553,8 @@ async function updateItems(ids: readonly string[], values: Record<string, unknow
 export async function queueBatch(
   id: string,
   selectedItemIds: readonly string[],
-  admin: AdminSession
+  admin: AdminSession,
+  { skipFollowUp = false }: { skipFollowUp?: boolean } = {}
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const db = getInsforgeAdminClient().database;
   const { data, error } = await db.from("import_batches").select("id, status, options, created_at").eq("id", id).limit(1);
@@ -584,7 +589,7 @@ export async function queueBatch(
     .update({
       status: "queued",
       progress: emptyProgress(chosen.length),
-      options: { ...batch.options, appliedBy: { userId: admin.userId, email: admin.email } },
+      options: { ...batch.options, appliedBy: { userId: admin.userId, email: admin.email }, skipFollowUp },
       report: null,
       started_at: null,
       applied_at: null,
@@ -708,6 +713,31 @@ export async function resolveFollowUpSlugs(
     delete rest.source_key;
     return [rest];
   });
+}
+
+/**
+ * Mode "harga saja": penawaran lanjutan dipasangkan ke produk yang SUDAH ADA di
+ * katalog (lewat kunci sumber atau slug). Penawaran untuk produk yang baru ada
+ * di berkas tidak bisa disimpan tanpa produknya, jadi dihitung sebagai
+ * `dropped` dan disebutkan ke admin, bukan dibuang diam-diam.
+ */
+export async function resolveRowsForExistingProducts(rows: readonly CsvRow[]): Promise<{ rows: CsvRow[]; dropped: number }> {
+  const keys = [...new Set(rows.map((row) => row.source_key ?? "").filter(Boolean))];
+  const products = await selectWhereIn("products", "slug, source_key", "source_key", keys);
+  const slugByKey = new Map(products.map((row) => [String(row.source_key), String(row.slug)]));
+  let dropped = 0;
+  const resolved = rows.flatMap((row) => {
+    if (!row.source_key) return row.slug ? [row] : [];
+    const slug = slugByKey.get(row.source_key);
+    if (!slug) {
+      dropped += 1;
+      return [];
+    }
+    const rest: CsvRow = { ...row, slug };
+    delete rest.source_key;
+    return [rest];
+  });
+  return { rows: resolved, dropped };
 }
 
 /**

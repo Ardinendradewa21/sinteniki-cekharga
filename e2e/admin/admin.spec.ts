@@ -99,6 +99,10 @@ test.describe("Pusat Impor", () => {
     await panel.getByText("Lihat rincian").click();
     await expect(panel).toContainText("4999000");
     await expect(page.locator("main")).toContainText("batch harga lanjutan");
+    // Pratinjau per produk (langkah 5): kartu produk, pilihan mode, dan harga saja.
+    await expect(page.getByRole("heading", { name: /OPPO Reno16c/ })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Spesifikasi saja" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Terapkan harga saja" })).toBeVisible();
     await page.getByRole("button", { name: "Batalkan batch ini" }).click();
     await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
   });

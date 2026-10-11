@@ -232,7 +232,8 @@ async function finalize(batch: LoadedBatch, progress: Progress, summary: ImportR
 
   let followUpBatchId: string | null = null;
   const followUp = batch.options.followUpOffers;
-  if (batch.kind === "specs" && followUp && done.length > 0) {
+  // "Spesifikasi saja": admin memilih tidak menerapkan harga dari batch ini.
+  if (batch.kind === "specs" && followUp && done.length > 0 && !batch.options.skipFollowUp) {
     const productIds = new Set(done.map((item) => String(item.entity_id ?? "")).filter(Boolean));
     const offerRows = await resolveFollowUpSlugs(await followUpRowsOf(batch.id, batch.options), productIds);
     if (offerRows.length > 0) {

@@ -420,3 +420,54 @@ test("INT-08 tarik otomatis sebagai job: klaim satu per jenis, antre ulang idemp
     await db.from("scrape_jobs").delete().eq("created_by_email", actor.email);
   }
 });
+
+test("INT-09 pratinjau langkah 5: harga lama ditandai, spesifikasi saja, harga saja untuk produk yang ada", async () => {
+  const { resolveRowsForExistingProducts } = await import("@/lib/import/batches");
+  // Produk QAUji yang sudah ada + satu harga terkini.
+  const base = await createBatch({ kind: "specs", origin: "csv", sourceLabel: "QA-UJI langkah5 produk", options: {}, rows: [spec("Langkah", 1)], malformedLines: [], admin: actor });
+  assert.ok(base.ok);
+  batches.push(base.id);
+  await applyAll(base.id);
+  const offer = (price: string, observedAt: string) => ({
+    slug: "qauji-langkah-1", ram_gb: "8", storage_gb: "128", marketplace: "Blibli", seller_name: "Toko QA",
+    url: "https://www.blibli.com/p/qauji-langkah-1", warranty: "", listing_status: "", seller_verified: "", price_idr: price, observed_at: observedAt,
+  });
+  const now = await createBatch({ kind: "offers", origin: "csv", sourceLabel: "QA-UJI langkah5 harga kini", options: {}, rows: [offer("3000000", new Date(Date.now() - 3_600_000).toISOString())], malformedLines: [], admin: actor });
+  assert.ok(now.ok);
+  batches.push(now.id);
+  await applyAll(now.id);
+
+  // Harga yang lebih tua dari harga terakhir: masuk riwayat, ditandai.
+  const old = await createBatch({ kind: "offers", origin: "csv", sourceLabel: "QA-UJI langkah5 harga lama", options: {}, rows: [offer("2500000", new Date(Date.now() - 5 * 86_400_000).toISOString())], malformedLines: [], admin: actor });
+  assert.ok(old.ok);
+  batches.push(old.id);
+  const oldItem = (await getBatch(old.id))!.items[0]!;
+  assert.equal(oldItem.view.priceStale, true);
+  assert.match(oldItem.reason ?? "", /lebih lama dari harga terakhir/);
+  assert.deepEqual(oldItem.changes.map((c) => c.field), ["Riwayat harga"]);
+
+  // Spesifikasi saja: batch harga lanjutan tidak dibuat.
+  const withPrices = await createBatch({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI langkah5 spesifikasi saja", rows: [spec("Langkah", 2)], malformedLines: [], admin: actor,
+    options: { followUpOffers: { sourceLabel: "QA-UJI langkah5 (harga)", defaultObservedAt: new Date().toISOString(),
+      rows: [{ ...offer("4000000", new Date().toISOString()), slug: "", source_key: "gsmarena:qauji_langkah_2-92" }] } },
+  });
+  assert.ok(withPrices.ok);
+  batches.push(withPrices.id);
+  const detail = (await getBatch(withPrices.id))!;
+  const queued = await queueBatch(withPrices.id, detail.items.map((i) => i.id), actor, { skipFollowUp: true });
+  assert.ok(queued.ok);
+  let step = await processBatchStep(withPrices.id);
+  while (step.claimed && step.status === "applying") step = await processBatchStep(withPrices.id);
+  assert.equal(await getFollowUpBatchId(withPrices.id), null, "spesifikasi saja: tidak ada batch harga");
+
+  // Harga saja: hanya penawaran produk yang sudah ada; produk baru dihitung, tidak dibuang diam-diam.
+  const resolved = await resolveRowsForExistingProducts([
+    { ...offer("1", ""), slug: "", source_key: "gsmarena:qauji_langkah_1-91" },
+    { ...offer("1", ""), slug: "", source_key: "gsmarena:qauji_belum_ada-99" },
+    offer("1", ""),
+  ]);
+  assert.equal(resolved.rows.length, 2);
+  assert.equal(resolved.dropped, 1);
+  assert.ok(resolved.rows.every((row) => row.slug === "qauji-langkah-1" && !row.source_key));
+});
