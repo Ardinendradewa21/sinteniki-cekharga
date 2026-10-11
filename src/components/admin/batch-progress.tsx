@@ -100,13 +100,20 @@ export function BatchProgress({
   }, [batchId, active, router]);
 
   const photoTotal = photos ? photos.pending + photos.running + photos.done + photos.failed + photos.skipped : 0;
-  if (!progress && photoTotal === 0 && !followUp) return null;
+  if (!progress && photoTotal === 0 && !followUp && status !== "analyzing") return null;
   const finished = progress ? progress.done + progress.failed + progress.skipped : 0;
   const percent = progress && progress.total > 0 ? Math.round((finished / progress.total) * 100) : 0;
   const photoFinished = photos ? photos.done + photos.failed + photos.skipped : 0;
 
   return (
     <div className="mt-6 max-w-xl space-y-3 rounded-xl border border-border bg-card p-4" aria-live="polite">
+      {status === "analyzing" ? (
+        <p className="text-sm font-semibold text-foreground">
+          {BATCH_STATUS_LABEL.analyzing}: baris berkas dirapikan, dicocokkan dengan katalog, dan dibandingkan dengan
+          data yang ada. Pratinjau muncul otomatis begitu selesai.
+        </p>
+      ) : null}
+
       {progress ? (
         <div className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
@@ -137,7 +144,7 @@ export function BatchProgress({
       {followUp ? (
         <div className="space-y-1 border-t border-border pt-3 text-xs" data-testid="price-progress">
           <p className="text-sm font-semibold text-foreground">
-            Harga resmi: {BATCH_STATUS_LABEL[followUp.status]}
+            Batch harga lanjutan: {BATCH_STATUS_LABEL[followUp.status]}
             {followUp.progress
               ? ` · ${followUp.progress.done + followUp.progress.failed + followUp.progress.skipped} dari ${followUp.progress.total}`
               : ""}

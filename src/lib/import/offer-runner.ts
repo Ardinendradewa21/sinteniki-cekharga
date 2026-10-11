@@ -392,27 +392,38 @@ export async function runOfferImport({
       (key) => (row[key] ?? null) === payload[key]
     );
 
-  // Pembaruan hanya dikirim bila isinya memang berubah.
-  await mapWithConcurrency(
-    [...latestItemByOffer.values()].filter((item) => existingByKey.has(item.offerKey)),
-    UPDATE_CONCURRENCY,
-    async (item) => {
-      const row = existingByKey.get(item.offerKey)!;
-      const offerId = String(row.id);
-      const payload = applyKeepExisting(item.payload, row, item.keepExisting);
-      if (!samePayload(row, payload) || row.deleted_at) {
-        const { error } = await db
-          .from("offers")
-          .update({ ...payload, ...lineage, deleted_at: null })
-          .eq("id", offerId);
-        if (error) {
-          offerFailure.set(item.offerKey, "Gagal memperbarui penawaran.");
-          return;
-        }
-      }
-      offerIdByKey.set(item.offerKey, offerId);
+  // Pembaruan hanya dikirim bila isinya memang berubah, dan dikirim massal
+  // lewat RPC `import_update_offers` (dulu satu update per penawaran, N+1).
+  const offerUpdates: { item: PreparedItem; offerId: string; payload: OfferPayload }[] = [];
+  for (const item of latestItemByOffer.values()) {
+    const row = existingByKey.get(item.offerKey);
+    if (!row) continue;
+    const offerId = String(row.id);
+    const payload = applyKeepExisting(item.payload, row, item.keepExisting);
+    if (!samePayload(row, payload) || row.deleted_at) offerUpdates.push({ item, offerId, payload });
+    else offerIdByKey.set(item.offerKey, offerId);
+  }
+  for (const group of chunk(offerUpdates, INSERT_CHUNK)) {
+    const { data, error } = await db.rpc("import_update_offers", {
+      p_rows: group.map(({ offerId, payload }) => ({
+        id: offerId,
+        marketplace: payload.marketplace,
+        seller_name: payload.seller_name,
+        warranty: payload.warranty,
+        listing_status: payload.listing_status,
+        seller_verified: payload.seller_verified,
+        store_id: payload.store_id,
+        url: payload.url ?? null,
+        ...lineage,
+      })),
+    });
+    const updated = new Set(((data ?? []) as { id: string }[]).map((row) => row.id));
+    for (const { item, offerId } of group) {
+      if (!error && updated.has(offerId)) offerIdByKey.set(item.offerKey, offerId);
+      else offerFailure.set(item.offerKey, "Gagal memperbarui penawaran.");
     }
-  );
+    if (error) console.error("[impor-harga] pembaruan penawaran gagal:", error);
+  }
 
   const newOfferRow = (item: PreparedItem) => ({
     ...item.payload,
@@ -546,15 +557,17 @@ export async function runOfferImport({
         else observationsToUpdate.push([key, item, String(existing.id)]);
       }
 
-      await mapWithConcurrency(observationsToUpdate, UPDATE_CONCURRENCY, async ([key, item, id]) => {
-        const { error } = await db
-          .from("price_observations")
-          .update({ price_idr: item.priceIdr, origin: item.origin, batch_id: batchId, voided_at: null })
-          .eq("id", id);
-        if (error) {
-          observationFailure.set(key, "Penawaran tersimpan tetapi harganya gagal dicatat.");
+      // Koreksi harga pada waktu pengamatan yang sama, massal lewat RPC.
+      for (const group of chunk(observationsToUpdate, INSERT_CHUNK)) {
+        const { data, error } = await db.rpc("import_update_observations", {
+          p_rows: group.map(([, item, id]) => ({ id, price_idr: item.priceIdr, origin: item.origin, batch_id: batchId })),
+        });
+        const updated = new Set(((data ?? []) as { id: string }[]).map((row) => row.id));
+        for (const [key, , id] of group) {
+          if (error || !updated.has(id)) observationFailure.set(key, "Penawaran tersimpan tetapi harganya gagal dicatat.");
         }
-      });
+        if (error) console.error("[impor-harga] koreksi harga gagal:", error);
+      }
 
       for (const group of chunk(observationsToInsert, INSERT_CHUNK)) {
         const { error } = await db

@@ -307,3 +307,66 @@ test("INT-06 templat terpadu: produk baru + harga dalam satu berkas, harga lanju
   assert.equal(Number(prices[0]!.price_idr), 3499000);
   assert.equal(new Date(prices[0]!.observed_at).toISOString(), "2026-10-10T02:00:00.000Z", "09.00 WIB");
 });
+
+test("INT-07 unggahan dianalisis di worker: baris di raw_listings, status analyzing -> draft", async () => {
+  const { stageUpload } = await import("@/lib/import/batches");
+  const { listWorkableBatches } = await import("@/lib/import/jobs");
+  const rowsOf = async (batchId: string, role: string) =>
+    ((await db.from("raw_listings").select("position").eq("batch_id", batchId).eq("role", role)).data ?? []).length;
+
+  // Format spesifikasi lama: disimpan sebagai baris kerja, belum ada item.
+  const legacy = await stageUpload({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI analisis lama", role: "row",
+    rows: [spec("Analisis", 1), spec("Analisis", 2)], malformedLines: [], admin: actor, options: { sourceFormat: "gsmarena-spec", imageRights: null },
+  });
+  assert.ok(legacy.ok);
+  batches.push(legacy.id);
+  assert.equal((await getBatch(legacy.id))!.status, "analyzing");
+  assert.equal((await getBatch(legacy.id))!.items.length, 0, "unggah tidak menghitung pratinjau");
+  assert.ok((await listWorkableBatches(50)).includes(legacy.id), "worker terjadwal ikut mengambil batch yang menunggu analisis");
+  const step = await processBatchStep(legacy.id);
+  assert.equal(step.status, "draft");
+  const analysed = (await getBatch(legacy.id))!;
+  assert.equal(analysed.status, "draft");
+  assert.deepEqual(analysed.items.map((i) => i.action), ["create", "create"]);
+  assert.equal((await processBatchStep(legacy.id)).claimed, false, "draft tidak dianalisis ulang");
+
+  // Templat terpadu: baris unggahan dikoreksi di worker, penawaran jadi lanjutan.
+  const unified = await stageUpload({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI analisis terpadu", role: "upload", malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: null, defaultObservedAt: new Date().toISOString() },
+    rows: [
+      { merek: "QAUji", model: "Analisis 3", ram: "8", storage: "128", chipset: "Chip QA", link: "https://www.blibli.com/p/qa-a3", harga: "Rp 2.000.000" },
+      { merek: "QAUji", model: "Analisis 3", ram: "8", storage: "256", link: "https://www.blibli.com/p/qa-a3", harga: "2,5 jt" },
+    ],
+  });
+  assert.ok(unified.ok);
+  batches.push(unified.id);
+  await processBatchStep(unified.id);
+  const detail = (await getBatch(unified.id))!;
+  assert.equal(detail.status, "draft");
+  assert.equal(detail.kind, "specs");
+  assert.equal(detail.options.followUpOffers?.staged, true);
+  assert.equal(detail.options.followUpOffers?.count, 2);
+  assert.ok((detail.options.corrections?.summary.info ?? 0) >= 2, "koreksi harga tercatat");
+  assert.equal(await rowsOf(unified.id, "upload"), 2);
+  assert.equal(await rowsOf(unified.id, "row"), 1, "dua baris jadi satu produk");
+  assert.equal(await rowsOf(unified.id, "follow_up"), 2);
+
+  // Berkas tanpa baris yang bisa dipakai: gagal dengan alasan, tidak menggantung.
+  const empty = await stageUpload({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI analisis kosong", role: "upload", malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: null }, rows: [{ merek: "", model: "", ram: "8" }],
+  });
+  assert.ok(empty.ok);
+  batches.push(empty.id);
+  await processBatchStep(empty.id);
+  const failed = (await getBatch(empty.id))!;
+  assert.equal(failed.status, "failed");
+  assert.match(String((failed.report as { error?: string } | null)?.error ?? ""), /Tidak ada baris/);
+
+  // Retensi 30 hari tidak menyentuh batch yang baru dibuat.
+  const purged = await db.rpc("import_purge_raw_listings", { p_keep_days: 30 });
+  assert.ok(!purged.error);
+  assert.equal(await rowsOf(unified.id, "upload"), 2);
+});

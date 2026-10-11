@@ -3,6 +3,7 @@ import { bearerMatches } from "@/lib/backend/bearer";
 import { expireStaleDrafts, purgeScheduledBatches } from "@/lib/import/batches";
 import { listWorkableBatches, processBatchStep } from "@/lib/import/jobs";
 import { processPhotoStep, purgePhotoJobs } from "@/lib/import/photo-jobs";
+import { purgeRawListings } from "@/lib/import/raw-rows";
 import { runPriceRefresh } from "@/lib/import/price-refresh";
 import { purgeOldSessions } from "@/lib/scrape/sessions";
 
@@ -49,6 +50,8 @@ export async function GET(request: Request) {
     purgedPhotoJobs: await task(() => purgePhotoJobs()),
     purgedScheduledBatches: await task(() => purgeScheduledBatches()),
     purgedAiUsage: await task(() => purgeAiUsage()),
+    // Aturan system design 8: baris mentah impor dihapus permanen setelah 30 hari.
+    purgedRawListings: await task(() => purgeRawListings()),
     priceRefresh: await task(() => runPriceRefresh()),
   };
 

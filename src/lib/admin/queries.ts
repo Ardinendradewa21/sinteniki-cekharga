@@ -3,7 +3,6 @@ import "server-only";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectWhereIn } from "@/lib/backend/paged-read";
 import { requireStaff } from "@/lib/auth/dal";
-import { mapWithConcurrency } from "@/lib/import/batch";
 import { isFresh } from "@/lib/catalog/pricing";
 
 /**
@@ -579,41 +578,29 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
   // memotong dengan `.limit()` tanpa urutan bisa kehilangan baris TERBARU.
   // Yang ditampilkan hanya harga terakhir dan 5 pemeriksaan terakhir, jadi
   // itulah yang diminta per penawaran, terurut dari database.
-  const perOffer = await mapWithConcurrency(offerRows, 6, async (offer) => {
-    const offerId = String(offer.id);
-    const [latestObservation, recentChecks] = await Promise.all([
-      db
-        .from("price_observations")
-        .select("price_idr, observed_at")
-        .eq("offer_id", offerId)
-        .is("voided_at", null)
-        .order("observed_at", { ascending: false })
-        .limit(1),
-      db
-        .from("price_checks")
-        .select("outcome, attempted_at, error_summary")
-        .eq("offer_id", offerId)
-        .is("voided_at", null)
-        .order("attempted_at", { ascending: false })
-        .limit(5),
-    ]);
-    if (latestObservation.error || recentChecks.error) {
-      throw new Error("Gagal membaca riwayat harga produk admin.");
-    }
-    return {
-      offerId,
-      latest: (latestObservation.data ?? [])[0] as
-        | { price_idr: number | string; observed_at: string }
-        | undefined,
-      checks: ((recentChecks.data ?? []) as Record<string, unknown>[]).map((row) => ({
-        outcome: String(row.outcome),
-        attemptedAt: String(row.attempted_at),
-        errorSummary: (row.error_summary as string | null) ?? null,
-      })),
-    };
-  });
-
-  const checksByOffer = new Map(perOffer.map((entry) => [entry.offerId, entry.checks]));
+  // Dua query untuk SEMUA penawaran (aturan system design 4), bukan dua query
+  // per penawaran: harga terakhir dari view offer_latest_price dan lima
+  // pemeriksaan terakhir dari view offer_recent_checks (keduanya mengabaikan
+  // baris yang dibatalkan undo).
+  const offerIds = offerRows.map((offer) => String(offer.id));
+  const [latestRows, checkRows] = await Promise.all([
+    selectWhereIn("offer_latest_price", "offer_id, price_idr, observed_at", "offer_id", offerIds, {
+      uniqueKey: ["offer_id"],
+    }),
+    selectWhereIn("offer_recent_checks", "offer_id, outcome, attempted_at, error_summary, id", "offer_id", offerIds, {
+      order: [{ column: "attempted_at", ascending: false }],
+    }),
+  ]);
+  const checksByOffer = new Map<string, { outcome: string; attemptedAt: string; errorSummary: string | null }[]>();
+  for (const row of checkRows) {
+    const list = checksByOffer.get(String(row.offer_id)) ?? [];
+    list.push({
+      outcome: String(row.outcome),
+      attemptedAt: String(row.attempted_at),
+      errorSummary: (row.error_summary as string | null) ?? null,
+    });
+    checksByOffer.set(String(row.offer_id), list);
+  }
 
   const variantLabelById = new Map(
     variantRows.map((v) => [String(v.id), `${v.ram_gb}/${v.storage_gb} GB`])
@@ -636,15 +623,9 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
     }))
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
-  const latestByOffer = new Map<string, { price: number; at: string }>();
-  for (const entry of perOffer) {
-    if (entry.latest) {
-      latestByOffer.set(entry.offerId, {
-        price: Number(entry.latest.price_idr),
-        at: String(entry.latest.observed_at),
-      });
-    }
-  }
+  const latestByOffer = new Map<string, { price: number; at: string }>(
+    latestRows.map((row) => [String(row.offer_id), { price: Number(row.price_idr), at: String(row.observed_at) }])
+  );
 
   return {
     id: String(product.id),

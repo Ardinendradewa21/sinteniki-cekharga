@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AdminSession } from "@/lib/auth/dal";
+import { loadRawRowList, stageRawRows } from "@/lib/import/raw-rows";
 import type { CorrectionSummary } from "@/lib/import/corrections";
 import type { Correction } from "@/lib/import/normalize";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
@@ -51,8 +52,15 @@ export type { BatchStatus };
 type FollowUpOffers = {
   sourceLabel: string;
   defaultObservedAt: string;
-  /** Baris templat penawaran; `source_key` diubah jadi slug saat batch harga dibuat. */
+  /**
+   * Baris templat penawaran; `source_key` diubah jadi slug saat batch harga
+   * dibuat. Untuk batch baru barisnya disimpan di raw_listings (`staged`) dan
+   * larik ini kosong; batch lama masih menyimpannya di sini.
+   */
   rows: CsvRow[];
+  staged?: boolean;
+  /** Jumlah baris penawaran lanjutan (untuk tampilan tanpa membaca barisnya). */
+  count?: number;
 };
 
 export type BatchOptions = {
@@ -150,6 +158,113 @@ export function readRights(value: unknown): ImageRights | null {
   return isImageUsageBasis(basis) && typeof text === "string" && text ? { basis, text } : null;
 }
 
+type PlanOptions = Pick<BatchOptions, "imageRights" | "defaultObservedAt" | "defaultSellerName">;
+
+/** Rencana pratinjau dari baris kerja batch (tanpa menulis apa pun). */
+export async function planBatchRows(kind: BatchKind, rows: readonly CsvRow[], options: PlanOptions): Promise<ImportPlan> {
+  return kind === "specs"
+    ? planSpecImport(rows, options.imageRights ?? null)
+    : planOfferImport(rows, {
+        defaultObservedAt: options.defaultObservedAt ?? new Date().toISOString(),
+        defaultSellerName: options.defaultSellerName ?? "",
+        imageRights: options.imageRights ?? null,
+      });
+}
+
+/**
+ * Penawaran lanjutan disimpan per baris di `raw_listings` (role follow_up);
+ * opsi batch hanya menyimpan ringkasannya, supaya worker tidak membaca ulang
+ * ratusan baris penawaran di setiap langkah.
+ */
+function stripFollowUpRows(options: BatchOptions): { options: BatchOptions; followUpRows: CsvRow[] } {
+  const followUp = options.followUpOffers;
+  if (!followUp || followUp.staged) return { options, followUpRows: [] };
+  return {
+    options: { ...options, followUpOffers: { ...followUp, rows: [], staged: true, count: followUp.rows.length } },
+    followUpRows: followUp.rows,
+  };
+}
+
+async function insertBatchShell({
+  kind,
+  origin,
+  sourceLabel,
+  options,
+  status,
+  counts,
+  malformedLines,
+  admin,
+}: {
+  kind: BatchKind;
+  origin: BatchOrigin;
+  sourceLabel: string;
+  options: BatchOptions;
+  status: "analyzing" | "draft";
+  counts: ImportPlan["counts"];
+  malformedLines: number[];
+  admin: AdminSession;
+}): Promise<string | null> {
+  const inserted = await getInsforgeAdminClient()
+    .database.from("import_batches")
+    .insert([
+      {
+        kind,
+        origin,
+        status,
+        source_label: sourceLabel.slice(0, 200),
+        options,
+        // Baris kini di raw_listings; kolom lama dibiarkan kosong untuk batch baru.
+        rows: [],
+        malformed_lines: malformedLines,
+        counts,
+        // Pekerjaan terjadwal tidak punya akun pelaku; kolomnya dibiarkan kosong.
+        created_by: admin.userId || null,
+        created_by_email: admin.email,
+      },
+    ])
+    .select("id");
+  const batchId = ((inserted.data ?? [])[0] as { id: string } | undefined)?.id;
+  if (inserted.error || !batchId) {
+    console.error("[pratinjau] batch gagal disimpan:", inserted.error);
+    return null;
+  }
+  return batchId;
+}
+
+/** Item rencana untuk satu batch. Item lama dihapus dulu, jadi aman diulang. */
+export async function writePlanItems(batchId: string, plan: ImportPlan): Promise<boolean> {
+  const db = getInsforgeAdminClient().database;
+  const cleared = await db.from("import_items").delete().eq("batch_id", batchId);
+  if (cleared.error) return false;
+  const itemRows = plan.items.map((item, position) => ({
+    batch_id: batchId,
+    position,
+    entity: item.entity,
+    action: item.action,
+    label: item.label.slice(0, 300),
+    reason: item.reason,
+    row_indexes: item.rowIndexes,
+    view: item.view,
+    changes: item.changes,
+  }));
+  for (const group of chunk(itemRows, INSERT_CHUNK)) {
+    const { error } = await db.from("import_items").insert(group);
+    if (error) {
+      console.error("[pratinjau] baris batch gagal disimpan:", error);
+      return false;
+    }
+  }
+  return true;
+}
+
+const EMPTY_COUNTS: ImportPlan["counts"] = { create: 0, update: 0, unchanged: 0, skip: 0 };
+
+/**
+ * Batch dengan rencana yang langsung dihitung. Dipakai pekerjaan yang sudah
+ * berjalan di latar (pemeriksaan harga harian, batch harga lanjutan di
+ * worker) dan tarik otomatis. Unggahan CSV memakai `stageUpload` +
+ * `analyzeBatch` supaya analisis tidak berjalan di request unggah.
+ */
 export async function createBatch({
   kind,
   origin,
@@ -169,61 +284,32 @@ export async function createBatch({
 }): Promise<{ ok: true; id: string; plan: ImportPlan } | { ok: false; error: string }> {
   let plan: ImportPlan;
   try {
-    plan =
-      kind === "specs"
-        ? await planSpecImport(rows, options.imageRights ?? null)
-        : await planOfferImport(rows, {
-            defaultObservedAt: options.defaultObservedAt ?? new Date().toISOString(),
-            defaultSellerName: options.defaultSellerName ?? "",
-            imageRights: options.imageRights ?? null,
-          });
+    plan = await planBatchRows(kind, rows, options);
   } catch (error) {
     console.error("[pratinjau] gagal membuat rencana impor:", error);
     return { ok: false, error: "Data katalog yang ada gagal dibaca, jadi pratinjau belum bisa dibuat." };
   }
 
-  const db = getInsforgeAdminClient().database;
-  const inserted = await db
-    .from("import_batches")
-    .insert([
-      {
-        kind,
-        origin,
-        source_label: sourceLabel.slice(0, 200),
-        options,
-        rows,
-        malformed_lines: malformedLines,
-        counts: plan.counts,
-        // Pekerjaan terjadwal tidak punya akun pelaku; kolomnya dibiarkan kosong.
-        created_by: admin.userId || null,
-        created_by_email: admin.email,
-      },
-    ])
-    .select("id");
-  const batchId = ((inserted.data ?? [])[0] as { id: string } | undefined)?.id;
-  if (inserted.error || !batchId) {
-    console.error("[pratinjau] batch gagal disimpan:", inserted.error);
-    return { ok: false, error: "Pratinjau gagal disimpan." };
-  }
+  const stripped = stripFollowUpRows(options);
+  const batchId = await insertBatchShell({
+    kind,
+    origin,
+    sourceLabel,
+    options: stripped.options,
+    status: "draft",
+    counts: plan.counts,
+    malformedLines,
+    admin,
+  });
+  if (!batchId) return { ok: false, error: "Pratinjau gagal disimpan." };
 
-  const itemRows = plan.items.map((item, position) => ({
-    batch_id: batchId,
-    position,
-    entity: item.entity,
-    action: item.action,
-    label: item.label.slice(0, 300),
-    reason: item.reason,
-    row_indexes: item.rowIndexes,
-    view: item.view,
-    changes: item.changes,
-  }));
-  for (const group of chunk(itemRows, INSERT_CHUNK)) {
-    const { error } = await db.from("import_items").insert(group);
-    if (error) {
-      console.error("[pratinjau] baris batch gagal disimpan:", error);
-      await db.from("import_batches").delete().eq("id", batchId);
-      return { ok: false, error: "Pratinjau gagal disimpan." };
-    }
+  try {
+    await stageRawRows(batchId, "row", rows);
+    await stageRawRows(batchId, "follow_up", stripped.followUpRows);
+    if (!(await writePlanItems(batchId, plan))) throw new Error("item");
+  } catch {
+    await getInsforgeAdminClient().database.from("import_batches").delete().eq("id", batchId);
+    return { ok: false, error: "Pratinjau gagal disimpan." };
   }
 
   await recordAudit(admin, "impor.pratinjau", "import_batch", batchId, {
@@ -233,6 +319,58 @@ export async function createBatch({
     ...plan.counts,
   });
   return { ok: true, id: batchId, plan };
+}
+
+/**
+ * Unggahan CSV: hanya menyimpan baris berkas (role `upload` untuk templat
+ * terpadu, `row` untuk format lain) dengan status `analyzing`. Koreksi,
+ * pencocokan, dan diff dikerjakan worker (`analyzeBatch` di jobs.ts), sesuai
+ * aturan system design 3: normalisasi tidak berjalan di request pengguna.
+ */
+export async function stageUpload({
+  kind,
+  origin,
+  sourceLabel,
+  options,
+  rows,
+  role,
+  malformedLines,
+  admin,
+}: {
+  kind: BatchKind;
+  origin: BatchOrigin;
+  sourceLabel: string;
+  options: BatchOptions;
+  rows: readonly CsvRow[];
+  role: "upload" | "row";
+  malformedLines: number[];
+  admin: AdminSession;
+}): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const batchId = await insertBatchShell({
+    kind,
+    origin,
+    sourceLabel,
+    options,
+    status: "analyzing",
+    counts: EMPTY_COUNTS,
+    malformedLines,
+    admin,
+  });
+  if (!batchId) return { ok: false, error: "Berkas gagal disimpan." };
+  try {
+    await stageRawRows(batchId, role, rows);
+  } catch {
+    await getInsforgeAdminClient().database.from("import_batches").delete().eq("id", batchId);
+    return { ok: false, error: "Baris berkas gagal disimpan. Coba unggah ulang." };
+  }
+  return { ok: true, id: batchId };
+}
+
+/** Penawaran lanjutan satu batch: dari raw_listings, atau dari opsi untuk batch lama. */
+export async function followUpRowsOf(batchId: string, options: BatchOptions): Promise<CsvRow[]> {
+  const followUp = options.followUpOffers;
+  if (!followUp) return [];
+  return followUp.staged ? loadRawRowList(batchId, "follow_up") : followUp.rows;
 }
 
 export async function listBatches(

@@ -7,7 +7,6 @@ import type { AdminSession } from "@/lib/auth/dal";
 import { invalidateCatalogCache } from "@/lib/backend/catalog-repository";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectWhereIn } from "@/lib/backend/paged-read";
-import { mapWithConcurrency } from "@/lib/import/batch";
 import {
   addToProgress,
   emptyProgress,
@@ -21,14 +20,20 @@ import {
 } from "@/lib/import/batch-status";
 import {
   createBatch,
+  followUpRowsOf,
+  planBatchRows,
   queuePlannedItems,
   readRights,
   recordMissingOfficialPrices,
   resolveFollowUpSlugs,
+  writePlanItems,
   type BatchKind,
   type BatchOptions,
   type BatchOrigin,
 } from "@/lib/import/batches";
+import { selectStoredCorrections, summarizeCorrections } from "@/lib/import/corrections";
+import { clearRawRows, loadRawRowList, loadRawRows, stageRawRows } from "@/lib/import/raw-rows";
+import { convertUnifiedRows } from "@/lib/import/unified";
 import type { CsvRow } from "@/lib/import/csv-parser";
 import { loadOfferContext, runOfferImport, type OfferContext } from "@/lib/import/offer-runner";
 import {
@@ -66,6 +71,7 @@ type LoadedBatch = {
   origin: BatchOrigin;
   source_label: string;
   options: BatchOptions;
+  /** Hanya batch lama; batch baru menyimpan barisnya di raw_listings. */
   rows: CsvRow[];
   malformed_lines: number[];
   report: (ImportReport | OfferImportReport) | null;
@@ -98,22 +104,31 @@ function leaseFromNow(): string {
   return new Date(Date.now() + LEASE_SECONDS * 1000).toISOString();
 }
 
+/** Hasil item dalam SATU panggilan RPC (dulu satu update per item, pola N+1). */
 async function writeOutcomes(outcomes: readonly ItemOutcome[]): Promise<void> {
-  const processedAt = new Date().toISOString();
-  await mapWithConcurrency(outcomes, 6, async (outcome) => {
-    const { error } = await db()
-      .from("import_items")
-      .update({
-        result: outcome.result,
-        result_action: outcome.resultAction,
-        result_message: outcome.message?.slice(0, 500) ?? null,
-        entity_id: outcome.entityId,
-        processed_at: processedAt,
-      })
-      .eq("id", outcome.id)
-      .eq("result", "pending");
-    if (error) console.error("[impor-worker] hasil item gagal disimpan:", error);
+  if (outcomes.length === 0) return;
+  const { error } = await db().rpc("import_write_outcomes", {
+    p_rows: outcomes.map((outcome) => ({
+      id: outcome.id,
+      result: outcome.result,
+      result_action: outcome.resultAction,
+      result_message: outcome.message?.slice(0, 500) ?? null,
+      entity_id: outcome.entityId,
+    })),
   });
+  if (error) console.error("[impor-worker] hasil item gagal disimpan:", error);
+}
+
+/**
+ * Baris kerja batch untuk posisi tertentu. Batch baru membaca hanya baris yang
+ * diminta dari raw_listings; batch lama masih membawa seluruh barisnya.
+ */
+async function batchRows(batch: LoadedBatch, positions?: readonly number[]): Promise<Map<number, CsvRow>> {
+  if (batch.rows && batch.rows.length > 0) {
+    const all = new Map(batch.rows.map((row, index) => [index, row] as const));
+    return positions ? new Map(positions.filter((p) => all.has(p)).map((p) => [p, all.get(p)!] as const)) : all;
+  }
+  return loadRawRows(batch.id, "row", positions);
 }
 
 /** Menjalankan runner untuk satu potongan item dan memetakan hasilnya ke item. */
@@ -124,11 +139,12 @@ async function runChunk(
 ): Promise<{ outcomes: ItemOutcome[]; summary: ImportReport["summary"] | OfferImportReport["summary"] }> {
   const rows: CsvRow[] = [];
   const localIndexByItem = new Map<string, number>();
+  const available = await batchRows(batch, items.flatMap((item) => item.row_indexes ?? []));
   for (const item of items) {
-    const indexes = (item.row_indexes ?? []).filter((index) => batch.rows[index]);
+    const indexes = (item.row_indexes ?? []).filter((index) => available.has(index));
     if (indexes.length === 0) continue;
     localIndexByItem.set(item.id, rows.length);
-    for (const index of indexes) rows.push(batch.rows[index]!);
+    for (const index of indexes) rows.push(available.get(index)!);
   }
   // Item tanpa baris mentah yang sah tidak bisa ditulis.
   const orphan: ItemOutcome[] = items
@@ -195,10 +211,8 @@ async function finalize(batch: LoadedBatch, progress: Progress, summary: ImportR
   const status = finalStatus(progress);
   const selected = await selectWhereIn("import_items", "id, row_indexes, result, entity_id", "batch_id", [batch.id]);
   const done = selected.filter((item) => item.result === "done");
-  const doneRows = done
-    .flatMap((item) => (item.row_indexes ?? []) as number[])
-    .map((index) => batch.rows[index])
-    .filter((row): row is CsvRow => Boolean(row));
+  const donePositions = done.flatMap((item) => (item.row_indexes ?? []) as number[]);
+  const doneRows = [...(await batchRows(batch, donePositions)).values()];
 
   // Langkah lanjutan hanya untuk baris yang benar-benar tersimpan. Batch
   // terjadwal mencatat penawaran yang hilang sendiri (lebih teliti: harga yang
@@ -207,7 +221,7 @@ async function finalize(batch: LoadedBatch, progress: Progress, summary: ImportR
     try {
       await recordMissingOfficialPrices(
         doneRows,
-        batch.rows,
+        [...(await batchRows(batch)).values()],
         batch.options.defaultObservedAt ?? new Date().toISOString(),
         batch.id
       );
@@ -220,7 +234,7 @@ async function finalize(batch: LoadedBatch, progress: Progress, summary: ImportR
   const followUp = batch.options.followUpOffers;
   if (batch.kind === "specs" && followUp && done.length > 0) {
     const productIds = new Set(done.map((item) => String(item.entity_id ?? "")).filter(Boolean));
-    const offerRows = await resolveFollowUpSlugs(followUp.rows, productIds);
+    const offerRows = await resolveFollowUpSlugs(await followUpRowsOf(batch.id, batch.options), productIds);
     if (offerRows.length > 0) {
       // Asal batch harga mengikuti induknya. "scrape" memicu pencatatan harga
       // resmi yang hilang, yang tidak berlaku untuk berkas CSV.
@@ -274,6 +288,11 @@ async function finalize(batch: LoadedBatch, progress: Progress, summary: ImportR
 
 export async function processBatchStep(batchId: string, budgetMs = STEP_BUDGET_MS): Promise<StepResult> {
   const started = Date.now();
+  // Unggahan yang menunggu dianalisis dikerjakan lebih dulu (klaim atomik
+  // terpisah); batch lain langsung lanjut ke klaim penerapan.
+  const analysis = await db().rpc("import_claim_analysis", { p_batch: batchId, p_lease_seconds: LEASE_SECONDS });
+  if (!analysis.error && ((analysis.data ?? []) as unknown[]).length > 0) return analyzeBatch(batchId);
+
   const claim = await db().rpc("import_claim_batch", { p_batch: batchId, p_lease_seconds: LEASE_SECONDS });
   if (claim.error) {
     console.error("[impor-worker] klaim gagal:", claim.error);
@@ -341,6 +360,100 @@ export async function processBatchStep(batchId: string, budgetMs = STEP_BUDGET_M
 
   await db().from("import_batches").update({ lease_until: null }).eq("id", batchId).eq("status", "applying");
   return { claimed: true, status: "applying", processed };
+}
+
+class AnalysisError extends Error {}
+
+/**
+ * Analisis unggahan di worker (aturan system design 3): koreksi templat
+ * terpadu, pencocokan dengan katalog, dan diff per kolom. Hasilnya item
+ * pratinjau dan status draft. Langkah ini aman diulang: baris kerja dan item
+ * ditulis ulang dari baris unggahan setiap kali.
+ */
+async function analyzeBatch(batchId: string): Promise<StepResult> {
+  const { data } = await db()
+    .from("import_batches")
+    .select("id, kind, origin, source_label, options, rows, malformed_lines, report, progress, created_by, created_by_email")
+    .eq("id", batchId)
+    .limit(1);
+  const batch = (data ?? [])[0] as LoadedBatch | undefined;
+  if (!batch) return { claimed: true, status: null, processed: 0 };
+
+  try {
+    let kind: BatchKind = batch.kind;
+    let options: BatchOptions = batch.options;
+    let rows: CsvRow[];
+
+    if (options.sourceFormat === "unified") {
+      const converted = convertUnifiedRows(await loadRawRowList(batchId, "upload"));
+      const offerRows = [...converted.followUpOfferRows, ...converted.offerRows];
+      const corrections = {
+        items: selectStoredCorrections(converted.corrections),
+        summary: summarizeCorrections(converted.corrections),
+      };
+      if (converted.specRows.length === 0 && offerRows.length === 0) {
+        throw new AnalysisError("Tidak ada baris yang bisa dipakai. Periksa kolom merek, model, varian, dan offer_url.");
+      }
+      // Berkas berisi produk -> batch spesifikasi; penawarannya menjadi batch
+      // harga lanjutan setelah produk diterapkan. Hanya penawaran -> batch penawaran.
+      if (converted.specRows.length > 0) {
+        kind = "specs";
+        rows = converted.specRows;
+        options = {
+          ...options,
+          corrections,
+          followUpOffers:
+            offerRows.length > 0
+              ? {
+                  sourceLabel: `${batch.source_label} (harga)`,
+                  defaultObservedAt: options.defaultObservedAt ?? new Date().toISOString(),
+                  rows: [],
+                  staged: true,
+                  count: offerRows.length,
+                }
+              : undefined,
+        };
+        await clearRawRows(batchId, "follow_up");
+        await stageRawRows(batchId, "follow_up", offerRows);
+      } else {
+        kind = "offers";
+        rows = converted.offerRows;
+        options = { ...options, corrections };
+      }
+      await clearRawRows(batchId, "row");
+      await stageRawRows(batchId, "row", rows);
+    } else {
+      rows = [...(await batchRows(batch)).values()];
+    }
+
+    const plan = await planBatchRows(kind, rows, options);
+    if (!(await writePlanItems(batchId, plan))) throw new Error("Item pratinjau gagal disimpan.");
+    await db()
+      .from("import_batches")
+      .update({ kind, options, counts: plan.counts, status: "draft", lease_until: null })
+      .eq("id", batchId)
+      .eq("status", "analyzing");
+    await recordAudit(actorOf(batch), "impor.pratinjau", "import_batch", batchId, {
+      jenis: kind,
+      asal: batch.origin,
+      sumber: batch.source_label,
+      ...plan.counts,
+    });
+    revalidatePath(`/admin/import/batch/${batchId}`);
+    return { claimed: true, status: "draft", processed: rows.length };
+  } catch (error) {
+    console.error("[impor-analisis] gagal:", error);
+    const message =
+      error instanceof AnalysisError
+        ? error.message
+        : "Analisis berkas gagal karena data katalog tidak bisa dibaca. Coba unggah ulang beberapa saat lagi.";
+    await db()
+      .from("import_batches")
+      .update({ status: "failed", lease_until: null, report: { error: message, summary: null } })
+      .eq("id", batchId)
+      .eq("status", "analyzing");
+    return { claimed: true, status: "failed", processed: 0 };
+  }
 }
 
 /** Batch yang antre atau lease-nya kedaluwarsa, untuk worker terjadwal. */

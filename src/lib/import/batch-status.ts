@@ -4,6 +4,7 @@ import type { RowResult } from "@/lib/import/report";
  * Aturan status batch impor yang murni (tanpa I/O), dipakai server, worker,
  * UI, dan unit test.
  *
+ *   analyzing -> draft | failed (worker menganalisis unggahan: koreksi, pencocokan, diff)
  *   draft    -> queued     (admin menekan Terapkan; item terpilih ditandai pending)
  *   queued   -> applying   (worker mengklaim lease)
  *   applying -> applied | partial | failed   (semua item terpilih selesai)
@@ -18,6 +19,7 @@ import type { RowResult } from "@/lib/import/report";
  */
 
 export type BatchStatus =
+  | "analyzing"
   | "draft"
   | "queued"
   | "applying"
@@ -39,6 +41,7 @@ export const LEASE_SECONDS = Math.ceil(STEP_BUDGET_MS / 1000) + 30;
 const DAY_MS = 86_400_000;
 
 export const BATCH_STATUS_LABEL: Record<BatchStatus, string> = {
+  analyzing: "Sedang dianalisis",
   draft: "Menunggu ditinjau",
   queued: "Antre diterapkan",
   applying: "Sedang diterapkan",
@@ -50,6 +53,7 @@ export const BATCH_STATUS_LABEL: Record<BatchStatus, string> = {
 };
 
 export const BATCH_STATUS_TONE: Record<BatchStatus, string> = {
+  analyzing: "bg-warning-muted text-warning",
   draft: "bg-brand-muted text-brand",
   queued: "bg-warning-muted text-warning",
   applying: "bg-warning-muted text-warning",
@@ -84,8 +88,9 @@ export function batchStatusView(
 }
 
 /** Batch yang sedang/menunggu dikerjakan worker. */
+/** Batch yang masih dikerjakan worker (dianalisis, antre, atau sedang diterapkan). */
 export function isWorking(status: BatchStatus): boolean {
-  return status === "queued" || status === "applying";
+  return status === "analyzing" || status === "queued" || status === "applying";
 }
 
 /** Penerapan yang lease-nya habis: worker sebelumnya berhenti di tengah jalan. */

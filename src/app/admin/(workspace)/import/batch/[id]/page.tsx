@@ -19,7 +19,7 @@ import {
   isEditable,
   isRetryable,
 } from "@/lib/import/batch-status";
-import { getBatch, getBatchSummary } from "@/lib/import/batches";
+import { followUpRowsOf, getBatch, getBatchSummary } from "@/lib/import/batches";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
 import type { ImportReport, OfferImportReport } from "@/lib/import/report";
 
@@ -79,7 +79,7 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
 
   const kindLabel = batch.kind === "specs" ? "Spesifikasi produk" : "Penawaran dan harga";
   const report = batch.report;
-  const pendingOffers = batch.options.followUpOffers?.rows.length ?? 0;
+  const pendingOffers = batch.options.followUpOffers?.count ?? batch.options.followUpOffers?.rows.length ?? 0;
   const statusView = batchStatusView(batch, new Date());
   // Draft kedaluwarsa hanya bisa dibaca; server juga menolak menerapkannya.
   const editable = isEditable(batch.status) && !statusView.expired;
@@ -90,7 +90,7 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
   const followUp = batch.followUpBatchId ? await getBatchSummary(batch.followUpBatchId) : null;
   // Harga resmi per sumber (tarik otomatis), ditampilkan di baris produknya.
   const priceNotes: Record<string, string[]> = {};
-  for (const row of batch.options.followUpOffers?.rows ?? []) {
+  for (const row of batch.status === "draft" ? await followUpRowsOf(batch.id, batch.options) : []) {
     const key = row.source_key ?? "";
     const storage = Number(row.storage_gb) >= 1024 ? `${Number(row.storage_gb) / 1024} TB` : `${row.storage_gb} GB`;
     // Harga kosong bukan nol (PRD §7).

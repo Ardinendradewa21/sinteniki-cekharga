@@ -81,7 +81,7 @@ Baris seperti itu dilewati dengan alasan. Bila dua baris memberi nilai berbeda u
 
 ### Alur penerapan
 
-1. Unggah berkas, lalu klik **Buat pratinjau**.
+1. Unggah berkas, lalu klik **Buat pratinjau**. Halaman batch langsung terbuka dengan status **Sedang dianalisis**: baris dirapikan, dicocokkan dengan katalog, dan dibandingkan dengan data yang ada di latar belakang. Pratinjau muncul otomatis begitu selesai, biasanya dalam beberapa detik. Halaman boleh ditutup; analisis tetap berjalan.
 2. **Berkas berisi produk:** halaman pratinjau menampilkan produknya. Penawaran untuk produk itu belum bisa dicocokkan, karena produknya belum ada di katalog. Setelah produk diterapkan, sistem membuat **batch harga lanjutan** berstatus draft.
 3. Buka batch harga lanjutan dari halaman batch produk, tinjau pratinjaunya (Baru, Berubah, Sama, Dilewati), lalu terapkan.
 4. **Berkas hanya berisi harga untuk produk yang sudah ada:** langsung menjadi satu batch penawaran biasa.
@@ -287,6 +287,8 @@ Undo tersedia untuk batch berstatus "Diterapkan" atau "Sebagian gagal", dan hany
 - Undo ditolak selama antrean foto batch itu masih berjalan. Tunggu sampai selesai.
 
 Batch draft yang tidak diterapkan selama 14 hari ditandai **Kedaluwarsa** dan tidak bisa diterapkan lagi. Buat pratinjau baru dari berkasnya.
+
+Baris mentah berkas yang diunggah disimpan sementara (tabel `raw_listings`) dan dihapus permanen 30 hari setelah batch dibuat, untuk batch yang sudah diterapkan, gagal, dibatalkan, atau diurungkan. Setelah itu "Coba ulang yang gagal" tidak bisa dipakai lagi; unggah ulang berkasnya. Data katalog dan riwayat harga tidak ikut terhapus.
 
 ## 9. Alasan baris dilewati dan tindakannya
 
