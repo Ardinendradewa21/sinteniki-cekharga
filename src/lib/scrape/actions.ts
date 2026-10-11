@@ -1,83 +1,159 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 
 import { requireStaff } from "@/lib/auth/dal";
-import { createBatch } from "@/lib/import/batches";
+import { stageUpload } from "@/lib/import/batches";
+import { processBatchStep } from "@/lib/import/jobs";
 import { readImageRights } from "@/lib/import/image-rights";
 import { mapRow } from "@/lib/import/gsmarena";
 import { planCommit, sessionAgeDays, SESSION_PRICE_MAX_AGE_DAYS } from "@/lib/scrape/commit-rules";
 import type { SpecRow } from "@/lib/scrape/parsers";
-import { friendlyError, resolveLineupItem } from "@/lib/scrape/resolve";
-import { claimCommit, createSession, getSession, linkBatch, saveResult } from "@/lib/scrape/sessions";
-import { GSMARENA_PATH, fetchLineup, officialSourceFor } from "@/lib/scrape/sources";
-import { SCRAPE_BRANDS, type CommitSummary, type LineupItem, type ResolveResult } from "@/lib/scrape/types";
+import {
+  cancelQueuedJobs,
+  enqueueLineup,
+  enqueueResolve,
+  getScrapeJob,
+  hasIdleQueuedJobs,
+  processScrapeStep,
+  sessionJobs,
+  type ScrapeJobStatus,
+} from "@/lib/scrape/jobs";
+import { claimCommit, getSession, getSessionResults, linkBatch, type ResultState } from "@/lib/scrape/sessions";
+import { GSMARENA_PATH, officialSourceFor } from "@/lib/scrape/sources";
+import { SCRAPE_BRANDS, type CommitSummary, type LineupItem } from "@/lib/scrape/types";
 
 /**
  * Aksi tarik otomatis (admin). Semua langkah bekerja di atas SESI yang
  * disimpan server (lihat sessions.ts):
  *
- *   1. loadLineupAction   — ambil daftar + harga resmi, simpan sebagai sesi.
- *   2. resolveModelAction — ambil spesifikasi satu model dari sesi, simpan hasilnya.
- *   3. commitScrapeAction — kirim model terpilih ke Pusat Impor sebagai batch.
+ *   1. startLineupAction  — antrekan pengambilan daftar + harga resmi (worker membuat sesi).
+ *   2. queueResolveAction — antrekan pengambilan spesifikasi model terpilih (worker menyimpan hasil).
+ *      pollScrapeAction   — status untuk halaman; tidak mengambil apa pun di request.
+ *   3. commitScrapeAction — kirim model terpilih ke Pusat Impor; pratinjaunya dianalisis worker.
+ *
+ * Pengambilan dari situs lain tidak pernah berjalan di dalam request admin
+ * (aturan system design 3); lihat `@/lib/scrape/jobs`.
  *
  * Browser hanya mengirim ID sesi, ID model, dan pilihan admin. Daftar model,
  * harga resmi, dan spesifikasi tidak pernah dipercaya dari browser.
  */
 
 const MAX_COMMIT_ITEMS = 150;
+/** Batas model per antrean sekali klik; daftar merek terbesar sekitar 120 model. */
+const MAX_RESOLVE_ITEMS = 200;
+
+/** Menjadwalkan worker setelah respons dikirim (tetap jalan walau ada redirect, sampai maxDuration halaman). */
+function scheduleWorker() {
+  after(() => processScrapeStep());
+}
 
 /* ------------------------------------------------------------ tahap 1 */
 
-export type LoadLineupResult =
-  | { ok: true; sessionId: string; items: LineupItem[]; fetchedAt: string }
-  | { ok: false; error: string };
+export type StartLineupResult = { ok: true; jobId: string } | { ok: false; error: string };
 
-export async function loadLineupAction(brand: string): Promise<LoadLineupResult> {
+/** Mengantrekan pengambilan daftar model satu merek. Pengambilannya di worker. */
+export async function startLineupAction(brand: string): Promise<StartLineupResult> {
   const admin = await requireStaff([]);
   const parsed = z.enum(SCRAPE_BRANDS).safeParse(brand);
   if (!parsed.success) return { ok: false, error: "Merek belum didukung." };
-
-  try {
-    const items = await fetchLineup(parsed.data);
-    const fetchedAt = new Date().toISOString();
-    const sessionId = await createSession(parsed.data, items, fetchedAt, admin);
-    if (!sessionId) return { ok: false, error: "Daftar model terambil tetapi sesi gagal disimpan. Coba lagi." };
-    return { ok: true, sessionId, items, fetchedAt };
-  } catch (error) {
-    return { ok: false, error: friendlyError(error).error };
-  }
+  const jobId = await enqueueLineup(parsed.data, admin);
+  if (!jobId) return { ok: false, error: "Permintaan tarik gagal dicatat. Coba lagi." };
+  scheduleWorker();
+  return { ok: true, jobId };
 }
 
 /* ------------------------------------------------------------ tahap 2 */
 
-export async function resolveModelAction(input: unknown): Promise<ResolveResult> {
-  await requireStaff([]);
+/** Mengantrekan pengambilan spesifikasi model terpilih dari sesi. Pengambilannya di worker. */
+export async function queueResolveAction(input: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
+  const admin = await requireStaff([]);
   const parsed = z
     .object({
       sessionId: z.uuid(),
-      officialId: z.string().min(1).max(80),
+      officialIds: z.array(z.string().min(1).max(80)).min(1).max(MAX_RESOLVE_ITEMS),
       pathOverride: z.string().regex(GSMARENA_PATH).optional(),
     })
     .safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Data model tidak valid.", blocked: false };
-  const { sessionId, officialId, pathOverride } = parsed.data;
+  if (!parsed.success) return { ok: false, error: "Data model tidak valid." };
+  const { sessionId, officialIds, pathOverride } = parsed.data;
 
   const session = await getSession(sessionId);
-  if (!session) return { ok: false, error: "Sesi tarik tidak ditemukan. Muat ulang daftar model.", blocked: false };
+  if (!session) return { ok: false, error: "Sesi tarik tidak ditemukan. Muat ulang daftar model." };
   if (session.status !== "open") {
-    return { ok: false, error: "Sesi ini sudah dikirim ke Pusat Impor. Muat daftar baru untuk menarik lagi.", blocked: false };
+    return { ok: false, error: "Sesi ini sudah dikirim ke Pusat Impor. Muat daftar baru untuk menarik lagi." };
   }
-  const lineup = session.lineup.find((item) => item.officialId === officialId);
-  if (!lineup) return { ok: false, error: "Model tidak ada di daftar sesi ini.", blocked: false };
+  const known = new Set(session.lineup.map((item) => item.officialId));
+  const ids = [...new Set(officialIds)].filter((id) => known.has(id));
+  if (ids.length === 0) return { ok: false, error: "Model tidak ada di daftar sesi ini." };
 
-  const result = await resolveLineupItem(lineup, pathOverride);
-  await saveResult(
-    sessionId,
-    officialId,
-    result.ok ? { status: "ok", item: result.item } : { status: "error", error: result.error, blocked: result.blocked }
-  );
-  return result;
+  if (!(await enqueueResolve(sessionId, session.brand, ids, admin, pathOverride ?? null))) {
+    return { ok: false, error: "Antrean pengambilan gagal dicatat. Coba lagi." };
+  }
+  scheduleWorker();
+  return { ok: true };
+}
+
+export async function stopResolveAction(sessionId: string): Promise<number> {
+  await requireStaff([]);
+  if (!z.uuid().safeParse(sessionId).success) return 0;
+  return cancelQueuedJobs(sessionId, "Dihentikan admin.");
+}
+
+export type ScrapePoll = {
+  /** Job daftar model yang ditanyakan (`jobId`). */
+  lineup: {
+    status: ScrapeJobStatus;
+    error: string | null;
+    sessionId: string | null;
+    items: LineupItem[] | null;
+    fetchedAt: string | null;
+  } | null;
+  /** Hasil dan status job spesifikasi sesi yang ditanyakan (`sessionId`). */
+  session: {
+    results: Record<string, ResultState>;
+    jobs: { officialId: string; status: ScrapeJobStatus; error: string | null }[];
+  } | null;
+};
+
+/**
+ * Status tarik untuk polling halaman. TIDAK menjalankan pengambilan di request
+ * ini: bila ada job menunggu, worker dijadwalkan lewat `after()` setelah
+ * respons dikirim (worker terjadwal juga melanjutkannya bila tab ditutup).
+ */
+export async function pollScrapeAction(input: unknown): Promise<ScrapePoll> {
+  await requireStaff([]);
+  const parsed = z.object({ jobId: z.uuid().optional(), sessionId: z.uuid().optional() }).safeParse(input);
+  if (!parsed.success) return { lineup: null, session: null };
+  const { jobId, sessionId } = parsed.data;
+
+  let lineup: ScrapePoll["lineup"] = null;
+  if (jobId) {
+    const job = await getScrapeJob(jobId);
+    if (job) {
+      const session = job.status === "done" && job.session_id ? await getSession(job.session_id) : null;
+      lineup = {
+        status: job.status,
+        error: job.error,
+        sessionId: job.session_id,
+        items: session?.lineup ?? null,
+        fetchedAt: session?.fetchedAt ?? null,
+      };
+    }
+  }
+
+  let sessionState: ScrapePoll["session"] = null;
+  if (sessionId) {
+    const [results, jobs] = await Promise.all([getSessionResults(sessionId), sessionJobs(sessionId)]);
+    sessionState = {
+      results,
+      jobs: jobs.map((job) => ({ officialId: String(job.official_id), status: job.status, error: job.error })),
+    };
+  }
+
+  if (await hasIdleQueuedJobs()) scheduleWorker();
+  return { lineup, session: sessionState };
 }
 
 /* ------------------------------------------------------------ tahap 3 */
@@ -165,9 +241,12 @@ export async function commitScrapeAction(input: unknown): Promise<CommitSummary>
   });
 
   const stamp = new Date(session.fetchedAt).toISOString().slice(0, 16).replace(/[:T]/g, "-");
-  const created = await createBatch({
+  // Batch dianalisis worker (pencocokan dan diff tidak di request ini); halaman
+  // batch menampilkan "Sedang dianalisis" lalu pratinjaunya.
+  const created = await stageUpload({
     kind: "specs",
     origin: "scrape",
+    role: "row",
     sourceLabel: `Tarik otomatis ${session.brand} ${stamp}`,
     options: {
       imageRights: rights.rights,
@@ -188,6 +267,7 @@ export async function commitScrapeAction(input: unknown): Promise<CommitSummary>
   });
   await linkBatch(sessionId, created.ok ? created.id : null);
   if (!created.ok) return { error: created.error, specs: null, prices: null };
+  after(() => processBatchStep(created.id));
   return { error: null, specs: null, prices: null, batchId: created.id };
 }
 

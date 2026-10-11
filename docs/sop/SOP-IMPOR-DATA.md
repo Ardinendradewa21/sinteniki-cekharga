@@ -213,8 +213,8 @@ Langkahnya sama dengan 3.3. Laporan memisahkan tiga angka: penawaran baru, penaw
 ## 5. Tarik otomatis dari situs resmi
 
 1. Buka **Impor data → Tarik otomatis**, lalu pilih merek.
-2. Sistem memuat lineup dari situs resmi. Hasilnya tersimpan di server, sehingga tab aman di-refresh.
-3. Untuk tiap model yang dipilih, sistem mencari spesifikasinya di GSMArena.
+2. Sistem memuat lineup dari situs resmi. Pengambilan berjalan di latar belakang (worker), bukan di halaman; hasilnya tersimpan di server, sehingga tab aman di-refresh atau ditutup.
+3. Untuk tiap model yang dipilih, sistem mencari spesifikasinya di GSMArena, satu model pada satu waktu dengan jeda sopan. Progres terlihat di halaman; tombol **Hentikan** membatalkan model yang belum diambil.
    - Pencarian GSMArena kadang diblokir pemeriksaan anti-bot (Turnstile). Itu **tidak boleh diakali**.
    - Bila diblokir, ekspor spesifikasi model itu secara manual lalu impor lewat CSV spesifikasi (bagian 3).
 4. Tinjau satu pratinjau gabungan: spesifikasi dan harga resmi.

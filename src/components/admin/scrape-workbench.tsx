@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,11 +16,14 @@ import {
 } from "@/lib/import/image-rights";
 import {
   commitScrapeAction,
-  loadLineupAction,
-  resolveModelAction,
+  pollScrapeAction,
+  queueResolveAction,
+  startLineupAction,
+  stopResolveAction,
+  type ScrapePoll,
 } from "@/lib/scrape/actions";
 import { SPEC_COLUMNS, toCsv } from "@/lib/scrape/parsers";
-import type { ScrapeSession } from "@/lib/scrape/sessions";
+import type { ResultState, ScrapeSession } from "@/lib/scrape/sessions";
 import {
   BRANDS_WITH_OFFICIAL_PRICES,
   SCRAPE_BRAND_LABELS,
@@ -40,7 +43,8 @@ import {
  *
  *   1. Muat daftar model + harga dari situs resmi merek.
  *   2. Admin memilih model, lalu spesifikasinya diambil SATU PER SATU dari
- *      GSMArena dengan progres yang bisa dihentikan.
+ *      GSMArena oleh worker di server (bukan di request halaman), dengan
+ *      progres yang bisa dihentikan. Menutup tab tidak menghentikannya.
  *   3. Pratinjau menampilkan setiap temuan (varian tak cocok, pasangan nama
  *      ragu, harga tak terbaca, model lama) sebelum apa pun disimpan.
  *   4. Yang dicentang disimpan sebagai DRAFT lewat jalur impor yang sama
@@ -56,6 +60,12 @@ type ResolveState =
   | { status: "error"; error: string };
 
 const CURRENT_YEAR = new Date().getFullYear();
+/** Jeda polling status job tarik; pengambilannya sendiri di worker. */
+const POLL_MS = 1500;
+/** Batas pemantauan dari satu halaman (sekitar 15 menit); worker tetap jalan setelahnya. */
+const MAX_POLL_TICKS = 600;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function variantLabel(ramGb: number, storageGb: number) {
   const storage = storageGb >= 1024 ? `${storageGb / 1024} TB` : `${storageGb} GB`;
@@ -114,7 +124,6 @@ export function ScrapeWorkbench({
   const [results, setResults] = useState<Map<string, ResolveState>>(() => initialResults(initialSession));
   const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(null);
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
-  const stopRef = useRef(false);
 
   const [included, setIncluded] = useState<Set<string>>(() => initialIncluded(initialSession, CURRENT_YEAR - 1));
   const [minYear, setMinYear] = useState(CURRENT_YEAR - 1);
@@ -170,60 +179,147 @@ export function ScrapeWorkbench({
     setIncluded(new Set());
     setCommitResult(null);
     setBlockedMessage(null);
-    const result = await loadLineupAction(brand);
-    setLoadingLineup(false);
-    if (result.ok) {
-      setLineup(result.items);
-      setSessionId(result.sessionId);
-      setSessionStatus("open");
-      setFetchedAt(result.fetchedAt);
-      // ID sesi di URL: refresh tab memulihkan pekerjaan dari server.
-      router.replace(`/admin/import?tab=tarik&sesi=${result.sessionId}`, { scroll: false });
-    } else {
-      setLineupError(result.error);
+    // Pengambilan berjalan di worker (bukan di request ini); halaman hanya
+    // membaca statusnya sampai sesi terbentuk.
+    const started = await startLineupAction(brand);
+    if (!started.ok) {
+      setLoadingLineup(false);
+      setLineupError(started.error);
+      return;
     }
-  }
-
-  async function resolveOne(item: LineupItem, pathOverride?: string) {
-    const result = await resolveModelAction({ sessionId, officialId: item.officialId, pathOverride });
-    setResults((previous) => {
-      const next = new Map(previous);
-      next.set(item.officialId, result.ok ? { status: "ok", item: result.item } : { status: "error", error: result.error });
-      return next;
-    });
-    if (result.ok) {
-      const state: ResolveState = { status: "ok", item: result.item };
-      const year = result.item.summary?.releaseYear ?? null;
-      setIncluded((previous) => {
-        const next = new Set(previous);
-        if (canInclude(state) && (year === null || year >= minYear)) next.add(item.officialId);
-        else next.delete(item.officialId);
-        return next;
-      });
-    }
-    return result;
-  }
-
-  async function resolveSelected() {
-    const queue = (lineup ?? []).filter((item) => selected.has(item.officialId));
-    if (queue.length === 0) return;
-    stopRef.current = false;
-    setBlockedMessage(null);
-    setCommitResult(null);
-
-    for (let index = 0; index < queue.length; index += 1) {
-      if (stopRef.current) break;
-      const item = queue[index];
-      setProgress({ done: index, total: queue.length, current: item.officialName });
-      const result = await resolveOne(item);
-      if (!result.ok && result.blocked) {
-        // Situs sumber meminta verifikasi anti-bot: berhenti, jangan dipaksa.
-        setBlockedMessage(result.error);
-        break;
+    for (let tick = 0; tick < MAX_POLL_TICKS; tick += 1) {
+      await sleep(POLL_MS);
+      let poll: ScrapePoll;
+      try {
+        poll = await pollScrapeAction({ jobId: started.jobId });
+      } catch {
+        continue;
       }
+      const job = poll.lineup;
+      if (!job || job.status === "queued" || job.status === "running") continue;
+      setLoadingLineup(false);
+      if (job.status === "done" && job.sessionId && job.items) {
+        setLineup(job.items);
+        setSessionId(job.sessionId);
+        setSessionStatus("open");
+        setFetchedAt(job.fetchedAt);
+        // ID sesi di URL: refresh tab memulihkan pekerjaan dari server.
+        router.replace(`/admin/import?tab=tarik&sesi=${job.sessionId}`, { scroll: false });
+      } else {
+        setLineupError(job.error ?? "Daftar model gagal diambil.");
+      }
+      return;
+    }
+    setLoadingLineup(false);
+    setLineupError("Pengambilan daftar model belum selesai. Muat ulang halaman ini beberapa saat lagi.");
+  }
+
+  /** Menerapkan hasil terbaru dari server; model yang baru berhasil ikut dicentang sesuai filter tahun. */
+  function applyResults(next: Record<string, ResultState>) {
+    setResults((previous) => {
+      const merged = new Map(previous);
+      const newlyOk: { id: string; state: ResolveState }[] = [];
+      for (const [id, state] of Object.entries(next)) {
+        const view: ResolveState = state.status === "ok" ? { status: "ok", item: state.item } : { status: "error", error: state.error };
+        const before = previous.get(id);
+        const changed =
+          !before ||
+          before.status !== view.status ||
+          (view.status === "ok" && before.status === "ok" && before.item !== view.item && JSON.stringify(before.item) !== JSON.stringify(view.item));
+        if (!changed) continue;
+        merged.set(id, view);
+        if (view.status === "ok") newlyOk.push({ id, state: view });
+      }
+      if (newlyOk.length > 0) {
+        setIncluded((current) => {
+          const updated = new Set(current);
+          for (const { id, state } of newlyOk) {
+            const year = state.status === "ok" ? (state.item.summary?.releaseYear ?? null) : null;
+            if (canInclude(state) && (year === null || year >= minYear)) updated.add(id);
+            else updated.delete(id);
+          }
+          return updated;
+        });
+      }
+      return merged;
+    });
+  }
+
+  /**
+   * Memantau job spesifikasi sesi sampai tidak ada yang antre atau berjalan.
+   * Pengambilan sendiri dikerjakan worker; menutup tab tidak menghentikannya.
+   */
+  async function watchSession(id: string, ids: readonly string[] | null) {
+    const nameOf = (officialId: string) => (lineup ?? []).find((item) => item.officialId === officialId)?.officialName ?? officialId;
+    for (let tick = 0; tick < MAX_POLL_TICKS; tick += 1) {
+      let poll: ScrapePoll;
+      try {
+        poll = await pollScrapeAction({ sessionId: id });
+      } catch {
+        await sleep(POLL_MS);
+        continue;
+      }
+      if (poll.session) {
+        applyResults(poll.session.results);
+        const jobs = ids ? poll.session.jobs.filter((job) => ids.includes(job.officialId)) : poll.session.jobs;
+        const active = jobs.filter((job) => job.status === "queued" || job.status === "running");
+        const blocked = jobs.find((job) => job.status === "blocked" && job.error);
+        if (blocked) setBlockedMessage(blocked.error);
+        if (active.length === 0) {
+          setProgress(null);
+          return;
+        }
+        const running = jobs.find((job) => job.status === "running");
+        setProgress({
+          done: jobs.length - active.length,
+          total: jobs.length,
+          current: running ? nameOf(running.officialId) : "menunggu giliran",
+        });
+      }
+      await sleep(POLL_MS);
     }
     setProgress(null);
   }
+
+  async function queueResolve(ids: string[], pathOverride?: string) {
+    if (!sessionId || ids.length === 0) return;
+    setBlockedMessage(null);
+    setCommitResult(null);
+    setProgress({ done: 0, total: ids.length, current: "menunggu giliran" });
+    const queued = await queueResolveAction({ sessionId, officialIds: ids, pathOverride });
+    if (!queued.ok) {
+      setProgress(null);
+      setBlockedMessage(queued.error);
+      return;
+    }
+    await watchSession(sessionId, ids);
+  }
+
+  function resolveOne(item: LineupItem, pathOverride?: string) {
+    return queueResolve([item.officialId], pathOverride);
+  }
+
+  function resolveSelected() {
+    const ids = (lineup ?? []).filter((item) => selected.has(item.officialId)).map((item) => item.officialId);
+    return queueResolve(ids);
+  }
+
+  async function stopResolve() {
+    if (!sessionId) return;
+    // Model yang sedang diambil diselesaikan; sisanya dibatalkan di server.
+    await stopResolveAction(sessionId);
+  }
+
+  // Tab dibuka ulang di tengah pengambilan: lanjutkan memantau dari server.
+  useEffect(() => {
+    if (!initialSession?.id || initialSession.status !== "open") return;
+    const id = initialSession.id;
+    // Dijalankan dari callback timer, bukan langsung di badan efek.
+    const timer = setTimeout(() => void watchSession(id, null), 0);
+    return () => clearTimeout(timer);
+    // Hanya saat halaman dimuat.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Situs Infinix hanya menyebut "harga mulai" tanpa varian. Variannya
@@ -405,7 +501,7 @@ export function ScrapeWorkbench({
               {`Ambil spesifikasi ${selected.size} model`}
             </Button>
             {running ? (
-              <Button type="button" variant="outline" onClick={() => (stopRef.current = true)}>
+              <Button type="button" variant="outline" onClick={stopResolve}>
                 Hentikan
               </Button>
             ) : null}

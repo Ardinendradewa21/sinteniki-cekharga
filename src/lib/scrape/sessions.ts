@@ -122,6 +122,20 @@ export async function getSession(id: string): Promise<ScrapeSession | null> {
   };
 }
 
+/** Hasil per model satu sesi, tanpa daftar model (untuk polling progres yang ringan). */
+export async function getSessionResults(id: string): Promise<Record<string, ResultState>> {
+  if (!UUID.test(id)) return {};
+  const results = await readResults([id], "official_id, item, error, blocked");
+  return Object.fromEntries(
+    results.map((result) => [
+      String(result.official_id),
+      result.item
+        ? { status: "ok" as const, item: result.item as PreviewItem }
+        : { status: "error" as const, error: String(result.error ?? "Gagal diambil."), blocked: Boolean(result.blocked) },
+    ])
+  );
+}
+
 export async function saveResult(sessionId: string, officialId: string, state: ResultState): Promise<void> {
   const { error } = await db()
     .from("scrape_results")

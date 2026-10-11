@@ -1,6 +1,7 @@
 import { bearerMatches } from "@/lib/backend/bearer";
 import { listWorkableBatches, processBatchStep } from "@/lib/import/jobs";
 import { processPhotoStep } from "@/lib/import/photo-jobs";
+import { processScrapeStep } from "@/lib/scrape/jobs";
 
 /**
  * Worker terjadwal penerapan batch impor (rencana kerja impor, Fase 1.4).
@@ -10,7 +11,8 @@ import { processPhotoStep } from "@/lib/import/photo-jobs";
  * publik. Cron Vercel Hobby hanya harian, jadi penjadwal per menit memakai
  * InsForge (pg_cron). Tanpa secret yang cocok: 401.
  *
- * Satu panggilan mengerjakan batch antre atau macet, lalu antrean foto, sampai
+ * Satu panggilan mengerjakan batch antre atau macet, job tarik otomatis
+ * (scrape_jobs), lalu antrean foto, sampai
  * anggaran waktunya habis. Sisa pekerjaan dilanjutkan panggilan berikutnya;
  * klaim lease mencegah dua worker memegang batch yang sama. Perawatan harian
  * (draft kedaluwarsa, retensi, pemeriksaan harga) ada di `/api/cron/daily`.
@@ -33,8 +35,11 @@ export async function POST(request: Request) {
     const step = await processBatchStep(id, Math.min(left - 2_000, 40_000));
     if (step.claimed) worked.push({ id, status: step.status, processed: step.processed });
   }
+  // Job tarik otomatis yang ditinggal (tab admin ditutup, atau after() habis waktu).
+  const scrapeBudget = Math.min(TOTAL_BUDGET_MS - (Date.now() - started) - 2_000, 25_000);
+  const scrape = scrapeBudget > 5_000 ? await processScrapeStep(scrapeBudget) : { processed: 0 };
   // Sisa anggaran untuk antrean foto (diproses terpisah dari penerapan).
   const photoBudget = TOTAL_BUDGET_MS - (Date.now() - started);
   const photos = photoBudget > 5_000 ? await processPhotoStep(photoBudget - 2_000) : { processed: 0, changed: 0 };
-  return Response.json({ worked, photos });
+  return Response.json({ worked, scrape, photos });
 }

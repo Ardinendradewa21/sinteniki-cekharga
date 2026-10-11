@@ -370,3 +370,53 @@ test("INT-07 unggahan dianalisis di worker: baris di raw_listings, status analyz
   assert.ok(!purged.error);
   assert.equal(await rowsOf(unified.id, "upload"), 2);
 });
+
+test("INT-08 tarik otomatis sebagai job: klaim satu per jenis, antre ulang idempoten, berhenti, sesi baru dari worker", async () => {
+  const jobs = await import("@/lib/scrape/jobs");
+  const { createSession } = await import("@/lib/scrape/sessions");
+  const lineupItem = (id: string) => ({
+    officialId: id, brand: "infinix" as const, officialName: `QA ${id}`, officialUrl: null, prices: [], storageOnlyPrices: [],
+    unassignedPrices: [], priceIssues: [], siblingHas5g: false, gsmarenaPath: null,
+  });
+  const sessionId = (await createSession("infinix", [lineupItem("qa-1"), lineupItem("qa-2"), lineupItem("qa-3")], new Date().toISOString(), actor))!;
+  assert.ok(sessionId);
+  const statusOf = async () =>
+    Object.fromEntries((await jobs.sessionJobs(sessionId)).map((job) => [job.official_id, job.status]));
+  try {
+    assert.ok(await jobs.enqueueResolve(sessionId, "infinix", ["qa-1", "qa-2", "qa-3"], actor));
+    assert.ok(await jobs.enqueueResolve(sessionId, "infinix", ["qa-1"], actor), "antre ulang tidak membuat job ganda");
+    assert.equal((await jobs.sessionJobs(sessionId)).length, 3);
+
+    // Hanya satu job spesifikasi boleh berjalan pada satu waktu (sopan ke GSMArena).
+    const first = await db.rpc("scrape_claim_job", { p_lease_seconds: 60 });
+    assert.equal((first.data ?? []).length, 1);
+    const second = await db.rpc("scrape_claim_job", { p_lease_seconds: 60 });
+    assert.equal((second.data ?? []).length, 0, "job sejenis kedua tidak diklaim selama yang pertama berjalan");
+
+    // Tombol Hentikan: job yang belum berjalan dibatalkan, yang berjalan dibiarkan selesai.
+    assert.equal(await jobs.cancelQueuedJobs(sessionId, "Dihentikan admin."), 2);
+    const statuses = await statusOf();
+    assert.equal(Object.values(statuses).filter((s) => s === "cancelled").length, 2);
+    assert.equal(Object.values(statuses).filter((s) => s === "running").length, 1);
+
+    // Sesi yang sudah dikirim: job yang diklaim worker dibatalkan tanpa menghubungi situs mana pun.
+    // Lease dibuat jelas kedaluwarsa: jam lokal bisa beberapa detik lebih cepat dari
+    // jam database, sedangkan worker membandingkannya dengan now() database.
+    await db.from("scrape_jobs").update({ lease_until: new Date(Date.now() - 5 * 60_000).toISOString() }).eq("session_id", sessionId).eq("status", "running");
+    await db.from("scrape_sessions").update({ status: "committed" }).eq("id", sessionId);
+    await jobs.processScrapeStep(10_000);
+    assert.equal(Object.values(await statusOf()).filter((s) => s === "running").length, 0);
+    assert.ok(Object.values(await statusOf()).every((s) => s === "cancelled"));
+
+    // Job daftar model sungguhan (Infinix, satu halaman toko resmi): worker membuat sesi.
+    const lineupJob = (await jobs.enqueueLineup("infinix", actor))!;
+    await jobs.processScrapeStep(40_000);
+    const done = (await jobs.getScrapeJob(lineupJob))!;
+    assert.equal(done.status, "done", done.error ?? "");
+    assert.ok(done.session_id, "sesi dibuat oleh worker, bukan oleh request");
+    await db.from("scrape_sessions").delete().eq("id", done.session_id!);
+  } finally {
+    await db.from("scrape_sessions").delete().eq("id", sessionId);
+    await db.from("scrape_jobs").delete().eq("created_by_email", actor.email);
+  }
+});

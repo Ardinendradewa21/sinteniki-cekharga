@@ -346,11 +346,13 @@ export async function stageUpload({
   malformedLines: number[];
   admin: AdminSession;
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  // Penawaran lanjutan (tarik otomatis) ikut disimpan per baris, sama seperti createBatch.
+  const stripped = stripFollowUpRows(options);
   const batchId = await insertBatchShell({
     kind,
     origin,
     sourceLabel,
-    options,
+    options: stripped.options,
     status: "analyzing",
     counts: EMPTY_COUNTS,
     malformedLines,
@@ -359,6 +361,7 @@ export async function stageUpload({
   if (!batchId) return { ok: false, error: "Berkas gagal disimpan." };
   try {
     await stageRawRows(batchId, role, rows);
+    await stageRawRows(batchId, "follow_up", stripped.followUpRows);
   } catch {
     await getInsforgeAdminClient().database.from("import_batches").delete().eq("id", batchId);
     return { ok: false, error: "Baris berkas gagal disimpan. Coba unggah ulang." };

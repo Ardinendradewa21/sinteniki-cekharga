@@ -4,6 +4,7 @@ import { expireStaleDrafts, purgeScheduledBatches } from "@/lib/import/batches";
 import { listWorkableBatches, processBatchStep } from "@/lib/import/jobs";
 import { processPhotoStep, purgePhotoJobs } from "@/lib/import/photo-jobs";
 import { purgeRawListings } from "@/lib/import/raw-rows";
+import { processScrapeStep, purgeScrapeJobs } from "@/lib/scrape/jobs";
 import { runPriceRefresh } from "@/lib/import/price-refresh";
 import { purgeOldSessions } from "@/lib/scrape/sessions";
 
@@ -52,6 +53,7 @@ export async function GET(request: Request) {
     purgedAiUsage: await task(() => purgeAiUsage()),
     // Aturan system design 8: baris mentah impor dihapus permanen setelah 30 hari.
     purgedRawListings: await task(() => purgeRawListings()),
+    purgedScrapeJobs: await task(() => purgeScrapeJobs()),
     priceRefresh: await task(() => runPriceRefresh()),
   };
 
@@ -65,6 +67,9 @@ export async function GET(request: Request) {
     }
     return worked;
   });
+  report.scrape = await task(() =>
+    left() > 8_000 ? processScrapeStep(Math.min(left() - 3_000, 20_000)) : Promise.resolve({ processed: 0 })
+  );
   report.photos = await task(() =>
     left() > 8_000 ? processPhotoStep(left() - 3_000) : Promise.resolve({ processed: 0, changed: 0 })
   );
