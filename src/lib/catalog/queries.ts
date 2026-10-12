@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getCatalogSource, isDemoData } from "@/lib/catalog/source";
+import { buildColorOptions, type ProductColorOption } from "@/lib/catalog/colors";
 import {
   isFresh,
   isPriceableListing,
@@ -630,7 +631,20 @@ export type ProductDetailOffer = {
   isPriceBasis: boolean;
   /** Toko terdaftar; `null` bila domain listing belum dikenal. */
   store: { slug: string; name: string; kind: "official" | "marketplace" | "retailer" } | null;
+  /** Warna yang tercatat di listing ini; kosong = tidak diketahui. */
+  colors: string[];
 };
+
+export type ProductDetailColor = ProductColorOption & { href: string };
+
+/** Alamat halaman detail dengan varian dan warna terpilih. */
+function detailHref(slug: string, variant: string | null, color: string | null): string {
+  const params = new URLSearchParams();
+  if (variant) params.set("varian", variant);
+  if (color) params.set("warna", color);
+  const query = params.toString();
+  return query ? `/products/${slug}?${query}` : `/products/${slug}`;
+}
 
 export type ProductSpecRow = {
   label: string;
@@ -665,6 +679,12 @@ export type ProductDetail = {
    * punya ilustrasi generik; ilustrasi tidak pernah dicampur ke galeri foto.
    */
   gallery: { src: string; alt: string; source: string }[];
+  /**
+   * Warna yang tercatat (foto dan listing toko). Memilih warna hanya mengganti
+   * foto; harga tetap per varian memori (PRD §7).
+   */
+  colors: ProductDetailColor[];
+  selectedColor: ProductDetailColor | null;
   specs: ProductSpecRow[];
   specsSource: string;
   specsRetrievedAt: string;
@@ -727,11 +747,14 @@ function buildProductDetail(
   catalog: CatalogDataset,
   product: CatalogDataset["products"][number],
   requestedVariantKey: string | undefined,
-  now: Date
+  now: Date,
+  requestedColorKey?: string
 ): ProductDetail {
-  const rawVariants = catalog.variants.filter(
-    (variant) => variant.productId === product.id
-  );
+  // Kapasitas diurutkan dari kecil ke besar (RAM, lalu penyimpanan), seperti
+  // pilihan kapasitas di toko; urutan baris database tidak bermakna.
+  const rawVariants = catalog.variants
+    .filter((variant) => variant.productId === product.id)
+    .sort((a, b) => a.ramGb - b.ramGb || a.storageGb - b.storageGb);
 
   // Varian default mengikuti basis harga "mulai dari", supaya pengguna yang
   // datang dari kartu katalog melihat harga yang sama dengan yang tadi diklik.
@@ -766,7 +789,7 @@ function buildProductDetail(
       ramGb: variant.ramGb,
       storageGb: variant.storageGb,
       region: variant.region,
-      href: `/products/${product.slug}?varian=${key}`,
+      href: detailHref(product.slug, key, null),
       isSelected: selectedRaw?.id === variant.id,
       price: resolveVariantPrice({
         variantId: variant.id,
@@ -816,6 +839,7 @@ function buildProductDetail(
               ? isFresh(observation.observedAt, now) && isPriceableListing(offer)
               : false,
             isPriceBasis: offer.id === priceBasisOfferId,
+            colors: offer.colors ?? [],
           };
         })
         // Yang menjadi dasar harga ditaruh paling atas, sisanya menyusul.
@@ -844,11 +868,36 @@ function buildProductDetail(
         : null,
     }));
 
+  // Warna: dari foto produk dan listing toko semua varian produk ini.
+  const productPhotos = catalog.assets.filter(
+    (candidate) => candidate.productId === product.id && candidate.kind === "photo"
+  );
+  const variantIds = new Set(rawVariants.map((variant) => variant.id));
+  const colorChoice = buildColorOptions({
+    photos: productPhotos.map((photo) => ({
+      src: photo.src,
+      alt: photo.alt,
+      source: photo.provenance.source,
+      color: photo.color ?? null,
+    })),
+    offerColors: catalog.offers
+      .filter((offer) => variantIds.has(offer.variantId))
+      .map((offer) => offer.colors ?? []),
+    selectedVariantOfferColors: offers.map((offer) => offer.colors),
+    requestedKey: requestedColorKey,
+  });
+  const selectedColorKey = colorChoice.selected?.key ?? null;
+  // Pilihan warna yang tidak diminta (warna bawaan) tidak ditulis ke URL varian.
+  const colorInUrl = requestedColorKey && selectedColorKey === requestedColorKey ? selectedColorKey : null;
+  for (const variant of variants) variant.href = detailHref(product.slug, variant.key, colorInUrl);
+  const colors: ProductDetailColor[] = colorChoice.options.map((option) => ({
+    ...option,
+    href: detailHref(product.slug, requestedVariantKey && selectedRaw ? variantKey(selectedRaw) : null, option.key),
+  }));
+  const selectedColor = colors.find((option) => option.isSelected) ?? null;
+
   const asset =
-    catalog.assets.find(
-      (candidate) =>
-        candidate.productId === product.id && candidate.kind === "photo"
-    ) ??
+    productPhotos[0] ??
     catalog.assets.find((candidate) => candidate.productId === product.id);
 
   const specs: ProductSpecRow[] = [
@@ -955,16 +1004,9 @@ function buildProductDetail(
       alt: asset?.alt ?? "Ilustrasi generik perangkat smartphone",
       isGenericIllustration: asset?.kind !== "photo",
     },
-    gallery: catalog.assets
-      .filter(
-        (candidate) =>
-          candidate.productId === product.id && candidate.kind === "photo"
-      )
-      .map((photo) => ({
-        src: photo.src,
-        alt: photo.alt,
-        source: photo.provenance.source,
-      })),
+    gallery: colorChoice.gallery.map(({ src, alt, source }) => ({ src, alt, source })),
+    colors,
+    selectedColor,
     specs,
     specsSource: product.specsProvenance.source,
     specsRetrievedAt: product.specsProvenance.retrievedAt,
@@ -979,12 +1021,13 @@ function buildProductDetail(
 export async function getProductDetail(
   now: Date,
   slug: string,
-  requestedVariantKey?: string
+  requestedVariantKey?: string,
+  requestedColorKey?: string
 ): Promise<ProductDetail | null> {
   const catalog = await loadPublishedCatalog(now);
   const product = catalog.products.find((candidate) => candidate.slug === slug);
   if (!product) return null;
-  return buildProductDetail(catalog, product, requestedVariantKey, now);
+  return buildProductDetail(catalog, product, requestedVariantKey, now, requestedColorKey);
 }
 
 /** Slug produk terpublikasi, untuk prerender halaman detail saat build. */

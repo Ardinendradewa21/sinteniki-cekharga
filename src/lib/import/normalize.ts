@@ -59,7 +59,10 @@ const HEADER_ALIASES: Record<string, readonly string[]> = {
   network_technology: ["jaringan"],
   announced: ["rilis", "tanggal rilis"],
   os: ["sistem operasi"],
-  colors: ["warna"],
+  // "Warna" di satu baris berarti warna listing/foto baris itu, bukan daftar
+  // semua warna produk (kolom spesifikasi `colors`).
+  colors: ["daftar warna", "pilihan warna"],
+  color: ["warna", "warna listing", "varian warna"],
   image_url: ["url image", "url gambar", "link gambar", "gambar", "url foto", "link foto", "foto"],
   image_usage_basis: ["dasar hak pakai", "dasar hak pakai foto"],
   image_usage_rights: ["hak pakai foto", "bukti hak pakai"],

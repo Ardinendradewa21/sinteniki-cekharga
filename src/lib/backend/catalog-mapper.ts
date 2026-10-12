@@ -82,6 +82,7 @@ export function mapAssets(rows: Row[]): CatalogDataset["assets"] {
       retrievedAt: isoTime(r.retrieved_at),
     },
     usageRights: str(r.usage_rights),
+    color: strOrNull(r.color),
   }));
 }
 
@@ -115,6 +116,7 @@ export function mapOffers(rows: Row[]): CatalogDataset["offers"] {
     listingStatus: str(r.listing_status) as CatalogDataset["offers"][number]["listingStatus"],
     sellerVerified: bool(r.seller_verified),
     storeId: strOrNull(r.store_id),
+    colors: strArray(r.colors),
   }));
 }
 

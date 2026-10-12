@@ -34,6 +34,8 @@ export type PhotoJobInput = {
   sourceUrl: string | null;
   alt: string;
   rights: ImageRights;
+  /** Warna yang ditampilkan foto; disimpan ke product_assets.color. */
+  color?: string | null;
   assetId?: string | null;
   batchId?: string | null;
 };
@@ -50,6 +52,7 @@ type PhotoJobRow = {
   asset_id: string | null;
   batch_id: string | null;
   attempts: number;
+  color: string | null;
 };
 
 export type PhotoJobCounts = { pending: number; running: number; done: number; failed: number; skipped: number };
@@ -84,6 +87,7 @@ export async function enqueuePhotoJobs(jobs: readonly PhotoJobInput[]): Promise<
           source_url: job.sourceUrl,
           alt: job.alt.slice(0, 300),
           rights: job.rights,
+          color: job.color ?? null,
           asset_id: job.assetId ?? null,
           batch_id: job.batchId ?? null,
           status: "pending",
@@ -118,7 +122,14 @@ async function runJob(row: PhotoJobRow, retrievedAt: string): Promise<ProductIma
     }
     const rights = rightsOf(row);
     if (!rights) return { ok: false, reason: "Dasar hak pakai foto tidak tercatat." };
-    const candidate = { imageUrl: row.image_url, source: row.source, sourceUrl: row.source_url ?? row.image_url, alt: row.alt, rights };
+    const candidate = {
+      imageUrl: row.image_url,
+      source: row.source,
+      sourceUrl: row.source_url ?? row.image_url,
+      alt: row.alt,
+      rights,
+      color: row.color ?? null,
+    };
     return row.kind === "primary"
       ? await importProductImage({ productId: row.product_id, candidate, defaultRights: rights, retrievedAt, batchId: row.batch_id })
       : await importGalleryImage({ productId: row.product_id, candidate, retrievedAt, batchId: row.batch_id });

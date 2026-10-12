@@ -510,3 +510,40 @@ test("INT-10 foto di templat terpadu: produk lama mendapat foto galeri tiap warn
   assert.equal(jobs.length, 2);
   assert.ok(jobs.every((j) => j.kind === "gallery" && j.batch_id === created.id));
 });
+
+test("INT-11 warna penawaran: gabungan baris per warna, diganti saat impor ulang, sel kosong tidak menghapus", async () => {
+  const { convertUnifiedRows } = await import("@/lib/import/unified");
+  const base = await createBatch({ kind: "specs", origin: "csv", sourceLabel: "QA-UJI warna produk", options: {}, rows: [spec("Warna", 1)], malformedLines: [], admin: actor });
+  assert.ok(base.ok);
+  batches.push(base.id);
+  await applyAll(base.id);
+
+  const url = "https://shopee.co.id/qauji-warna-1-i.9.9";
+  const row = (color: string, price = "Rp 2.000.000") => ({
+    merek: "QAUji", model: "Warna 1", ram: "8", storage: "128", marketplace: "Shopee", toko: "Toko QA",
+    url: `${url}?extraParams=qa`, harga: price, diperiksa: "10/10/2026 09:00", warna: color,
+    url_image: color ? `https://down-id.img.susercontent.com/file/qa-uji-warna-${color.toLowerCase()}` : "",
+  });
+  const importRows = async (label: string, rows: ReturnType<typeof row>[]) => {
+    const created = await createBatch({
+      kind: "offers", origin: "csv", sourceLabel: label, rows: convertUnifiedRows(rows).offerRows, malformedLines: [], admin: actor,
+      options: { sourceFormat: "unified", imageRights: { basis: "own-work", text: "Aset uji QA" }, defaultObservedAt: new Date().toISOString() },
+    });
+    assert.ok(created.ok, JSON.stringify(created));
+    batches.push(created.id);
+    await applyAll(created.id);
+    return created.id;
+  };
+  const colorsOf = async () =>
+    (((await db.from("offers").select("colors").eq("url", url)).data ?? []) as { colors: string[] }[]).map((o) => o.colors);
+
+  const first = await importRows("QA-UJI warna 1", [row("Hitam"), row("Hijau")]);
+  assert.deepEqual(await colorsOf(), [["Hitam", "Hijau"]], "satu penawaran, URL Shopee dirapikan, warna digabung");
+  const jobs = ((await db.from("photo_jobs").select("color").eq("batch_id", first)).data ?? []) as { color: string }[];
+  assert.deepEqual(jobs.map((j) => j.color).sort(), ["Hijau", "Hitam"], "warna ikut antrean foto");
+
+  await importRows("QA-UJI warna 2", [row("Biru", "Rp 2.100.000")]);
+  assert.deepEqual(await colorsOf(), [["Biru"]], "warna terisi menggantikan daftar lama");
+  await importRows("QA-UJI warna 3", [row("", "Rp 2.200.000")]);
+  assert.deepEqual(await colorsOf(), [["Biru"]], "sel warna kosong tidak menghapus");
+});

@@ -800,7 +800,7 @@ test("foto listing templat: host diizinkan, hak pakai per baris divalidasi, harg
   assert.equal(safeHttpsImageUrl("https://contoh.com/a.png"), null);
 
   const ok = readTemplateListingImage({ url_image: "https://down-id.img.susercontent.com/file/a" });
-  assert.deepEqual(ok, { image: { url: "https://down-id.img.susercontent.com/file/a", productId: null, rights: null } });
+  assert.deepEqual(ok, { image: { url: "https://down-id.img.susercontent.com/file/a", productId: null, rights: null, color: null } });
   assert.match(readTemplateListingImage({ image_url: "https://contoh.com/a.png" }).issue ?? "", /host-nya belum diizinkan/);
   const noProof = readTemplateListingImage({ image_url: "https://down-id.img.susercontent.com/file/a", image_usage_basis: "written-permission" });
   assert.equal(noProof.image, null);
@@ -815,4 +815,92 @@ test("foto listing templat: host diizinkan, hak pakai per baris divalidasi, harg
   )[0]!;
   assert.ok(offer.offer, "baris harga tetap valid");
   assert.match(offer.offer!.imageIssue ?? "", /host-nya belum diizinkan/);
+});
+
+// Warna dan pencocokan nama di templat terpadu (2026-10-12).
+import { readErafoneListing } from "@/lib/import/offers";
+import { buildColorOptions, colorSwatch } from "@/lib/catalog/colors";
+import { mergeColors, normalizeColorName, sameColors } from "@/lib/import/colors";
+
+const xiaomiCatalog = [
+  { id: "n17", slug: "xiaomi-redmi-note-17", brand: "Xiaomi", model: "Redmi Note 17", is5G: true, variants: [{ id: "n17-6-128", ramGb: 6, storageGb: 128 }] },
+  { id: "n17-4g", slug: "xiaomi-redmi-note-17-4g", brand: "Xiaomi", model: "Redmi Note 17 4G", is5G: false, variants: [{ id: "n174-6-128", ramGb: 6, storageGb: 128 }] },
+  { id: "n17p", slug: "xiaomi-redmi-note-17-pro", brand: "Xiaomi", model: "Redmi Note 17 Pro", is5G: true, variants: [{ id: "n17p-8-256", ramGb: 8, storageGb: 256 }] },
+];
+const unifiedOffer = (overrides: Record<string, string>) =>
+  convertUnifiedRows([{ brand: "Xiaomi", ram_gb: "6", storage_gb: "128", marketplace: "Shopee", seller_name: "Xiaomi Official Store", price_idr: "3549000", ...overrides }]);
+const canonicalOf = (rows: Record<string, string>[]) => offerRowsToCanonical(rows, xiaomiCatalog, { observedAt: "2026-10-12T01:00:00.000Z" });
+
+test("warna: kolom url dibaca dari isinya, kolom warna masuk baris penawaran dan foto utama", () => {
+  const offer = unifiedOffer({ model_name: "Redmi Note 17", url: "https://shopee.co.id/x-i.1.2", warna: "Lotus Purple" }).offerRows[0]!;
+  assert.equal(offer.url, "https://shopee.co.id/x-i.1.2");
+  assert.equal(offer.color, "Lotus Purple");
+  assert.equal(offer.product_name, "Xiaomi Redmi Note 17");
+  const product = convertUnifiedRows([
+    { brand: "QAUji", model_name: "Warna 2", url: "https://www.gsmarena.com/qauji_warna_2-92.php", ram_gb: "8", storage_gb: "128", chipset: "Chip", image_url: "https://fdn2.gsmarena.com/vv/bigpic/a.jpg", color: "Hitam" },
+  ]);
+  assert.equal(product.specRows[0]!.url, "qauji_warna_2-92.php", "tautan GSMArena di kolom url menjadi sumber spesifikasi");
+  assert.equal(product.specRows[0]!.image_color, "Hitam");
+  assert.equal(canonicalHeader("Warna"), "color");
+  assert.equal(canonicalHeader("daftar warna"), "colors");
+});
+
+test("pencocokan nama: akhiran 5G dibuang bila jaringan sama, saudara 4G membuat baris perlu ditinjau", () => {
+  const [pro5g, plain, explicit5g] = canonicalOf([
+    unifiedOffer({ model_name: "REDMI Note 17 Pro 5G", ram_gb: "8", storage_gb: "256", url: "https://shopee.co.id/a-i.1.2" }).offerRows[0]!,
+    unifiedOffer({ model_name: "REDMI Note 17", url: "https://shopee.co.id/b-i.1.3" }).offerRows[0]!,
+    unifiedOffer({ model_name: "REDMI Note 17 5G", url: "https://shopee.co.id/b-i.1.3" }).offerRows[0]!,
+  ]);
+  assert.equal(pro5g!.offer?.row.slug, "xiaomi-redmi-note-17-pro");
+  assert.equal(pro5g!.offer?.reviewNote, null);
+  assert.equal(plain!.offer?.row.slug, "xiaomi-redmi-note-17");
+  assert.match(plain!.offer?.reviewNote ?? "", /Redmi Note 17 4G/);
+  assert.equal(explicit5g!.offer?.row.slug, "xiaomi-redmi-note-17");
+  assert.equal(explicit5g!.offer?.reviewNote, null, "label 5G eksplisit tidak perlu ditinjau");
+});
+
+test("URL listing: parameter Shopee dibuang, tautan gambar dan host yang tidak cocok ditolak", () => {
+  const [shopee, image, mismatch] = canonicalOf([
+    unifiedOffer({ model_name: "Redmi Note 17 5G", url: "https://shopee.co.id/x-i.1.2?extraParams=%7B%7D" }).offerRows[0]!,
+    unifiedOffer({ model_name: "Redmi Note 17 5G", url: "https://i02.appmifile.com/a.png?thumb=1" }).offerRows[0]!,
+    unifiedOffer({ model_name: "Redmi Note 17 5G", url: "https://www.tokopedia.com/x" }).offerRows[0]!,
+  ]);
+  assert.equal(shopee!.offer?.row.url, "https://shopee.co.id/x-i.1.2");
+  assert.match(image!.issue ?? "", /tautan gambar/);
+  assert.match(mismatch!.issue ?? "", /bukan halaman Shopee/);
+});
+
+test("warna: Erafone dari akhiran judul, nama dirapikan, gabungan tanpa duplikat", () => {
+  const listing = readErafoneListing({ a: "https://erafone.com/produk/x", b: "Xiaomi Redmi Note 17 Pro 8/256GB - Cloud Blush", c: "Rp 5.799.000" });
+  assert.equal(listing?.color, "Cloud Blush");
+  assert.equal(listing?.matchTitle, "Xiaomi Redmi Note 17 Pro 8/256GB");
+  assert.equal(normalizeColorName("  Oak   Green "), "Oak Green");
+  assert.equal(normalizeColorName("-"), null);
+  assert.deepEqual(mergeColors(["Black"], ["black", "Green"]), ["Black", "Green"]);
+  assert.ok(sameColors(["Black", "Green"], ["green", "BLACK"]));
+});
+
+test("pilihan warna: warna foto utama dipilih bawaan, galeri mengikuti warna, harga tidak tersentuh", () => {
+  const photos = [
+    { src: "/a.webp", alt: "a", source: "Shopee", color: "Black" },
+    { src: "/b.webp", alt: "b", source: "Shopee", color: "Oak Green" },
+    { src: "/c.webp", alt: "c", source: "Shopee", color: "Black" },
+  ];
+  const base = { photos, offerColors: [["Black", "Lotus Purple"]], selectedVariantOfferColors: [["Black"], ["black"]] };
+  const auto = buildColorOptions({ ...base, requestedKey: undefined });
+  assert.deepEqual(auto.options.map((o) => o.key), ["black", "oak-green", "lotus-purple"]);
+  assert.equal(auto.selected?.name, "Black");
+  assert.deepEqual(auto.gallery.map((p) => p.src), ["/a.webp", "/c.webp"]);
+  assert.equal(auto.options[0]!.offerCount, 2);
+  assert.equal(auto.options[2]!.thumbnail, null, "warna tanpa foto tidak meminjam foto warna lain");
+
+  const purple = buildColorOptions({ ...base, requestedKey: "lotus-purple" });
+  assert.equal(purple.selected?.name, "Lotus Purple");
+  assert.equal(purple.gallery.length, 3, "tanpa foto warna itu, semua foto tetap tampil");
+  assert.equal(buildColorOptions({ ...base, requestedKey: "tidak-ada" }).selected?.name, "Black");
+
+  const noPhotos = buildColorOptions({ photos: [], offerColors: [["Black"]], selectedVariantOfferColors: [], requestedKey: undefined });
+  assert.equal(noPhotos.selected, null, "tanpa foto berwarna, judul tidak mengklaim warna");
+  assert.equal(colorSwatch("Oak Green"), colorSwatch("Green"));
+  assert.equal(colorSwatch("F9 Pro"), null);
 });

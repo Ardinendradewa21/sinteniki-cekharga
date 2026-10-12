@@ -139,7 +139,7 @@ async function fetchCatalogFromBackend(): Promise<CatalogDataset> {
       fetchAllRows({
         table: "product_assets",
         columns:
-          "id, product_id, variant_id, kind, src, alt, source, source_url, retrieved_at, usage_rights",
+          "id, product_id, variant_id, kind, src, alt, source, source_url, retrieved_at, usage_rights, color",
         order: [
           { column: "created_at", ascending: true },
           ...byId,
@@ -155,7 +155,7 @@ async function fetchCatalogFromBackend(): Promise<CatalogDataset> {
       fetchAllRows({
         table: "offers",
         columns:
-          "id, variant_id, marketplace, seller_name, url, warranty, listing_status, seller_verified, store_id",
+          "id, variant_id, marketplace, seller_name, url, warranty, listing_status, seller_verified, store_id, colors",
         order: byId,
       }),
       // Satu baris per penawaran: pengamatan terbaru.
@@ -223,7 +223,7 @@ function reportDatasetSize(dataset: CatalogDataset): void {
  */
 export const loadCatalogFromBackend = unstable_cache(
   fetchCatalogFromBackend,
-  ["catalog-dataset", "v5-latest-views"],
+  ["catalog-dataset", "v7-colors"],
   { tags: [CATALOG_CACHE_TAG], revalidate: CATALOG_REVALIDATE_SECONDS }
 );
 

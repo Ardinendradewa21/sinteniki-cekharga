@@ -35,7 +35,15 @@ function Chip({ tone, children }: { tone: "strong" | "warning" | "brand"; childr
   return <Badge variant={tone === "strong" ? "default" : tone}>{children}</Badge>;
 }
 
-function OfferCard({ offer, now }: { offer: ProductDetailOffer; now: Date }) {
+function OfferCard({
+  offer,
+  selectedColor,
+  now,
+}: {
+  offer: ProductDetailOffer;
+  selectedColor: string | null;
+  now: Date;
+}) {
   const isOfficialSite = marketplaceKey(offer.url, offer.store) === "official";
   const showSeller =
     offer.sellerName.trim().toLowerCase() !== offer.marketplace.trim().toLowerCase();
@@ -75,6 +83,22 @@ function OfferCard({ offer, now }: { offer: ProductDetailOffer; now: Date }) {
         </div>
         {showSeller ? (
           <p className="truncate text-xs text-muted-foreground">{offer.sellerName}</p>
+        ) : null}
+        {offer.colors.length > 0 ? (
+          // Warna yang tercatat di listing ini; warna terpilih ditebalkan.
+          <p className="truncate text-xs text-muted-foreground">
+            Warna:{" "}
+            {offer.colors.map((color, index) => (
+              <span key={color}>
+                {index > 0 ? ", " : null}
+                {selectedColor && color.toLowerCase() === selectedColor.toLowerCase() ? (
+                  <strong className="font-semibold text-foreground">{color}</strong>
+                ) : (
+                  color
+                )}
+              </span>
+            ))}
+          </p>
         ) : null}
         <p
           className={cn(
@@ -125,10 +149,13 @@ function OfferCard({ offer, now }: { offer: ProductDetailOffer; now: Date }) {
 export function OfferList({
   offers,
   variantLabel,
+  selectedColor = null,
   now,
 }: {
   offers: ProductDetailOffer[];
   variantLabel: string | null;
+  /** Warna yang sedang dipilih; hanya menandai, tidak menyaring penawaran. */
+  selectedColor?: string | null;
   now: Date;
 }) {
   return (
@@ -163,7 +190,7 @@ export function OfferList({
       ) : (
         <ul className="mt-4 grid gap-3 lg:grid-cols-2">
           {offers.map((offer) => (
-            <OfferCard key={offer.id} offer={offer} now={now} />
+            <OfferCard key={offer.id} offer={offer} selectedColor={selectedColor} now={now} />
           ))}
         </ul>
       )}

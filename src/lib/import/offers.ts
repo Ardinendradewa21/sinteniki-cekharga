@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import type { CsvRow } from "@/lib/import/csv-parser";
-import { IMAGE_HOST_ISSUE, safeHttpsImageUrl } from "@/lib/import/image-hosts";
+import { normalizeColorName } from "@/lib/import/colors";
+import { ALLOWED_IMAGE_HOSTS, IMAGE_HOST_ISSUE, safeHttpsImageUrl } from "@/lib/import/image-hosts";
 import { readImageRights, type ImageRights } from "@/lib/import/image-rights";
 import { CLEAR_TOKEN, OFFER_KEEPABLE_FIELDS } from "@/lib/import/patch-rules";
 
@@ -112,6 +113,14 @@ export type PreparedOfferOutcome =
       image: ListingImageRef | null;
       /** Foto di baris ini tidak dipakai, beserta alasannya (harga tetap diproses). */
       imageIssue?: string;
+      /** Warna listing di baris ini, apa adanya dari sumber; null = tidak disebut. */
+      color: string | null;
+      /**
+       * Produknya cocok, tetapi ada alasan untuk memeriksa ulang (mis. nama
+       * tanpa label jaringan padahal ada model saudara 4G/5G). Baris tetap
+       * bisa diterapkan, tetapi tidak dicentang otomatis.
+       */
+      reviewNote: string | null;
     }
   | { ok: false; label: string; reason: string; format: OfferSourceFormat };
 
@@ -119,7 +128,13 @@ export type PreparedOfferOutcome =
  * Foto listing. `productId` null berarti produknya baru diketahui saat
  * dicocokkan lewat slug (templat); `rights` null berarti memakai pilihan form.
  */
-export type ListingImageRef = { url: string; productId: string | null; rights: ImageRights | null };
+export type ListingImageRef = {
+  url: string;
+  productId: string | null;
+  rights: ImageRights | null;
+  /** Warna yang ditampilkan foto (warna listing barisnya). */
+  color: string | null;
+};
 
 /** Kolom foto listing di templat penawaran dan templat terpadu (nama dinormalkan). */
 const LISTING_IMAGE_COLUMNS = ["image_url", "url_image", "url gambar", "link gambar", "marketplace_image_url", "product_image_url"];
@@ -136,7 +151,58 @@ export function readTemplateListingImage(row: CsvRow): { image: ListingImageRef 
   if (!url) return { image: null, issue: IMAGE_HOST_ISSUE };
   const rights = readImageRights(valueFrom(row, ["image_usage_basis"]), valueFrom(row, ["image_usage_rights"]));
   if (!rights.ok) return { image: null, issue: rights.error };
-  return { image: { url: url.href, productId: null, rights: rights.rights } };
+  return { image: { url: url.href, productId: null, rights: rights.rights, color: readRowColor(row) } };
+}
+
+/** Kolom warna listing: `color` atau `warna`. */
+export function readRowColor(row: CsvRow): string | null {
+  return normalizeColorName(valueFrom(row, ["color", "warna"]));
+}
+
+/**
+ * Marketplace yang host listing-nya pasti. Baris "Shopee" dengan tautan ke
+ * situs lain (mis. tautan gambar yang salah tempel) ditolak, bukan disimpan
+ * sebagai penawaran Shopee.
+ */
+const MARKETPLACE_HOSTS: readonly [RegExp, string, string][] = [
+  [/shopee/i, "shopee.co.id", "Shopee"],
+  [/tokopedia/i, "tokopedia.com", "Tokopedia"],
+  [/lazada/i, "lazada.co.id", "Lazada"],
+  [/blibli/i, "blibli.com", "Blibli"],
+  [/tiktok/i, "tiktok.com", "TikTok Shop"],
+  [/erafone/i, "erafone.com", "Erafone"],
+];
+
+function hostMatches(hostname: string, domain: string): boolean {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
+
+/**
+ * URL listing templat yang dirapikan dan diperiksa: tautan gambar ditolak,
+ * host harus cocok dengan marketplace yang dikenal, dan parameter tampilan
+ * Shopee (?extraParams=…) dibuang supaya satu listing tidak tercatat dua kali.
+ * URL yang tidak terbaca diteruskan apa adanya; validasi skema menolaknya.
+ */
+export function checkTemplateListingUrl(rawUrl: string, marketplace: string): { url: string } | { error: string } {
+  let url: URL;
+  try {
+    url = new URL(rawUrl.trim());
+  } catch {
+    return { url: rawUrl };
+  }
+  const hostname = url.hostname.toLowerCase();
+  if (ALLOWED_IMAGE_HOSTS.has(hostname) || /\.(?:jpe?g|png|webp|gif|avif)$/i.test(url.pathname)) {
+    return { error: "Kolom URL listing berisi tautan gambar, bukan halaman toko. Pindahkan ke kolom image_url." };
+  }
+  const expected = MARKETPLACE_HOSTS.find(([pattern]) => pattern.test(marketplace));
+  if (expected && !hostMatches(hostname, expected[1])) {
+    return { error: `URL listing bukan halaman ${expected[2]} (${hostname}), padahal marketplace-nya ${marketplace}.` };
+  }
+  if (hostMatches(hostname, "shopee.co.id")) {
+    const canonical = canonicalShopeeUrl(url.href);
+    if (canonical) return { url: canonical };
+  }
+  return { url: url.href };
 }
 
 /** Nama kolom yang diterima, ditulis apa adanya di templat unduhan. */
@@ -368,6 +434,7 @@ type ResolvedListing =
       product: OfferCatalogProduct;
       variant: OfferCatalogProduct["variants"][number];
       inferred: boolean;
+      reviewNote: string | null;
     }
   | { ok: false; reason: string };
 
@@ -425,7 +492,48 @@ function resolveListingVariant(
     product,
     variant,
     inferred: inferredBaseVariant !== undefined && inferredBaseVariant.id === variant.id,
+    reviewNote: networkSiblingNote(title, product, products),
   };
+}
+
+/**
+ * Nama tanpa label jaringan ("Redmi Note 17") cocok tepat dengan produk
+ * katalog, padahal katalog juga punya saudaranya ("Redmi Note 17 4G"). Toko
+ * sering membuang label jaringan, jadi listing itu bisa milik salah satunya.
+ * Produknya tetap dipasangkan, tetapi diberi catatan untuk ditinjau.
+ */
+function networkSiblingNote(
+  title: string,
+  product: OfferCatalogProduct,
+  products: readonly OfferCatalogProduct[]
+): string | null {
+  const identity = listingIdentity(title);
+  if (/ [45]g$/.test(identity)) return null;
+  const index = aliasIndex(products);
+  for (const alias of productAliases(product)) {
+    for (const suffix of [" 4g", " 5g"]) {
+      const sibling = (index.get(`${alias}${suffix}`) ?? []).find((candidate) => candidate.id !== product.id);
+      if (sibling) {
+        return `Nama tanpa label jaringan dicocokkan ke ${product.brand} ${product.model}, padahal ada ${sibling.brand} ${sibling.model}. Pastikan listingnya memang model ini.`;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Produk untuk baris templat yang menyebut nama (merek + model), bukan slug.
+ * Memakai aturan pencocokan judul toko: akhiran 4G/5G hanya dibuang bila
+ * jaringan di katalog sama, dan merek induk (Xiaomi untuk Redmi/POCO) dikenali.
+ */
+function resolveNamedProduct(
+  name: string,
+  products: readonly OfferCatalogProduct[]
+): { product: OfferCatalogProduct; reviewNote: string | null } | { error: string } | null {
+  const product = matchCatalogProduct(name, products);
+  if (product === "ambiguous") return { error: `Nama "${name}" cocok ke lebih dari satu produk katalog; isi kolom slug.` };
+  if (!product) return null;
+  return { product, reviewNote: networkSiblingNote(name, product, products) };
 }
 
 function canonicalShopeeUrl(value: string): string | null {
@@ -484,20 +592,45 @@ export function prepareOfferRow(
   defaults: { observedAt: string; sellerName?: string }
 ): PreparedOfferOutcome {
   if (Object.keys(row).some((key) => normalizedColumnName(key) === "slug")) {
-    const withObservedAt = {
+    const format = "template" as const;
+    const withObservedAt: CsvRow = {
       ...row,
       observed_at: valueFrom(row, RAW_OBSERVED_COLUMNS) || defaults.observedAt,
     };
+    // Templat terpadu tanpa slug membawa nama produk; slug bentukan dari
+    // nama hanya dipakai bila nama tidak cocok dengan katalog.
+    let reviewNote: string | null = null;
+    const productName = valueFrom(row, ["product_name"]);
+    if (productName) {
+      const named = resolveNamedProduct(productName, products);
+      if (named && "error" in named) {
+        return { ok: false, label: productName, reason: named.error, format };
+      }
+      if (named) {
+        withObservedAt.slug = named.product.slug;
+        reviewNote = named.reviewNote;
+      }
+    }
+    const rawUrl = valueFrom(row, ["url"]);
+    if (rawUrl) {
+      const checked = checkTemplateListingUrl(rawUrl, valueFrom(row, ["marketplace"]));
+      if ("error" in checked) {
+        return { ok: false, label: productName || valueFrom(row, ["slug"]) || rawUrl, reason: checked.error, format };
+      }
+      withObservedAt.url = checked.url;
+    }
     const mapped = mapOfferRow(withObservedAt);
-    if (!mapped.ok) return { ...mapped, format: "template" };
+    if (!mapped.ok) return { ...mapped, format };
     const listingImage = readTemplateListingImage(row);
     return {
       ...mapped,
-      format: "template",
+      format,
       origin: "manual",
       inferredBaseVariant: false,
       image: listingImage.image,
       ...(listingImage.issue ? { imageIssue: listingImage.issue } : {}),
+      color: readRowColor(row),
+      reviewNote,
     };
   }
 
@@ -565,6 +698,8 @@ export function prepareOfferRow(
     origin: "automatic",
     inferredBaseVariant: inferred,
     image: null,
+    color: readRowColor(row),
+    reviewNote: resolved.reviewNote,
   };
 }
 
@@ -585,6 +720,8 @@ export type ErafoneListing = {
   title: string;
   /** Judul tanpa akhiran warna ("… 8/256GB - Black" → "… 8/256GB"). */
   matchTitle: string;
+  /** Akhiran warna judul ("Black"), atau null. */
+  color: string | null;
   priceText: string;
 };
 
@@ -610,6 +747,7 @@ export function readErafoneListing(row: CsvRow): ErafoneListing | null {
     imageUrl: cells.find((value) => ERAFONE_IMAGE.test(value)) ?? null,
     title,
     matchTitle: title.replace(/\s+-\s+.*$/, "").trim(),
+    color: normalizeColorName(title.match(/\s+-\s+(.+)$/)?.[1]),
     priceText: priceIndex >= 0 ? cells[priceIndex]! : "",
   };
 }
@@ -677,8 +815,10 @@ function prepareErafoneRow(
     origin: "automatic",
     inferredBaseVariant: resolved.inferred,
     image: listing.imageUrl
-      ? { url: listing.imageUrl, productId: resolved.product.id, rights: null }
+      ? { url: listing.imageUrl, productId: resolved.product.id, rights: null, color: listing.color }
       : null,
+    color: listing.color,
+    reviewNote: resolved.reviewNote,
   };
 }
 

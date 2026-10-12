@@ -46,7 +46,7 @@ Spesifikasi dan harga cukup diisi dalam **satu berkas**. Unduh lewat tombol **Te
 | --- | --- | --- |
 | Identitas | `brand`, `model_name`, `ram_gb`, `storage_gb`; `gsmarena_url` untuk produk baru; `slug` untuk produk yang sudah ada | selalu |
 | Spesifikasi | `chipset`, `battery_capacity_mah`, `nfc`, `ip_rating`, dan seterusnya (lihat 3.2) | hanya untuk produk baru atau yang diperbarui; **cukup di satu baris per produk** |
-| Foto | `image_url`, `image_usage_basis`, `image_usage_rights` | bila ada tautan foto produk (lihat "Foto di templat terpadu") |
+| Warna dan foto | `color`, `image_url`, `image_usage_basis`, `image_usage_rights` | bila ada warna listing atau tautan foto produk (lihat "Warna dan foto di templat terpadu") |
 | Penawaran | `marketplace`, `seller_name`, `offer_url`, `price_idr`, `observed_at`, `warranty`, `listing_status`, `seller_verified` | bila ada harga atau listing toko |
 
 Sistem membaca baris menurut kelompok yang terisi:
@@ -55,9 +55,15 @@ Sistem membaca baris menurut kelompok yang terisi:
 - **Harga untuk produk yang sudah ada.** Baris yang hanya berisi identitas dan penawaran dibaca sebagai harga untuk produk di katalog. Isi `slug`, atau merek + model; slug akan dibentuk dari keduanya.
 - **Aturan sel kosong** di 3.2 tetap berlaku: kosong berarti tidak diubah, dan `-` berarti kosongkan.
 
-### Foto di templat terpadu
+### Warna dan foto di templat terpadu
 
-Kolom foto tidak menentukan jenis baris. Mengisi `image_url` saja tidak membuat atau menimpa produk.
+Kolom warna dan foto tidak menentukan jenis baris. Mengisi `image_url` atau `color` saja tidak membuat atau menimpa produk.
+
+- **Warna (`color`, atau header `warna`)** adalah warna listing di baris itu, ditulis apa adanya dari toko ("Lotus Purple", "Hitam"). Warna **tidak** membentuk varian dan tidak mengubah harga: harga tetap dicatat per kapasitas RAM/penyimpanan.
+- Satu baris per warna untuk listing yang sama boleh. Warnanya digabung ke penawaran itu (`offers.colors`), dan foto setiap baris dicatat dengan warnanya (`product_assets.color`).
+- Impor ulang dengan kolom warna terisi **menggantikan** daftar warna penawaran itu. Kolom warna kosong tidak menghapus warna yang sudah tercatat.
+- Di halaman produk, warna muncul sebagai pilihan **Pilih warna**. Memilih warna hanya mengganti foto yang tampil, dan setiap penawaran menyebut warna yang tercatat di listing-nya.
+- Kolom spesifikasi `colors` (daftar semua warna menurut GSMArena) tetap ada, dengan header lain `daftar warna`. Header `warna` sekarang berarti warna per baris.
 
 - **Host yang diizinkan:** `down-id.img.susercontent.com` (Shopee), `fdn.gsmarena.com` dan `fdn2.gsmarena.com` (GSMArena), `cdnpro.eraspace.com` (Erafone), dan `i02.appmifile.com` (situs resmi Xiaomi). Wajib HTTPS. Host lain dilewati dengan alasan; harganya tetap masuk.
 - **Produk baru di berkas:** foto pertama untuk produk itu menjadi **foto utama**. Foto berbeda di baris penawaran lain produk yang sama (misalnya per warna) masuk **galeri**, tanpa tanda konflik.
@@ -66,6 +72,23 @@ Kolom foto tidak menentukan jenis baris. Mengisi `image_url` saja tidak membuat 
 - **Satu baris per warna:** baris untuk listing yang sama (varian + `offer_url` sama) digabung. Data harga dari baris terakhir yang dipakai, dan foto setiap baris tetap masuk galeri.
 - **Hak pakai:** isi `image_usage_basis` per baris bila sumber fotonya berbeda-beda, misalnya Shopee dan situs resmi brand. Bila kosong, dipakai pilihan dasar hak pakai di formulir. `written-permission` dan `public-license` wajib disertai `image_usage_rights`; tanpa itu fotonya dilewati.
 - Header `url_image`, `url gambar`, `link gambar`, dan `foto` dibaca sebagai `image_url`.
+
+### Mencocokkan produk lewat nama
+
+Baris harga tanpa `slug` dicocokkan lewat merek + model, memakai aturan yang sama dengan judul listing Shopee:
+
+- **Akhiran jaringan.** "REDMI Note 17 Pro 5G" cocok ke "Redmi Note 17 Pro" bila spesifikasi katalog menyatakan 5G. Akhiran tidak dibuang bila jaringannya berbeda.
+- **Merek induk.** "Xiaomi POCO C81 Pro" dan "POCO C81 Pro" sama-sama dikenali.
+- **Perlu tinjau: model saudara.** Nama tanpa label jaringan ("REDMI Note 17") yang cocok ke satu produk, padahal katalog juga punya "Redmi Note 17 4G", tetap dipasangkan tetapi ditandai **Perlu tinjau** dan tidak dicentang otomatis.
+- **Perlu tinjau: harga ganda.** Dua baris untuk listing dan varian yang sama dengan harga berbeda juga ditandai **Perlu tinjau**. Contohnya satu listing Shopee yang memuat model 4G dan 5G sekaligus. Bila memang dua model berbeda, isi `slug` di masing-masing baris.
+- Nama yang cocok ke lebih dari satu produk dilewati dengan alasan; isi `slug`.
+
+### Kolom URL listing
+
+- Header `url` di templat terpadu dibaca dari isinya. Tautan GSMArena (`…-12345.php`) dibaca sebagai `gsmarena_url`; tautan lain dibaca sebagai `offer_url`.
+- Parameter tampilan Shopee (`?extraParams=…`) dibuang, supaya satu listing tidak tercatat dua kali.
+- Tautan gambar di kolom URL listing ditolak dengan alasan. Pindahkan ke `image_url`.
+- Bila marketplace-nya Shopee, Tokopedia, Lazada, Blibli, TikTok Shop, atau Erafone, host URL harus milik marketplace itu. Kalau tidak, baris ditolak.
 
 ### Koreksi otomatis
 
@@ -80,7 +103,7 @@ Nilai berikut dirapikan otomatis. Setiap koreksi tampil di panel **Koreksi otoma
 | `10/10/2026 09:00`, `2026-10-10 09:00` | `2026-10-10T09:00:00+07:00`; waktu tanpa zona diasumsikan WIB |
 | `2026-10-10` (tanpa jam) | 00.00 WIB, sehingga harga terlihat lebih tua, bukan lebih segar |
 | `https://www.gsmarena.com/oppo_x-123.php` | `oppo_x-123.php` |
-| Header `Merek`, `Harga`, `Link`, `Toko`, `RAM`, `Penyimpanan`, `Garansi`, `Diperiksa`, `url_image` | `brand`, `price_idr`, `offer_url`, `seller_name`, `ram_gb`, `storage_gb`, `warranty`, `observed_at`, `image_url` |
+| Header `Merek`, `Harga`, `Link`, `Toko`, `RAM`, `Penyimpanan`, `Garansi`, `Diperiksa`, `url_image`, `Warna` | `brand`, `price_idr`, `offer_url`, `seller_name`, `ram_gb`, `storage_gb`, `warranty`, `observed_at`, `image_url`, `color` |
 
 Yang **tidak** dikoreksi otomatis:
 
@@ -175,7 +198,7 @@ Langkah ini berlaku untuk semua berkas: templat terpadu maupun format lama.
    | **Baru** | belum ada di katalog | ya |
    | **Perbarui** | ada nilai yang berubah; sebelum dan sesudah ditampilkan | ya |
    | **Harga lama** | harga lebih tua dari harga terakhir; hanya masuk riwayat, harga yang tampil tidak berubah | ya |
-   | **Perlu tinjau** | varian disimpulkan dari judul listing, atau data terhapus akan dipulihkan | **tidak**, periksa dulu |
+   | **Perlu tinjau** | varian disimpulkan dari judul listing, nama cocok padahal ada model saudara 4G/5G, baris ganda berbeda harga, atau data terhapus akan dipulihkan | **tidak**, periksa dulu |
    | **Sama** | tidak ada perubahan; centang bila ingin memajukan waktu pemeriksaan | tidak |
    | **Dilewati** | tidak bisa dipakai; alasannya tertulis | tidak bisa dipilih |
 
@@ -336,6 +359,9 @@ Baris mentah berkas yang diunggah disimpan sementara (tabel `raw_listings`) dan 
 | Varian tidak ada di produk | Periksa RAM/penyimpanan. Bila varian itu memang dijual, perbarui spesifikasi produk lewat CSV spesifikasi, bukan lewat CSV harga. |
 | Judul cocok ke beberapa produk / multi-varian | Masukkan listing itu lewat templat CekHarga dengan slug dan varian yang tegas. |
 | URL gambar tidak diizinkan | Pakai host yang diizinkan, atau kosongkan foto. |
+| Kolom URL listing berisi tautan gambar | Pindahkan tautan itu ke `image_url`, lalu isi URL halaman toko. |
+| URL listing bukan halaman marketplace-nya | Periksa kolom `marketplace` dan URL; keduanya harus toko yang sama. |
+| Nama cocok ke lebih dari satu produk | Isi kolom `slug` untuk baris itu. |
 | Waktu pengamatan harga tidak valid | Tulis `observed_at` dengan format `2026-10-08T10:00:00+07:00`. |
 | Dikecualikan dari katalog | Model sengaja dibuang (bagian 7.1). Tidak perlu tindakan kecuali model itu sudah rilis di Indonesia. |
 

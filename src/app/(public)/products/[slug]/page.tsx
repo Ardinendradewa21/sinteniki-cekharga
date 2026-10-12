@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowDataTransferHorizontalIcon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 
 import { AdSlot } from "@/components/ads/ad-slot";
+import { ColorPicker } from "@/components/product/color-picker";
 import { DemoBadge, DemoNotice } from "@/components/demo-marker";
 import { Container } from "@/components/layout/container";
 import { PriceDisplay } from "@/components/price-display";
@@ -26,6 +29,12 @@ import { buildCompareHref } from "@/lib/catalog/compare-params";
  * Urutan bagian mengikuti PRD §8: di desktop visual di kiri dan ringkasan
  * keputusan di kanan; di mobile berurutan visual, identitas dan varian, harga
  * dan waktu pemeriksaan, aksi, lalu penawaran dan bukti.
+ *
+ * Tata letak kolom kanan (2026-10-12) mengikuti pola toko yang sudah dikenal
+ * pembeli: judul dengan kapasitas dan warna terpilih, harga, pilihan warna,
+ * pilihan kapasitas, lalu aksi. Yang sengaja TIDAK ditiru: label "New",
+ * "Stok terbatas", harga coret, dan cicilan, karena CekHarga tidak punya
+ * datanya dan PRD melarang urgensi buatan.
  *
  * Catatan rendering: berbeda dari katalog yang memisahkan shell statis dari
  * hasil, hampir seluruh isi halaman ini bergantung pada varian terpilih (harga,
@@ -68,9 +77,10 @@ export default async function ProductDetailPage(
   const requestedVariant = Array.isArray(search.varian)
     ? search.varian[0]
     : search.varian;
+  const requestedColor = Array.isArray(search.warna) ? search.warna[0] : search.warna;
 
   const now = new Date();
-  const detail = await getProductDetail(now, slug, requestedVariant);
+  const detail = await getProductDetail(now, slug, requestedVariant, requestedColor);
 
   // Slug yang tidak dikenal adalah 404 sungguhan. Sebaliknya, varian yang tidak
   // dikenal BUKAN 404: produknya tetap ada, jadi lapisan data sudah jatuh ke
@@ -94,12 +104,27 @@ export default async function ProductDetailPage(
   return (
     <Container className="py-8 md:py-12">
       <nav aria-label="Remah roti" className="mb-6">
-        <Link
-          href="/products"
-          className="inline-flex min-h-11 items-center text-sm font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
-        >
-          Kembali ke katalog
-        </Link>
+        <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+          <li>
+            <Link href="/" className="inline-flex min-h-11 items-center font-medium transition-colors duration-150 hover:text-foreground">
+              Beranda
+            </Link>
+          </li>
+          <li aria-hidden="true">
+            <HugeiconsIcon icon={ArrowRight01Icon} size={14} strokeWidth={2} />
+          </li>
+          <li>
+            <Link href="/products" className="inline-flex min-h-11 items-center font-medium transition-colors duration-150 hover:text-foreground">
+              Katalog
+            </Link>
+          </li>
+          <li aria-hidden="true">
+            <HugeiconsIcon icon={ArrowRight01Icon} size={14} strokeWidth={2} />
+          </li>
+          <li aria-current="page" className="min-w-0 truncate text-foreground">
+            {detail.name}
+          </li>
+        </ol>
       </nav>
 
       {isDemo ? (
@@ -110,72 +135,85 @@ export default async function ProductDetailPage(
         </DemoNotice>
       ) : null}
 
-      <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
-        <ProductGallery
-          photos={detail.gallery}
-          fallback={detail.image}
-          name={detail.name}
-        />
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
+        <div className="lg:sticky lg:top-24 lg:self-start">
+          {/* key: ganti warna memulai galeri dari foto pertama warna itu. */}
+          <ProductGallery
+            key={detail.selectedColor?.key ?? "semua"}
+            photos={detail.gallery}
+            fallback={detail.image}
+            name={detail.selectedColor ? `${detail.name} ${detail.selectedColor.name}` : detail.name}
+          />
+        </div>
 
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm font-medium text-muted-foreground">
-              {detail.brand}
-            </p>
-            {isDemo ? <DemoBadge /> : null}
+        <div className="flex flex-col gap-7">
+          <div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-sm font-medium text-muted-foreground">{detail.brand}</p>
+                  {isDemo ? <DemoBadge /> : null}
+                </div>
+                <h1 className="mt-1 heading-page text-foreground">
+                  {detail.model}
+                  {detail.selectedVariant || detail.selectedColor ? (
+                    <span className="mt-1 block text-lg font-semibold tracking-normal text-muted-foreground sm:text-xl">
+                      {[detail.selectedVariant?.label, detail.selectedColor?.name].filter(Boolean).join(" – ")}
+                    </span>
+                  ) : null}
+                </h1>
+              </div>
+              {/*
+                Membawa varian yang sedang dilihat, supaya perbandingan memakai
+                basis harga yang sama dengan yang barusan dibaca pengguna.
+              */}
+              <Button asChild variant="outline" className="shrink-0">
+                <Link
+                  href={buildCompareHref([
+                    {
+                      slug: detail.slug,
+                      variantKey: detail.selectedVariant?.key ?? null,
+                    },
+                  ])}
+                >
+                  <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} size={16} strokeWidth={2} aria-hidden />
+                  Bandingkan
+                </Link>
+              </Button>
+            </div>
+
+            {detail.image.isGenericIllustration ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Gambar di halaman ini adalah ilustrasi generik, bukan foto produk
+                sebenarnya.
+              </p>
+            ) : null}
           </div>
 
-          <h1 className="mt-1 heading-page text-foreground">
-            {detail.model}
-          </h1>
-
-          {detail.image.isGenericIllustration ? (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Gambar di halaman ini adalah ilustrasi generik, bukan foto produk
-              sebenarnya.
-            </p>
-          ) : null}
-
-          <div className="mt-8">
-            <VariantSelector variants={detail.variants} />
-          </div>
-
-          <div className="mt-8 rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-card p-5">
             <PriceDisplay
               price={detail.price}
               referenceVariant={detail.selectedVariant?.label ?? null}
               now={now}
               showStartingLabel={false}
             />
-            <p className="mt-4 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground">
-              Harga ini terikat pada varian yang sedang dipilih. Mengganti varian
-              akan mengganti harga dan daftar penawarannya.
-            </p>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link href="#penawaran">
-                Lihat penawaran ({detail.offers.length})
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              {/*
-                Membawa varian yang sedang dilihat, supaya perbandingan memakai
-                basis harga yang sama dengan yang barusan dibaca pengguna.
-              */}
-              <Link
-                href={buildCompareHref([
-                  {
-                    slug: detail.slug,
-                    variantKey: detail.selectedVariant?.key ?? null,
-                  },
-                ])}
-              >
-                Bandingkan
-              </Link>
-            </Button>
-          </div>
+          <ColorPicker colors={detail.colors} selected={detail.selectedColor} />
+
+          <VariantSelector variants={detail.variants} />
+
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Harga tercatat per kapasitas, bukan per warna. Mengganti kapasitas
+            mengganti harga dan daftar penawaran; mengganti warna hanya
+            mengganti foto.
+          </p>
+
+          <Button asChild size="lg" className="w-full sm:w-auto sm:self-start">
+            <Link href="#penawaran">
+              Lihat penawaran ({detail.offers.length})
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -183,6 +221,7 @@ export default async function ProductDetailPage(
         <OfferList
           offers={detail.offers}
           variantLabel={detail.selectedVariant?.label ?? null}
+          selectedColor={detail.selectedColor?.name ?? null}
           now={now}
         />
       </div>

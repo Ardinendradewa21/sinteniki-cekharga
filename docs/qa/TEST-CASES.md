@@ -24,6 +24,7 @@ Singkatan jenis: F = Functional, R = Regression, S = Smoke, Sec = Keamanan, A11y
 | TC-DET-02 | US-03 / FR-03 | Pilih varian lain | URL memuat `varian=`, varian terpilih ditandai `aria-current` | F, R | `product.spec.ts` | Lulus |
 | TC-DET-03 | US-03 / FR-03 | Buka slug yang tidak ada | Status 404 | F, S | `product.spec.ts` | Lulus |
 | TC-DET-04 | US-04 / FR-05 | Periksa tombol penawaran | Semua `https://`, buka tab baru dengan `noopener`, tanpa klaim transaksi oleh CekHarga | F, R | `product.spec.ts` | Lulus |
+| TC-DET-06 | US-11 / §7 | Buka detail produk, pilih warna lain | Remah roti Beranda/Katalog; judul menyebut kapasitas; memilih warna menulis `?warna=`, menandai pilihan, dan tidak mengubah harga | F, R | `product.spec.ts` | Lulus (bagian warna di-skip sampai ada produk dengan dua warna) |
 | TC-DET-05 | US-11 / §7 | Buka produk tanpa harga (halaman terakhir urutan harga) | Halaman terbaca, "Harga belum tersedia", tidak ada "Rp0" | F, R | `product.spec.ts` | Lulus |
 | TC-CMP-01 | US-05 / FR-04 | Bandingkan dua produk lewat URL | Varian tampil, tanpa klaim pemenang/skor | F, S | `e2e/public/compare-assistant.spec.ts` | Lulus |
 | TC-CMP-02 | US-05 / FR-04 | Kirim empat produk di URL | Halaman 200, maksimal tiga produk dibandingkan | R | `compare-assistant.spec.ts` | Lulus |
@@ -77,6 +78,7 @@ Singkatan jenis: F = Functional, R = Regression, S = Smoke, Sec = Keamanan, A11y
 | INT-07 | US-20 | Unggahan dianalisis di worker | Status analyzing lalu draft; baris di raw_listings; berkas tanpa baris berguna gagal dengan alasan; retensi tidak menyentuh batch baru | Int, R | `import-flow.test.ts` | Lulus |
 | INT-08 | US-20 | Tarik otomatis sebagai job | Hanya satu job per jenis berjalan; antre ulang tanpa duplikat; Hentikan membatalkan sisa; sesi terkirim membatalkan job; job daftar model membuat sesi | Int, R | `import-flow.test.ts` | Lulus |
 | INT-09 | US-20 | Pratinjau per produk | Harga lebih tua ditandai "Harga lama"; "Spesifikasi saja" tidak membuat batch harga; "Harga saja" hanya untuk produk yang sudah ada dan menghitung sisanya | Int, R | `import-flow.test.ts` | Lulus |
+| INT-11 | US-20 | Warna penawaran | Baris per warna digabung ke satu penawaran (URL Shopee dirapikan); warna ikut antrean foto; impor ulang dengan warna menggantikan daftar, sel kosong tidak menghapus | Int, R | `import-flow.test.ts` | Lulus |
 | INT-10 | US-20 | Foto di templat terpadu | Kolom foto tidak membuat baris produk untuk produk lama; foto tiap warna dari baris listing yang sama masuk antrean galeri dengan jejak batch; harga memakai baris terakhir | Int, R | `import-flow.test.ts` | Lulus |
 
 ## 4. Integritas data (SQL)

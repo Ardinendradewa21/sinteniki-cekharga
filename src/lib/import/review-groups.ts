@@ -28,7 +28,8 @@ export type ReviewItem = {
  * Status tinjauan, lebih rinci dari aksi rencana:
  *   stale  = harga lebih tua dari harga terakhir; hanya masuk riwayat;
  *   review = perlu dilihat manusia sebelum diterapkan (varian disimpulkan
- *            dari judul, atau data terhapus yang akan dipulihkan).
+ *            dari judul, nama cocok padahal ada model saudara 4G/5G, atau
+ *            data terhapus yang akan dipulihkan).
  */
 export type ReviewStatus = "create" | "update" | "stale" | "review" | "unchanged" | "skip";
 
@@ -39,7 +40,7 @@ export function reviewStatus(item: Pick<ReviewItem, "action" | "view" | "changes
   if (item.action === "unchanged") return "unchanged";
   if (item.view.priceStale) return "stale";
   const restored = item.changes.some((change) => change.field === "Status data");
-  if (item.view.inferredVariant || restored) return "review";
+  if (item.view.inferredVariant || item.view.productReview || restored) return "review";
   return item.action;
 }
 

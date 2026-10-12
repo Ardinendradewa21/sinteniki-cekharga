@@ -46,6 +46,8 @@ export type CanonicalOffer = {
   inferredBaseVariant: boolean;
   image: ListingImageRef | null;
   imageIssue?: string;
+  color: string | null;
+  reviewNote: string | null;
 };
 
 export type CanonicalRow = {
@@ -161,6 +163,8 @@ export function offerRowsToCanonical(
         inferredBaseVariant: outcome.inferredBaseVariant,
         image: outcome.image,
         ...(outcome.imageIssue ? { imageIssue: outcome.imageIssue } : {}),
+        color: outcome.color,
+        reviewNote: outcome.reviewNote,
       },
       issue: null,
     };

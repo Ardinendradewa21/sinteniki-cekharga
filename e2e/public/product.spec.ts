@@ -20,7 +20,7 @@ test.describe("Detail produk (FR-03, FR-05)", () => {
     await page.goto("/products?merek=samsung&urut=checked");
     const [href] = await productLinks(page);
     await page.goto(href);
-    const variants = page.getByRole("heading", { name: "Varian tercatat" }).locator("xpath=..").getByRole("link");
+    const variants = page.getByRole("heading", { name: /Pilih kapasitas/ }).locator("xpath=..").getByRole("link");
     const count = await variants.count();
     test.skip(count < 2, "produk ini hanya punya satu varian");
     let index = 0;
@@ -30,6 +30,28 @@ test.describe("Detail produk (FR-03, FR-05)", () => {
     await target.click();
     await expect(page).toHaveURL(/[?&]varian=/);
     await expect(variants.filter({ hasText: label }).first()).toHaveAttribute("aria-current", "true");
+  });
+
+  test("TC-DET-06 remah roti, judul dengan kapasitas, dan warna hanya mengganti foto @regression", async ({ page }) => {
+    await page.goto("/products?urut=checked");
+    const [href] = await productLinks(page);
+    await page.goto(href);
+    const crumbs = page.getByRole("navigation", { name: "Remah roti" });
+    await expect(crumbs.getByRole("link", { name: "Beranda" })).toBeVisible();
+    await expect(crumbs.getByRole("link", { name: "Katalog" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/\d+\/\d+ (GB|TB)/);
+
+    const colors = page.getByRole("heading", { name: /Pilih warna/ }).locator("xpath=..").getByRole("link");
+    test.skip((await colors.count()) < 2, "produk ini belum punya dua warna tercatat");
+    const price = await page.locator("main").getByText(/^Rp[\d.]+$/).first().innerText();
+    const target = colors.and(page.locator(":not([aria-current])")).first();
+    const name = (await target.innerText()).trim();
+    await target.click();
+    await expect(page).toHaveURL(/[?&]warna=/);
+    await expect(colors.filter({ hasText: name }).first()).toHaveAttribute("aria-current", "true");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(name);
+    // PRD §7: harga tercatat per kapasitas; warna tidak mengubahnya.
+    await expect(page.locator("main").getByText(/^Rp[\d.]+$/).first()).toHaveText(price);
   });
 
   test("TC-DET-03 slug tidak dikenal memberi status 404 @smoke", async ({ page }) => {

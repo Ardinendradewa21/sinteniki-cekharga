@@ -3,6 +3,7 @@ import "server-only";
 import { selectAll, selectWhereIn } from "@/lib/backend/paged-read";
 import type { ProductSpecs } from "@/lib/catalog/schema";
 import type { CsvRow } from "@/lib/import/csv-parser";
+import { sameColors } from "@/lib/import/colors";
 import type { ImageRights } from "@/lib/import/image-rights";
 import {
   loadOfferContext,
@@ -283,9 +284,20 @@ export async function planOfferImport(
   // penawaran menggabungkan baris ganda dengan aturan yang sama.
   const latest = new Map<string, PreparedItem>();
   const mergedRows = new Map<string, number[]>();
+  // Catatan tinjau dari baris ganda: harga berbeda untuk listing yang sama
+  // (mis. satu listing Shopee berisi model 4G dan 5G) tidak boleh tertimpa diam-diam.
+  const duplicateNotes = new Map<string, string[]>();
   for (const item of prepared.items) {
     const earlier = latest.get(item.offerKey);
     if (earlier) {
+      const notes = duplicateNotes.get(item.offerKey) ?? [];
+      if (earlier.reviewNote) notes.push(earlier.reviewNote);
+      if (earlier.priceIdr !== null && item.priceIdr !== null && earlier.priceIdr !== item.priceIdr) {
+        notes.push(
+          `Baris lain untuk listing dan varian yang sama memberi harga berbeda (${rupiah(earlier.priceIdr)}); yang dipakai ${rupiah(item.priceIdr)}. Periksa apakah listing ini memuat model lain.`
+        );
+      }
+      duplicateNotes.set(item.offerKey, notes);
       mergedRows.set(item.offerKey, [...(mergedRows.get(item.offerKey) ?? []), earlier.rowIndex]);
       items.push({
         entity: "offer",
@@ -319,7 +331,7 @@ export async function planOfferImport(
     // Penawaran yang dihapus lunak ikut dibaca: impor memulihkannya.
     selectWhereIn(
       "offers",
-      "id, variant_id, url, marketplace, seller_name, warranty, listing_status, seller_verified, store_id, deleted_at",
+      "id, variant_id, url, marketplace, seller_name, warranty, listing_status, seller_verified, store_id, colors, deleted_at",
       "variant_id",
       offerItems.map((item) => item.variantId),
       { includeDeleted: true }
@@ -368,6 +380,7 @@ export async function planOfferImport(
       images.length > usable ? `${images.length - usable} foto dilewati (hak pakai)` : null,
       imageIssue ? `foto dilewati: ${imageIssue.reason}` : null,
     ].filter(Boolean).join("; ");
+    const reviewNotes = [...new Set([item.reviewNote, ...(duplicateNotes.get(item.offerKey) ?? [])].filter((note): note is string => Boolean(note)))];
     const view = {
       product: product?.name ?? item.label,
       variant: product?.variant ?? null,
@@ -379,8 +392,11 @@ export async function planOfferImport(
       status: LISTING_STATUS_LABEL[item.payload.listing_status] ?? item.payload.listing_status,
       url: item.url,
       photos: photos || null,
+      colors: item.colors.length > 0 ? item.colors.join(", ") : null,
       // Judul toko tanpa memori: varian dasar disimpulkan importer, jadi ditandai "Perlu tinjau".
       inferredVariant: item.inferred ? true : null,
+      // Nama cocok tetapi ada model saudara 4G/5G, atau baris ganda berbeda harga: "Perlu tinjau".
+      productReview: reviewNotes.length > 0 ? true : null,
     };
     const label = product ? `${product.name} ${product.variant}` : item.label;
 
@@ -399,9 +415,15 @@ export async function planOfferImport(
       movedFrom = current ? String(current.url) : null;
     }
 
-    const inferredNote = item.inferred
-      ? "Judul listing tidak menyebut RAM/penyimpanan; varian dasar disimpulkan. Periksa listingnya sebelum menerapkan."
-      : null;
+    const inferredNote =
+      [
+        item.inferred
+          ? "Judul listing tidak menyebut RAM/penyimpanan; varian dasar disimpulkan. Periksa listingnya sebelum menerapkan."
+          : null,
+        ...reviewNotes,
+      ]
+        .filter(Boolean)
+        .join(" ") || null;
     if (!current) {
       items.push({ entity: "offer", action: "create", label, reason: inferredNote, rowIndexes, view, changes: [] });
       continue;
@@ -431,6 +453,11 @@ export async function planOfferImport(
       current.store_id ? storeName.get(String(current.store_id)) : null,
       view.store
     );
+    // Warna kosong di berkas tidak mengubah warna yang tercatat.
+    const currentColors = (current.colors as string[] | null) ?? [];
+    if (item.colors.length > 0 && !sameColors(item.colors, currentColors)) {
+      changes.push({ field: "Warna", before: currentColors.join(", ") || null, after: item.colors.join(", ") });
+    }
 
     const observed = latestObservation.get(String(current.id));
     // Harga yang lebih tua dari harga terakhir hanya masuk riwayat: katalog

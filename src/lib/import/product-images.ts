@@ -8,6 +8,7 @@ import type { CsvRow } from "@/lib/import/csv-parser";
 import { IMAGE_HOST_ISSUE, imageSourceName, safeHttpsImageUrl } from "@/lib/import/image-hosts";
 import { removePlainBackground } from "@/lib/import/image-matte";
 import { isImageUsageBasis, type ImageRights } from "@/lib/import/image-rights";
+import { normalizeColorName } from "@/lib/import/colors";
 
 export const PRODUCT_IMAGE_BUCKET = "product-images";
 /** Batas foto per produk (foto utama + foto listing tiap warna). */
@@ -56,6 +57,8 @@ export type ProductImageCandidate = {
   alt: string;
   /** Hak pakai khusus foto ini (mis. kolom CSV); null = pakai pilihan form. */
   rights: ImageRights | null;
+  /** Warna yang ditampilkan foto ini, apa adanya dari sumber; null = tidak diketahui. */
+  color: string | null;
 };
 
 export type ProductImageReading = {
@@ -127,6 +130,7 @@ export function readProductImage(
       sourceUrl,
       alt: `Foto ${brand} ${model}`,
       rights: usageRights ? { basis: usageBasis, text: usageRights } : null,
+      color: normalizeColorName(firstValue(row, ["image_color", "color"])),
     },
     issue: null,
   };
@@ -346,17 +350,30 @@ function removeStoredImage(key: string) {
   return getInsforgeAdminClient().storage.from(PRODUCT_IMAGE_BUCKET).remove(key);
 }
 
-type PhotoRow = { id: string; storage_key: string | null; original_url: string | null };
+type PhotoRow = { id: string; storage_key: string | null; original_url: string | null; color: string | null };
 
 async function productPhotos(productId: string): Promise<PhotoRow[] | null> {
   const { data, error } = await getInsforgeAdminClient()
     .database.from("product_assets")
-    .select("id, storage_key, original_url")
+    .select("id, storage_key, original_url, color")
     .eq("product_id", productId)
     .eq("kind", "photo")
     .is("variant_id", null)
     .order("created_at", { ascending: true });
   return error ? null : ((data ?? []) as PhotoRow[]);
+}
+
+/**
+ * Foto yang sama sudah tersimpan: berkas tidak diunduh ulang, tetapi warna
+ * yang baru diketahui dicatat. Warna kosong tidak menghapus warna lama.
+ */
+async function updateColorOnly(photo: PhotoRow, color: string | null): Promise<ProductImageImportResult> {
+  if (!color || photo.color === color) return { ok: true, outcome: "unchanged" };
+  const { error } = await getInsforgeAdminClient()
+    .database.from("product_assets")
+    .update({ color })
+    .eq("id", photo.id);
+  return error ? { ok: false, reason: "Warna foto gagal dicatat." } : { ok: true, outcome: "updated" };
 }
 
 /**
@@ -386,6 +403,8 @@ async function saveAssetRow(
     usage_basis: rights.basis,
     storage_key: stored.key,
     original_url: candidate.imageUrl,
+    // Warna kosong tidak menghapus warna yang sudah tercatat di foto yang diganti.
+    color: candidate.color ?? existing?.color ?? null,
   };
 
   if (existing) {
@@ -436,7 +455,7 @@ export async function importProductImage({
 
   // Foto yang sama sudah ada di galeri (mis. dari listing toko): jangan dobel.
   const sameSource = photos.find((photo) => photo.original_url === candidate.imageUrl);
-  if (sameSource?.storage_key === storageKey) return { ok: true, outcome: "unchanged" };
+  if (sameSource?.storage_key === storageKey) return updateColorOnly(sameSource, candidate.color);
   const existing = sameSource ?? photos[0];
 
   const rights = candidate.rights ?? defaultRights;
@@ -476,7 +495,7 @@ export async function importGalleryImage({
   if (!photos) return { ok: false, reason: "Foto lama produk gagal diperiksa." };
 
   const existing = photos.find((photo) => photo.original_url === candidate.imageUrl);
-  if (existing?.storage_key === storageKey) return { ok: true, outcome: "unchanged" };
+  if (existing?.storage_key === storageKey) return updateColorOnly(existing, candidate.color);
   if (!existing && photos.length >= MAX_GALLERY_PHOTOS) {
     return {
       ok: false,
@@ -499,6 +518,7 @@ export type OutdatedPhoto = {
   source_url: string | null;
   usage_rights: string;
   usage_basis: string;
+  color: string | null;
 };
 
 /**
@@ -513,7 +533,7 @@ export async function listOutdatedPhotos(): Promise<
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db
       .from("product_assets")
-      .select("id, product_id, storage_key, original_url, alt, source, source_url, usage_rights, usage_basis")
+      .select("id, product_id, storage_key, original_url, alt, source, source_url, usage_rights, usage_basis, color")
       .eq("kind", "photo")
       .order("id", { ascending: true })
       .range(from, from + 999);
@@ -536,7 +556,7 @@ export async function listOutdatedPhotos(): Promise<
 export async function reprocessAssetPhoto(assetId: string, retrievedAt: string): Promise<ProductImageImportResult> {
   const { data, error } = await getInsforgeAdminClient()
     .database.from("product_assets")
-    .select("id, product_id, storage_key, original_url, alt, source, source_url, usage_rights, usage_basis")
+    .select("id, product_id, storage_key, original_url, alt, source, source_url, usage_rights, usage_basis, color")
     .eq("id", assetId)
     .limit(1);
   const row = (data ?? [])[0] as OutdatedPhoto | undefined;
@@ -553,11 +573,11 @@ export async function reprocessAssetPhoto(assetId: string, retrievedAt: string):
   };
   return saveAssetRow(
     row.product_id,
-    { imageUrl: row.original_url, source: row.source, sourceUrl: row.source_url ?? row.original_url, alt: row.alt, rights },
+    { imageUrl: row.original_url, source: row.source, sourceUrl: row.source_url ?? row.original_url, alt: row.alt, rights, color: row.color },
     rights,
     retrievedAt,
     stored,
-    { id: row.id, storage_key: row.storage_key, original_url: row.original_url },
+    { id: row.id, storage_key: row.storage_key, original_url: row.original_url, color: row.color },
     null
   );
 }

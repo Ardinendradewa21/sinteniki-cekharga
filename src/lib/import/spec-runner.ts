@@ -422,6 +422,7 @@ export async function runSpecImport({
         source: job.candidate.source,
         sourceUrl: job.candidate.sourceUrl,
         alt: job.candidate.alt,
+        color: job.candidate.color,
         rights,
         batchId,
       },

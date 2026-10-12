@@ -68,7 +68,8 @@ export const UNIFIED_COLUMNS = [
   "jack_3_5mm",
   "os",
   "colors",
-  // foto (opsional; host yang diizinkan, dan wajib dasar hak pakai)
+  // warna dan foto (opsional; foto dari host yang diizinkan dan wajib dasar hak pakai)
+  "color",
   "image_url",
   "image_usage_basis",
   "image_usage_rights",
@@ -108,6 +109,9 @@ const SPEC_DATA_COLUMNS = [
 const SPEC_PASSTHROUGH_COLUMNS = ["device_type", "image_url", "image_usage_basis", "image_usage_rights", "memory_variants_raw"] as const;
 
 const IMAGE_COLUMNS = ["image_url", "image_usage_basis", "image_usage_rights"] as const;
+
+/** Host GSMArena: kolom `url` berisi tautan ini dibaca sebagai sumber spesifikasi. */
+const GSMARENA_URL = /^(?:https?:\/\/(?:www\.|m\.)?gsmarena\.com\/)?[a-z0-9_]+-\d+\.php$/i;
 
 const OFFER_TRIGGER_COLUMNS = ["offer_url", "price_idr", "marketplace", "seller_name"] as const;
 
@@ -284,6 +288,8 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
         if (!current) {
           entry.row[column] = value;
           entry.lines.set(column, line);
+          // Warna foto utama ikut baris yang menyumbang fotonya.
+          if (column === "image_url" && r.color) entry.row.image_color = r.color;
         }
       }
       if (/^\d+$/.test(ram) && /^\d+$/.test(storage)) entry.variants.set(`${ram}|${storage}`, [Number(ram), Number(storage)]);
@@ -302,6 +308,7 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
         seller_verified: log(line, "seller_verified", r.seller_verified ?? "", normalizeYesNo(r.seller_verified ?? "")),
         price_idr: log(line, "price_idr", r.price_idr ?? "", normalizePriceIdr(r.price_idr ?? "")),
         observed_at: log(line, "observed_at", r.observed_at ?? "", normalizeObservedAt(r.observed_at ?? "")),
+        color: r.color ?? "",
       };
       // Produk lama: foto selalu ikut penawaran. Produk di berkas: hanya foto tambahan.
       if (!sourceKey || galleryImage) {
@@ -313,7 +320,11 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
         let slug = r.slug ?? "";
         if (!slug && row.group) {
           slug = row.group;
-          corrections.push({ line, column: "slug", from: "", to: slug, note: "Slug dibentuk dari merek dan model.", level: "info" });
+          // Nama ikut dikirim: pencocokan memakai nama (akhiran 4G/5G, merek
+          // induk), dan slug bentukan hanya cadangan bila nama tidak cocok.
+          const { brand, model } = canonicalBrandModel(r.brand ?? "", r.model_name ?? "");
+          offer.product_name = `${brand} ${model}`;
+          corrections.push({ line, column: "slug", from: "", to: slug, note: "Produk dicari lewat merek dan model.", level: "info" });
         }
         if (!slug) {
           corrections.push({ line, column: "slug", from: "", to: "", note: "Penawaran butuh slug, atau merek dan model produk; dilewati.", level: "error" });
@@ -338,8 +349,11 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
 function canonicalRow(raw: CsvRow, line: number, corrections: Correction[]): CsvRow {
   const row: CsvRow = {};
   for (const [header, value] of Object.entries(raw)) {
-    const column = canonicalHeader(header);
     const cell = (value ?? "").trim();
+    let column = canonicalHeader(header);
+    // Kolom "url" tanpa keterangan dibaca dari isinya: tautan GSMArena adalah
+    // sumber spesifikasi, tautan lain adalah listing toko.
+    if (column === "url" && cell) column = GSMARENA_URL.test(cell) ? "gsmarena_url" : "offer_url";
     if (row[column] && cell && row[column] !== cell) {
       corrections.push({ line, column, from: cell, to: row[column]!, note: `Dua kolom berarti sama (${header}); dipakai yang pertama.`, level: "warning" });
       continue;
@@ -367,6 +381,7 @@ export function templateTerpadu(): string {
       battery_capacity_mah: "7000",
       nfc: "No",
       ip_rating: "IP68",
+      color: "Hitam",
       image_url: "https://fdn2.gsmarena.com/vv/bigpic/contoh.jpg",
       marketplace: "Situs resmi OPPO Indonesia",
       seller_name: "OPPO Indonesia",
@@ -395,6 +410,7 @@ export function templateTerpadu(): string {
       marketplace: "Blibli",
       seller_name: "Toko Contoh",
       offer_url: "https://www.blibli.com/p/contoh",
+      color: "Biru",
       image_url: "https://down-id.img.susercontent.com/file/contoh",
       price_idr: "1999000",
       observed_at: "2026-10-10T09:00:00+07:00",

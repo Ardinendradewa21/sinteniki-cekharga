@@ -105,6 +105,8 @@ export const productAssetSchema = z.object({
   provenance: provenanceSchema,
   /** Hak penggunaan aset harus jelas sebelum dipakai (PRD §6). */
   usageRights: z.string().min(1),
+  /** Warna yang ditampilkan foto, apa adanya dari sumber; tidak diisi = tidak diketahui. */
+  color: z.string().min(1).nullable().optional(),
 });
 export type ProductAsset = z.infer<typeof productAssetSchema>;
 
@@ -159,6 +161,11 @@ export const offerSchema = z.object({
   sellerVerified: z.boolean(),
   /** Toko terdaftar (tabel stores); null bila domain listing belum dikenal. */
   storeId: z.string().min(1).nullable(),
+  /**
+   * Warna yang tercatat di listing ini. Warna tidak membentuk varian dan
+   * tidak memengaruhi harga (PRD §7); harga tetap per varian memori.
+   */
+  colors: z.array(z.string().min(1)).optional(),
 });
 export type Offer = z.infer<typeof offerSchema>;
 

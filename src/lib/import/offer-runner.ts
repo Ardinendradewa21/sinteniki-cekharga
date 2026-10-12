@@ -16,6 +16,7 @@ import {
   selectWhereIn,
   timeKey,
 } from "@/lib/import/batch";
+import { mergeColors, sameColors } from "@/lib/import/colors";
 import type { ImageRights } from "@/lib/import/image-rights";
 import { offerRowsToCanonical } from "@/lib/import/canonical";
 import type { OfferCatalogProduct, OfferSourceFormat } from "@/lib/import/offers";
@@ -75,6 +76,15 @@ export type PreparedItem = {
   origin: "manual" | "automatic";
   inferred: boolean;
   format: OfferSourceFormat;
+  /** Warna listing di baris ini. */
+  color: string | null;
+  /**
+   * Semua warna yang tercatat untuk penawaran ini di berkas (gabungan baris
+   * ganda dan listing warna lain yang digabung). Kosong = tidak diubah.
+   */
+  colors: string[];
+  /** Alasan baris ini perlu ditinjau walau produknya cocok. */
+  reviewNote: string | null;
 };
 
 export type ListingImage = {
@@ -85,6 +95,7 @@ export type ListingImage = {
   rowIndex: number;
   /** Hak pakai dari kolom baris; null = pakai pilihan form. */
   rights: ImageRights | null;
+  color: string | null;
 };
 
 export type OfferContext = {
@@ -209,6 +220,7 @@ export function prepareOfferRows(
         productId: outcome.image.productId ?? productId,
         url: outcome.image.url,
         rights: outcome.image.rights,
+        color: outcome.image.color,
         sourceUrl: row.url,
         marketplace: row.marketplace,
         rowIndex,
@@ -246,6 +258,9 @@ export function prepareOfferRows(
       origin: outcome.origin,
       inferred: outcome.inferredBaseVariant,
       format: outcome.format,
+      color: outcome.color,
+      colors: [],
+      reviewNote: outcome.reviewNote,
     });
   }
 
@@ -274,6 +289,16 @@ export function prepareOfferRows(
       }
     }
   }
+  // Warna per penawaran: gabungan warna semua baris untuk listing yang sama,
+  // termasuk listing warna lain yang digabung ke listing termurah.
+  const colorsByOffer = new Map<string, string[]>();
+  for (const item of items) {
+    if (!item.color) continue;
+    const key = mergedInto.get(item) ?? item.offerKey;
+    colorsByOffer.set(key, mergeColors(colorsByOffer.get(key) ?? [], [item.color]));
+  }
+  for (const item of items) item.colors = colorsByOffer.get(item.offerKey) ?? [];
+
   if (mergedAway.size > 0) {
     mergedListings = mergedAway.size;
     items.splice(0, items.length, ...items.filter((item) => !mergedAway.has(item)));
@@ -362,7 +387,7 @@ export async function runOfferImport({
     // terpakai, dan impor ulang memulihkannya beserta riwayat harganya.
     existingOffers = await selectWhereIn(
       "offers",
-      "id, variant_id, url, marketplace, seller_name, warranty, listing_status, seller_verified, store_id, deleted_at",
+      "id, variant_id, url, marketplace, seller_name, warranty, listing_status, seller_verified, store_id, colors, deleted_at",
       "variant_id",
       items.map((item) => item.variantId),
       { includeDeleted: true }
@@ -414,13 +439,16 @@ export async function runOfferImport({
     if (!row) continue;
     const offerId = String(row.id);
     const payload = applyKeepExisting(item.payload, row, item.keepExisting);
-    if (!samePayload(row, payload) || row.deleted_at) offerUpdates.push({ item, offerId, payload });
+    // Warna kosong di berkas = tidak diubah; warna terisi menggantikan daftar lama.
+    const colorsChanged = item.colors.length > 0 && !sameColors(item.colors, (row.colors as string[] | null) ?? []);
+    if (!samePayload(row, payload) || colorsChanged || row.deleted_at) offerUpdates.push({ item, offerId, payload });
     else offerIdByKey.set(item.offerKey, offerId);
   }
   for (const group of chunk(offerUpdates, INSERT_CHUNK)) {
     const { data, error } = await db.rpc("import_update_offers", {
-      p_rows: group.map(({ offerId, payload }) => ({
+      p_rows: group.map(({ item, offerId, payload }) => ({
         id: offerId,
+        colors: item.colors.length > 0 ? item.colors : null,
         marketplace: payload.marketplace,
         seller_name: payload.seller_name,
         warranty: payload.warranty,
@@ -445,6 +473,7 @@ export async function runOfferImport({
     created_by_batch_id: batchId,
     variant_id: item.variantId,
     url: item.url,
+    colors: item.colors,
     condition: "new",
     deleted_at: null,
   });
@@ -726,6 +755,7 @@ export async function runOfferImport({
           sourceUrl: job.sourceUrl,
           alt: `Foto ${product ? `${product.brand} ${product.model}` : "produk"}`,
           rights,
+          color: job.color,
           batchId,
         };
       })

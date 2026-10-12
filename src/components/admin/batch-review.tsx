@@ -78,6 +78,7 @@ function ItemDetail({ item }: { item: ReviewItem }) {
           [text(v.store) ?? text(v.marketplace), text(v.seller)].filter(Boolean).join(" · "),
           text(v.price),
           text(v.status),
+          text(v.colors) && `Warna: ${text(v.colors)}`,
           text(v.photos),
         ];
   const shown = facts.filter((fact): fact is string => Boolean(fact));

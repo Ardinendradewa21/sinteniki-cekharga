@@ -27,7 +27,10 @@ export function VariantSelector({
 
   return (
     <div>
-      <h2 className="heading-label text-foreground">Varian tercatat</h2>
+      <h2 className="heading-label text-foreground">
+        Pilih kapasitas
+        <span className="ml-2 text-xs font-normal text-muted-foreground">{variants.length} varian tercatat</span>
+      </h2>
       <VariantPicker
         className="mt-3"
         options={variants.map((variant) => ({
