@@ -141,7 +141,13 @@ export default async function ProductDetailPage(
           <ProductGallery
             key={detail.selectedColor?.key ?? "semua"}
             photos={detail.gallery}
-            fallback={detail.image}
+            // Warna terpilih tanpa foto (dan tanpa foto umum): ilustrasi generik
+            // berlabel, bukan foto warna lain yang bisa menyesatkan.
+            fallback={
+              detail.gallery.length === 0 && detail.selectedColor
+                ? { src: "/images/generic-device.svg", alt: `Foto ${detail.name} warna ${detail.selectedColor.name} belum tersedia`, isGenericIllustration: true }
+                : detail.image
+            }
             name={detail.selectedColor ? `${detail.name} ${detail.selectedColor.name}` : detail.name}
           />
         </div>

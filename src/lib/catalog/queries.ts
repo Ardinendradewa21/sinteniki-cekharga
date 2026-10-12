@@ -876,9 +876,12 @@ function buildProductDetail(
   const colorChoice = buildColorOptions({
     photos: productPhotos.map((photo) => ({
       src: photo.src,
-      alt: photo.alt,
+      // Teks alternatif menyebut warna supaya pembaca layar tahu foto warna apa.
+      alt: photo.color && !photo.alt.toLowerCase().includes(photo.color.toLowerCase()) ? `${photo.alt}, warna ${photo.color}` : photo.alt,
       source: photo.provenance.source,
       color: photo.color ?? null,
+      isCover: photo.isCover ?? false,
+      sortOrder: photo.sortOrder ?? 0,
     })),
     offerColors: catalog.offers
       .filter((offer) => variantIds.has(offer.variantId))

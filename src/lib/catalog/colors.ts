@@ -11,7 +11,16 @@
  * Modul murni.
  */
 
-export type ColorPhoto = { src: string; alt: string; source: string; color: string | null };
+export type ColorPhoto = {
+  src: string;
+  alt: string;
+  source: string;
+  color: string | null;
+  /** Sampul warnanya; tampil paling depan. */
+  isCover?: boolean;
+  /** Urutan di dalam warnanya (kecil = lebih dulu). */
+  sortOrder?: number;
+};
 
 export type ProductColorOption = {
   /** Nama apa adanya dari sumber, mis. "Lotus Purple". */
@@ -71,7 +80,10 @@ export function colorSwatch(name: string): string | null {
  * - Warna terpilih: permintaan URL bila dikenal; selain itu warna foto utama;
  *   selain itu warna pertama yang punya foto. Bila tidak ada warna yang punya
  *   foto, tidak ada warna yang dipilih otomatis (judul tidak mengklaim warna).
- * - Galeri: foto warna terpilih bila ada; selain itu semua foto.
+ * - Galeri: foto warna terpilih (sampul dulu, lalu urutan). Warna tanpa foto
+ *   memakai foto umum (tanpa warna); bila tidak ada juga, galeri kosong dan
+ *   halaman menampilkan ilustrasi generik, bukan foto warna lain.
+ * - Tanpa warna terpilih (produk tanpa data warna): semua foto.
  */
 export function buildColorOptions({
   photos,
@@ -96,8 +108,18 @@ export function buildColorOptions({
   for (const photo of photos) add(photo.color);
   for (const list of offerColors) for (const color of list) add(color);
 
+  // Urutan tampil: sampul dulu, lalu urutan foto, lalu urutan tersimpan.
+  const ordered = photos
+    .map((photo, index) => ({ photo, index }))
+    .sort(
+      (a, b) =>
+        Number(Boolean(b.photo.isCover)) - Number(Boolean(a.photo.isCover)) ||
+        (a.photo.sortOrder ?? 0) - (b.photo.sortOrder ?? 0) ||
+        a.index - b.index
+    )
+    .map(({ photo }) => photo);
   const photosByKey = new Map<string, ColorPhoto[]>();
-  for (const photo of photos) {
+  for (const photo of ordered) {
     if (!photo.color) continue;
     const key = colorUrlKey(photo.color);
     photosByKey.set(key, [...(photosByKey.get(key) ?? []), photo]);
@@ -120,9 +142,10 @@ export function buildColorOptions({
   });
 
   const colorPhotos = selectedKey ? photosByKey.get(selectedKey) : undefined;
+  const general = ordered.filter((photo) => !photo.color);
   return {
     options,
     selected: options.find((option) => option.isSelected) ?? null,
-    gallery: colorPhotos?.length ? colorPhotos : [...photos],
+    gallery: !selectedKey ? [...photos] : colorPhotos?.length ? colorPhotos : general,
   };
 }

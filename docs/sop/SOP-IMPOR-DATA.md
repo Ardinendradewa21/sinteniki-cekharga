@@ -24,7 +24,9 @@ Dokumen ini adalah prosedur baku tim PT Sinteniki Digital Solusi untuk memasukka
 | Menambah atau memperbarui produk, harga, atau keduanya | Templat terpadu (bagian 2a), lewat formulir **Unggah data** | Unggah CSV |
 | Berkas format lama: ekspor GSMArena, templat penawaran, scraper Shopee, ekspor Erafone | Formulir **Unggah data** yang sama (bagian 3 dan 4) | Unggah CSV |
 | Mengambil lineup dan harga dari situs resmi merek | Tarik otomatis | Tarik otomatis |
-| Memproses ulang atau memantau foto | Foto | Foto |
+| Menambah banyak foto per warna untuk produk yang sudah ada (satu baris per foto) | Berkas galeri foto (bagian 6a) | Galeri foto |
+| Memproses ulang atau memantau foto | Antrean foto | Antrean foto |
+| Mengurutkan, memilih sampul, memindah warna, atau menghapus foto satu produk | Panel **Foto per warna** di halaman admin produk (bagian 6) | – |
 | Melihat, menerapkan, atau membatalkan batch | Riwayat batch | Riwayat batch |
 
 **Satu formulir untuk semua berkas** (sejak 11 Oktober 2026). Tab **Unggah CSV** hanya berisi formulir **Unggah data**. Jenis berkas dikenali dari isinya, jadi tidak perlu memilih "spesifikasi" atau "penawaran". Berkas yang mencampur kolom spesifikasi format lama dengan kolom penawaran, atau yang formatnya tidak dikenali, ditolak dengan alasan yang jelas.
@@ -64,6 +66,9 @@ Kolom warna dan foto tidak menentukan jenis baris. Mengisi `image_url` atau `col
 - Impor ulang dengan kolom warna terisi **menggantikan** daftar warna penawaran itu. Kolom warna kosong tidak menghapus warna yang sudah tercatat.
 - Di halaman produk, warna muncul sebagai pilihan **Pilih warna**. Memilih warna hanya mengganti foto yang tampil, dan setiap penawaran menyebut warna yang tercatat di listing-nya.
 - Kolom spesifikasi `colors` (daftar semua warna menurut GSMArena) tetap ada, dengan header lain `daftar warna`. Header `warna` sekarang berarti warna per baris.
+- Mengisi `colors` di setiap baris harga **tidak** membuat baris itu dianggap produk baru. Daftar warna produk yang sudah ada tidak diubah lewat berkas harga.
+- Foto di baris penawaran berwarna menjadi **sampul** warna itu, hanya bila warna itu belum punya sampul. Sampul pilihan admin tidak ditimpa impor.
+- Warna yang tidak ada di daftar warna spesifikasi produk tetap disimpan apa adanya, tetapi barisnya ditandai **Perlu tinjau** (tidak dicentang otomatis). Contoh: "Celestian Purple" di berkas vs "Celestial Purple" di spesifikasi, atau "Gold" vs "Desert Gold". Nama dalam kurung ikut dihitung: "Deep Blue (Endless Blue)" cocok dengan "Deep Blue" dan "Endless Blue".
 
 - **Host yang diizinkan:** `down-id.img.susercontent.com` (Shopee), `fdn.gsmarena.com` dan `fdn2.gsmarena.com` (GSMArena), `cdnpro.eraspace.com` (Erafone), dan `i02.appmifile.com` (situs resmi Xiaomi). Wajib HTTPS. Host lain dilewati dengan alasan; harganya tetap masuk.
 - **Produk baru di berkas:** foto pertama untuk produk itu menjadi **foto utama**. Foto berbeda di baris penawaran lain produk yang sama (misalnya per warna) masuk **galeri**, tanpa tanda konflik.
@@ -304,9 +309,34 @@ Akibatnya:
 ## 6. Foto
 
 - Foto diproses di antrean terpisah: diunduh, diperkecil maksimal 1200 px, latar putih dihapus, lalu disimpan sebagai WebP.
-- Status per produk tampil di tab **Foto** dan di halaman admin produk. Ada tiga status: sedang diproses, berhasil, atau gagal beserta alasannya.
+- Status per produk tampil di tab **Antrean foto** dan di halaman admin produk. Ada tiga status: sedang diproses, berhasil, atau gagal beserta alasannya.
+- **Foto per warna** (sejak 12 Oktober 2026):
+  - Setiap foto boleh punya warna (`product_assets.color`). Foto tanpa warna adalah foto umum.
+  - Batas: **6 foto per warna**, **8 foto umum**, dan **60 foto per produk**. Saat batas tercapai, sampul dan urutan terkecil didahulukan; sisanya dilewati dengan alasan, misalnya `Warna "Lotus Purple" sudah berisi 6 foto; foto ke-7 tidak disimpan.`
+  - Foto dikenali dari URL asli **dan** warnanya. URL yang sama untuk dua warna dicatat sebagai dua foto (dua berkas storage), supaya menghapus satu warna tidak menghapus foto warna lain.
+  - Satu sampul per warna (dijaga indeks unik di database). Sampul tampil paling depan saat warna itu dipilih di situs, lalu foto lain urut `sort_order`.
+  - Di situs, warna tanpa foto menampilkan foto umum; bila foto umum juga tidak ada, tampil ilustrasi generik "Foto belum tersedia", bukan foto warna lain.
+- **Panel Foto per warna** di halaman admin produk: tombol **Naik**/**Turun** (urutan di dalam warna), **Jadikan sampul**, **Pindah ke warna** (tunduk pada batas per warna), dan **Hapus foto** (dua langkah; berkas storage ikut dihapus). Semua aksi hanya untuk admin dan tercatat di audit.
 - Foto gagal dicoba ulang maksimal 3 kali. Kegagalan permanen, misalnya host tidak diizinkan, tidak diulang.
 - Produk tanpa foto tetap boleh terbit. Situs menampilkan ilustrasi generik berlabel "Foto belum tersedia".
+
+## 6a. Galeri foto (tab Galeri foto)
+
+Untuk menambah banyak foto per warna ke produk yang **sudah ada** di katalog. Unduh **Templat galeri foto** di tab **Galeri foto**.
+
+| Kolom | Isi | Wajib |
+| --- | --- | --- |
+| `brand`, `model_name` | Merek dan model; dicocokkan dengan aturan yang sama seperti templat terpadu (akhiran 5G, merek induk) | ya |
+| `color` | Warna foto, apa adanya dari toko | ya |
+| `image_url` | Foto HTTPS dari host yang diizinkan (bagian 2a) | ya |
+| `urutan` | Urutan di dalam warna (1 = paling depan setelah sampul) | – |
+| `is_cover` | `ya` untuk sampul warna itu | – |
+| `source_url` | Halaman asal foto (mis. listing toko) | – |
+| `image_usage_basis`, `image_usage_rights` | Hak pakai per baris; kosong = pilihan di formulir | – |
+
+Kolom lain (mis. `image_host`, `host_diizinkan_saat_ini`) diabaikan. Host tetap diperiksa importer, bukan dibaca dari kolom catatan.
+
+Alur sama dengan impor lain: unggah, pratinjau per foto (**Baru**, **Sama** bila URL itu sudah tersimpan atau sudah antre untuk warna yang sama, **Dilewati** beserta alasannya), terapkan, lalu foto diantrekan. Batas per warna diperiksa di pratinjau dan sekali lagi saat foto diproses. **Undo** batch galeri membatalkan antrean yang belum jalan dan menghapus foto buatan batch itu beserta berkasnya, termasuk di produk terbit, karena isi batch galeri memang hanya foto.
 
 ## 7. Daftar periksa sebelum menerbitkan produk
 
@@ -359,6 +389,9 @@ Baris mentah berkas yang diunggah disimpan sementara (tabel `raw_listings`) dan 
 | Varian tidak ada di produk | Periksa RAM/penyimpanan. Bila varian itu memang dijual, perbarui spesifikasi produk lewat CSV spesifikasi, bukan lewat CSV harga. |
 | Judul cocok ke beberapa produk / multi-varian | Masukkan listing itu lewat templat CekHarga dengan slug dan varian yang tegas. |
 | URL gambar tidak diizinkan | Pakai host yang diizinkan, atau kosongkan foto. |
+| Warna "…" sudah berisi 6 foto | Wajar bila galeri warna itu penuh. Hapus atau pindahkan foto lewat panel Foto per warna bila ingin menggantinya. |
+| Produk "…" tidak ditemukan di katalog (galeri) | Impor spesifikasi produknya dulu, atau samakan merek + model dengan katalog. |
+| Dasar hak pakai foto belum dipilih | Pilih dasar hak pakai di formulir, atau isi `image_usage_basis` per baris. |
 | Kolom URL listing berisi tautan gambar | Pindahkan tautan itu ke `image_url`, lalu isi URL halaman toko. |
 | URL listing bukan halaman marketplace-nya | Periksa kolom `marketplace` dan URL; keduanya harus toko yang sama. |
 | Nama cocok ke lebih dari satu produk | Isi kolom `slug` untuk baris itu. |
@@ -413,6 +446,9 @@ Baris mentah berkas yang diunggah disimpan sementara (tabel `raw_listings`) dan 
 - Templat dibuat dari kode, bukan berkas statis:
   - `templateSpesifikasi()` dan `SPEC_COLUMNS` di `src/lib/import/gsmarena.ts`
   - `templatePenawaran()`, `templateShopeeScrape()`, dan `OFFER_COLUMNS` di `src/lib/import/offers.ts`
+  - `templateTerpadu()` dan `UNIFIED_COLUMNS` di `src/lib/import/unified.ts`
+  - `templateGaleri()` dan `GALLERY_COLUMNS` di `src/lib/import/photo-gallery-rows.ts`
+- Aturan galeri (batas per warna, identitas foto, sampul) ada di `src/lib/import/photo-rules.ts`; dipakai pratinjau, importer gambar, dan panel admin.
 - Tes kontrak di `scripts/tests/import.test.ts` (`pnpm test:import`) memastikan templat lolos importer apa adanya. Bila importer membaca kolom baru, perbarui templat, tabel kolom di dokumen ini, dan tesnya sekaligus.
 - Kunci idempoten:
   - Produk memakai `products.source_key` (`gsmarena:<halaman>`).

@@ -59,3 +59,41 @@ export function shouldBecomeCover(photos: readonly StoredPhoto[], color: string 
 export function storageColorSuffix(color: string | null): string {
   return color === null ? "" : `#${colorKey(color)}`;
 }
+
+export type ManagedPhoto = StoredPhoto & { sort_order: number; created_at: string };
+
+/**
+ * Foto produk dikelompokkan per warna untuk panel admin: grup berwarna urut
+ * nama, grup tanpa warna paling akhir; isi grup sampul dulu, lalu urutan,
+ * lalu waktu dibuat. Urutan ini sama dengan urutan tampil di situs.
+ */
+export function groupPhotosByColor<T extends ManagedPhoto>(photos: readonly T[]): { color: string | null; photos: T[] }[] {
+  const groups = new Map<string, { color: string | null; photos: T[] }>();
+  for (const photo of photos) {
+    const key = photo.color === null ? "" : colorKey(photo.color);
+    const group = groups.get(key) ?? { color: photo.color, photos: [] };
+    group.photos.push(photo);
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) {
+    group.photos.sort(
+      (a, b) =>
+        Number(Boolean(b.is_cover)) - Number(Boolean(a.is_cover)) ||
+        a.sort_order - b.sort_order ||
+        a.created_at.localeCompare(b.created_at)
+    );
+  }
+  return [...groups.values()].sort((a, b) =>
+    a.color === null ? 1 : b.color === null ? -1 : a.color.localeCompare(b.color, "id")
+  );
+}
+
+/** Urutan id baru setelah satu foto naik atau turun satu posisi di grupnya; null bila tidak bisa. */
+export function movePhoto(ids: readonly string[], id: string, direction: "up" | "down"): string[] | null {
+  const index = ids.indexOf(id);
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || target < 0 || target >= ids.length) return null;
+  const next = [...ids];
+  [next[index], next[target]] = [next[target]!, next[index]!];
+  return next;
+}

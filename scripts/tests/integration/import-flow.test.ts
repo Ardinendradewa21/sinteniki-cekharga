@@ -604,3 +604,27 @@ test("INT-12 galeri foto: batas per warna, sampul dan urutan ke antrean, undo me
   assert.ok(left.every((j) => j.status === "skipped"), "antrean foto batch dibatalkan");
   assert.ok((await bucket.download(key)).error, "objek foto ikut terhapus");
 });
+
+test("INT-13 panel foto: satu sampul per warna lewat RPC, urutan atomik", async () => {
+  const base = await createBatch({ kind: "specs", origin: "csv", sourceLabel: "QA-UJI panel foto", options: {}, rows: [spec("Panel", 1)], malformedLines: [], admin: actor });
+  assert.ok(base.ok);
+  batches.push(base.id);
+  await applyAll(base.id);
+  const product = (await productsByModel())["Panel 1"]!;
+  const asset = (name: string, cover: boolean) => ({
+    product_id: product.id, kind: "photo", src: `https://qa-uji.invalid/${name}.jpg`, alt: name, source: "QA",
+    retrieved_at: new Date().toISOString(), usage_rights: "QA", usage_basis: "own-work", original_url: `https://qa-uji.invalid/${name}.jpg`,
+    color: "Hitam", is_cover: cover,
+  });
+  const inserted = await db.from("product_assets").insert([asset("a", true), asset("b", false), asset("c", false)]).select("id, alt");
+  assert.ok(!inserted.error, JSON.stringify(inserted.error));
+  const id = Object.fromEntries(((inserted.data ?? []) as { id: string; alt: string }[]).map((r) => [r.alt, r.id]));
+  // Indeks unik menolak sampul kedua untuk warna yang sama.
+  assert.ok((await db.from("product_assets").update({ is_cover: true }).eq("id", id.b!)).error, "dua sampul untuk satu warna ditolak");
+  assert.equal((await db.rpc("admin_set_photo_cover", { p_id: id.c })).data, true);
+  const covers = ((await db.from("product_assets").select("alt").eq("product_id", product.id).eq("is_cover", true)).data ?? []) as { alt: string }[];
+  assert.deepEqual(covers.map((r) => r.alt), ["c"]);
+  assert.equal((await db.rpc("admin_set_photo_order", { p_product: product.id, p_ids: [id.b, id.a] })).data, 2);
+  const order = ((await db.from("product_assets").select("alt, sort_order").eq("product_id", product.id).order("sort_order")).data ?? []) as { alt: string; sort_order: number }[];
+  assert.deepEqual(order.filter((r) => r.alt !== "c").map((r) => [r.alt, r.sort_order]), [["b", 0], ["a", 1]]);
+});

@@ -107,6 +107,9 @@ export const productAssetSchema = z.object({
   usageRights: z.string().min(1),
   /** Warna yang ditampilkan foto, apa adanya dari sumber; tidak diisi = tidak diketahui. */
   color: z.string().min(1).nullable().optional(),
+  /** Urutan di dalam warnanya dan tanda sampul warna (galeri per warna). */
+  sortOrder: z.int().nonnegative().optional(),
+  isCover: z.boolean().optional(),
 });
 export type ProductAsset = z.infer<typeof productAssetSchema>;
 

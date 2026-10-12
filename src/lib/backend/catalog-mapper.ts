@@ -83,6 +83,8 @@ export function mapAssets(rows: Row[]): CatalogDataset["assets"] {
     },
     usageRights: str(r.usage_rights),
     color: strOrNull(r.color),
+    sortOrder: typeof r.sort_order === "number" ? r.sort_order : 0,
+    isCover: bool(r.is_cover),
   }));
 }
 

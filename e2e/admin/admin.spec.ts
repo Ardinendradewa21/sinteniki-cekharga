@@ -37,10 +37,12 @@ test.describe("Dasbor admin", () => {
 });
 
 test.describe("Pusat Impor", () => {
-  test("TC-IMP-01 empat tab tersedia dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
+  test("TC-IMP-01 lima tab tersedia dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
     await page.goto("/admin/import");
     const nav = page.getByRole("navigation", { name: "Sumber impor" });
-    for (const tab of [/unggah/i, /tarik/i, /foto/i, /riwayat/i]) await expect(nav.getByRole("link", { name: tab })).toBeVisible();
+    for (const tab of ["Unggah CSV", "Tarik otomatis", "Galeri foto", "Antrean foto", "Riwayat batch"]) {
+      await expect(nav.getByRole("link", { name: tab, exact: true })).toBeVisible();
+    }
     await nav.getByRole("link", { name: /riwayat/i }).click();
     await expect(page.locator("main")).toContainText(/CSV|Tarik otomatis|Pemeriksaan harian/);
   });
@@ -82,6 +84,23 @@ test.describe("Pusat Impor", () => {
     await page.waitForURL(/\/admin\/import\/batch\//, { timeout: 60_000 });
     await expect(page.locator("main")).toContainText("Penawaran dan harga");
     // Batch uji tidak diterapkan; dibatalkan supaya riwayat tetap bersih.
+    await page.getByRole("button", { name: "Batalkan batch ini" }).click();
+    await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
+  });
+
+  test("TC-IMP-06 tab Galeri foto: templat galeri dikenali sebagai batch galeri foto @regression", async ({ page }) => {
+    await page.goto("/admin/import?tab=galeri");
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Templat galeri foto" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe("templat-galeri-foto-cekharga.csv");
+    await page.locator("#berkas-galeri").setInputFiles({ name: "qa-e2e-galeri.csv", mimeType: "text/csv", buffer: fs.readFileSync(await download.path()) });
+    await page.getByRole("button", { name: "Buat pratinjau galeri" }).click();
+    await page.waitForURL(/\/admin\/import\/batch\//, { timeout: 60_000 });
+    await expect(page.locator("main")).toContainText("Galeri foto");
+    // Templat contoh tidak memilih dasar hak pakai: fotonya dilewati dengan alasan, tidak diam-diam disimpan.
+    await expect(page.locator("main")).toContainText(/hak pakai|tidak ditemukan di katalog/);
     await page.getByRole("button", { name: "Batalkan batch ini" }).click();
     await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
   });

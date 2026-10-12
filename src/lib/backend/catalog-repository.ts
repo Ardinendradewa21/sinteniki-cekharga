@@ -139,7 +139,7 @@ async function fetchCatalogFromBackend(): Promise<CatalogDataset> {
       fetchAllRows({
         table: "product_assets",
         columns:
-          "id, product_id, variant_id, kind, src, alt, source, source_url, retrieved_at, usage_rights, color",
+          "id, product_id, variant_id, kind, src, alt, source, source_url, retrieved_at, usage_rights, color, sort_order, is_cover",
         order: [
           { column: "created_at", ascending: true },
           ...byId,
@@ -223,7 +223,7 @@ function reportDatasetSize(dataset: CatalogDataset): void {
  */
 export const loadCatalogFromBackend = unstable_cache(
   fetchCatalogFromBackend,
-  ["catalog-dataset", "v7-colors"],
+  ["catalog-dataset", "v8-photo-order"],
   { tags: [CATALOG_CACHE_TAG], revalidate: CATALOG_REVALIDATE_SECONDS }
 );
 

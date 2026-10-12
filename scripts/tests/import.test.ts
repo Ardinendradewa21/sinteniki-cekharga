@@ -896,7 +896,23 @@ test("pilihan warna: warna foto utama dipilih bawaan, galeri mengikuti warna, ha
 
   const purple = buildColorOptions({ ...base, requestedKey: "lotus-purple" });
   assert.equal(purple.selected?.name, "Lotus Purple");
-  assert.equal(purple.gallery.length, 3, "tanpa foto warna itu, semua foto tetap tampil");
+  assert.equal(purple.gallery.length, 0, "tanpa foto warna itu dan tanpa foto umum: ilustrasi generik, bukan foto warna lain");
+  const withGeneral = buildColorOptions({
+    ...base,
+    photos: [...photos, { src: "/umum.webp", alt: "umum", source: "GSMArena", color: null }],
+    requestedKey: "lotus-purple",
+  });
+  assert.deepEqual(withGeneral.gallery.map((p) => p.src), ["/umum.webp"], "warna tanpa foto memakai foto umum");
+  const ordered = buildColorOptions({
+    ...base,
+    photos: [
+      { src: "/k3.webp", alt: "", source: "", color: "Black", sortOrder: 3 },
+      { src: "/k2.webp", alt: "", source: "", color: "Black", sortOrder: 2 },
+      { src: "/sampul.webp", alt: "", source: "", color: "Black", sortOrder: 9, isCover: true },
+    ],
+    requestedKey: "black",
+  });
+  assert.deepEqual(ordered.gallery.map((p) => p.src), ["/sampul.webp", "/k2.webp", "/k3.webp"], "sampul dulu, lalu urutan");
   assert.equal(buildColorOptions({ ...base, requestedKey: "tidak-ada" }).selected?.name, "Black");
 
   const noPhotos = buildColorOptions({ photos: [], offerColors: [["Black"]], selectedVariantOfferColors: [], requestedKey: undefined });
@@ -976,4 +992,16 @@ test("berkas galeri: dikenali dari kolomnya, baris dibaca, rencana mendahulukan 
     mergeGallerySummaries({ fileName: "a", totalRows: 2, queued: 1, unchanged: 1, skipped: [] }, { fileName: "a", totalRows: 3, queued: 2, unchanged: 0, skipped: [{ label: "x", reason: "y" }] }),
     { fileName: "a", totalRows: 5, queued: 3, unchanged: 1, skipped: [{ label: "x", reason: "y" }] }
   );
+});
+
+import { groupPhotosByColor, movePhoto } from "@/lib/import/photo-rules";
+
+test("panel foto: grup per warna (umum paling akhir), sampul dulu, naik/turun dalam batas", () => {
+  const p = (id: string, color: string | null, sort: number, cover = false) => ({ id, original_url: id, color, is_cover: cover, sort_order: sort, created_at: `2026-10-12T00:00:0${sort}Z` });
+  const groups = groupPhotosByColor([p("u", null, 0), p("b2", "Black", 2), p("b1", "black", 1), p("bc", "Black", 5, true), p("g", "Green", 0)]);
+  assert.deepEqual(groups.map((g) => g.color), ["Black", "Green", null]);
+  assert.deepEqual(groups[0]!.photos.map((x) => x.id), ["bc", "b1", "b2"]);
+  assert.deepEqual(movePhoto(["a", "b", "c"], "b", "up"), ["b", "a", "c"]);
+  assert.deepEqual(movePhoto(["a", "b", "c"], "c", "down"), null);
+  assert.deepEqual(movePhoto(["a", "b"], "x", "up"), null);
 });

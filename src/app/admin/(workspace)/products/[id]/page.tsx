@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 
 import { OfferPanel, VariantPanel } from "@/components/admin/product-editor";
 import { ProductPhotoJobs } from "@/components/admin/product-photo-jobs";
+import { ProductPhotoManager } from "@/components/admin/product-photo-manager";
 import { ReviewPanel } from "@/components/admin/review-panel";
 import { ProductForm } from "@/components/admin/product-form";
 import { Container } from "@/components/layout/container";
@@ -24,6 +25,7 @@ import {
   type ActionState,
 } from "@/lib/admin/actions";
 import { getAdminProduct } from "@/lib/admin/queries";
+import { listProductPhotos } from "@/lib/admin/product-photos";
 import { productPhotoJobs } from "@/lib/import/photo-jobs";
 import { getProductLineage } from "@/lib/import/batches";
 
@@ -53,7 +55,11 @@ export default async function AdminProductDetailPage({
   const query = await searchParams;
   const product = await getAdminProduct(id);
   if (!product) notFound();
-  const [photoJobs, lineage] = await Promise.all([productPhotoJobs(product.id), getProductLineage(product.id)]);
+  const [photoJobs, lineage, photos] = await Promise.all([
+    productPhotoJobs(product.id),
+    getProductLineage(product.id),
+    listProductPhotos(product.id),
+  ]);
   const SOURCE_LABEL = { import: "impor CSV", scrape: "tarik otomatis", manual: "suntingan manual" } as const;
 
   const galat = typeof query.galat === "string" ? GALAT[query.galat] : null;
@@ -147,6 +153,12 @@ export default async function AdminProductDetailPage({
 
       <div className="mt-8 space-y-8">
         <ProductPhotoJobs productId={product.id} jobs={photoJobs} />
+
+        {photos ? (
+          <ProductPhotoManager productId={product.id} groups={photos.groups} colorChoices={photos.colorChoices} />
+        ) : (
+          <p role="alert" className="text-sm text-destructive">Foto produk gagal dibaca.</p>
+        )}
 
         <VariantPanel
           product={product}
