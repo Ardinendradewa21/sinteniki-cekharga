@@ -77,6 +77,7 @@ Singkatan jenis: F = Functional, R = Regression, S = Smoke, Sec = Keamanan, A11y
 | INT-07 | US-20 | Unggahan dianalisis di worker | Status analyzing lalu draft; baris di raw_listings; berkas tanpa baris berguna gagal dengan alasan; retensi tidak menyentuh batch baru | Int, R | `import-flow.test.ts` | Lulus |
 | INT-08 | US-20 | Tarik otomatis sebagai job | Hanya satu job per jenis berjalan; antre ulang tanpa duplikat; Hentikan membatalkan sisa; sesi terkirim membatalkan job; job daftar model membuat sesi | Int, R | `import-flow.test.ts` | Lulus |
 | INT-09 | US-20 | Pratinjau per produk | Harga lebih tua ditandai "Harga lama"; "Spesifikasi saja" tidak membuat batch harga; "Harga saja" hanya untuk produk yang sudah ada dan menghitung sisanya | Int, R | `import-flow.test.ts` | Lulus |
+| INT-10 | US-20 | Foto di templat terpadu | Kolom foto tidak membuat baris produk untuk produk lama; foto tiap warna dari baris listing yang sama masuk antrean galeri dengan jejak batch; harga memakai baris terakhir | Int, R | `import-flow.test.ts` | Lulus |
 
 ## 4. Integritas data (SQL)
 

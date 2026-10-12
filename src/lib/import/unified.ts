@@ -23,6 +23,12 @@ import {
  *   - kolom penawaran (offer_url, harga, toko) terisi -> baris membawa penawaran;
  *   - keduanya boleh terisi sekaligus.
  *
+ * Kolom foto (image_url) tidak menentukan jenis baris:
+ *   - produk di berkas ini -> foto pertama menjadi foto utama produk, foto lain
+ *     di baris penawarannya (mis. per warna) masuk galeri;
+ *   - produk yang sudah ada di katalog -> foto ikut baris penawarannya dan
+ *     masuk galeri produk itu.
+ *
  * Baris produk yang sama digabung: varian dikumpulkan, dan spesifikasi cukup
  * diisi di salah satu baris. Bila dua baris memberi nilai berbeda untuk kolom
  * yang sama, nilai baris pertama dipakai dan konfliknya dicatat, tidak
@@ -62,6 +68,10 @@ export const UNIFIED_COLUMNS = [
   "jack_3_5mm",
   "os",
   "colors",
+  // foto (opsional; host yang diizinkan, dan wajib dasar hak pakai)
+  "image_url",
+  "image_usage_basis",
+  "image_usage_rights",
   // penawaran (opsional)
   "marketplace",
   "seller_name",
@@ -92,11 +102,12 @@ const SPEC_DATA_COLUMNS = [
   "os",
   "colors",
   "status_raw",
-  "image_url",
 ] as const;
 
 /** Kolom produk yang diteruskan ke adaptor spesifikasi tanpa memicu "baris produk". */
-const SPEC_PASSTHROUGH_COLUMNS = ["device_type", "image_usage_basis", "image_usage_rights", "memory_variants_raw"] as const;
+const SPEC_PASSTHROUGH_COLUMNS = ["device_type", "image_url", "image_usage_basis", "image_usage_rights", "memory_variants_raw"] as const;
+
+const IMAGE_COLUMNS = ["image_url", "image_usage_basis", "image_usage_rights"] as const;
 
 const OFFER_TRIGGER_COLUMNS = ["offer_url", "price_idr", "marketplace", "seller_name"] as const;
 
@@ -216,17 +227,28 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
   const products = new Map<string, ProductEntry>();
   for (const row of parsed) {
     const { line, r, ram, storage } = row;
-    if (!row.hasSpec && !row.hasOffer) {
-      corrections.push({ line, column: "-", from: "", to: "", note: "Baris tidak berisi spesifikasi maupun penawaran; dilewati.", level: "error" });
+    const productGroup = row.group ? productGroups.get(row.group) : undefined;
+    if (!row.hasSpec && !row.hasOffer && !(productGroup && r.image_url)) {
+      corrections.push({
+        line,
+        column: r.image_url ? "image_url" : "-",
+        from: "",
+        to: "",
+        note: r.image_url
+          ? "Foto untuk produk yang sudah ada perlu penawaran di baris yang sama, atau gsmarena_url produknya; dilewati."
+          : "Baris tidak berisi spesifikasi maupun penawaran; dilewati.",
+        level: "error",
+      });
       continue;
     }
-    const productGroup = row.group ? productGroups.get(row.group) : undefined;
     if (row.hasSpec && !productGroup) {
       corrections.push({ line, column: "brand", from: "", to: "", note: "Baris spesifikasi wajib berisi merek dan model; dilewati.", level: "error" });
       continue;
     }
 
     let sourceKey: string | null = null;
+    // Foto baris ini yang ikut penawarannya ke galeri produk.
+    let galleryImage = false;
     if (productGroup && row.group) {
       // Kunci yang sama dengan `mapRow`, supaya penawaran lanjutan menemukan produknya.
       sourceKey = productGroup.gsmarena
@@ -242,6 +264,12 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
         const value = r[column];
         if (!value) continue;
         const current = entry.row[column];
+        if (current && current !== value && column === "image_url" && row.hasOffer) {
+          // Foto lain untuk produk yang sama (mis. warna lain) masuk galeri lewat penawarannya.
+          galleryImage = true;
+          continue;
+        }
+        if (current && current !== value && (IMAGE_COLUMNS as readonly string[]).includes(column) && galleryImage) continue;
         if (current && current !== value) {
           corrections.push({
             line,
@@ -275,6 +303,10 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
         price_idr: log(line, "price_idr", r.price_idr ?? "", normalizePriceIdr(r.price_idr ?? "")),
         observed_at: log(line, "observed_at", r.observed_at ?? "", normalizeObservedAt(r.observed_at ?? "")),
       };
+      // Produk lama: foto selalu ikut penawaran. Produk di berkas: hanya foto tambahan.
+      if (!sourceKey || galleryImage) {
+        for (const column of IMAGE_COLUMNS) if (r[column]) offer[column] = r[column]!;
+      }
       if (sourceKey) {
         followUpOfferRows.push({ ...offer, source_key: sourceKey });
       } else {
@@ -317,7 +349,7 @@ function canonicalRow(raw: CsvRow, line: number, corrections: Correction[]): Csv
   return row;
 }
 
-/** Isi templat terpadu untuk tombol unduh: produk baru dengan dua varian dan harganya, serta harga untuk produk lama. */
+/** Isi templat terpadu untuk tombol unduh: produk baru dengan dua varian, harga, dan foto utamanya, serta harga dan foto galeri untuk produk lama. */
 export function templateTerpadu(): string {
   const empty = Object.fromEntries(UNIFIED_COLUMNS.map((column) => [column, ""])) as Record<(typeof UNIFIED_COLUMNS)[number], string>;
   const rows = [
@@ -335,6 +367,7 @@ export function templateTerpadu(): string {
       battery_capacity_mah: "7000",
       nfc: "No",
       ip_rating: "IP68",
+      image_url: "https://fdn2.gsmarena.com/vv/bigpic/contoh.jpg",
       marketplace: "Situs resmi OPPO Indonesia",
       seller_name: "OPPO Indonesia",
       offer_url: "https://www.oppo.com/id/smartphones/series-reno/reno16c/",
@@ -362,6 +395,7 @@ export function templateTerpadu(): string {
       marketplace: "Blibli",
       seller_name: "Toko Contoh",
       offer_url: "https://www.blibli.com/p/contoh",
+      image_url: "https://down-id.img.susercontent.com/file/contoh",
       price_idr: "1999000",
       observed_at: "2026-10-10T09:00:00+07:00",
       warranty: "Garansi resmi Indonesia",

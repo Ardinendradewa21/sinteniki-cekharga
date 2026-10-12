@@ -277,17 +277,22 @@ export async function planOfferImport(
     changes: [],
   }));
 
-  // Baris ganda untuk penawaran yang sama: yang terakhir di berkas menang.
+  // Baris ganda untuk penawaran yang sama (mis. satu baris per warna): data
+  // baris terakhir di berkas yang dipakai. Baris sebelumnya ikut ke penawaran
+  // pemenang supaya fotonya (foto tiap warna) tetap masuk galeri; penulis
+  // penawaran menggabungkan baris ganda dengan aturan yang sama.
   const latest = new Map<string, PreparedItem>();
+  const mergedRows = new Map<string, number[]>();
   for (const item of prepared.items) {
     const earlier = latest.get(item.offerKey);
     if (earlier) {
+      mergedRows.set(item.offerKey, [...(mergedRows.get(item.offerKey) ?? []), earlier.rowIndex]);
       items.push({
         entity: "offer",
         action: "skip",
         label: earlier.label,
-        reason: "Baris ganda untuk penawaran yang sama; yang dipakai baris terakhir di berkas.",
-        rowIndexes: [earlier.rowIndex],
+        reason: "Baris ganda untuk penawaran yang sama; data baris terakhir di berkas yang dipakai, fotonya tetap ikut.",
+        rowIndexes: [],
         view: {},
         changes: [],
       });
@@ -295,7 +300,6 @@ export async function planOfferImport(
     latest.set(item.offerKey, item);
   }
 
-  const mergedRows = new Map<string, number[]>();
   for (const { item, intoOfferKey } of prepared.merged) {
     mergedRows.set(intoOfferKey, [...(mergedRows.get(intoOfferKey) ?? []), item.rowIndex]);
     const keeper = latest.get(intoOfferKey);
@@ -352,7 +356,18 @@ export async function planOfferImport(
   for (const item of offerItems) {
     const product = productByVariant.get(item.variantId);
     const rowIndexes = [item.rowIndex, ...(mergedRows.get(item.offerKey) ?? [])];
-    const photos = prepared.listingImages.filter((image) => rowIndexes.includes(image.rowIndex)).length;
+    const images = [
+      ...new Map(
+        prepared.listingImages.filter((image) => rowIndexes.includes(image.rowIndex)).map((image) => [image.url, image])
+      ).values(),
+    ];
+    const usable = images.filter((image) => image.rights ?? imageRights).length;
+    const imageIssue = prepared.imageIssues.find((issue) => rowIndexes.includes(issue.rowIndex));
+    const photos = [
+      usable > 0 ? `${usable} foto` : null,
+      images.length > usable ? `${images.length - usable} foto dilewati (hak pakai)` : null,
+      imageIssue ? `foto dilewati: ${imageIssue.reason}` : null,
+    ].filter(Boolean).join("; ");
     const view = {
       product: product?.name ?? item.label,
       variant: product?.variant ?? null,
@@ -363,7 +378,7 @@ export async function planOfferImport(
       observedAt: item.observedAt,
       status: LISTING_STATUS_LABEL[item.payload.listing_status] ?? item.payload.listing_status,
       url: item.url,
-      photos: photos === 0 ? null : imageRights ? `${photos} foto` : `${photos} foto dilewati (hak pakai)`,
+      photos: photos || null,
       // Judul toko tanpa memori: varian dasar disimpulkan importer, jadi ditandai "Perlu tinjau".
       inferredVariant: item.inferred ? true : null,
     };

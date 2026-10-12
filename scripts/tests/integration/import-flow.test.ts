@@ -45,6 +45,7 @@ async function cleanup() {
   if (purged.error) throw new Error(`Data uji gagal dibersihkan: ${purged.error.message}`);
   for (const key of storageKeys.splice(0)) await bucket.remove(key);
   await db.from("photo_jobs").delete().like("image_url", "https://qa-uji.invalid/%");
+  await db.from("photo_jobs").delete().like("image_url", "https://down-id.img.susercontent.com/file/qa-uji-%");
   const labelled = ((await db.from("import_batches").select("id").like("source_label", "QA-UJI%")).data ?? []) as { id: string }[];
   const ids = [...new Set([...batches.splice(0), ...labelled.map((b) => b.id)])];
   if (ids.length) await db.from("import_batches").delete().in("id", ids);
@@ -470,4 +471,42 @@ test("INT-09 pratinjau langkah 5: harga lama ditandai, spesifikasi saja, harga s
   assert.equal(resolved.rows.length, 2);
   assert.equal(resolved.dropped, 1);
   assert.ok(resolved.rows.every((row) => row.slug === "qauji-langkah-1" && !row.source_key));
+});
+
+test("INT-10 foto di templat terpadu: produk lama mendapat foto galeri tiap warna, harga dari baris terakhir", async () => {
+  const { convertUnifiedRows } = await import("@/lib/import/unified");
+  const base = await createBatch({ kind: "specs", origin: "csv", sourceLabel: "QA-UJI foto produk", options: {}, rows: [spec("Foto", 1)], malformedLines: [], admin: actor });
+  assert.ok(base.ok);
+  batches.push(base.id);
+  await applyAll(base.id);
+
+  const row = (price: string, color: string) => ({
+    merek: "QAUji", model: "Foto 1", ram: "8", storage: "128", marketplace: "Blibli", toko: "Toko QA",
+    link: "https://www.blibli.com/p/qauji-foto-1", harga: price, diperiksa: "10/10/2026 09:00",
+    url_image: `https://down-id.img.susercontent.com/file/qa-uji-${color}`, color,
+  });
+  const converted = convertUnifiedRows([row("Rp 2.000.000", "biru"), row("Rp 2.100.000", "hijau")]);
+  assert.equal(converted.specRows.length, 0, "foto tidak membuat baris produk untuk produk lama");
+  assert.equal(converted.offerRows.length, 2);
+
+  const created = await createBatch({
+    kind: "offers", origin: "csv", sourceLabel: "QA-UJI foto harga", rows: converted.offerRows, malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: { basis: "own-work", text: "Aset uji QA" }, defaultObservedAt: new Date().toISOString() },
+  });
+  assert.ok(created.ok, JSON.stringify(created));
+  batches.push(created.id);
+  const detail = (await getBatch(created.id))!;
+  const winner = detail.items.find((i) => i.action === "create")!;
+  assert.equal(winner.view.photos, "2 foto", "foto kedua warna dihitung di penawaran pemenang");
+  assert.match(detail.items.find((i) => i.action === "skip")?.reason ?? "", /fotonya tetap ikut/);
+
+  await applyAll(created.id);
+  const offers = ((await db.from("offers").select("id").eq("url", "https://www.blibli.com/p/qauji-foto-1")).data ?? []) as { id: string }[];
+  assert.equal(offers.length, 1);
+  const prices = ((await db.from("price_observations").select("price_idr").eq("offer_id", offers[0]!.id)).data ?? []) as { price_idr: number }[];
+  assert.deepEqual(prices.map((p) => Number(p.price_idr)), [2100000], "data baris terakhir yang dipakai");
+  const jobs = ((await db.from("photo_jobs").select("kind, image_url, batch_id").like("image_url", "https://down-id.img.susercontent.com/file/qa-uji-%")).data ?? []) as
+    { kind: string; image_url: string; batch_id: string }[];
+  assert.equal(jobs.length, 2);
+  assert.ok(jobs.every((j) => j.kind === "gallery" && j.batch_id === created.id));
 });

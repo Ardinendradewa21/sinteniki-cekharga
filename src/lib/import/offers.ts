@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import type { CsvRow } from "@/lib/import/csv-parser";
+import { IMAGE_HOST_ISSUE, safeHttpsImageUrl } from "@/lib/import/image-hosts";
+import { readImageRights, type ImageRights } from "@/lib/import/image-rights";
 import { CLEAR_TOKEN, OFFER_KEEPABLE_FIELDS } from "@/lib/import/patch-rules";
 
 /**
@@ -107,9 +109,35 @@ export type PreparedOfferOutcome =
       /** True bila judul tidak menyebut memori dan varian dasar disimpulkan. */
       inferredBaseVariant: boolean;
       /** Foto listing untuk galeri produk; host-nya tetap diperiksa importer gambar. */
-      image: { url: string; productId: string } | null;
+      image: ListingImageRef | null;
+      /** Foto di baris ini tidak dipakai, beserta alasannya (harga tetap diproses). */
+      imageIssue?: string;
     }
   | { ok: false; label: string; reason: string; format: OfferSourceFormat };
+
+/**
+ * Foto listing. `productId` null berarti produknya baru diketahui saat
+ * dicocokkan lewat slug (templat); `rights` null berarti memakai pilihan form.
+ */
+export type ListingImageRef = { url: string; productId: string | null; rights: ImageRights | null };
+
+/** Kolom foto listing di templat penawaran dan templat terpadu (nama dinormalkan). */
+const LISTING_IMAGE_COLUMNS = ["image_url", "url_image", "url gambar", "link gambar", "marketplace_image_url", "product_image_url"];
+
+/**
+ * Foto listing dari baris templat: opsional, dan tidak pernah membuat baris
+ * harga gagal. URL yang tidak diizinkan atau hak pakai yang tidak lengkap
+ * hanya membuat fotonya dilewati, dengan alasan.
+ */
+export function readTemplateListingImage(row: CsvRow): { image: ListingImageRef | null; issue?: string } {
+  const raw = valueFrom(row, LISTING_IMAGE_COLUMNS);
+  if (!raw) return { image: null };
+  const url = safeHttpsImageUrl(raw);
+  if (!url) return { image: null, issue: IMAGE_HOST_ISSUE };
+  const rights = readImageRights(valueFrom(row, ["image_usage_basis"]), valueFrom(row, ["image_usage_rights"]));
+  if (!rights.ok) return { image: null, issue: rights.error };
+  return { image: { url: url.href, productId: null, rights: rights.rights } };
+}
 
 /** Nama kolom yang diterima, ditulis apa adanya di templat unduhan. */
 export const OFFER_COLUMNS = [
@@ -461,15 +489,16 @@ export function prepareOfferRow(
       observed_at: valueFrom(row, RAW_OBSERVED_COLUMNS) || defaults.observedAt,
     };
     const mapped = mapOfferRow(withObservedAt);
-    return mapped.ok
-      ? {
-          ...mapped,
-          format: "template",
-          origin: "manual",
-          inferredBaseVariant: false,
-          image: null,
-        }
-      : { ...mapped, format: "template" };
+    if (!mapped.ok) return { ...mapped, format: "template" };
+    const listingImage = readTemplateListingImage(row);
+    return {
+      ...mapped,
+      format: "template",
+      origin: "manual",
+      inferredBaseVariant: false,
+      image: listingImage.image,
+      ...(listingImage.issue ? { imageIssue: listingImage.issue } : {}),
+    };
   }
 
   const erafone = readErafoneListing(row);
@@ -648,7 +677,7 @@ function prepareErafoneRow(
     origin: "automatic",
     inferredBaseVariant: resolved.inferred,
     image: listing.imageUrl
-      ? { url: listing.imageUrl, productId: resolved.product.id }
+      ? { url: listing.imageUrl, productId: resolved.product.id, rights: null }
       : null,
   };
 }

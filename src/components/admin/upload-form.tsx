@@ -42,7 +42,7 @@ export function UploadForm({
 
       <ImageRightsFields
         idPrefix="upload-image"
-        hint="Berlaku untuk foto di berkas (kolom image_url, marketplace_image_url, atau foto listing Erafone) yang tidak membawa kolom image_usage_rights sendiri. Tanpa dasar hak pakai, data tetap masuk dan foto dilewati. Foto yang valid diperkecil maksimal 1200 px, latar putihnya dihapus, lalu disimpan sebagai WebP."
+        hint="Berlaku untuk foto di berkas (kolom image_url atau url_image, marketplace_image_url, atau foto listing Erafone) yang tidak membawa kolom image_usage_basis sendiri. Di templat terpadu, foto produk baru menjadi foto utama, dan foto di baris penawaran produk yang sudah ada masuk galeri produk itu. Tanpa dasar hak pakai, data tetap masuk dan foto dilewati. Foto yang valid diperkecil maksimal 1200 px, latar putihnya dihapus, lalu disimpan sebagai WebP."
       />
 
       <details className="mt-5 rounded-xl border border-border bg-muted/30 p-4">

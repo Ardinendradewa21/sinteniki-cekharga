@@ -83,6 +83,8 @@ export type ListingImage = {
   sourceUrl: string;
   marketplace: string;
   rowIndex: number;
+  /** Hak pakai dari kolom baris; null = pakai pilihan form. */
+  rights: ImageRights | null;
 };
 
 export type OfferContext = {
@@ -149,6 +151,8 @@ export type OfferPreparation = {
   /** Listing warna lain yang digabung, beserta penawaran yang menampungnya. */
   merged: { item: PreparedItem; intoOfferKey: string }[];
   listingImages: ListingImage[];
+  /** Foto baris yang tidak dipakai (host tidak diizinkan, hak pakai tidak lengkap). */
+  imageIssues: { rowIndex: number; label: string; reason: string }[];
 };
 
 /** Tahap tanpa tulis: validasi, cocokkan, dan gabungkan listing. Dipakai pratinjau dan penulisan. */
@@ -166,6 +170,7 @@ export function prepareOfferRows(
   let preprocessedRows = 0;
   let mergedListings = 0;
   const listingImages: ListingImage[] = [];
+  const imageIssues: OfferPreparation["imageIssues"] = [];
 
   // Tahap 1, tanpa jaringan: adaptor kanonik (canonical.ts) menerjemahkan
   // setiap format penawaran ke bentuk yang sama, lalu dicocokkan di sini.
@@ -185,9 +190,7 @@ export function prepareOfferRows(
     const outcome = { ...offer, format };
     const row = offer.row;
     const label = `${row.slug} ${row.ramGb}/${row.storageGb}`;
-    if (outcome.image) {
-      listingImages.push({ ...outcome.image, sourceUrl: row.url, marketplace: row.marketplace, rowIndex });
-    }
+    if (outcome.imageIssue) imageIssues.push({ rowIndex, label: `Foto ${label}`, reason: outcome.imageIssue });
     if (
       row.observedAt &&
       new Date(row.observedAt).getTime() > uploadedAt.getTime() + 5 * 60_000
@@ -200,6 +203,16 @@ export function prepareOfferRows(
     if (!productId) {
       skipped.push({ label, reason: `Produk dengan slug "${row.slug}" tidak ada di katalog.`, rowIndex });
       continue;
+    }
+    if (outcome.image) {
+      listingImages.push({
+        productId: outcome.image.productId ?? productId,
+        url: outcome.image.url,
+        rights: outcome.image.rights,
+        sourceUrl: row.url,
+        marketplace: row.marketplace,
+        rowIndex,
+      });
     }
 
     const variantId = byVariantKey.get(`${productId}|${row.ramGb}|${row.storageGb}`);
@@ -275,6 +288,7 @@ export function prepareOfferRows(
     mergedListings,
     merged: [...mergedInto].map(([item, intoOfferKey]) => ({ item, intoOfferKey })),
     listingImages,
+    imageIssues,
   };
 }
 
@@ -685,14 +699,24 @@ export async function runOfferImport({
   const imagesAdded = 0;
   const imagesUnchanged = 0;
   let imagesQueued = 0;
-  if (galleryJobs.length > 0 && !imageRights) {
+  // Hak pakai dari kolom baris didahulukan; tanpa itu dipakai pilihan form.
+  const withoutRights = galleryJobs.filter((job) => !(job.rights ?? imageRights)).length;
+  if (withoutRights > 0) {
     imageSkipped.push({
-      label: `${galleryJobs.length} foto listing`,
+      label: `${withoutRights} foto listing`,
       reason: "Dasar hak pakai foto belum dipilih, jadi foto tidak diunduh.",
     });
-  } else if (galleryJobs.length > 0 && imageRights) {
+  }
+  if (prepared.imageIssues.length > 0) {
+    imageSkipped.push(...prepared.imageIssues.map(({ label, reason }) => ({ label, reason })));
+  }
+  const queueable = galleryJobs.flatMap((job) => {
+    const rights = job.rights ?? imageRights;
+    return rights ? [{ job, rights }] : [];
+  });
+  if (queueable.length > 0) {
     const queued = await enqueuePhotoJobs(
-      galleryJobs.map((job) => {
+      queueable.map(({ job, rights }) => {
         const product = productById.get(job.productId);
         return {
           productId: job.productId,
@@ -701,7 +725,7 @@ export async function runOfferImport({
           source: job.marketplace,
           sourceUrl: job.sourceUrl,
           alt: `Foto ${product ? `${product.brand} ${product.model}` : "produk"}`,
-          rights: imageRights,
+          rights,
           batchId,
         };
       })

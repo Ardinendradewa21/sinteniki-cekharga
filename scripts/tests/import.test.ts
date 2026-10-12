@@ -747,3 +747,72 @@ test("pratinjau per produk: penawaran dikelompokkan per produk dan diurutkan per
   assert.deepEqual(groups.map((g) => g.title), ["OPPO A6", "vivo Y29"]);
   assert.deepEqual(groups[0]!.items.map((i) => i.id), ["3", "1"]);
 });
+
+// Foto di templat terpadu dan templat penawaran (2026-10-12).
+import { imageSourceName, safeHttpsImageUrl } from "@/lib/import/image-hosts";
+import { readTemplateListingImage } from "@/lib/import/offers";
+
+test("foto: templat terpadu punya kolom foto; foto utama ke produk baru, foto produk lama ikut penawaran", () => {
+  const header = templateTerpadu().split("\n")[0]!.split(",");
+  for (const column of ["image_url", "image_usage_basis", "image_usage_rights"]) assert.ok(header.includes(column), column);
+  const converted = convertUnifiedRows(parseCsv(templateTerpadu()).rows);
+  assert.equal(converted.specRows[0]!.image_url, "https://fdn2.gsmarena.com/vv/bigpic/contoh.jpg", "foto utama Reno16c");
+  assert.ok(converted.followUpOfferRows.every((row) => !row.image_url), "foto utama tidak digandakan ke galeri");
+  assert.equal(converted.offerRows[0]!.image_url, "https://down-id.img.susercontent.com/file/contoh");
+});
+
+test("foto: kolom url_image dikenali dan tidak membuat baris produk palsu untuk produk lama", () => {
+  assert.equal(canonicalHeader("url_image"), "image_url");
+  assert.equal(canonicalHeader("Link Gambar"), "image_url");
+  const converted = convertUnifiedRows([
+    {
+      brand: "Xiaomi", model_name: "Redmi 17", ram_gb: "4", storage_gb: "128", marketplace: "Shopee",
+      seller_name: "Xiaomi Official Store", offer_url: "https://shopee.co.id/redmi-17-i.1.2",
+      url_image: "https://i02.appmifile.com/contoh/redmi-17.png", price_idr: "1899000",
+    },
+    { brand: "Xiaomi", model_name: "Redmi 17", url_image: "https://i02.appmifile.com/contoh/lain.png" },
+  ]);
+  assert.equal(converted.specRows.length, 0, "foto saja bukan alasan membuat atau menimpa produk");
+  assert.equal(converted.offerRows.length, 1);
+  assert.equal(converted.offerRows[0]!.slug, "xiaomi-redmi-17");
+  assert.equal(converted.offerRows[0]!.image_url, "https://i02.appmifile.com/contoh/redmi-17.png");
+  const photoOnly = converted.corrections.find((c) => c.level === "error");
+  assert.equal(photoOnly?.line, 3);
+  assert.match(photoOnly?.note ?? "", /perlu penawaran di baris yang sama, atau gsmarena_url/);
+});
+
+test("foto: produk di berkas memakai foto pertama sebagai utama, foto warna lain masuk galeri tanpa peringatan", () => {
+  const base = { merek: "QAUji", model: "Foto 1", gsmarena_url: "qauji_foto_1-1.php", chipset: "Chip QA" };
+  const converted = convertUnifiedRows([
+    { ...base, ram: "8", storage: "128", foto: "https://fdn2.gsmarena.com/vv/bigpic/a.jpg" },
+    { merek: "QAUji", model: "Foto 1", ram: "8", storage: "128", link: "https://www.blibli.com/p/biru", harga: "1000000", foto: "https://down-id.img.susercontent.com/file/biru" },
+  ]);
+  assert.equal(converted.specRows[0]!.image_url, "https://fdn2.gsmarena.com/vv/bigpic/a.jpg");
+  assert.equal(converted.followUpOfferRows[0]!.image_url, "https://down-id.img.susercontent.com/file/biru");
+  assert.equal(converted.corrections.filter((c) => c.level !== "info").length, 0);
+});
+
+test("foto listing templat: host diizinkan, hak pakai per baris divalidasi, harga tidak pernah gagal karena foto", () => {
+  const xiaomi = safeHttpsImageUrl("https://i02.appmifile.com/contoh.png");
+  assert.ok(xiaomi);
+  assert.equal(imageSourceName(xiaomi), "Situs resmi Xiaomi");
+  assert.equal(safeHttpsImageUrl("http://i02.appmifile.com/contoh.png"), null, "wajib HTTPS");
+  assert.equal(safeHttpsImageUrl("https://contoh.com/a.png"), null);
+
+  const ok = readTemplateListingImage({ url_image: "https://down-id.img.susercontent.com/file/a" });
+  assert.deepEqual(ok, { image: { url: "https://down-id.img.susercontent.com/file/a", productId: null, rights: null } });
+  assert.match(readTemplateListingImage({ image_url: "https://contoh.com/a.png" }).issue ?? "", /host-nya belum diizinkan/);
+  const noProof = readTemplateListingImage({ image_url: "https://down-id.img.susercontent.com/file/a", image_usage_basis: "written-permission" });
+  assert.equal(noProof.image, null);
+  assert.match(noProof.issue ?? "", /bukti hak pakai/i);
+  const own = readTemplateListingImage({ image_url: "https://down-id.img.susercontent.com/file/a", image_usage_basis: "own-work" });
+  assert.equal(own.image?.rights?.basis, "own-work");
+
+  const offer = offerRowsToCanonical(
+    [{ slug: "oppo-a6c", ram_gb: "4", storage_gb: "128", marketplace: "Blibli", seller_name: "Toko", url: "https://www.blibli.com/p/a", image_url: "https://contoh.com/a.png" }],
+    [],
+    { observedAt: "2026-10-10T01:00:00.000Z" }
+  )[0]!;
+  assert.ok(offer.offer, "baris harga tetap valid");
+  assert.match(offer.offer!.imageIssue ?? "", /host-nya belum diizinkan/);
+});

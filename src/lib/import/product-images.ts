@@ -5,6 +5,7 @@ import sharp from "sharp";
 
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import type { CsvRow } from "@/lib/import/csv-parser";
+import { IMAGE_HOST_ISSUE, imageSourceName, safeHttpsImageUrl } from "@/lib/import/image-hosts";
 import { removePlainBackground } from "@/lib/import/image-matte";
 import { isImageUsageBasis, type ImageRights } from "@/lib/import/image-rights";
 
@@ -38,14 +39,6 @@ const IMAGE_COLUMNS = [
   "product_image_url",
   "image_src",
 ] as const;
-
-const ALLOWED_IMAGE_HOSTS = new Set([
-  "down-id.img.susercontent.com",
-  "fdn.gsmarena.com",
-  "fdn2.gsmarena.com",
-  // CDN foto katalog Erafone (Eraspace).
-  "cdnpro.eraspace.com",
-]);
 
 const ALLOWED_CONTENT_TYPES = new Set([
   "image/jpeg",
@@ -82,24 +75,6 @@ function firstValue(row: CsvRow, columns: readonly string[]): string {
   return "";
 }
 
-function safeHttpsImageUrl(value: string): URL | null {
-  try {
-    const url = new URL(value);
-    if (
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      url.port ||
-      !ALLOWED_IMAGE_HOSTS.has(url.hostname.toLowerCase())
-    ) {
-      return null;
-    }
-    return url;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Membaca kandidat gambar dari CSV spesifikasi tanpa menganggap semua URL
  * aman atau semua hasil pencocokan marketplace benar.
@@ -125,16 +100,18 @@ export function readProductImage(
 
   const imageUrl = safeHttpsImageUrl(rawUrl);
   if (!imageUrl) {
-    return {
-      candidate: null,
-      issue: "URL gambar tidak memakai HTTPS atau host-nya belum diizinkan.",
-    };
+    return { candidate: null, issue: IMAGE_HOST_ISSUE };
   }
 
-  const isShopee = imageUrl.hostname.toLowerCase() === "down-id.img.susercontent.com";
-  const sourceUrl = isShopee
-    ? (row.marketplace_link ?? "").trim() || imageUrl.href
-    : specsSourceUrl ?? imageUrl.href;
+  const source = imageSourceName(imageUrl);
+  // Foto Shopee merujuk listing-nya, foto GSMArena merujuk halaman spesifikasi;
+  // sumber lain (mis. situs resmi brand) merujuk URL fotonya sendiri.
+  const sourceUrl =
+    source === "Shopee"
+      ? (row.marketplace_link ?? "").trim() || imageUrl.href
+      : source === "GSMArena"
+        ? (specsSourceUrl ?? imageUrl.href)
+        : imageUrl.href;
   const usageRights = firstValue(row, [
     "image_usage_rights",
     "asset_usage_rights",
@@ -146,7 +123,7 @@ export function readProductImage(
   return {
     candidate: {
       imageUrl: imageUrl.href,
-      source: isShopee ? "Shopee" : "GSMArena",
+      source,
       sourceUrl,
       alt: `Foto ${brand} ${model}`,
       rights: usageRights ? { basis: usageBasis, text: usageRights } : null,

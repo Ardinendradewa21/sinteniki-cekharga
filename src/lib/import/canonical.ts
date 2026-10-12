@@ -6,6 +6,7 @@ import {
   looksLikeShopeeHeaders,
   prepareOfferRow,
   readErafoneListing,
+  type ListingImageRef,
   type OfferCatalogProduct,
   type OfferRow,
   type OfferSourceFormat,
@@ -43,7 +44,8 @@ export type CanonicalOffer = {
   origin: "manual" | "automatic";
   /** True bila judul tidak menyebut memori dan varian dasar disimpulkan. */
   inferredBaseVariant: boolean;
-  image: { url: string; productId: string } | null;
+  image: ListingImageRef | null;
+  imageIssue?: string;
 };
 
 export type CanonicalRow = {
@@ -158,6 +160,7 @@ export function offerRowsToCanonical(
         origin: outcome.origin,
         inferredBaseVariant: outcome.inferredBaseVariant,
         image: outcome.image,
+        ...(outcome.imageIssue ? { imageIssue: outcome.imageIssue } : {}),
       },
       issue: null,
     };

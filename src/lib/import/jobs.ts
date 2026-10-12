@@ -143,8 +143,14 @@ async function runChunk(
   for (const item of items) {
     const indexes = (item.row_indexes ?? []).filter((index) => available.has(index));
     if (indexes.length === 0) continue;
+    // Baris utama item (indeks pertama) ditaruh PALING AKHIR: penulis
+    // penawaran memakai baris terakhir untuk baris ganda, dan baris lain item
+    // ini (mis. warna lain) hanya membawa fotonya. Hasil item dibaca dari
+    // baris utamanya.
+    const [primary, ...others] = indexes;
+    for (const index of others) rows.push(available.get(index)!);
     localIndexByItem.set(item.id, rows.length);
-    for (const index of indexes) rows.push(available.get(index)!);
+    rows.push(available.get(primary!)!);
   }
   // Item tanpa baris mentah yang sah tidak bisa ditulis.
   const orphan: ItemOutcome[] = items
