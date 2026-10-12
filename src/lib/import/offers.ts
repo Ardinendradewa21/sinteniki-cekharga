@@ -96,6 +96,8 @@ export type OfferCatalogProduct = {
   model: string;
   /** Dari spesifikasi; dipakai hanya untuk mencocokkan judul berakhiran 4G/5G. */
   is5G?: boolean | null;
+  /** Daftar warna spesifikasi; warna berkas di luar daftar ini ditandai untuk ditinjau. */
+  colorOptions?: string[] | null;
   variants: { id: string; ramGb: number; storageGb: number }[];
 };
 
@@ -526,7 +528,7 @@ function networkSiblingNote(
  * Memakai aturan pencocokan judul toko: akhiran 4G/5G hanya dibuang bila
  * jaringan di katalog sama, dan merek induk (Xiaomi untuk Redmi/POCO) dikenali.
  */
-function resolveNamedProduct(
+export function resolveNamedProduct(
   name: string,
   products: readonly OfferCatalogProduct[]
 ): { product: OfferCatalogProduct; reviewNote: string | null } | { error: string } | null {

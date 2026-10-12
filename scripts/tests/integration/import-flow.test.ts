@@ -547,3 +547,60 @@ test("INT-11 warna penawaran: gabungan baris per warna, diganti saat impor ulang
   await importRows("QA-UJI warna 3", [row("", "Rp 2.200.000")]);
   assert.deepEqual(await colorsOf(), [["Biru"]], "sel warna kosong tidak menghapus");
 });
+
+test("INT-12 galeri foto: batas per warna, sampul dan urutan ke antrean, undo menghapus foto di produk terbit", async () => {
+  const base = await createBatch({ kind: "specs", origin: "csv", sourceLabel: "QA-UJI galeri produk", options: {}, rows: [spec("Galeri", 1)], malformedLines: [], admin: actor });
+  assert.ok(base.ok);
+  batches.push(base.id);
+  await applyAll(base.id);
+  const product = (await productsByModel())["Galeri 1"]!;
+  await db.from("products").update({ status: "published" }).eq("id", product.id);
+
+  const url = (name: string) => `https://down-id.img.susercontent.com/file/qa-uji-galeri-${name}`;
+  const rows = [
+    ...Array.from({ length: 7 }, (_, i) => ({ brand: "QAUji", model_name: "Galeri 1", color: "Hitam", urutan: String(i + 1), is_cover: i === 3 ? "ya" : "tidak", image_url: url(`hitam-${i + 1}`) })),
+    { brand: "QAUji", model_name: "Galeri 1", color: "Hijau", urutan: "1", is_cover: "ya", image_url: url("hijau-1") },
+  ];
+  const created = await createBatch({
+    kind: "photos", origin: "csv", sourceLabel: "QA-UJI galeri", rows, malformedLines: [], admin: actor,
+    options: { sourceFormat: "photo-gallery", imageRights: { basis: "own-work", text: "Aset uji QA" } },
+  });
+  assert.ok(created.ok, JSON.stringify(created));
+  batches.push(created.id);
+  const detail = (await getBatch(created.id))!;
+  assert.deepEqual(detail.counts, { create: 7, update: 0, unchanged: 0, skip: 1 });
+  assert.match(detail.items.find((i) => i.action === "skip")?.reason ?? "", /Warna "Hitam" sudah berisi 6 foto; foto ke-7/);
+
+  await applyAll(created.id);
+  const jobs = ((await db.from("photo_jobs").select("image_url, color, sort_order, is_cover, kind, batch_id").eq("batch_id", created.id)).data ?? []) as
+    { image_url: string; color: string; sort_order: number; is_cover: boolean; kind: string }[];
+  assert.equal(jobs.length, 7);
+  assert.ok(jobs.every((j) => j.kind === "gallery"));
+  assert.deepEqual(jobs.filter((j) => j.is_cover).map((j) => j.image_url).sort(), [url("hijau-1"), url("hitam-4")]);
+  assert.ok(!jobs.some((j) => j.image_url === url("hitam-7")), "urutan terbesar yang terlewat");
+
+  // Unggahan kedua berkas yang sama: foto yang masih antre dihitung, tidak ada antrean ganda.
+  const again = await createBatch({
+    kind: "photos", origin: "csv", sourceLabel: "QA-UJI galeri ulang", rows, malformedLines: [], admin: actor,
+    options: { sourceFormat: "photo-gallery", imageRights: { basis: "own-work", text: "Aset uji QA" } },
+  });
+  assert.ok(again.ok);
+  batches.push(again.id);
+  assert.deepEqual((await getBatch(again.id))!.counts, { create: 0, update: 0, unchanged: 7, skip: 1 });
+
+  // Satu foto sudah tersimpan oleh worker; undo batch galeri menghapusnya walau produknya terbit.
+  const key = `qa-uji/${product.id}/galeri.txt`;
+  assert.ok(!(await bucket.upload(key, new Blob(["galeri"], { type: "text/plain" }))).error);
+  storageKeys.push(key);
+  assert.ok(!(await db.from("product_assets").insert([{
+    product_id: product.id, kind: "photo", src: url("hijau-1"), alt: "galeri", source: "QA", retrieved_at: new Date().toISOString(),
+    usage_rights: "QA", usage_basis: "own-work", storage_key: key, original_url: url("hijau-1"), color: "Hijau", is_cover: true,
+    created_by_batch_id: created.id,
+  }])).error);
+  assert.deepEqual((await planUndo(created.id))!.photos, { remove: 1, protected: 0 });
+  const undone = await executeUndo(created.id, actor);
+  assert.ok(undone.ok && undone.result.photos === 1, JSON.stringify(undone));
+  const left = ((await db.from("photo_jobs").select("status").eq("batch_id", created.id)).data ?? []) as { status: string }[];
+  assert.ok(left.every((j) => j.status === "skipped"), "antrean foto batch dibatalkan");
+  assert.ok((await bucket.download(key)).error, "objek foto ikut terhapus");
+});

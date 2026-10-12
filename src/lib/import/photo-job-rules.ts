@@ -22,6 +22,7 @@ const PERMANENT_FAILURE = [
   /animasi/i,
   /melebihi batas/i,
   /Galeri sudah berisi/i,
+  /sudah berisi \d+ foto/i,
   /hak pakai/i,
   /tidak menyimpan URL asli/i,
   /sudah tidak ada/i,

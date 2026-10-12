@@ -43,13 +43,14 @@ import {
  *
  * Foto: antrean foto batch yang belum dikerjakan dibatalkan, dan foto yang
  * DIBUAT batch ini (`product_assets.created_by_batch_id`) dihapus dari produk
- * draft. Foto produk terbit tetap, dan foto yang hanya diganti tidak bisa
+ * draft. Foto produk terbit tetap, kecuali pada batch galeri foto (kind
+ * "photos") yang isinya memang hanya foto. Foto yang hanya diganti tidak bisa
  * dikembalikan karena isi lamanya sudah tidak ada.
  */
 
 export type UndoPlan = {
   batchId: string;
-  kind: "specs" | "offers";
+  kind: "specs" | "offers" | "photos";
   sourceLabel: string;
   allowed: { ok: true } | { ok: false; reason: string };
   products: { remove: ProductDecision[]; keep: ProductDecision[]; updatedNotReverted: number };
@@ -65,7 +66,7 @@ export type UndoPlan = {
 
 type BatchRow = {
   id: string;
-  kind: "specs" | "offers";
+  kind: "specs" | "offers" | "photos";
   status: string;
   source_label: string;
   applied_at: string | null;
@@ -108,7 +109,7 @@ type PriceRow = { id: string; offerId: string };
  * yang ikut dihapus hilang lewat cascade (dan objeknya dihapus di langkah
  * produk), jadi tidak dihitung dua kali.
  */
-async function batchPhotos(batchId: string, removedProducts: ReadonlySet<string>) {
+async function batchPhotos(batchId: string, removedProducts: ReadonlySet<string>, includePublished = false) {
   const assets = (await selectWhereIn(
     "product_assets",
     "id, product_id, storage_key",
@@ -116,7 +117,11 @@ async function batchPhotos(batchId: string, removedProducts: ReadonlySet<string>
     [batchId]
   )).filter((row) => !removedProducts.has(String(row.product_id)));
   const products = await selectWhereIn("products", "id, status", "id", assets.map((row) => String(row.product_id)));
-  const published = new Set(products.filter((row) => row.status === "published").map((row) => String(row.id)));
+  // Batch galeri foto: fotonya memang satu-satunya isi batch, jadi undo
+  // menghapusnya juga dari produk terbit (foto bukan riwayat harga).
+  const published = new Set(
+    includePublished ? [] : products.filter((row) => row.status === "published").map((row) => String(row.id))
+  );
   return {
     removable: assets
       .filter((row) => !published.has(String(row.product_id)))
@@ -203,7 +208,11 @@ export async function planUndo(batchId: string): Promise<UndoPlan | null> {
   const productsUpdated = await selectWhereIn("products", "id, created_by_batch_id", "updated_by_batch_id", [batchId]);
   const offersUpdated = await selectWhereIn("offers", "id, created_by_batch_id", "updated_by_batch_id", [batchId]);
   const removable = await selectRemovable(batchId, appliedAt);
-  const photos = await batchPhotos(batchId, new Set(decisions.filter((d) => d.remove).map((d) => d.id)));
+  const photos = await batchPhotos(
+    batchId,
+    new Set(decisions.filter((d) => d.remove).map((d) => d.id)),
+    batch.kind === "photos"
+  );
 
   const followUpId = batch.report?.followUpBatchId;
   return {
@@ -325,7 +334,7 @@ async function undoOne(batch: BatchRow, admin: AdminSession): Promise<UndoResult
 
   // 4. Foto buatan batch pada produk draft yang tetap ada (mis. galeri dari
   //    listing toko pada produk lama). Produk terbit tidak disentuh.
-  const photos = await batchPhotos(batch.id, deletedIds);
+  const photos = await batchPhotos(batch.id, deletedIds, batch.kind === "photos");
   const photoBucket = getInsforgeAdminClient().storage.from(PRODUCT_IMAGE_BUCKET);
   for (const group of chunk(photos.removable, 80)) {
     const deleted = await db()

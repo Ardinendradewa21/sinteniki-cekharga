@@ -11,6 +11,7 @@ import {
   type OfferRow,
   type OfferSourceFormat,
 } from "@/lib/import/offers";
+import { looksLikeGalleryHeaders } from "@/lib/import/photo-gallery-rows";
 import { looksLikeUnifiedHeaders } from "@/lib/import/unified";
 
 /**
@@ -31,7 +32,7 @@ import { looksLikeUnifiedHeaders } from "@/lib/import/unified";
  */
 
 export type SourceFormat = "gsmarena-spec" | OfferSourceFormat;
-export type ImportKind = "specs" | "offers";
+export type ImportKind = "specs" | "offers" | "photos";
 
 export type CanonicalProduct = {
   candidate: ImportCandidate;
@@ -64,7 +65,7 @@ export type CanonicalRow = {
 /* ------------------------------------------------------- deteksi berkas */
 
 export type FileDetection =
-  | { kind: ImportKind; format: SourceFormat | "mixed-offers" }
+  | { kind: ImportKind; format: SourceFormat | "mixed-offers" | "photo-gallery" }
   /** Templat terpadu (unified.ts): spesifikasi dan penawaran dalam satu berkas. */
   | { kind: "unified"; format: "unified" }
   | { kind: null; reason: string };
@@ -81,6 +82,8 @@ const ERAFONE_SAMPLE_ROWS = 20;
 export function detectFileKind(headers: readonly string[], rows: readonly CsvRow[]): FileDetection {
   // Templat terpadu dikenali lebih dulu: kolomnya (offer_url, gsmarena_url,
   // brand + ram_gb) tidak dipakai format lama mana pun.
+  // Galeri foto: merek, model, warna, dan foto tanpa kolom varian atau harga.
+  if (looksLikeGalleryHeaders(headers)) return { kind: "photos", format: "photo-gallery" };
   if (looksLikeUnifiedHeaders(headers)) return { kind: "unified", format: "unified" };
   const spec = hasColumn(headers, "brand") && hasColumn(headers, "model_name");
   const template = hasColumn(headers, "slug") || hasColumn(headers, "source_key");

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { GalleryUploadForm } from "@/components/admin/gallery-upload-form";
 import { UploadForm } from "@/components/admin/upload-form";
 import { PhotoReprocessForm } from "@/components/admin/photo-reprocess-form";
 import { ScrapeWorkbench } from "@/components/admin/scrape-workbench";
@@ -17,7 +18,9 @@ import { listBatches, type BatchSummary } from "@/lib/import/batches";
 import { templateSpesifikasi } from "@/lib/import/gsmarena";
 import { templateTerpadu } from "@/lib/import/unified";
 import { templatePenawaran, templateShopeeScrape } from "@/lib/import/offers";
+import { templateGaleri } from "@/lib/import/photo-gallery-rows";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
+import { MAX_PHOTOS_PER_COLOR, MAX_PHOTOS_PER_PRODUCT, MAX_UNCOLORED_PHOTOS } from "@/lib/import/photo-rules";
 import { getSession, listRecentSessions } from "@/lib/scrape/sessions";
 import { SCRAPE_BRAND_LABELS, scrapeBrandOf, type ScrapeBrand } from "@/lib/scrape/types";
 import { cn } from "@/lib/utils";
@@ -37,6 +40,7 @@ export const maxDuration = 60;
  *   Unggah CSV     — spesifikasi (dataset GSMArena) dan penawaran (templat,
  *                    Shopee, Erafone).
  *   Tarik otomatis — daftar + harga dari situs resmi, spesifikasi dari GSMArena.
+ *   Galeri foto    — foto per warna (satu baris per foto), lewat batch pratinjau.
  *   Foto           — antrean foto produk dan proses ulang foto lama.
  *   Riwayat        — semua batch beserta statusnya.
  *
@@ -47,7 +51,8 @@ export const maxDuration = 60;
 const TABS = [
   { id: "unggah", label: "Unggah CSV" },
   { id: "tarik", label: "Tarik otomatis" },
-  { id: "foto", label: "Foto" },
+  { id: "galeri", label: "Galeri foto" },
+  { id: "foto", label: "Antrean foto" },
   { id: "riwayat", label: "Riwayat batch" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -80,7 +85,7 @@ async function BatchList({ limit }: { limit: number }) {
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold text-foreground">{batch.sourceLabel}</span>
               <span className="block text-xs text-muted-foreground">
-                {batch.kind === "specs" ? "Spesifikasi" : "Penawaran"} ·{" "}
+                {KIND_LABEL[batch.kind]} ·{" "}
                 {ORIGIN_LABEL[batch.origin]} · {formatTime(batch.createdAt)}
               </span>
             </span>
@@ -108,6 +113,12 @@ async function BatchList({ limit }: { limit: number }) {
     </ul>
   );
 }
+
+const KIND_LABEL: Record<BatchSummary["kind"], string> = {
+  specs: "Spesifikasi",
+  offers: "Penawaran",
+  photos: "Galeri foto",
+};
 
 const ORIGIN_LABEL: Record<BatchSummary["origin"], string> = {
   csv: "CSV",
@@ -222,6 +233,35 @@ async function ScrapeTab({
   );
 }
 
+function GalleryTab() {
+  return (
+    <div className="space-y-6">
+      <section>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Galeri foto per warna</h2>
+        <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
+          Tambahkan foto produk yang sudah ada di katalog, dikelompokkan per warna. Produk dicocokkan lewat merek dan
+          model dengan aturan yang sama seperti templat terpadu. Pratinjau menandai setiap foto <strong>Baru</strong>,{" "}
+          <strong>Sama</strong> (URL itu sudah tersimpan untuk warna yang sama), atau <strong>Dilewati</strong> beserta
+          alasannya.
+        </p>
+      </section>
+      <div className="rounded-xl border border-border bg-muted/40 p-5 text-sm leading-relaxed text-foreground">
+        <p className="font-semibold">Aturan galeri</p>
+        <ul className="mt-2 list-disc space-y-1.5 pl-5">
+          <li>
+            Paling banyak {MAX_PHOTOS_PER_COLOR} foto per warna, {MAX_UNCOLORED_PHOTOS} foto tanpa warna, dan{" "}
+            {MAX_PHOTOS_PER_PRODUCT} foto per produk. Saat batas tercapai, sampul dan urutan terkecil didahulukan.
+          </li>
+          <li>Satu sampul per warna. Sampul yang sudah dipilih admin tidak ditimpa impor.</li>
+          <li>Warna disimpan apa adanya. Warna di luar daftar warna spesifikasi produk ditandai Perlu tinjau.</li>
+          <li>Foto diproses di antrean terpisah; hasilnya terlihat di tab Antrean foto dan halaman produk.</li>
+        </ul>
+      </div>
+      <GalleryUploadForm template={templateGaleri()} />
+    </div>
+  );
+}
+
 async function PhotoTab() {
   const counts = await photoJobCounts();
   return (
@@ -307,6 +347,7 @@ export default async function ImportPage(props: PageProps<"/admin/import">) {
           </>
         ) : null}
         {tab === "tarik" ? <ScrapeTab sessionId={sessionId} brand={brand} search={search} /> : null}
+        {tab === "galeri" ? <GalleryTab /> : null}
         {tab === "foto" ? <PhotoTab /> : null}
         {tab === "riwayat" ? (
           <section aria-labelledby="riwayat">

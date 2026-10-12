@@ -16,7 +16,7 @@ import {
   selectWhereIn,
   timeKey,
 } from "@/lib/import/batch";
-import { mergeColors, sameColors } from "@/lib/import/colors";
+import { colorInOptions, mergeColors, sameColors } from "@/lib/import/colors";
 import type { ImageRights } from "@/lib/import/image-rights";
 import { offerRowsToCanonical } from "@/lib/import/canonical";
 import type { OfferCatalogProduct, OfferSourceFormat } from "@/lib/import/offers";
@@ -107,13 +107,13 @@ export type OfferContext = {
 
 /** Katalog untuk pencocokan, dibaca LENGKAP sekali di depan. null bila gagal dibaca. */
 export async function loadOfferContext(): Promise<OfferContext | null> {
-  let products: { id: string; slug: string; brand: string; model: string; is5G: unknown }[];
+  let products: { id: string; slug: string; brand: string; model: string; is5G: unknown; colorOptions: unknown }[];
   let variants: { id: string; product_id: string; ram_gb: number; storage_gb: number }[];
   let storeFor: StoreResolver;
   let slugRedirects: Map<string, string>;
   try {
     const [productRows, variantRows, resolver, redirects] = await Promise.all([
-      selectAll("products", "id, slug, brand, model, is5G:specs->is5G"),
+      selectAll("products", "id, slug, brand, model, is5G:specs->is5G, colorOptions:specs->colorOptions"),
       selectAll("variants", "id, product_id, ram_gb, storage_gb"),
       loadStoreResolver(),
       loadSlugRedirects(),
@@ -146,6 +146,7 @@ export async function loadOfferContext(): Promise<OfferContext | null> {
     brand: product.brand,
     model: product.model,
     is5G: typeof product.is5G === "boolean" ? product.is5G : null,
+    colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions.filter((c): c is string => typeof c === "string") : null,
     variants: variantsByProduct.get(product.id) ?? [],
   }));
 
@@ -166,6 +167,16 @@ export type OfferPreparation = {
   imageIssues: { rowIndex: number; label: string; reason: string }[];
 };
 
+/**
+ * Warna berkas yang tidak ada di daftar warna spesifikasi produk tetap
+ * disimpan apa adanya, tetapi barisnya ditandai Perlu tinjau: bisa salah
+ * ketik ("Celestian" vs "Celestial") atau nama pemasaran yang berbeda.
+ */
+function colorNote(color: string | null, options: readonly string[] | null | undefined): string | null {
+  if (!color || colorInOptions(color, options)) return null;
+  return `Warna "${color}" tidak ada di daftar warna spesifikasi produk (${options!.join(", ")}). Periksa ejaannya.`;
+}
+
 /** Tahap tanpa tulis: validasi, cocokkan, dan gabungkan listing. Dipakai pratinjau dan penulisan. */
 export function prepareOfferRows(
   rows: readonly CsvRow[],
@@ -182,6 +193,7 @@ export function prepareOfferRows(
   let mergedListings = 0;
   const listingImages: ListingImage[] = [];
   const imageIssues: OfferPreparation["imageIssues"] = [];
+  const productById = new Map(catalogProducts.map((product) => [product.id, product]));
 
   // Tahap 1, tanpa jaringan: adaptor kanonik (canonical.ts) menerjemahkan
   // setiap format penawaran ke bentuk yang sama, lalu dicocokkan di sini.
@@ -260,7 +272,9 @@ export function prepareOfferRows(
       format: outcome.format,
       color: outcome.color,
       colors: [],
-      reviewNote: outcome.reviewNote,
+      reviewNote: [outcome.reviewNote, colorNote(outcome.color, productById.get(productId)?.colorOptions)]
+        .filter(Boolean)
+        .join(" ") || null,
     });
   }
 
@@ -756,6 +770,10 @@ export async function runOfferImport({
           alt: `Foto ${product ? `${product.brand} ${product.model}` : "produk"}`,
           rights,
           color: job.color,
+          // Foto di baris penawaran berwarna adalah sampul warna itu (dipasang
+          // hanya bila warna itu belum punya sampul).
+          isCover: Boolean(job.color),
+          sortOrder: 0,
           batchId,
         };
       })

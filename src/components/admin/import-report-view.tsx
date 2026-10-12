@@ -1,4 +1,4 @@
-import type { ImportReport, OfferImportReport } from "@/lib/import/report";
+import type { ImportReport, OfferImportReport, PhotoGalleryReport } from "@/lib/import/report";
 
 /**
  * Laporan hasil impor, dipakai halaman batch setelah diterapkan.
@@ -228,6 +228,50 @@ export function OfferReportView({
           Semua baris terbaca tanpa ada yang dilewati.
         </p>
       )}
+    </section>
+  );
+}
+
+export function GalleryReportView({
+  summary,
+}: {
+  summary: NonNullable<PhotoGalleryReport["summary"]>;
+}) {
+  return (
+    <section role="status" className="rounded-xl border border-border bg-card p-6">
+      <h2 className="text-base font-bold text-foreground">Hasil impor galeri foto</h2>
+      <dl className="mt-4 grid gap-4 sm:grid-cols-4">
+        <div>
+          <dt className="text-sm text-muted-foreground">Baris terbaca</dt>
+          <dd className="text-lg font-bold text-foreground">{summary.totalRows}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-muted-foreground">Foto diantrekan</dt>
+          <dd className="text-lg font-bold text-success">{summary.queued}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-muted-foreground">Sudah tersimpan</dt>
+          <dd className="text-lg font-bold text-foreground">{summary.unchanged}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-muted-foreground">Dilewati</dt>
+          <dd className="text-lg font-bold text-warning">{summary.skipped.length}</dd>
+        </div>
+      </dl>
+      <p className="mt-4 text-sm text-muted-foreground">
+        Foto yang diantrekan diunduh dan disimpan oleh antrean foto. Hasil akhirnya, termasuk foto yang gagal, terlihat
+        di status antrean di atas dan di halaman produknya.
+      </p>
+      {summary.skipped.length > 0 ? (
+        <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+          {summary.skipped.slice(0, 20).map((s, i) => (
+            <li key={`${s.label}-${i}`}>
+              <span className="font-medium text-foreground">{s.label}</span>: {s.reason}
+            </li>
+          ))}
+          {summary.skipped.length > 20 ? <li>dan {summary.skipped.length - 20} lainnya (lihat kolom Hasil per baris).</li> : null}
+        </ul>
+      ) : null}
     </section>
   );
 }

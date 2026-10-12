@@ -36,6 +36,9 @@ export type PhotoJobInput = {
   rights: ImageRights;
   /** Warna yang ditampilkan foto; disimpan ke product_assets.color. */
   color?: string | null;
+  /** Urutan di dalam warnanya dan permintaan menjadi sampul (photo-rules.ts). */
+  sortOrder?: number;
+  isCover?: boolean;
   assetId?: string | null;
   batchId?: string | null;
 };
@@ -53,6 +56,8 @@ type PhotoJobRow = {
   batch_id: string | null;
   attempts: number;
   color: string | null;
+  sort_order: number;
+  is_cover: boolean;
 };
 
 export type PhotoJobCounts = { pending: number; running: number; done: number; failed: number; skipped: number };
@@ -72,7 +77,9 @@ function db() {
  */
 export async function enqueuePhotoJobs(jobs: readonly PhotoJobInput[]): Promise<{ queued: number; failed: number }> {
   if (jobs.length === 0) return { queued: 0, failed: 0 };
-  const unique = [...new Map(jobs.map((job) => [`${job.productId}|${job.kind}|${job.imageUrl}`, job])).values()];
+  const unique = [
+    ...new Map(jobs.map((job) => [`${job.productId}|${job.kind}|${job.imageUrl}|${job.color ?? ""}`, job])).values(),
+  ];
   let queued = 0;
   let failed = 0;
   for (const group of chunk(unique, INSERT_CHUNK)) {
@@ -88,6 +95,8 @@ export async function enqueuePhotoJobs(jobs: readonly PhotoJobInput[]): Promise<
           alt: job.alt.slice(0, 300),
           rights: job.rights,
           color: job.color ?? null,
+          sort_order: Math.max(0, Math.trunc(job.sortOrder ?? 0)),
+          is_cover: Boolean(job.isCover),
           asset_id: job.assetId ?? null,
           batch_id: job.batchId ?? null,
           status: "pending",
@@ -96,7 +105,7 @@ export async function enqueuePhotoJobs(jobs: readonly PhotoJobInput[]): Promise<
           last_error: null,
           lease_until: null,
         })),
-        { onConflict: "product_id,kind,image_url" }
+        { onConflict: "product_id,kind,image_url,color" }
       );
     if (error) {
       console.error("[foto] antrean gagal disimpan:", error);
@@ -129,6 +138,8 @@ async function runJob(row: PhotoJobRow, retrievedAt: string): Promise<ProductIma
       alt: row.alt,
       rights,
       color: row.color ?? null,
+      sortOrder: row.sort_order ?? 0,
+      isCover: Boolean(row.is_cover),
     };
     return row.kind === "primary"
       ? await importProductImage({ productId: row.product_id, candidate, defaultRights: rights, retrievedAt, batchId: row.batch_id })

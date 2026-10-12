@@ -17,6 +17,7 @@ import {
   type PlanAction,
   type PlanChange,
 } from "@/lib/import/plan";
+import { planPhotoImport } from "@/lib/import/photo-gallery";
 import type { ImportReport, OfferImportReport } from "@/lib/import/report";
 import {
   DRAFT_TTL_DAYS,
@@ -43,7 +44,8 @@ import { loadStoreResolver } from "@/lib/import/stores";
  * beberapa jam kemudian tidak menulis keputusan yang sudah basi.
  */
 
-export type BatchKind = "specs" | "offers";
+/** photos = galeri foto per warna (photo-gallery.ts). */
+export type BatchKind = "specs" | "offers" | "photos";
 /** csv/scrape = dibuat admin; schedule = pemeriksaan harga harian otomatis. */
 export type BatchOrigin = "csv" | "scrape" | "schedule";
 export type { BatchStatus };
@@ -106,7 +108,7 @@ export type BatchSummary = {
 export type BatchItem = {
   id: string;
   position: number;
-  entity: "product" | "offer";
+  entity: "product" | "offer" | "photo";
   action: PlanAction;
   label: string;
   reason: string | null;
@@ -164,6 +166,7 @@ type PlanOptions = Pick<BatchOptions, "imageRights" | "defaultObservedAt" | "def
 
 /** Rencana pratinjau dari baris kerja batch (tanpa menulis apa pun). */
 export async function planBatchRows(kind: BatchKind, rows: readonly CsvRow[], options: PlanOptions): Promise<ImportPlan> {
+  if (kind === "photos") return planPhotoImport(rows, options.imageRights ?? null);
   return kind === "specs"
     ? planSpecImport(rows, options.imageRights ?? null)
     : planOfferImport(rows, {

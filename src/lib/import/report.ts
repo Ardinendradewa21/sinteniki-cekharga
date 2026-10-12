@@ -134,3 +134,29 @@ export function mergeOfferSummaries(a: OfferSummary | null, b: OfferSummary): Of
     malformedLines: a.malformedLines,
   };
 }
+
+/** Laporan impor galeri foto: foto diantrekan, sama, dan dilewati. */
+export type PhotoGalleryReport = {
+  error: string | null;
+  summary: {
+    fileName: string;
+    totalRows: number;
+    /** Foto Baru/Berubah yang masuk antrean foto; hasil akhirnya di status antrean. */
+    queued: number;
+    unchanged: number;
+    skipped: { label: string; reason: string }[];
+  } | null;
+};
+
+type GallerySummary = NonNullable<PhotoGalleryReport["summary"]>;
+
+export function mergeGallerySummaries(a: GallerySummary | null, b: GallerySummary): GallerySummary {
+  if (!a) return b;
+  return {
+    fileName: a.fileName,
+    totalRows: a.totalRows + b.totalRows,
+    queued: a.queued + b.queued,
+    unchanged: a.unchanged + b.unchanged,
+    skipped: [...a.skipped, ...b.skipped],
+  };
+}

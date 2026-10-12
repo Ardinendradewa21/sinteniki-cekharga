@@ -25,7 +25,7 @@ export type PlanAction = "create" | "update" | "unchanged" | "skip";
 export type PlanChange = { field: string; before: string | null; after: string | null };
 
 export type PlanItem = {
-  entity: "product" | "offer";
+  entity: "product" | "offer" | "photo";
   action: PlanAction;
   label: string;
   reason: string | null;

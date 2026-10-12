@@ -36,11 +36,14 @@ import { clearRawRows, loadRawRowList, loadRawRows, stageRawRows } from "@/lib/i
 import { convertUnifiedRows } from "@/lib/import/unified";
 import type { CsvRow } from "@/lib/import/csv-parser";
 import { loadOfferContext, runOfferImport, type OfferContext } from "@/lib/import/offer-runner";
+import { runPhotoGalleryImport } from "@/lib/import/photo-gallery";
 import {
+  mergeGallerySummaries,
   mergeOfferSummaries,
   mergeSpecSummaries,
   type ImportReport,
   type OfferImportReport,
+  type PhotoGalleryReport,
 } from "@/lib/import/report";
 import { runSpecImport } from "@/lib/import/spec-runner";
 
@@ -63,7 +66,9 @@ import { runSpecImport } from "@/lib/import/spec-runner";
  * Item per potongan. Foto tidak lagi diproses di sini (antrean foto terpisah),
  * jadi kedua jenis hanya menulis baris database.
  */
-const CHUNK_SIZE: Record<BatchKind, number> = { specs: 25, offers: 40 };
+type AnySummary = ImportReport["summary"] | OfferImportReport["summary"] | PhotoGalleryReport["summary"];
+
+const CHUNK_SIZE: Record<BatchKind, number> = { specs: 25, offers: 40, photos: 100 };
 
 type LoadedBatch = {
   id: string;
@@ -74,7 +79,7 @@ type LoadedBatch = {
   /** Hanya batch lama; batch baru menyimpan barisnya di raw_listings. */
   rows: CsvRow[];
   malformed_lines: number[];
-  report: (ImportReport | OfferImportReport) | null;
+  report: (ImportReport | OfferImportReport | PhotoGalleryReport) | null;
   progress: Partial<Progress> | null;
   created_by: string | null;
   created_by_email: string | null;
@@ -136,7 +141,7 @@ async function runChunk(
   batch: LoadedBatch,
   items: { id: string; row_indexes: number[] }[],
   offerContext?: OfferContext
-): Promise<{ outcomes: ItemOutcome[]; summary: ImportReport["summary"] | OfferImportReport["summary"] }> {
+): Promise<{ outcomes: ItemOutcome[]; summary: AnySummary }> {
   const rows: CsvRow[] = [];
   const localIndexByItem = new Map<string, number>();
   const available = await batchRows(batch, items.flatMap((item) => item.row_indexes ?? []));
@@ -162,7 +167,9 @@ async function runChunk(
   const rights = readRights(batch.options.imageRights);
   try {
     const report =
-      batch.kind === "specs"
+      batch.kind === "photos"
+        ? await runPhotoGalleryImport({ rows, fileName: batch.source_label, imageRights: rights, batchId: batch.id })
+        : batch.kind === "specs"
         ? await runSpecImport({
             rows,
             fileName: batch.source_label,
@@ -204,16 +211,22 @@ async function runChunk(
 
 function mergeSummary(
   kind: BatchKind,
-  current: ImportReport["summary"] | OfferImportReport["summary"],
-  next: ImportReport["summary"] | OfferImportReport["summary"]
+  current: AnySummary,
+  next: AnySummary
 ) {
   if (!next) return current;
+  if (kind === "photos") {
+    return mergeGallerySummaries(
+      current as PhotoGalleryReport["summary"],
+      next as NonNullable<PhotoGalleryReport["summary"]>
+    );
+  }
   return kind === "specs"
     ? mergeSpecSummaries(current as ImportReport["summary"], next as NonNullable<ImportReport["summary"]>)
     : mergeOfferSummaries(current as OfferImportReport["summary"], next as NonNullable<OfferImportReport["summary"]>);
 }
 
-async function finalize(batch: LoadedBatch, progress: Progress, summary: ImportReport["summary"] | OfferImportReport["summary"]) {
+async function finalize(batch: LoadedBatch, progress: Progress, summary: AnySummary) {
   const status = finalStatus(progress);
   const selected = await selectWhereIn("import_items", "id, row_indexes, result, entity_id", "batch_id", [batch.id]);
   const done = selected.filter((item) => item.result === "done");
@@ -319,7 +332,7 @@ export async function processBatchStep(batchId: string, budgetMs = STEP_BUDGET_M
   }
 
   let progress: Progress = { ...emptyProgress(0), ...(batch.progress ?? {}) } as Progress;
-  let summary = batch.report?.summary ?? null;
+  let summary: AnySummary = batch.report?.summary ?? null;
   let processed = 0;
   // Katalog pencocokan penawaran dibaca sekali per langkah. Produk dan varian
   // tidak berubah oleh batch penawaran, jadi aman dipakai ulang antar potongan.

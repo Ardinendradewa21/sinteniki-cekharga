@@ -43,3 +43,22 @@ export function sameColors(a: readonly string[], b: readonly string[]): boolean 
   const right = new Set(b.map(colorKey));
   return left.size === right.size && [...left].every((key) => right.has(key));
 }
+
+/**
+ * Warna berkas termasuk daftar warna spesifikasi produk. Nama dalam kurung
+ * dihitung sebagai nama lain: "Deep Blue (Endless Blue)" cocok dengan
+ * "Deep Blue" dan "Endless Blue". Tanpa daftar warna, tidak ada yang dicek.
+ */
+export function colorInOptions(color: string, options: readonly string[] | null | undefined): boolean {
+  if (!options || options.length === 0) return true;
+  const names = new Set<string>();
+  for (const option of options) {
+    names.add(colorKey(option.trim()));
+    const match = option.match(/^(.*?)\s*\((.*)\)\s*$/);
+    if (match) {
+      names.add(colorKey(match[1]!.trim()));
+      names.add(colorKey(match[2]!.trim()));
+    }
+  }
+  return names.has(colorKey(color.trim()));
+}

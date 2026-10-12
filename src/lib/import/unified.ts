@@ -101,12 +101,16 @@ const SPEC_DATA_COLUMNS = [
   "ip_rating",
   "jack_3_5mm",
   "os",
-  "colors",
   "status_raw",
 ] as const;
 
-/** Kolom produk yang diteruskan ke adaptor spesifikasi tanpa memicu "baris produk". */
-const SPEC_PASSTHROUGH_COLUMNS = ["device_type", "image_url", "image_usage_basis", "image_usage_rights", "memory_variants_raw"] as const;
+/**
+ * Kolom produk yang diteruskan ke adaptor spesifikasi tanpa memicu "baris
+ * produk". `colors` (daftar warna) termasuk di sini: berkas harga sering
+ * mengisinya di setiap baris, dan itu tidak boleh membuat produk lama
+ * dianggap produk baru (2026-10-12).
+ */
+const SPEC_PASSTHROUGH_COLUMNS = ["device_type", "colors", "image_url", "image_usage_basis", "image_usage_rights", "memory_variants_raw"] as const;
 
 const IMAGE_COLUMNS = ["image_url", "image_usage_basis", "image_usage_rights"] as const;
 

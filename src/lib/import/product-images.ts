@@ -9,10 +9,9 @@ import { IMAGE_HOST_ISSUE, imageSourceName, safeHttpsImageUrl } from "@/lib/impo
 import { removePlainBackground } from "@/lib/import/image-matte";
 import { isImageUsageBasis, type ImageRights } from "@/lib/import/image-rights";
 import { normalizeColorName } from "@/lib/import/colors";
+import { findSamePhoto, galleryLimitIssue, shouldBecomeCover, storageColorSuffix } from "@/lib/import/photo-rules";
 
 export const PRODUCT_IMAGE_BUCKET = "product-images";
-/** Batas foto per produk (foto utama + foto listing tiap warna). */
-export const MAX_GALLERY_PHOTOS = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_OPTIMIZED_IMAGE_BYTES = 2 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 40_000_000;
@@ -59,6 +58,10 @@ export type ProductImageCandidate = {
   rights: ImageRights | null;
   /** Warna yang ditampilkan foto ini, apa adanya dari sumber; null = tidak diketahui. */
   color: string | null;
+  /** Urutan di dalam warnanya (kecil = lebih dulu). Hanya dipakai saat foto dibuat. */
+  sortOrder?: number;
+  /** Diminta menjadi sampul warnanya; diabaikan bila warna itu sudah punya sampul. */
+  isCover?: boolean;
 };
 
 export type ProductImageReading = {
@@ -307,9 +310,11 @@ async function optimizeImage(bytes: Uint8Array): Promise<
   }
 }
 
-function storageKeyFor(productId: string, imageUrl: string): string {
+function storageKeyFor(productId: string, imageUrl: string, color: string | null): string {
+  // Satu URL untuk dua warna = dua objek storage, supaya menghapus foto satu
+  // warna tidak menghapus berkas foto warna lain.
   const hash = createHash("sha256")
-    .update(`${IMAGE_PIPELINE_VERSION}:${imageUrl}`)
+    .update(`${IMAGE_PIPELINE_VERSION}:${imageUrl}${storageColorSuffix(color)}`)
     .digest("hex")
     .slice(0, 24);
   return `products/${productId}/${hash}.webp`;
@@ -350,12 +355,18 @@ function removeStoredImage(key: string) {
   return getInsforgeAdminClient().storage.from(PRODUCT_IMAGE_BUCKET).remove(key);
 }
 
-type PhotoRow = { id: string; storage_key: string | null; original_url: string | null; color: string | null };
+type PhotoRow = {
+  id: string;
+  storage_key: string | null;
+  original_url: string | null;
+  color: string | null;
+  is_cover: boolean;
+};
 
 async function productPhotos(productId: string): Promise<PhotoRow[] | null> {
   const { data, error } = await getInsforgeAdminClient()
     .database.from("product_assets")
-    .select("id, storage_key, original_url, color")
+    .select("id, storage_key, original_url, color, is_cover")
     .eq("product_id", productId)
     .eq("kind", "photo")
     .is("variant_id", null)
@@ -365,15 +376,21 @@ async function productPhotos(productId: string): Promise<PhotoRow[] | null> {
 
 /**
  * Foto yang sama sudah tersimpan: berkas tidak diunduh ulang, tetapi warna
- * yang baru diketahui dicatat. Warna kosong tidak menghapus warna lama.
+ * yang baru diketahui dicatat, dan sampul dipasang bila warnanya belum punya.
+ * Warna kosong tidak menghapus warna lama; urutan pilihan admin tidak diubah.
  */
-async function updateColorOnly(photo: PhotoRow, color: string | null): Promise<ProductImageImportResult> {
-  if (!color || photo.color === color) return { ok: true, outcome: "unchanged" };
-  const { error } = await getInsforgeAdminClient()
-    .database.from("product_assets")
-    .update({ color })
-    .eq("id", photo.id);
-  return error ? { ok: false, reason: "Warna foto gagal dicatat." } : { ok: true, outcome: "updated" };
+async function updateMetadataOnly(
+  photo: PhotoRow,
+  photos: readonly PhotoRow[],
+  candidate: ProductImageCandidate
+): Promise<ProductImageImportResult> {
+  const patch: Record<string, unknown> = {};
+  const color = photo.color ?? candidate.color;
+  if (candidate.color && !photo.color) patch.color = candidate.color;
+  if (!photo.is_cover && shouldBecomeCover(photos, color, Boolean(candidate.isCover))) patch.is_cover = true;
+  if (Object.keys(patch).length === 0) return { ok: true, outcome: "unchanged" };
+  const { error } = await getInsforgeAdminClient().database.from("product_assets").update(patch).eq("id", photo.id);
+  return error ? { ok: false, reason: "Warna atau sampul foto gagal dicatat." } : { ok: true, outcome: "updated" };
 }
 
 /**
@@ -387,9 +404,11 @@ async function saveAssetRow(
   retrievedAt: string,
   stored: { key: string; publicUrl: string },
   existing: PhotoRow | undefined,
-  batchId: string | null
+  batchId: string | null,
+  photos: readonly PhotoRow[] = []
 ): Promise<ProductImageImportResult> {
   const db = getInsforgeAdminClient().database;
+  const color = candidate.color ?? existing?.color ?? null;
   const payload = {
     product_id: productId,
     variant_id: null,
@@ -404,7 +423,7 @@ async function saveAssetRow(
     storage_key: stored.key,
     original_url: candidate.imageUrl,
     // Warna kosong tidak menghapus warna yang sudah tercatat di foto yang diganti.
-    color: candidate.color ?? existing?.color ?? null,
+    color,
   };
 
   if (existing) {
@@ -421,7 +440,15 @@ async function saveAssetRow(
 
   // Hanya foto yang DIBUAT diberi tanda batch: undo boleh menghapusnya. Foto
   // yang diganti di tempat tidak ditandai, karena isi lamanya sudah hilang.
-  const inserted = await db.from("product_assets").insert([{ ...payload, created_by_batch_id: batchId }]);
+  // Urutan dan sampul hanya diisi saat dibuat; setelah itu milik admin.
+  const inserted = await db.from("product_assets").insert([
+    {
+      ...payload,
+      created_by_batch_id: batchId,
+      sort_order: Math.max(0, Math.trunc(candidate.sortOrder ?? 0)),
+      is_cover: shouldBecomeCover(photos, color, Boolean(candidate.isCover)),
+    },
+  ]);
   if (inserted.error) {
     await removeStoredImage(stored.key);
     return { ok: false, reason: "Gambar tersimpan tetapi catatan aset gagal dibuat." };
@@ -449,14 +476,20 @@ export async function importProductImage({
   /** Batch impor asal antrean foto ini (jejak asal untuk undo). */
   batchId?: string | null;
 }): Promise<ProductImageImportResult> {
-  const storageKey = storageKeyFor(productId, candidate.imageUrl);
   const photos = await productPhotos(productId);
   if (!photos) return { ok: false, reason: "Foto lama produk gagal diperiksa." };
 
   // Foto yang sama sudah ada di galeri (mis. dari listing toko): jangan dobel.
-  const sameSource = photos.find((photo) => photo.original_url === candidate.imageUrl);
-  if (sameSource?.storage_key === storageKey) return updateColorOnly(sameSource, candidate.color);
-  const existing = sameSource ?? photos[0];
+  const sameSource = findSamePhoto(photos, candidate.imageUrl, candidate.color);
+  const storageKey = storageKeyFor(productId, candidate.imageUrl, sameSource?.color ?? candidate.color);
+  if (sameSource?.storage_key === storageKey) return updateMetadataOnly(sameSource, photos, candidate);
+  // Foto utama menggantikan foto umum (tanpa warna) tertua, bukan foto warna
+  // dari listing toko; tanpa foto umum, foto utama ditambahkan.
+  const existing = sameSource ?? photos.find((photo) => photo.color === null);
+  if (!existing) {
+    const limit = galleryLimitIssue(photos, candidate.color);
+    if (limit) return { ok: false, reason: limit };
+  }
 
   const rights = candidate.rights ?? defaultRights;
   if (!rights) {
@@ -468,13 +501,13 @@ export async function importProductImage({
 
   const stored = await storeImage(storageKey, candidate.imageUrl);
   if (!stored.ok) return stored;
-  return saveAssetRow(productId, candidate, rights, retrievedAt, stored, existing, batchId);
+  return saveAssetRow(productId, candidate, rights, retrievedAt, stored, existing, batchId, photos);
 }
 
 /**
- * Foto TAMBAHAN untuk galeri (mis. foto tiap warna dari listing Erafone).
- * Dikenali dari URL aslinya: foto yang sama tidak diunggah dua kali, dan
- * galeri dibatasi `MAX_GALLERY_PHOTOS` foto per produk.
+ * Foto TAMBAHAN untuk galeri (mis. foto tiap warna dari listing toko).
+ * Dikenali dari URL asli + warnanya: foto yang sama tidak diunggah dua kali,
+ * dan galeri dibatasi per warna (photo-rules.ts).
  */
 export async function importGalleryImage({
   productId,
@@ -490,22 +523,20 @@ export async function importGalleryImage({
   const rights = candidate.rights;
   if (!rights) return { ok: false, reason: "Dasar hak pakai foto belum dipilih." };
 
-  const storageKey = storageKeyFor(productId, candidate.imageUrl);
   const photos = await productPhotos(productId);
   if (!photos) return { ok: false, reason: "Foto lama produk gagal diperiksa." };
 
-  const existing = photos.find((photo) => photo.original_url === candidate.imageUrl);
-  if (existing?.storage_key === storageKey) return updateColorOnly(existing, candidate.color);
-  if (!existing && photos.length >= MAX_GALLERY_PHOTOS) {
-    return {
-      ok: false,
-      reason: `Galeri sudah berisi ${MAX_GALLERY_PHOTOS} foto; foto tambahan tidak disimpan.`,
-    };
+  const existing = findSamePhoto(photos, candidate.imageUrl, candidate.color);
+  const storageKey = storageKeyFor(productId, candidate.imageUrl, existing?.color ?? candidate.color);
+  if (existing?.storage_key === storageKey) return updateMetadataOnly(existing, photos, candidate);
+  if (!existing) {
+    const limit = galleryLimitIssue(photos, candidate.color);
+    if (limit) return { ok: false, reason: limit };
   }
 
   const stored = await storeImage(storageKey, candidate.imageUrl);
   if (!stored.ok) return stored;
-  return saveAssetRow(productId, candidate, rights, retrievedAt, stored, existing, batchId);
+  return saveAssetRow(productId, candidate, rights, retrievedAt, stored, existing, batchId, photos);
 }
 
 export type OutdatedPhoto = {
@@ -544,7 +575,7 @@ export async function listOutdatedPhotos(): Promise<
   return {
     withoutOrigin: rows.filter((row) => row.storage_key && !row.original_url).length,
     outdated: rows.filter(
-      (row) => row.original_url && row.storage_key !== storageKeyFor(row.product_id, row.original_url)
+      (row) => row.original_url && row.storage_key !== storageKeyFor(row.product_id, row.original_url, row.color)
     ),
   };
 }
@@ -563,7 +594,7 @@ export async function reprocessAssetPhoto(assetId: string, retrievedAt: string):
   if (error || !row) return { ok: false, reason: "Foto ini sudah tidak ada." };
   if (!row.original_url) return { ok: false, reason: "Foto tidak menyimpan URL asli; impor ulang lewat CSV spesifikasi." };
 
-  const storageKey = storageKeyFor(row.product_id, row.original_url);
+  const storageKey = storageKeyFor(row.product_id, row.original_url, row.color);
   if (row.storage_key === storageKey) return { ok: true, outcome: "unchanged" };
   const stored = await storeImage(storageKey, row.original_url);
   if (!stored.ok) return stored;
@@ -577,7 +608,7 @@ export async function reprocessAssetPhoto(assetId: string, retrievedAt: string):
     rights,
     retrievedAt,
     stored,
-    { id: row.id, storage_key: row.storage_key, original_url: row.original_url, color: row.color },
+    { id: row.id, storage_key: row.storage_key, original_url: row.original_url, color: row.color, is_cover: false },
     null
   );
 }

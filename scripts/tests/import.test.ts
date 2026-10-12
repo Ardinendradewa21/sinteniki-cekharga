@@ -904,3 +904,76 @@ test("pilihan warna: warna foto utama dipilih bawaan, galeri mengikuti warna, ha
   assert.equal(colorSwatch("Oak Green"), colorSwatch("Green"));
   assert.equal(colorSwatch("F9 Pro"), null);
 });
+
+// Galeri foto per warna (2026-10-12).
+import { colorInOptions } from "@/lib/import/colors";
+import { findSamePhoto, galleryLimitIssue, shouldBecomeCover, MAX_PHOTOS_PER_COLOR } from "@/lib/import/photo-rules";
+import { looksLikeGalleryHeaders, planGalleryRows, readGalleryRow, templateGaleri } from "@/lib/import/photo-gallery-rows";
+import { mergeGallerySummaries } from "@/lib/import/report";
+
+test("warna spesifikasi: nama dalam kurung dihitung, kolom colors tidak membuat baris produk", () => {
+  assert.ok(colorInOptions("Deep Blue", ["Absolute Black", "Deep Blue (Endless Blue)"]));
+  assert.ok(colorInOptions("endless blue", ["Deep Blue (Endless Blue)"]));
+  assert.ok(!colorInOptions("Celestian Purple", ["Celestial Purple", "Black"]));
+  assert.ok(colorInOptions("Apa saja", null), "tanpa daftar warna tidak ada yang dicek");
+  const converted = convertUnifiedRows([
+    { brand: "Xiaomi", model_name: "17T", ram_gb: "12", storage_gb: "256", colors: "Black, Violet", color: "Black", offer_url: "https://shopee.co.id/a-i.1.2", marketplace: "Shopee", seller_name: "Toko", price_idr: "8999000" },
+  ]);
+  assert.equal(converted.specRows.length, 0, "daftar warna di berkas harga bukan alasan membuat produk");
+  assert.equal(converted.offerRows.length, 1);
+});
+
+test("aturan galeri: foto dikenali dari URL + warna, batas per warna, sampul tidak menimpa", () => {
+  const photos = [
+    { id: "a", original_url: "u1", color: null, is_cover: false },
+    { id: "b", original_url: "u2", color: "Black", is_cover: true },
+  ];
+  assert.equal(findSamePhoto(photos, "u2", "black")?.id, "b", "huruf besar warna tidak membedakan");
+  assert.equal(findSamePhoto(photos, "u1", "Green")?.id, "a", "foto tanpa warna diklaim warnanya");
+  assert.equal(findSamePhoto(photos, "u2", "Green"), undefined, "URL sama untuk warna lain = foto lain");
+  assert.equal(shouldBecomeCover(photos, "Black", true), false, "sampul yang ada tidak ditimpa");
+  assert.equal(shouldBecomeCover(photos, "Green", true), true);
+  const full = Array.from({ length: MAX_PHOTOS_PER_COLOR }, (_, i) => ({ id: String(i), original_url: `x${i}`, color: "Lotus Purple" }));
+  assert.match(galleryLimitIssue(full, "lotus purple") ?? "", /Warna "lotus purple" sudah berisi 6 foto; foto ke-7/);
+  assert.equal(galleryLimitIssue(full, "Black"), null);
+});
+
+test("berkas galeri: dikenali dari kolomnya, baris dibaca, rencana mendahulukan sampul dan urutan kecil", () => {
+  const header = templateGaleri().split("\n")[0]!.split(",");
+  assert.ok(looksLikeGalleryHeaders(header));
+  assert.ok(!looksLikeGalleryHeaders([...header, "ram_gb", "storage_gb"]), "berkas berharga/varian bukan galeri");
+  assert.deepEqual(detect(templateGaleri()), { kind: "photos", format: "photo-gallery" });
+  assert.equal(readGalleryRow({ brand: "Xiaomi", model_name: "17T", color: "", image_url: "https://x" }).ok, false);
+
+  const products = [{ id: "p17t", slug: "xiaomi-17t", brand: "Xiaomi", model: "17T", colorOptions: ["Black", "Opal White"], variants: [] }];
+  const row = (color: string, n: number, cover = "tidak", host = "down-id.img.susercontent.com") => ({
+    brand: "Xiaomi", model_name: "17T", color, urutan: String(n), is_cover: cover, image_url: `https://${host}/file/${color}-${n}`,
+  });
+  const rows = [
+    ...Array.from({ length: 7 }, (_, i) => row("Black", 7 - i)), // urutan 7..1, terbalik
+    row("Black", 9, "ya"),
+    row("Violet", 1),
+    row("Black", 1, "tidak", "contoh.com"),
+    { brand: "Xiaomi", model_name: "17T Ultra Max", color: "Black", image_url: "https://down-id.img.susercontent.com/file/z" },
+  ];
+  const plan = planGalleryRows(rows, {
+    products,
+    existing: new Map([["p17t", [{ id: "lama", original_url: "https://down-id.img.susercontent.com/file/Black-1", color: "Black", is_cover: false }]]]),
+    defaultRights: { basis: "admin-declared", text: "uji" },
+  });
+  const byRow = (i: number) => plan.find((item) => item.rowIndex === i)!;
+  assert.equal(byRow(6).action, "unchanged", "urutan 1 sudah tersimpan");
+  assert.equal(byRow(7).action, "create", "sampul didahulukan walau urutannya 9");
+  const created = plan.filter((item) => item.action === "create" && item.photo?.color === "Black").map((item) => item.photo!.sortOrder);
+  assert.deepEqual(created.sort((a, b) => a - b), [2, 3, 4, 5, 9], "5 foto baru + 1 lama = 6");
+  assert.match(byRow(0).reason ?? "", /sudah berisi 6 foto/, "urutan terbesar yang terlewat");
+  assert.equal(byRow(8).colorReview, true, "Violet di luar daftar warna: Perlu tinjau");
+  assert.match(byRow(9).reason ?? "", /host-nya belum diizinkan/);
+  assert.match(byRow(10).reason ?? "", /tidak ditemukan di katalog/);
+  const noRights = planGalleryRows([row("Black", 3)], { products, existing: new Map(), defaultRights: null });
+  assert.match(noRights[0]!.reason ?? "", /hak pakai/);
+  assert.deepEqual(
+    mergeGallerySummaries({ fileName: "a", totalRows: 2, queued: 1, unchanged: 1, skipped: [] }, { fileName: "a", totalRows: 3, queued: 2, unchanged: 0, skipped: [{ label: "x", reason: "y" }] }),
+    { fileName: "a", totalRows: 5, queued: 3, unchanged: 1, skipped: [{ label: "x", reason: "y" }] }
+  );
+});

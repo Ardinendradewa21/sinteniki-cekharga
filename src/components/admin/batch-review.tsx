@@ -66,7 +66,13 @@ function text(value: unknown): string | null {
 function ItemDetail({ item }: { item: ReviewItem }) {
   const v = item.view;
   const facts =
-    item.entity === "product"
+    item.entity === "photo"
+      ? [
+          text(v.color) && `Warna ${text(v.color)}`,
+          v.cover ? "Sampul warna ini" : null,
+          text(v.source) ? "Ada tautan sumber" : null,
+        ]
+      : item.entity === "product"
       ? [
           text(v.slug) && `Slug ${text(v.slug)}`,
           text(v.variants) && `Varian ${text(v.variants)}`,
@@ -88,7 +94,7 @@ function ItemDetail({ item }: { item: ReviewItem }) {
       {shown.length > 0 ? (
         <p className="text-xs leading-relaxed text-muted-foreground">{shown.join(" · ")}</p>
       ) : null}
-      {item.entity === "offer" && text(v.url) ? (
+      {item.entity !== "product" && text(v.url) ? (
         <a
           href={String(v.url)}
           target="_blank"
@@ -319,7 +325,7 @@ export function BatchReview({
                           </div>
                           <div className="col-start-2 min-w-0 space-y-1.5 sm:col-start-3 sm:row-start-1">
                             <p className="text-sm font-semibold text-foreground">
-                              {item.entity === "offer" && item.view.variant ? String(item.view.variant) : item.label}
+                              {item.entity !== "product" && item.view.variant ? String(item.view.variant) : item.label}
                             </p>
                             {editable ? null : <ItemResultNote item={item} />}
                             <ItemDetail item={item} />

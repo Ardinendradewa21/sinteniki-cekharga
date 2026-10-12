@@ -304,7 +304,7 @@ function ImportHistory({ batches }: { batches: BatchSummary[] }) {
                         {batch.sourceLabel}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {batch.kind === "offers" ? "Penawaran & harga" : "Spesifikasi produk"}
+                        {batch.kind === "offers" ? "Penawaran & harga" : batch.kind === "photos" ? "Galeri foto" : "Spesifikasi produk"}
                         {batch.origin === "scrape" ? " · tarik otomatis" : " · CSV"}
                         {batch.createdByEmail ? ` · ${batch.createdByEmail}` : ""}
                       </p>

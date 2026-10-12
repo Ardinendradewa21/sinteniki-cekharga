@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { BatchReview } from "@/components/admin/batch-review";
-import { OfferReportView, SpecReportView } from "@/components/admin/import-report-view";
+import { GalleryReportView, OfferReportView, SpecReportView } from "@/components/admin/import-report-view";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { requireStaff } from "@/lib/auth/dal";
@@ -27,7 +27,7 @@ import {
 } from "@/lib/import/batch-status";
 import { followUpRowsOf, getBatch, getBatchSummary } from "@/lib/import/batches";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
-import type { ImportReport, OfferImportReport } from "@/lib/import/report";
+import type { ImportReport, OfferImportReport, PhotoGalleryReport } from "@/lib/import/report";
 
 export const metadata: Metadata = {
   title: "Pratinjau Impor",
@@ -83,7 +83,8 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
   const batch = await getBatch(id);
   if (!batch) notFound();
 
-  const kindLabel = batch.kind === "specs" ? "Spesifikasi produk" : "Penawaran dan harga";
+  const kindLabel =
+    batch.kind === "specs" ? "Spesifikasi produk" : batch.kind === "photos" ? "Galeri foto" : "Penawaran dan harga";
   const report = batch.report;
   const pendingOffers = batch.options.followUpOffers?.count ?? batch.options.followUpOffers?.rows.length ?? 0;
   const statusView = batchStatusView(batch, new Date());
@@ -171,6 +172,9 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
           baris <strong>Dilewati</strong> menyebut alasannya. Saat diterapkan,
           pencocokan dihitung ulang terhadap data terkini.
           {batch.kind === "specs" ? " Produk baru selalu masuk sebagai draft." : ""}
+          {batch.kind === "photos"
+            ? " Foto yang diterapkan masuk antrean foto dulu; batas per warna diperiksa lagi saat foto diproses."
+            : ""}
           {pendingOffers > 0
             ? batch.origin === "scrape"
               ? ` ${pendingOffers} harga resmi dari tarik otomatis tampil di baris produknya dan ikut diterapkan otomatis untuk produk yang dipilih.`
@@ -206,7 +210,9 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
 
       {report?.summary ? (
         <div className="mt-6 space-y-3">
-          {batch.kind === "specs" ? (
+          {batch.kind === "photos" ? (
+            <GalleryReportView summary={(report as PhotoGalleryReport).summary!} />
+          ) : batch.kind === "specs" ? (
             <SpecReportView summary={(report as ImportReport).summary!} />
           ) : (
             <OfferReportView summary={(report as OfferImportReport).summary!} />

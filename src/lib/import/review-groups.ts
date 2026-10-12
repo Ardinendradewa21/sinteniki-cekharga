@@ -11,7 +11,7 @@ export type PlanAction = "create" | "update" | "unchanged" | "skip";
 
 export type ReviewItem = {
   id: string;
-  entity: "product" | "offer";
+  entity: "product" | "offer" | "photo";
   action: PlanAction;
   label: string;
   reason: string | null;
@@ -62,7 +62,8 @@ function groupOf(item: ReviewItem): { key: string; title: string } {
     return { key: `product:${key}`, title: item.label };
   }
   const product = String(item.view.product ?? item.label);
-  return { key: `offer:${product}`, title: product };
+  // Foto galeri dikelompokkan per produk juga; isinya urut per warna lalu urutan foto.
+  return { key: `${item.entity}:${product}`, title: product };
 }
 
 /** Kelompok per produk, urut kemunculan pertama di rencana; isi kelompok urut varian. */
