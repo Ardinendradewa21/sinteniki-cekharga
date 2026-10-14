@@ -19,24 +19,9 @@ Peran QA di setiap seremoni:
 - **Review:** QA menyajikan ringkasan hasil uji dan defect terbuka sebelum PO memutuskan.
 - **Retro:** QA membawa metrik: defect lolos ke produksi, waktu jalan suite, dan tes yang flaky.
 
-## Usulan Sprint 1 (mulai Senin berikutnya)
+## Rencana sprint
 
-**Sprint goal:** *Harga tetap segar di produksi tanpa kerja manual, dan pengunjung tidak lagi melihat produk terbit tanpa harga atau spesifikasi kunci.*
-
-| Item | Story point | Alasan masuk sprint |
-| --- | --- | --- |
-| PB-11 Ganti kata sandi admin | 1 | Risiko keamanan, sangat kecil |
-| PB-01 Deploy + secret + jadwal worker | 3 | Tanpa ini pemeriksaan harian tidak berjalan otomatis |
-| PB-05 Peringatan pemeriksaan harian gagal | 3 | Menjaga sprint goal tetap tercapai setelah sprint selesai |
-| PB-03 Lengkapi penawaran 29 produk terbit | 3 | Langsung mengurangi "Terbit tanpa harga" |
-| PB-04 Lengkapi NFC/IP 34 produk | 3 | Filter "wajib NFC" di Tanya AI jadi lebih akurat |
-| **Total** | **13** | Kapasitas aktual ditetapkan tim saat Planning. Bila kapasitas < 13, PB-04 dikeluarkan lebih dulu. |
-
-Ukuran keberhasilan sprint goal, yang dicek di Sprint Review:
-
-- "Harga masih segar" di dasbor tetap ≥ 60% dari produk berharga selama 3 hari berturut-turut setelah deploy.
-- SQL-11 (produk terbit tanpa penawaran) turun dari 29 menjadi ≤ 10.
-- Tidak ada defect baru berseverity Kritis atau Tinggi.
+Rencana sprint aktif ada di [SPRINT-PLAN-2026-Q4.md](SPRINT-PLAN-2026-Q4.md) (Sprint 1 mulai 14 Oktober 2026). Usulan Sprint 1 lama (versi 6 Oktober) diganti: PB-03 sudah selesai lewat kurasi katalog, dan prioritas mengikuti rencana pengembangan yang disetujui PO pada 14 Oktober 2026.
 
 ## Agenda Backlog Refinement berikutnya
 
