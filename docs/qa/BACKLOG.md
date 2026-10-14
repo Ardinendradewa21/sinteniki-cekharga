@@ -1,6 +1,6 @@
 # Product Backlog — CekHarga
 
-Diperbarui 2026-10-06. Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
+Diperbarui 2026-10-14 (PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
 
 > WSJF = (Nilai bisnis + Urgensi waktu + Pengurangan risiko) ÷ Ukuran
 
@@ -25,15 +25,32 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 13 | PB-14 | Selaraskan batas harga segar dengan jadwal cron (±30 jam atau cron 2×/hari) | UX-24 | 5 | 3 | 3 | 1 | **11.0** | ✅ Selesai 2026-10-08 (30 jam) |
 | 14 | PB-15 | Gerbang terbit: tombol Terbitkan menolak produk tanpa varian atau tanpa penawaran aktif, dengan alasan yang jelas (SOP impor §7). Per 2026-10-08 ada 29 produk terbit tanpa penawaran | SOP-IMPOR §10 | 5 | 5 | 3 | 2 | **6.5** | Disetujui PO 2026-10-08 (wajib ≥1 penawaran aktif); kode belum |
 | 15 | PB-16 | Tarik otomatis "harga saja" untuk produk katalog yang sudah ada: membuat penawaran resmi dari lineup tanpa menarik ulang spesifikasi GSMArena (yang sering terkena Turnstile) | SOP-IMPOR §5.1 | 8 | 5 | 5 | 3 | **6.0** | Usulan |
-| 16 | PB-17 | Sumber harga e-commerce yang sah (program afiliasi marketplace atau kerja sama toko). Saat ini Shopee/Erafone hanya lewat CSV dan basi setelah 30 jam | SOP-IMPOR §5.1 | 8 | 3 | 5 | 8 | **2.0** | Perlu riset bisnis |
+| 16 | PB-17 | Sumber harga e-commerce yang sah (program afiliasi marketplace atau kerja sama toko). Saat ini Shopee/Erafone hanya lewat CSV dan basi setelah 30 jam | SOP-IMPOR §5.1 | 8 | 5 | 5 | 8 | **2.3** | Perlu riset bisnis (urgensi dinaikkan 2026-10-13: juga menjawab beban input manual) |
 | 17 | PB-18 | Masalah awal: Soft delete (`deleted_at`) untuk produk, toko, dan kampanye iklan; hapus produk tidak lagi menghanyutkan `price_observations`/`price_checks` lewat ON DELETE CASCADE. Kurasi 2026-10-08 masih hard delete (cadangan di `data/backups/`) | Aturan SD-8 | 8 | 8 | 8 | 5 | **4.8** | ✅ Selesai 2026-10-09 |
 | 18 | PB-19 | Masalah awal: Tarik otomatis sebagai background job: `loadLineupAction` dan `resolveModelAction` (kini dihapus) mengambil situs resmi/GSMArena di dalam request admin. Pindahkan ke tabel `scrape_jobs` + worker, UI hanya membaca status. Bagian impor CSV SELESAI 2026-10-11: analisis unggahan di worker (status `analyzing`), baris mentah per baris di `raw_listings` dengan retensi 30 hari | Aturan SD-3 | 5 | 3 | 8 | 5 | **3.2** | ✅ Selesai 2026-10-11: tabel `scrape_jobs` + worker; commit tarik otomatis juga dianalisis di worker |
 | 19 | PB-20 | Masalah awal: Hapus pola N+1: detail produk admin membaca 2 query per penawaran (`admin/queries.ts`), dan penulisan per baris di `jobs.ts` (hasil item), `spec-runner.ts` (update produk), `offer-runner.ts` (update harga). Ganti dengan `.in()` + view, atau RPC update massal | Aturan SD-4 | 5 | 3 | 5 | 3 | **4.3** | ✅ Selesai 2026-10-11: RPC massal untuk produk, penawaran, harga, dan hasil item; detail produk admin 2 query total lewat view `offer_recent_checks`. Jalur satu per satu yang tersisa hanya cadangan saat insert massal gagal, untuk menemukan baris penyebabnya |
 | 20 | PB-21 | Masalah awal: Asisten AI: kuota harian (per IP dan total) di store bersama, bukan memori proses; retry 1x dengan backoff untuk 429/5xx (sekarang `maxRetries: 0`), fallback ke form tetap | Aturan SD-1, SD-7 | 5 | 5 | 8 | 2 | **9.0** | ✅ Selesai 2026-10-09 |
 | 21 | PB-22 | Masalah awal: `politeFetch` (situs resmi/GSMArena): retry terbatas dengan backoff untuk galat jaringan dan 5xx; 403/429/Turnstile tetap berhenti tanpa retry | Aturan SD-7 | 3 | 3 | 5 | 2 | **5.5** | ✅ Selesai 2026-10-10 |
+| 22 | PB-23 | SEO halaman produk dan katalog: judul "Harga {produk} Terbaru {bulan} – Mulai Rp… di n Toko", deskripsi dengan varian acuan dan waktu periksa, canonical, Open Graph; dikerjakan bersama PB-12 | Audit 2026-10-13, analisis BigGo | 8 | 5 | 3 | 2 | **8.0** | Siap setelah PB-01 |
+| 23 | PB-24 | Kebersihan kode: hapus folder kosong `src/app/products/[slug]`, tes E2E menghapus batch ujinya, simpan pengaturan iklan secara atomik (RPC, bukan loop) | Audit 2026-10-13 | 2 | 2 | 3 | 2 | **3.5** | Siap |
+| 24 | PB-25 | Tinjau dua `eslint-disable react-hooks/exhaustive-deps` (`batch-progress.tsx`, `scrape-workbench.tsx`): perbaiki atau tulis alasannya | Audit 2026-10-13 | 2 | 1 | 3 | 1 | **6.0** | Siap |
+| 25 | PB-26 | Impor data Xiaomi Okt 2026 (templat terpadu + galeri foto); perbaiki RAM 17 Ultra lebih dulu | Data pemilik produk | 8 | 5 | 2 | 1 | **15.0** | Siap (tugas data) |
+| 26 | PB-27 | Filter "hanya garansi resmi Indonesia" dan "sembunyikan stok habis" (filter pilihan pengguna, bukan aturan katalog) + normalisasi teks garansi saat impor | Analisis BigGo | 5 | 2 | 2 | 3 | **3.0** | Perlu refinement |
+| 27 | PB-28 | Halaman perbandingan "A vs B" untuk pasangan pilihan admin, tanpa label pemenang | Analisis BigGo | 8 | 3 | 2 | 3 | **4.3** | Siap setelah PB-23 |
+| 28 | PB-29 | Halaman kebutuhan programatik (mis. "HP 5G di bawah Rp3 juta"), urutan netral, terbit hanya bila ≥3 produk berharga segar | Analisis BigGo | 8 | 3 | 3 | 5 | **2.8** | Perlu refinement |
+| 29 | PB-30 | Perluas halaman Cara Kerja: sikap transparansi + statistik hidup (produk, penawaran, toko, % harga segar), tanpa jumlah pengguna | Analisis BigGo | 5 | 3 | 2 | 2 | **5.0** | Siap |
+| 30 | PB-31 | Keputusan PO atas fitur yang ditunda PRD §3: grafik riwayat harga publik, pantau harga (email), "harga turun minggu ini", kategori lain, ekstensi browser | Analisis BigGo | 8 | 3 | 3 | 1 | **14.0** | Menunggu keputusan PO |
+| 31 | PB-32 | Katalog dibaca per halaman/filter di database (bukan seluruh dataset dalam satu cache); dipicu peringatan ukuran dataset atau >500 produk terbit | Audit 2026-10-13 | 5 | 2 | 8 | 8 | **1.9** | Menunggu pemicu |
+| 32 | PB-33 | Pecah `src/lib/catalog/queries.ts` (1.388 baris) per fitur tanpa mengubah perilaku; bersama PB-32 | Audit 2026-10-13 | 2 | 1 | 3 | 3 | **2.0** | Bersama PB-32 |
+| 33 | PB-34 | Logika harga di pemilih varian: saat harga seri pilih pemeriksaan terbaru (`pricing.ts`), chip kapasitas memuat harga (segar / "Terakhir Rp…" / "Belum ada harga") | UX-20, UX-21 (2026-10-14) | 8 | 5 | 3 | 2 | **8.0** | Siap |
+| 34 | PB-35 | Rapikan tata letak: label warna GSMArena di spesifikasi, hero beranda tanpa harga, kartu katalog terlihat tanpa scroll, tinggi foto detail di ponsel, warna terpotong di kartu penawaran | UX-22 sampai UX-26 | 5 | 3 | 2 | 3 | **3.3** | Siap |
+| 35 | PB-36 | Grafik riwayat harga per varian (shadcn Chart, garis tangga, ambang ≥5 pemeriksaan dalam ≥7 hari, tabel alternatif) sesuai `docs/ux/ANALISIS-UX-GRAFIK-HARGA-2026-10.md` §3 | Analisis BigGo, UX §3 | 8 | 2 | 3 | 5 | **2.6** | Menunggu PB-01 + PB-31 |
 | – | PB-10 | Modul iklan: Fase 3–4 (laporan otomatis, invoice, portal advertiser, sponsored listing) | ADS-CONTEXT §10 | – | – | – | – | – | **Ditahan** oleh pemilik produk |
 
 ### Catatan prioritas
+
+- **PB-26 dan PB-31 di atas secara WSJF** karena ukurannya kecil: satu tugas data dan satu keputusan. PB-31 tidak boleh dilewati, karena grafik harga, notifikasi, dan kategori lain berstatus "Ditunda" di PRD §3 dan tidak boleh dikerjakan sebelum PRD diubah.
+- **PB-23 menunggu PB-01:** SEO baru berdampak setelah situs bisa dirayapi.
 
 - **PB-11 di urutan pertama** walau nilainya kecil: risikonya besar dan ukurannya paling kecil. Kata sandi yang pernah dikirim lewat percakapan harus dianggap bocor.
 - **PB-01 membuka nilai dari pekerjaan yang sudah selesai.** Pemeriksaan harga harian (US-10) sudah dibangun, tapi baru berjalan otomatis setelah ada URL publik dan secret terpasang. Tanpa itu, metrik "harga segar" akan turun lagi ke 0 dalam 24 jam.
