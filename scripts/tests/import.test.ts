@@ -1005,3 +1005,21 @@ test("panel foto: grup per warna (umum paling akhir), sampul dulu, naik/turun da
   assert.deepEqual(movePhoto(["a", "b", "c"], "c", "down"), null);
   assert.deepEqual(movePhoto(["a", "b"], "x", "up"), null);
 });
+
+test("galeri: merek tidak digandakan bila model sudah memuat merek; link foto Samsung dirapikan", () => {
+  const read = readGalleryRow({ brand: "Samsung", model_name: "Samsung Galaxy A57 5G ", color: "Awesome Gray", image_url: "https://images.samsung.com/x/a?imbypass=true", is_cover: "tidak " });
+  assert.ok(read.ok);
+  assert.equal(read.ok && read.row.name, "Samsung Galaxy A57 5G");
+  assert.equal(read.ok && read.row.isCover, false);
+  const products = [{ id: "a57", slug: "samsung-galaxy-a57", brand: "Samsung", model: "Galaxy A57", is5G: true, variants: [] }];
+  const plan = planGalleryRows(
+    [
+      { brand: "Samsung", model_name: "Samsung Galaxy A57 5G", color: "Gray", image_url: "https://images.samsung.com/is/image/samsung/p6pim/id/a-1?imbypass=true" },
+      { brand: "Samsung", model_name: "Samsung Galaxy A57 5G", color: "Gray", image_url: "https://images.samsung.com/is/image/samsung/p6pim/id/a-1?$LazyLoad_Home_JPG$" },
+    ],
+    { products, existing: new Map(), defaultRights: { basis: "admin-declared", text: "uji" } }
+  );
+  assert.deepEqual(plan.map((i) => i.action), ["create", "unchanged"], "parameter berbeda = foto yang sama");
+  assert.equal(plan[0]!.photo?.url, "https://images.samsung.com/is/image/samsung/p6pim/id/a-1");
+  assert.equal(safeHttpsImageUrl("https://images.samsung.com/a?$650_519_PNG$")?.href, "https://images.samsung.com/a");
+});

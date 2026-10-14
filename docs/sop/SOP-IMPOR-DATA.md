@@ -70,7 +70,7 @@ Kolom warna dan foto tidak menentukan jenis baris. Mengisi `image_url` atau `col
 - Foto di baris penawaran berwarna menjadi **sampul** warna itu, hanya bila warna itu belum punya sampul. Sampul pilihan admin tidak ditimpa impor.
 - Warna yang tidak ada di daftar warna spesifikasi produk tetap disimpan apa adanya, tetapi barisnya ditandai **Perlu tinjau** (tidak dicentang otomatis). Contoh: "Celestian Purple" di berkas vs "Celestial Purple" di spesifikasi, atau "Gold" vs "Desert Gold". Nama dalam kurung ikut dihitung: "Deep Blue (Endless Blue)" cocok dengan "Deep Blue" dan "Endless Blue".
 
-- **Host yang diizinkan:** `down-id.img.susercontent.com` (Shopee), `fdn.gsmarena.com` dan `fdn2.gsmarena.com` (GSMArena), `cdnpro.eraspace.com` (Erafone), dan `i02.appmifile.com` (situs resmi Xiaomi). Wajib HTTPS. Host lain dilewati dengan alasan; harganya tetap masuk.
+- **Host yang diizinkan:** `down-id.img.susercontent.com` (Shopee), `fdn.gsmarena.com` dan `fdn2.gsmarena.com` (GSMArena), `cdnpro.eraspace.com` (Erafone), `i02.appmifile.com` (situs resmi Xiaomi), dan `images.samsung.com` (situs resmi Samsung; parameter di belakang link dibuang otomatis karena `?imbypass=true` dan `?$LazyLoad…$` tidak mengembalikan foto aslinya). Wajib HTTPS. Host lain dilewati dengan alasan; harganya tetap masuk.
 - **Produk baru di berkas:** foto pertama untuk produk itu menjadi **foto utama**. Foto berbeda di baris penawaran lain produk yang sama (misalnya per warna) masuk **galeri**, tanpa tanda konflik.
 - **Produk yang sudah ada:** foto harus berada di baris yang sama dengan penawarannya, dan masuk **galeri** produk itu. Galeri dibatasi 8 foto per produk.
 - **Baris foto saja untuk produk yang sudah ada** (tanpa penawaran) dilewati dengan alasan. Untuk mengganti foto utama produk lama, isi `gsmarena_url` produknya di baris itu.
@@ -326,7 +326,7 @@ Untuk menambah banyak foto per warna ke produk yang **sudah ada** di katalog. Un
 
 | Kolom | Isi | Wajib |
 | --- | --- | --- |
-| `brand`, `model_name` | Merek dan model; dicocokkan dengan aturan yang sama seperti templat terpadu (akhiran 5G, merek induk) | ya |
+| `brand`, `model_name` | Merek dan model; dicocokkan dengan aturan yang sama seperti templat terpadu (akhiran 5G, merek induk). Model boleh sudah memuat merek ("Samsung Galaxy A57 5G"); merek tidak digandakan | ya |
 | `color` | Warna foto, apa adanya dari toko | ya |
 | `image_url` | Foto HTTPS dari host yang diizinkan (bagian 2a) | ya |
 | `urutan` | Urutan di dalam warna (1 = paling depan setelah sampul) | – |

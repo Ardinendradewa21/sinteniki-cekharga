@@ -16,7 +16,18 @@ const IMAGE_HOST_SOURCES = new Map<string, string>([
   ["cdnpro.eraspace.com", "Erafone"],
   // CDN situs resmi Xiaomi Indonesia (mi.co.id), ditambahkan 2026-10-12.
   ["i02.appmifile.com", "Situs resmi Xiaomi"],
+  // CDN situs resmi Samsung (samsung.com/id), ditambahkan 2026-10-14.
+  ["images.samsung.com", "Situs resmi Samsung"],
 ]);
+
+/**
+ * Host yang parameter URL-nya mengubah isi berkas, bukan sekadar ukuran.
+ * images.samsung.com: `?imbypass=true` dikirim sebagai text/plain dan
+ * `?$LazyLoad_Home_JPG$` hanya placeholder 1,7 KB, sedangkan tanpa parameter
+ * keluar foto PNG aslinya (diuji 2026-10-14). Parameter dibuang supaya foto
+ * yang sama dengan parameter berbeda juga tercatat sekali.
+ */
+const STRIP_QUERY_HOSTS = new Set(["images.samsung.com"]);
 
 export const ALLOWED_IMAGE_HOSTS: ReadonlySet<string> = new Set(IMAGE_HOST_SOURCES.keys());
 
@@ -33,6 +44,7 @@ export function safeHttpsImageUrl(value: string): URL | null {
     ) {
       return null;
     }
+    if (STRIP_QUERY_HOSTS.has(url.hostname.toLowerCase())) url.search = "";
     return url;
   } catch {
     return null;

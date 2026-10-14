@@ -1,3 +1,4 @@
+import { canonicalBrandModel } from "@/lib/catalog/brands";
 import type { CsvRow } from "@/lib/import/csv-parser";
 import { colorInOptions, normalizeColorName } from "@/lib/import/colors";
 import { IMAGE_HOST_ISSUE, safeHttpsImageUrl } from "@/lib/import/image-hosts";
@@ -64,7 +65,10 @@ const YES = /^(ya|yes|y|true|1)$/i;
 
 export function readGalleryRow(raw: CsvRow): { ok: true; row: GalleryRow } | { ok: false; label: string; reason: string } {
   const r = canonical(raw);
-  const name = [r.brand, r.model_name].filter(Boolean).join(" ");
+  // Merek yang sudah tertulis di model ("Samsung" + "Samsung Galaxy A57 5G")
+  // tidak digandakan; sama dengan aturan templat terpadu.
+  const named = r.brand && r.model_name ? canonicalBrandModel(r.brand, r.model_name) : null;
+  const name = named ? `${named.brand} ${named.model}` : [r.brand, r.model_name].filter(Boolean).join(" ");
   const color = normalizeColorName(r.color);
   const label = [name || "(tanpa nama)", color].filter(Boolean).join(" – ");
   if (!r.brand || !r.model_name) return { ok: false, label, reason: "Merek dan model wajib diisi." };
