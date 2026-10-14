@@ -77,3 +77,65 @@ test("SITE_URL: hanya https yang valid; tanpa nilai, robots menolak semua crawle
     else process.env.SITE_URL = original;
   }
 });
+
+// PB-34 (2026-10-14): harga seri memakai pemeriksaan terbaru; chip kapasitas memuat harga.
+import { resolveVariantPrice, variantPriceNote } from "@/lib/catalog/pricing";
+
+test("harga seri: waktu yang tampil adalah pemeriksaan paling baru, segar maupun lama", () => {
+  const offer = (id: string) => ({ id, variantId: "v1", marketplace: id, sellerName: id, url: `https://contoh.id/${id}`, condition: "new" as const, warranty: null, listingStatus: "active" as const, sellerVerified: false, storeId: null });
+  const obs = (offerId: string, iso: string) => ({ id: `${offerId}-${iso}`, offerId, priceIdr: 2899000, observedAt: iso, origin: "manual" as const });
+  const now = new Date("2026-10-14T12:00:00.000Z");
+  const stale = resolveVariantPrice({
+    variantId: "v1",
+    offers: [offer("resmi"), offer("shopee")],
+    observations: [obs("resmi", "2026-10-08T14:16:25.000Z"), obs("shopee", "2026-10-12T02:00:00.000Z")],
+    checks: [],
+    now,
+  });
+  assert.equal(stale.status, "stale");
+  assert.equal(stale.status === "stale" && stale.observedAt, "2026-10-12T02:00:00.000Z");
+  const fresh = resolveVariantPrice({
+    variantId: "v1",
+    offers: [offer("resmi"), offer("shopee")],
+    observations: [obs("resmi", "2026-10-14T01:00:00.000Z"), obs("shopee", "2026-10-14T09:00:00.000Z")],
+    checks: [],
+    now,
+  });
+  assert.equal(fresh.status === "available" && fresh.checkedAt, "2026-10-14T09:00:00.000Z");
+});
+
+test("chip kapasitas: harga segar, harga lama berlabel, kosong hanya bila tidak ada catatan", () => {
+  assert.deepEqual(variantPriceNote({ status: "unavailable" }), { text: "Belum ada harga", tone: "default" });
+  const stale = variantPriceNote({ status: "stale", priceIdr: 3299000, observedAt: "2026-10-12T02:00:00.000Z", offerId: "o", variantId: "v" });
+  assert.equal(stale.tone, "warning");
+  assert.match(stale.text, /^Terakhir Rp\s?3\.299\.000$/);
+});
+
+// PB-23 + PB-12 (2026-10-14): judul, deskripsi, dan JSON-LD halaman produk.
+import { compactIdr, monthLabel, productDescription, productJsonLd, productTitle, serializeJsonLd } from "@/lib/catalog/product-seo";
+
+const seoBase = {
+  name: "Xiaomi Redmi 17", brand: "Xiaomi", model: "Redmi 17", slug: "xiaomi-redmi-17",
+  image: { src: "https://cdn.contoh/a.webp", alt: "a", isGenericIllustration: false },
+  gallery: [{ src: "https://cdn.contoh/a.webp", alt: "a", source: "Shopee" }],
+  variants: [{}, {}, {}] as never[],
+  selectedVariant: { label: "4/128 GB" } as never,
+};
+
+test("SEO: 'Terbaru' dan 'Mulai' hanya dengan harga segar; bulan dari pemeriksaan, bukan hari ini", () => {
+  const fresh = { ...seoBase, price: { status: "unavailable" } as never, freshOfferSummary: { lowPriceIdr: 2899000, highPriceIdr: 3849000, offerCount: 4, storeCount: 2, checkedAt: "2026-09-30T20:00:00.000Z" } };
+  assert.equal(productTitle(fresh), "Harga Xiaomi Redmi 17 Terbaru Okt 2026, Mulai Rp2,8 Juta", "20.00 UTC 30 Sep = 1 Okt WIB; harga dibulatkan ke bawah");
+  assert.match(productDescription(fresh), /mulai Rp\s?2\.899\.000 di 2 toko, diperiksa 1 Okt 2026/);
+  const ld = productJsonLd(fresh, null) as { offers?: { lowPrice: number; offerCount: number }; aggregateRating?: unknown; review?: unknown };
+  assert.deepEqual([ld.offers?.lowPrice, ld.offers?.offerCount], [2899000, 4]);
+  assert.equal(ld.aggregateRating, undefined);
+  assert.equal(ld.review, undefined);
+
+  const stale = { ...seoBase, price: { status: "stale", priceIdr: 2899000, observedAt: "2026-10-12T02:00:00.000Z" } as never, freshOfferSummary: null };
+  assert.equal(productTitle(stale), "Harga Xiaomi Redmi 17: Spesifikasi, Varian, dan Penawaran");
+  assert.match(productDescription(stale), /^Harga terakhir tercatat Xiaomi Redmi 17 4\/128 GB: Rp\s?2\.899\.000 pada 12 Okt 2026; harga bisa sudah berubah/);
+  assert.equal((productJsonLd(stale, null) as { offers?: unknown }).offers, undefined, "harga lama tidak masuk data terstruktur");
+  assert.equal(compactIdr(899000), "Rp899 Ribu");
+  assert.equal(monthLabel("2026-12-31T18:00:00.000Z"), "Jan 2027");
+  assert.ok(!serializeJsonLd({ name: "</script><script>" }).includes("<"));
+});

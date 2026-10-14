@@ -1,3 +1,4 @@
+import { variantPriceNote } from "@/lib/catalog/pricing";
 import type { ProductDetailVariant } from "@/lib/catalog/queries";
 import { VariantPicker } from "@/components/product/variant-picker";
 
@@ -9,8 +10,9 @@ import { VariantPicker } from "@/components/product/variant-picker";
  * dibagikan dan dibuka ulang. Konsekuensinya komponen ini tetap Server
  * Component dan tetap berfungsi tanpa JavaScript.
  *
- * Setiap varian menampilkan status harganya sendiri, jadi pengguna tahu varian
- * mana yang punya penawaran sebelum mengkliknya, bukan setelahnya.
+ * Setiap varian menampilkan harganya sendiri (segar, "Terakhir …", atau
+ * "Belum ada harga"), jadi pengguna tahu harga tiap kapasitas sebelum
+ * mengkliknya, bukan setelahnya.
  */
 export function VariantSelector({
   variants,
@@ -33,13 +35,17 @@ export function VariantSelector({
       </h2>
       <VariantPicker
         className="mt-3"
-        options={variants.map((variant) => ({
-          key: variant.id,
-          label: variant.label,
-          href: variant.href,
-          selected: variant.isSelected,
-          note: variant.price.status === "available" ? "Ada penawaran" : "Harga belum tersedia",
-        }))}
+        options={variants.map((variant) => {
+          const note = variantPriceNote(variant.price);
+          return {
+            key: variant.id,
+            label: variant.label,
+            href: variant.href,
+            selected: variant.isSelected,
+            note: note.text,
+            noteTone: note.tone,
+          };
+        })}
       />
 
       {variants.some((variant) => variant.region) ? (

@@ -14,7 +14,7 @@ Singkatan jenis: F = Functional, R = Regression, S = Smoke, Sec = Keamanan, A11y
 | TC-BRD-04 | ADS §14.2 | Buka beranda tanpa kampanye iklan aktif | Tidak ada elemen `data-ad-slot` (tidak ada ruang kosong) | R | `home.spec.ts` | Lulus |
 | TC-KAT-01 | US-01 / FR-02 | Cari "Galaxy" dari katalog | `q=Galaxy` di URL, jumlah hasil > 0 dan lebih kecil dari total | F, S | `e2e/public/catalog.spec.ts` | Lulus |
 | TC-KAT-02 | US-01 / FR-02 | Buka `?merek=samsung&urut=price-asc` lalu reload | Urutan produk identik sebelum dan sesudah reload, semua Samsung | F, R | `catalog.spec.ts` | Lulus |
-| TC-KAT-03 | US-02 / FR-02 | Urutkan "Harga terendah" | Harga kartu menaik | F, R | `catalog.spec.ts` | Lulus |
+| TC-KAT-03 | US-02 / §7 | Urutkan harga terendah | Harga berlaku tampil dulu lalu harga "terakhir tercatat", masing-masing menaik | R | `catalog.spec.ts` | Lulus (diperbarui 2026-10-14) |
 | TC-KAT-04 | US-01, US-11 / §7 | Filter `harga_max=4000000` | Tidak ada kartu "Harga belum tersedia", semua harga ≤ Rp4.000.000 | F, S | `catalog.spec.ts` | Lulus |
 | TC-KAT-05 | US-01 / FR-02 | Buka URL dengan parameter rusak (`ram=abc`, `hal=-3`) | Status 200, katalog tetap tampil | R | `catalog.spec.ts` | Lulus |
 | TC-KAT-06 | US-01 / FR-02 | Filter yang tidak cocok dengan produk apa pun | "0 produk yang cocok", pesan, dan tautan untuk melepas filter | F, R | `catalog.spec.ts` | Lulus |

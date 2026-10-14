@@ -43,6 +43,18 @@ Target trafik awal (dikalibrasi di Sprint 4): domain baru biasanya butuh 2–3 b
 5. Rich Results Test lulus untuk 3 produk contoh (setelah deploy).
 6. Tidak ada defect baru berseverity Kritis atau Tinggi.
 
+### Progres Sprint 1 (per 14 Oktober 2026)
+
+| Item | Status |
+| --- | --- |
+| PB-34 Logika harga | ✅ Harga seri memakai pemeriksaan terbaru; chip kapasitas menampilkan harga segar, "Terakhir Rp…", atau "Belum ada harga" |
+| PB-23 + PB-12 SEO + data terstruktur | ✅ Judul dan deskripsi jujur (tanpa "Terbaru" bila harga basi), canonical setelah `SITE_URL` ada, JSON-LD `Product`/`AggregateOffer` dari harga segar saja |
+| PB-24 Kebersihan kode | ✅ Folder kosong dihapus; E2E menghapus batch ujinya (24 batch lama ikut bersih). Simpan pengaturan iklan atomik ditunda karena modul iklan ditahan (PB-10) |
+| PB-25 `eslint-disable` | ✅ Diganti `useEffectEvent`; 0 tersisa |
+| Perbaikan di luar rencana | ✅ Galeri foto melewati semua baris bila `model_name` sudah memuat merek; host `images.samsung.com` diizinkan dan parameter linknya dibuang |
+| PB-11, PB-01 | ⏳ Menunggu pemilik produk (kata sandi, akun Vercel, izin publikasi) |
+| PB-26 | ⏳ Tugas data; galeri Samsung siap diunggah ulang, dengan catatan kualitas data di laporan 14 Oktober |
+
 ## Sprint 2 — 2 sampai 13 November 2026
 
 **Sprint goal:** *Halaman yang rapi dan bisa ditemukan mesin pencari.*

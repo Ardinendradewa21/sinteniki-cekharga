@@ -125,7 +125,15 @@ export function resolveVariantPrice(input: {
         variantId,
         origin: observation.origin,
       };
-      if (!best || candidate.priceIdr < best.priceIdr) best = candidate;
+      // Harga seri: pakai pemeriksaan yang paling baru, supaya waktu yang
+      // tampil tidak lebih tua dari kenyataannya (PRD §7 butir 6).
+      if (
+        !best ||
+        candidate.priceIdr < best.priceIdr ||
+        (candidate.priceIdr === best.priceIdr && candidate.checkedAt > best.checkedAt)
+      ) {
+        best = candidate;
+      }
       continue;
     }
 
@@ -136,7 +144,11 @@ export function resolveVariantPrice(input: {
       offerId: offer.id,
       variantId,
     };
-    if (!fallback || staleCandidate.priceIdr < fallback.priceIdr) {
+    if (
+      !fallback ||
+      staleCandidate.priceIdr < fallback.priceIdr ||
+      (staleCandidate.priceIdr === fallback.priceIdr && staleCandidate.observedAt > fallback.observedAt)
+    ) {
       fallback = staleCandidate;
     }
   }
@@ -197,6 +209,17 @@ export function priceDifference(
 }
 
 /** Format Rupiah deterministik (tanpa bergantung pada ICU environment). */
+/**
+ * Baris kedua chip kapasitas: harga segar apa adanya, harga lama diberi label
+ * "Terakhir" (PRD §7 butir 5: boleh tampil asal terpisah dan berlabel), dan
+ * "Belum ada harga" hanya bila memang tidak ada catatan harga.
+ */
+export function variantPriceNote(price: PriceResolution): { text: string; tone: "default" | "warning" } {
+  if (price.status === "available") return { text: formatIdr(price.priceIdr), tone: "default" };
+  if (price.status === "stale") return { text: `Terakhir ${formatIdr(price.priceIdr)}`, tone: "warning" };
+  return { text: "Belum ada harga", tone: "default" };
+}
+
 export function formatIdr(priceIdr: number): string {
   const grouped = Math.trunc(priceIdr)
     .toString()

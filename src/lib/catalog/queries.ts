@@ -693,6 +693,12 @@ export type ProductDetail = {
   /** Harga varian TERPILIH, bukan harga terendah lintas varian (PRD §7 butir 3). */
   price: PriceResolution;
   offers: ProductDetailOffer[];
+  /**
+   * Ringkasan penawaran SEGAR di semua varian (untuk judul halaman dan data
+   * terstruktur). null bila tidak ada harga segar: halaman tidak boleh
+   * mengklaim harga terkini dari catatan lama.
+   */
+  freshOfferSummary: { lowPriceIdr: number; highPriceIdr: number; offerCount: number; storeCount: number; checkedAt: string } | null;
   reviews: ProductReview[];
 };
 
@@ -845,6 +851,25 @@ function buildProductDetail(
         // Yang menjadi dasar harga ditaruh paling atas, sisanya menyusul.
         .sort((a, b) => Number(b.isPriceBasis) - Number(a.isPriceBasis))
     : [];
+
+  // Penawaran segar di semua varian produk ini (PB-23/PB-12).
+  const freshPrices: { priceIdr: number; store: string; observedAt: string }[] = [];
+  const productVariantIds = new Set(rawVariants.map((variant) => variant.id));
+  for (const offer of catalog.offers) {
+    if (!productVariantIds.has(offer.variantId) || !isPriceableListing(offer)) continue;
+    const observation = latestObservation(offer.id, catalog.priceObservations);
+    if (!observation || !isFresh(observation.observedAt, now)) continue;
+    freshPrices.push({ priceIdr: observation.priceIdr, store: offer.storeId ?? offer.marketplace, observedAt: observation.observedAt });
+  }
+  const freshOfferSummary = freshPrices.length
+    ? {
+        lowPriceIdr: Math.min(...freshPrices.map((entry) => entry.priceIdr)),
+        highPriceIdr: Math.max(...freshPrices.map((entry) => entry.priceIdr)),
+        offerCount: freshPrices.length,
+        storeCount: new Set(freshPrices.map((entry) => entry.store)).size,
+        checkedAt: freshPrices.map((entry) => entry.observedAt).sort().at(-1)!,
+      }
+    : null;
 
   const variantLabelById = new Map(
     variants.map((variant) => [variant.id, variant.label])
@@ -1017,6 +1042,7 @@ function buildProductDetail(
     selectedVariant,
     price,
     offers,
+    freshOfferSummary,
     reviews,
   };
 }

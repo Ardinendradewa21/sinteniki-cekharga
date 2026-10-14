@@ -37,6 +37,17 @@ test.describe("Dasbor admin", () => {
 });
 
 test.describe("Pusat Impor", () => {
+  // Batch uji (berkas "qa-e2e-*") dihapus setelah suite, bukan hanya dibatalkan,
+  // supaya riwayat impor produksi tidak menumpuk batch uji (PB-24).
+  test.afterAll(async ({ request }) => {
+    const backendUrl = process.env.INSFORGE_URL;
+    const key = process.env.INSFORGE_API_KEY;
+    if (!backendUrl || !key) return;
+    await request.delete(`${backendUrl}/api/database/records/import_batches?source_label=like.qa-e2e*`, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+  });
+
   test("TC-IMP-01 lima tab tersedia dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
     await page.goto("/admin/import");
     const nav = page.getByRole("navigation", { name: "Sumber impor" });

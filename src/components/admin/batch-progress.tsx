@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -54,6 +54,10 @@ export function BatchProgress({
   const [trouble, setTrouble] = useState(false);
   const active = isWorking(status) || photosActive(photos) || Boolean(followUp && isWorking(followUp.status));
 
+  // Status terbaru dibaca sekali saat putaran dimulai, tanpa memasang ulang
+  // efek setiap status berubah (Effect Event, React 19.2).
+  const readStatus = useEffectEvent(() => status);
+
   useEffect(() => {
     if (!active) return;
     // Setiap pemasangan efek punya putarannya sendiri dan membatalkannya saat
@@ -62,7 +66,7 @@ export function BatchProgress({
     // pernah mulai.) Putaran yang sempat tumpang tindih aman, karena klaim
     // lease di database hanya memberi satu worker per batch dan per foto.
     let cancelled = false;
-    let lastStatus = status;
+    let lastStatus = readStatus();
 
     (async () => {
       while (!cancelled) {
@@ -94,9 +98,6 @@ export function BatchProgress({
     return () => {
       cancelled = true;
     };
-    // `status` sengaja tidak menjadi dependensi: putaran membaca status
-    // terbarunya sendiri, dan efek hanya perlu dipasang ulang saat aktif berubah.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchId, active, router]);
 
   const photoTotal = photos ? photos.pending + photos.running + photos.done + photos.failed + photos.skipped : 0;

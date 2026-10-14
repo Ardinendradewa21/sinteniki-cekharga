@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { catalogTotal, productCards, productLinks, rupiahIn } from "../support/helpers";
+import { catalogTotal, parseRupiah, productCards, productLinks, rupiahIn } from "../support/helpers";
 
 // FR-02 Katalog. Kontrak URL: src/lib/catalog/search-params.ts (q, merek, ram,
 // penyimpanan, harga_min, harga_max, urut, hal).
@@ -30,11 +30,21 @@ test.describe("Katalog (FR-02)", () => {
     for (const href of first.slice(0, 5)) expect(href).toContain("samsung");
   });
 
-  test("TC-KAT-03 urut harga terendah benar-benar menaik @regression", async ({ page }) => {
+  test("TC-KAT-03 urut harga terendah: harga berlaku dulu lalu harga lama, masing-masing menaik @regression", async ({ page }) => {
     await page.goto("/products?urut=price-asc");
-    const prices = await rupiahIn(productCards(page));
-    expect(prices.length).toBeGreaterThan(3);
-    expect(prices).toEqual([...prices].sort((a, b) => a - b));
+    // PRD §7 butir 5: harga lama ("terakhir tercatat") tidak boleh tampil
+    // seolah pilihan termurah saat ini, jadi selalu di belakang harga berlaku.
+    const cards = await productCards(page).allInnerTexts();
+    const priced = cards
+      .map((text) => ({ price: parseRupiah(text), stale: /terakhir tercatat/i.test(text) }))
+      .filter((card): card is { price: number; stale: boolean } => card.price !== null);
+    expect(priced.length).toBeGreaterThan(3);
+    const firstStale = priced.findIndex((card) => card.stale);
+    if (firstStale >= 0) expect(priced.slice(firstStale).every((card) => card.stale)).toBe(true);
+    for (const tier of [priced.filter((card) => !card.stale), priced.filter((card) => card.stale)]) {
+      const prices = tier.map((card) => card.price);
+      expect(prices).toEqual([...prices].sort((x, y) => x - y));
+    }
   });
 
   test("TC-KAT-04 batas budget: harga kosong tidak lolos dan tidak ada harga di atas batas @smoke", async ({ page }) => {

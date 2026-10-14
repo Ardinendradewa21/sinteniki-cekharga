@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -311,14 +311,16 @@ export function ScrapeWorkbench({
   }
 
   // Tab dibuka ulang di tengah pengambilan: lanjutkan memantau dari server.
-  useEffect(() => {
+  // Effect Event (React 19.2): membaca sesi dan fungsi pemantau terbaru tanpa
+  // menjadikannya dependensi, jadi efek tetap hanya berjalan saat dimuat.
+  const resumeWatching = useEffectEvent(() => {
     if (!initialSession?.id || initialSession.status !== "open") return;
-    const id = initialSession.id;
+    void watchSession(initialSession.id, null);
+  });
+  useEffect(() => {
     // Dijalankan dari callback timer, bukan langsung di badan efek.
-    const timer = setTimeout(() => void watchSession(id, null), 0);
+    const timer = setTimeout(() => resumeWatching(), 0);
     return () => clearTimeout(timer);
-    // Hanya saat halaman dimuat.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**

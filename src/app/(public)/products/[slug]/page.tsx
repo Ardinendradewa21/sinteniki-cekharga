@@ -22,6 +22,8 @@ import {
   resolveProductSlugRedirect,
 } from "@/lib/catalog/queries";
 import { buildCompareHref } from "@/lib/catalog/compare-params";
+import { productDescription, productJsonLd, productTitle, serializeJsonLd } from "@/lib/catalog/product-seo";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * Detail produk (PRD FR-03, dengan penawaran mengikuti FR-05).
@@ -62,9 +64,20 @@ export async function generateMetadata(
     return { title: "Produk tidak ditemukan" };
   }
 
+  const title = productTitle(detail);
+  const description = productDescription(detail);
+  const cover = detail.gallery[0];
   return {
-    title: detail.name,
-    description: `Spesifikasi, varian, penawaran tercatat, dan ringkasan pengalaman reviewer untuk ${detail.name}.`,
+    title,
+    description,
+    // Canonical tanpa ?varian= / ?warna=: semua pilihan adalah satu halaman
+    // produk. Hanya bila domain produksi sudah ditetapkan (SITE_URL).
+    ...(siteUrl() ? { alternates: { canonical: `/products/${detail.slug}` } } : {}),
+    openGraph: {
+      title,
+      description,
+      ...(cover ? { images: [{ url: cover.src, alt: cover.alt }] } : {}),
+    },
   };
 }
 
@@ -103,6 +116,15 @@ export default async function ProductDetailPage(
 
   return (
     <Container className="py-8 md:py-12">
+      {/* Data terstruktur Product (PB-12): tanpa rating/ulasan karangan; penawaran hanya dari harga segar. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(
+            productJsonLd(detail, siteUrl() ? new URL(`/products/${detail.slug}`, siteUrl()!).href : null)
+          ),
+        }}
+      />
       <nav aria-label="Remah roti" className="mb-6">
         <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
           <li>

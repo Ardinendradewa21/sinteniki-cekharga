@@ -19,8 +19,10 @@ export type VariantPickerOption = {
   label: string;
   href: string;
   selected: boolean;
-  /** Baris kedua di mode detail, mis. "Ada penawaran" / "Harga belum tersedia". */
+  /** Baris kedua di mode detail, mis. harga varian itu atau "Belum ada harga". */
   note?: string;
+  /** "warning" untuk harga lama; tetap disertai kata "Terakhir", bukan warna saja. */
+  noteTone?: "default" | "warning";
 };
 
 export function VariantPicker({
@@ -56,7 +58,11 @@ export function VariantPicker({
               <span
                 className={cn(
                   "text-xs",
-                  option.selected ? "text-primary-foreground/80" : "text-muted-foreground"
+                  option.selected
+                    ? "text-primary-foreground/80"
+                    : option.noteTone === "warning"
+                      ? "text-warning"
+                      : "text-muted-foreground"
                 )}
               >
                 {option.note}
