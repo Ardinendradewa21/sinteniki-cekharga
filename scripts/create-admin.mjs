@@ -11,18 +11,48 @@
  * Akun tanpa langkah kedua tetap tidak punya akses apa pun.
  *
  * Pemakaian:
- *   node scripts/create-admin.mjs email@contoh.com "KataSandiKuat"
+ *   node scripts/create-admin.mjs email@contoh.com
  *
- * Kata sandi dioper sebagai argumen dan tidak pernah ditulis ke berkas mana pun.
+ * Kata sandi diketik saat diminta (tidak tampil di layar), bukan dioper sebagai
+ * argumen, supaya tidak tersimpan di riwayat terminal maupun berkas mana pun.
  */
 
 import fs from "node:fs";
+import readline from "node:readline";
 import { createAdminClient } from "@insforge/sdk";
 
-const [email, password] = process.argv.slice(2);
+const MIN_LENGTH = 12;
 
-if (!email || !password) {
-  console.error("Pemakaian: node scripts/create-admin.mjs <email> <kata-sandi>");
+const [email, ...rest] = process.argv.slice(2);
+
+if (!email || rest.length > 0) {
+  console.error("Pemakaian: node scripts/create-admin.mjs <email>");
+  if (rest.length > 0) console.error("Kata sandi tidak lagi dioper lewat argumen; ketik saat diminta.");
+  process.exit(1);
+}
+
+/** Bertanya di terminal tanpa menampilkan ketikan. */
+function askHidden(question) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    rl._writeToOutput = (text) => {
+      if (text.includes(question)) rl.output.write(text);
+    };
+    rl.question(question, (answer) => {
+      rl.close();
+      process.stdout.write("\n");
+      resolve(answer.trim());
+    });
+  });
+}
+
+const password = await askHidden(`Kata sandi untuk ${email} (minimal ${MIN_LENGTH} karakter): `);
+if (password.length < MIN_LENGTH) {
+  console.error(`Kata sandi minimal ${MIN_LENGTH} karakter.`);
+  process.exit(1);
+}
+if ((await askHidden("Ulangi kata sandi: ")) !== password) {
+  console.error("Kedua kata sandi tidak sama.");
   process.exit(1);
 }
 
