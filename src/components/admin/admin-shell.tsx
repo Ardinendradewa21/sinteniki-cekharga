@@ -263,15 +263,18 @@ export function AdminShell({
     });
   }
 
+  // Di dalam <body> flex-col, `flex-1` membuat `h-svh` diabaikan dan shell
+  // memanjang mengikuti isi. `max-h-svh` mengunci tinggi ke layar di desktop,
+  // jadi hanya kolom konten yang menggulir dan sidebar (akun, situs publik) tetap.
   return (
     <div
       data-admin-theme={theme}
       className={cn(
-        "admin-theme flex min-h-svh min-w-0 flex-1 bg-background text-foreground transition-colors duration-300 lg:h-svh",
+        "admin-theme flex min-h-svh min-w-0 flex-1 bg-background text-foreground transition-colors duration-300 lg:h-svh lg:max-h-svh",
         theme === "dark" && "dark"
       )}
     >
-      <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-border bg-card p-5 transition-colors duration-300 lg:flex">
+      <aside className="hidden w-64 shrink-0 flex-col justify-between overflow-y-auto border-r border-border bg-card p-5 transition-colors duration-300 lg:flex">
         <SidebarContent pathname={pathname} email={email} role={role} />
       </aside>
 
