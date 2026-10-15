@@ -13,7 +13,7 @@ Disusun 14 Oktober 2026 dari `docs/RENCANA-PENGEMBANGAN-2026-10.md` (tahap diset
 | Sprint | Tanggal | Sprint goal | Target utama |
 | --- | --- | --- | --- |
 | 1 | 14–30 Okt | Situs hidup dan harganya tampil jujur | Deploy; ≥60% produk berharga segar 3 hari berturut-turut; ≥90 produk terbit |
-| 2 | 2–13 Nov | Halaman rapi, situs bisa ditemukan | ≥120 produk terbit; ≥70% harga segar; ≥80% halaman produk terindeks |
+| 2 | 15 Okt–13 Nov (dimajukan) | Halaman rapi, gerbang terbit, Tanya AI masuk akal | ≥120 produk terbit; ≥70% harga segar; ≥80% halaman produk terindeks; eval Tanya AI lulus |
 | 3 | 16–27 Nov | Data e-commerce masuk otomatis (pilot) | ≥150 produk; ≥80% harga segar; 1 marketplace otomatis, atau keputusan tertulis bila syaratnya tidak memungkinkan |
 | 4 | 30 Nov–11 Des | Konten pembeda dan baseline | 20 halaman "A vs B"; 5 halaman kebutuhan; baseline 30 hari; target Fase B ditetapkan bersama pimpinan |
 
@@ -56,25 +56,26 @@ Target trafik awal (dikalibrasi di Sprint 4): domain baru biasanya butuh 2–3 b
 | PB-01 | ⏳ Langkah di `docs/sop/SOP-DEPLOY-VERCEL.md`. Temuan 15 Okt: proyek Vercel yang ada tersambung ke repo lama `cekharga-frontend`, dan `main` belum di-push |
 | PB-26 | ✅ Spreadsheet dirapikan (panduan `docs/sop/KONTEKS-AI-PERBAIKAN-SPREADSHEET.md`) dan diunggah ulang oleh admin, 15 Oktober |
 
-## Sprint 2 — 2 sampai 13 November 2026
+## Sprint 2 — dimajukan, dimulai 15 Oktober 2026
 
-**Sprint goal:** *Halaman yang rapi dan bisa ditemukan mesin pencari.*
+**Sprint goal:** *Halaman rapi, gerbang terbit jujur, dan Tanya AI yang hasilnya masuk akal.*
 
-| Item | SP |
-| --- | --- |
-| PB-35 Rapikan tata letak (warna spesifikasi, hero, katalog, foto ponsel, warna di kartu penawaran) | 3 |
-| PB-15 Gerbang terbit | 2 |
-| PB-16 Tarik otomatis "harga saja" | 3 |
-| PB-05 Peringatan pemeriksaan harian gagal | 3 |
-| PB-30 Halaman Cara Kerja + statistik hidup | 2 |
-| **Total** | **13** |
+Susunan diubah atas persetujuan PO 15 Oktober 2026 setelah deploy pertama: rekomendasi Tanya AI terbukti ngawur (HP Rp32 juta untuk budget "sekitar 3 juta"), sehingga rancangan ulang Tanya AI tahap A dan B masuk Sprint 2. PB-16, PB-05, dan PB-30 bergeser ke Sprint 3.
 
-**Ukuran keberhasilan:**
+| Item | SP | Status |
+| --- | --- | --- |
+| PB-35 Rapikan tata letak | 3 | ✅ Hero memakai harga terakhir berlabel, kartu katalog terlihat tanpa scroll di 1366×768, foto ponsel 240 px, label warna versi global, warna penawaran 2 baris |
+| PB-15 Gerbang terbit | 2 | ✅ Varian + ≥1 penawaran aktif; satuan dan massal. Data live: 67 terbit lolos, 74 draft tertolak |
+| PB-37 Tanya AI tahap A (mesin rekomendasi v2) | 5 | ✅ Contoh live "sekitar 3 juta, game": HP di atas +30% pindah ke "di luar budget" |
+| PB-38 Tanya AI tahap B (cara bertanya, sinonim, evaluasi) | 5 | ✅ Set emas 30 pesan: ekstraksi 100%, pembuka templat 0% |
+| **Total** | **15** | |
 
-- ≥120 produk terbit.
-- ≥70% harga segar.
-- Search Console: ≥80% halaman produk terindeks.
-- Analitik minimal berjalan, sebagai awal baseline.
+**Ukuran keberhasilan (dicek di Sprint Review):**
+
+- ≥120 produk terbit, dan semuanya lolos gerbang terbit.
+- ≥70% harga segar (bergantung cron harian berjalan, PB-01).
+- Search Console: ≥80% halaman produk terindeks (butuh `SITE_URL` di Vercel).
+- Tanya AI: `pnpm test:assistant-eval` lulus, hasil pertama muncul dalam ≤3 pesan pengguna.
 
 ## Sprint 3 — 16 sampai 27 November 2026
 
@@ -82,6 +83,10 @@ Target trafik awal (dikalibrasi di Sprint 4): domain baru biasanya butuh 2–3 b
 
 | Item | SP |
 | --- | --- |
+| PB-16 Tarik otomatis "harga saja" (dari Sprint 2) | 3 |
+| PB-05 Peringatan pemeriksaan harian gagal (dari Sprint 2) | 3 |
+| PB-30 Halaman Cara Kerja + statistik hidup (dari Sprint 2) | 2 |
+| PB-39 Tanya AI tahap C | 5 |
 | PB-17a Pendaftaran Shopee Affiliate atas nama PT, telaah syarat tampil dan simpan harga, uji Open API | 3 |
 | PB-17b Penyerapan harga dari API ke batch penawaran (hanya bila 17a lolos) | 5 |
 | PB-27 Filter garansi resmi dan stok | 3 |

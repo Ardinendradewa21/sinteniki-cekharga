@@ -184,6 +184,14 @@ Setiap perbaikan menjalankan ulang mesin. Balasan menyebut **apa yang berubah**,
 
 Tahap A tidak bergantung pada model bahasa dan memperbaiki jalur formulir sekaligus, jadi dikerjakan lebih dulu.
 
+**Status 15 Oktober 2026:**
+
+- Tahap A dan B selesai (PB-37, PB-38).
+- Tabel kelas chipset sementara ditulis di kode (`src/lib/assistant/chipset-tiers.ts`), belum tabel database yang diisi admin. Pemindahan ke admin dikerjakan bila aturannya sering berubah.
+- Pembuka templat "Oke/Siap" dibuang di kode (`tidyReply`), karena model `flash-lite` mengabaikan larangan di prompt (63% balasan). Tahap C mengganti model penulis balasan.
+- Evaluasi: `pnpm test:assistant-eval`. Hasil 15 Oktober: ekstraksi 66/66 (100%) dan pembuka templat 0%. Run terakhir lulus tanpa pelanggaran gaya. Satu run sebelumnya mencatat satu balasan memakai "gue" padahal pengguna tidak; model bersifat acak, jadi jalankan evaluasi lebih dari sekali sebelum menyimpulkan.
+- Tahap C (PB-39) di Sprint 3.
+
 ## 5. Keputusan yang dibutuhkan dari PO
 
 1. Model boleh menyebut produk dan harga **hanya dari hasil alat**, dengan validator (§3.1).

@@ -1,6 +1,6 @@
 # Product Backlog — CekHarga
 
-Diperbarui 2026-10-14 (PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
+Diperbarui 2026-10-15 (PB-37 sampai PB-39 dari rancangan Tanya AI; PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
 
 > WSJF = (Nilai bisnis + Urgensi waktu + Pengurangan risiko) ÷ Ukuran
 
@@ -23,7 +23,7 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 11 | PB-12 | Structured data `Product` + `Offer`/`AggregateOffer` di halaman detail (tanpa `aggregateRating`/`review` karangan, AGENTS.md) dan uji Rich Results | UX-22 | 8 | 3 | 3 | 3 | **4.7** | ✅ Selesai 2026-10-14 bersama PB-23; uji Rich Results setelah deploy |
 | 12 | PB-13 | Konfirmasi nama badan hukum (PT Sinteniki vs PT Sinteniki Digital Solusi) lalu seragamkan situs dan dokumen | UX-23 | 3 | 5 | 5 | 1 | **13.0** | ✅ Selesai 2026-10-08 |
 | 13 | PB-14 | Selaraskan batas harga segar dengan jadwal cron (±30 jam atau cron 2×/hari) | UX-24 | 5 | 3 | 3 | 1 | **11.0** | ✅ Selesai 2026-10-08 (30 jam) |
-| 14 | PB-15 | Gerbang terbit: tombol Terbitkan menolak produk tanpa varian atau tanpa penawaran aktif, dengan alasan yang jelas (SOP impor §7). Per 2026-10-08 ada 29 produk terbit tanpa penawaran | SOP-IMPOR §10 | 5 | 5 | 3 | 2 | **6.5** | Disetujui PO 2026-10-08 (wajib ≥1 penawaran aktif); kode belum |
+| 14 | PB-15 | Gerbang terbit: tombol Terbitkan menolak produk tanpa varian atau tanpa penawaran aktif, dengan alasan yang jelas (SOP impor §7). Per 2026-10-08 ada 29 produk terbit tanpa penawaran | SOP-IMPOR §10 | 5 | 5 | 3 | 2 | **6.5** | ✅ Selesai 2026-10-15 (Sprint 2): satuan dan massal |
 | 15 | PB-16 | Tarik otomatis "harga saja" untuk produk katalog yang sudah ada: membuat penawaran resmi dari lineup tanpa menarik ulang spesifikasi GSMArena (yang sering terkena Turnstile) | SOP-IMPOR §5.1 | 8 | 5 | 5 | 3 | **6.0** | Usulan |
 | 16 | PB-17 | Sumber harga e-commerce yang sah (program afiliasi marketplace atau kerja sama toko). Saat ini Shopee/Erafone hanya lewat CSV dan basi setelah 30 jam | SOP-IMPOR §5.1 | 8 | 5 | 5 | 8 | **2.3** | Perlu riset bisnis (urgensi dinaikkan 2026-10-13: juga menjawab beban input manual) |
 | 17 | PB-18 | Masalah awal: Soft delete (`deleted_at`) untuk produk, toko, dan kampanye iklan; hapus produk tidak lagi menghanyutkan `price_observations`/`price_checks` lewat ON DELETE CASCADE. Kurasi 2026-10-08 masih hard delete (cadangan di `data/backups/`) | Aturan SD-8 | 8 | 8 | 8 | 5 | **4.8** | ✅ Selesai 2026-10-09 |
@@ -43,8 +43,11 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 31 | PB-32 | Katalog dibaca per halaman/filter di database (bukan seluruh dataset dalam satu cache); dipicu peringatan ukuran dataset atau >500 produk terbit | Audit 2026-10-13 | 5 | 2 | 8 | 8 | **1.9** | Menunggu pemicu |
 | 32 | PB-33 | Pecah `src/lib/catalog/queries.ts` (1.388 baris) per fitur tanpa mengubah perilaku; bersama PB-32 | Audit 2026-10-13 | 2 | 1 | 3 | 3 | **2.0** | Bersama PB-32 |
 | 33 | PB-34 | Logika harga di pemilih varian: saat harga seri pilih pemeriksaan terbaru (`pricing.ts`), chip kapasitas memuat harga (segar / "Terakhir Rp…" / "Belum ada harga") | UX-20, UX-21 (2026-10-14) | 8 | 5 | 3 | 2 | **8.0** | ✅ Selesai 2026-10-14 (Sprint 1) |
-| 34 | PB-35 | Rapikan tata letak: label warna GSMArena di spesifikasi, hero beranda tanpa harga, kartu katalog terlihat tanpa scroll, tinggi foto detail di ponsel, warna terpotong di kartu penawaran | UX-22 sampai UX-26 | 5 | 3 | 2 | 3 | **3.3** | Siap |
+| 34 | PB-35 | Rapikan tata letak: label warna GSMArena di spesifikasi, hero beranda tanpa harga, kartu katalog terlihat tanpa scroll, tinggi foto detail di ponsel, warna terpotong di kartu penawaran | UX-22 sampai UX-26 | 5 | 3 | 2 | 3 | **3.3** | ✅ Selesai 2026-10-15 (Sprint 2) |
 | 35 | PB-36 | Grafik riwayat harga per varian (shadcn Chart, garis tangga, ambang ≥5 pemeriksaan dalam ≥7 hari, tabel alternatif) sesuai `docs/ux/ANALISIS-UX-GRAFIK-HARGA-2026-10.md` §3 | Analisis BigGo, UX §3 | 8 | 2 | 3 | 5 | **2.6** | Menunggu PB-01 + PB-31 |
+| 36 | PB-37 | Tanya AI tahap A: mesin rekomendasi v2 (pita budget ±15/30%, skor kegunaan + prioritas berbobot, kelas chipset, keragaman seri/merek, alasan dari posisi harga dan susunan lensa) | `docs/ux/RANCANGAN-TANYA-AI-2026-10.md` §3.4 | 13 | 8 | 5 | 5 | **5.2** | ✅ Selesai 2026-10-15 (Sprint 2) |
+| 37 | PB-38 | Tanya AI tahap B: kebijakan bertanya di kode, prioritas berperingkat, kamus sinonim, penyempurnaan setelah hasil, set emas + `pnpm test:assistant-eval` | Rancangan §3.2, §3.3, §3.7 | 13 | 8 | 5 | 5 | **5.2** | ✅ Selesai 2026-10-15 (Sprint 2) |
+| 38 | PB-39 | Tanya AI tahap C: penulis balasan terpisah (model lebih fasih), validator nama/harga, menjelaskan hasil ("kenapa nomor 2?"), bandingkan dari chat | Rancangan §3.1, §3.5, §3.6 | 8 | 3 | 5 | 5 | **3.2** | Sprint 3; butuh keputusan PO §5 butir 1 dan 4 |
 | – | PB-10 | Modul iklan: Fase 3–4 (laporan otomatis, invoice, portal advertiser, sponsored listing) | ADS-CONTEXT §10 | – | – | – | – | – | **Ditahan** oleh pemilik produk |
 
 ### Catatan prioritas
