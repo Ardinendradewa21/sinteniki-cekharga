@@ -428,3 +428,19 @@ test("nomor kandidat berurutan lintas grup", () => {
     ]
   );
 });
+
+import { catalogStats } from "@/lib/catalog/stats";
+
+test("statistik katalog (PB-30): harga segar dihitung per produk, tanpa angka pengguna", () => {
+  const data = catalog([
+    { brand: "Alpha", model: "Segar", price: { idr: 2_000_000, ageHours: 2 } },
+    { brand: "Alpha", model: "Lama", price: { idr: 2_500_000, ageHours: 5 * 24 } },
+    { brand: "Beta", model: "Tanpa", price: null },
+  ]);
+  const stats = catalogStats(data, NOW);
+  assert.deepEqual(
+    { products: stats.products, brands: stats.brands, activeOffers: stats.activeOffers, stores: stats.stores, freshProducts: stats.freshProducts },
+    { products: 3, brands: 2, activeOffers: 2, stores: 1, freshProducts: 1 }
+  );
+  assert.equal(stats.latestCheckAt, hoursAgo(2));
+});

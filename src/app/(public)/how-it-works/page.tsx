@@ -5,7 +5,10 @@ import { DemoBadge } from "@/components/demo-marker";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { PRICING_POLICY } from "@/lib/config";
-import { isDemoData } from "@/lib/catalog/queries";
+import { loadOrNull } from "@/lib/catalog/load";
+import { formatCheckedAt } from "@/lib/catalog/pricing";
+import { isDemoData, loadPublishedCatalog } from "@/lib/catalog/queries";
+import { catalogStats, type CatalogStats } from "@/lib/catalog/stats";
 
 export const metadata: Metadata = {
   title: "Cara Kerja",
@@ -90,8 +93,47 @@ const MARKERS = [
   },
 ];
 
-export default function HowItWorksPage() {
+/**
+ * Angka katalog saat ini (PB-30), dihitung dari data yang sama dengan
+ * halaman lain. Tanpa jumlah pengguna atau kunjungan (PRD FR-01, FR-05).
+ */
+function LiveStats({ stats, now, isDemo }: { stats: CatalogStats; now: Date; isDemo: boolean }) {
+  const freshShare = stats.products > 0 ? Math.round((stats.freshProducts / stats.products) * 100) : 0;
+  const items = [
+    { label: "Produk terbit", value: stats.products.toLocaleString("id-ID"), note: `${stats.brands} merek` },
+    { label: "Penawaran aktif", value: stats.activeOffers.toLocaleString("id-ID"), note: `dari ${stats.stores} toko` },
+    {
+      label: "Harga masih segar",
+      value: `${freshShare}%`,
+      note: `${stats.freshProducts} dari ${stats.products} produk diperiksa dalam ${PRICING_POLICY.freshnessWindowHours} jam terakhir`,
+    },
+    {
+      label: "Pemeriksaan terakhir",
+      value: stats.latestCheckAt ? formatCheckedAt(stats.latestCheckAt, now) : "Belum ada",
+      note: "pemeriksaan harga berhasil yang paling baru",
+    },
+  ];
+  return (
+    <div>
+      {isDemo ? <DemoBadge /> : null}
+      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+        {items.map((item) => (
+          <div key={item.label} className="rounded-xl border border-border bg-card p-4">
+            <dt className="text-sm text-muted-foreground">{item.label}</dt>
+            <dd className="tabular mt-1 text-2xl font-extrabold tracking-tight text-foreground">{item.value}</dd>
+            <dd className="mt-1 text-xs text-muted-foreground">{item.note}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+export default async function HowItWorksPage() {
   const usingDemoData = isDemoData();
+  const now = new Date();
+  const catalog = await loadOrNull(() => loadPublishedCatalog(now));
+  const stats = catalog ? catalogStats(catalog, now) : null;
 
   return (
     <Container className="py-10 md:py-14">
@@ -120,6 +162,26 @@ export default function HowItWorksPage() {
       ) : null}
 
       <div className="mt-12 space-y-10">
+        {stats ? (
+          <Section id="angka" title="Angka katalog saat ini">
+            <p>
+              Dihitung langsung dari data yang sama dengan yang kamu lihat di katalog. Angka &quot;harga masih
+              segar&quot; sengaja ditampilkan apa adanya, termasuk saat sedang rendah, karena harga yang belum
+              diperiksa ulang selalu kami beri label.
+            </p>
+            <LiveStats stats={stats} now={now} isDemo={usingDemoData} />
+          </Section>
+        ) : null}
+
+        <Section id="sikap" title="Sikap kami">
+          <ul className="list-disc space-y-2 pl-5">
+            <li>Urutan produk tidak dijual. Iklan dan produk sponsor selalu berlabel &quot;Iklan&quot; atau &quot;Sponsor&quot; dan tidak mengubah harga, urutan, maupun hasil perbandingan.</li>
+            <li>Kami tidak memberi skor atau gelar &quot;terbaik&quot;. Yang kami tampilkan adalah fakta tercatat, kompromi, dan sumbernya.</li>
+            <li>Saat ini belum ada tautan afiliasi. Bila kelak dipakai, tautannya akan diberi tanda dan dijelaskan di halaman ini.</li>
+            <li>Tidak ada angka pengguna, testimoni, atau label &quot;terverifikasi&quot; yang tidak bisa kami buktikan.</li>
+          </ul>
+        </Section>
+
         <Section id="penanda" title="Cara membaca penandanya">
           <p>
             Kamu tidak perlu menebak jenis informasi yang sedang dilihat. Setiap
