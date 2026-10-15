@@ -162,7 +162,7 @@ export function CatalogResults({
           </div>
         </div>
       ) : (
-        <ul className="-mx-2 mt-6 grid grid-cols-2 gap-2 sm:mx-0 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+        <ul className="-mx-2 mt-4 grid grid-cols-2 gap-2 sm:mx-0 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
           {result.items.map((product, index) => (
             <Fragment key={product.id}>
             {/* Iklan in-feed selebar satu baris, setelah 10 produk pertama:

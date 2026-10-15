@@ -58,7 +58,7 @@ export function ProductCard({
         <DemoBadge className="absolute top-2 right-2 z-10 sm:top-3 sm:right-3" />
       ) : null}
 
-      <div className="flex aspect-square w-full items-center justify-center bg-muted/20 p-2 sm:p-4">
+      <div className="flex aspect-square w-full lg:aspect-[5/4] items-center justify-center bg-muted/20 p-2 sm:p-4">
         {product.image.isGenericIllustration ? (
           <DevicePlaceholder size="sm" />
         ) : (

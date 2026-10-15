@@ -43,13 +43,18 @@ test("pasangan perbandingan: deterministik saat selisih seri", () => {
   assert.deepEqual(pickComparisonPair(candidates), pickComparisonPair([...candidates].reverse()));
 });
 
-test("produk hero: harga segar yang diperiksa paling baru; tanpa harga segar pakai produk pertama", () => {
+test("produk hero: harga segar terbaru, lalu harga terakhir tercatat, lalu produk pertama", () => {
   const hero = pickHeroProduct([
     item("lama", "A", available(1, "2026-10-05T00:00:00Z")),
     item("baru", "B", available(1, "2026-10-07T08:00:00Z")),
     item("basi", "C", stale(1)),
   ]);
   assert.equal(hero?.slug, "baru");
+  // Tanpa harga segar: harga terakhir tercatat didahulukan dari produk tanpa harga (UX-23).
+  assert.equal(
+    pickHeroProduct([item("kosong", "A", { status: "unavailable" }), item("basi", "B", stale(1))])?.slug,
+    "basi"
+  );
   assert.equal(pickHeroProduct([item("x", "A", { status: "unavailable" })])?.slug, "x");
   assert.equal(pickHeroProduct([]), null);
 });

@@ -86,7 +86,8 @@ function OfferCard({
         ) : null}
         {offer.colors.length > 0 ? (
           // Warna yang tercatat di listing ini; warna terpilih ditebalkan.
-          <p className="truncate text-xs text-muted-foreground">
+          // Membungkus sampai 2 baris, bukan terpotong satu baris (UX-26).
+          <p className="line-clamp-2 text-xs text-muted-foreground" title={offer.colors.join(", ")}>
             Warna:{" "}
             {offer.colors.map((color, index) => (
               <span key={color}>

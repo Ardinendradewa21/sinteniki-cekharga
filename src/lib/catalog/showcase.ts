@@ -52,14 +52,24 @@ export function pickComparisonPair(
   return best?.pair ?? null;
 }
 
-/** Produk untuk panel harga hero: yang harganya segar, diperiksa paling baru. */
+/**
+ * Produk untuk panel harga hero (UX-23). Urutan pilihan:
+ * 1. harga segar, diperiksa paling baru;
+ * 2. bila tidak ada, harga terakhir tercatat yang paling baru (panel memberi
+ *    label "terakhir tercatat" beserta tanggal, PRD §7 butir 5);
+ * 3. bila katalog belum punya harga sama sekali, produk pertama.
+ * Panel "Harga belum tersedia" di kesan pertama hanya muncul di kasus 3.
+ */
 export function pickHeroProduct<T extends ShowcaseCandidate>(candidates: readonly T[]): T | null {
-  const fresh = candidates.filter((candidate) => candidate.price.status === "available");
-  const checkedAt = (candidate: T) =>
-    candidate.price.status === "available" ? new Date(candidate.price.checkedAt).getTime() : 0;
-  return (
-    [...fresh].sort((a, b) => checkedAt(b) - checkedAt(a) || a.slug.localeCompare(b.slug))[0] ??
-    candidates[0] ??
-    null
-  );
+  const time = (candidate: T) =>
+    candidate.price.status === "available"
+      ? new Date(candidate.price.checkedAt).getTime()
+      : candidate.price.status === "stale"
+        ? new Date(candidate.price.observedAt).getTime()
+        : 0;
+  const newest = (status: "available" | "stale") =>
+    candidates
+      .filter((candidate) => candidate.price.status === status)
+      .sort((a, b) => time(b) - time(a) || a.slug.localeCompare(b.slug))[0];
+  return newest("available") ?? newest("stale") ?? candidates[0] ?? null;
 }

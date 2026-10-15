@@ -51,7 +51,7 @@ export function ProductGallery({
     const photo = photos[0];
     return (
       <figure className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-8">
-        <div className="relative flex h-72 w-full items-center justify-center sm:h-96">
+        <div className="relative flex h-60 w-full items-center justify-center sm:h-96">
           {photo || !fallback.isGenericIllustration ? (
             <Image
               src={photo?.src ?? fallback.src}
@@ -102,7 +102,7 @@ export function ProductGallery({
         onKeyDown={onKeyDown}
         className="relative overflow-hidden rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
       >
-        <div className="relative h-72 w-full sm:h-96">
+        <div className="relative h-60 w-full sm:h-96">
           <AnimatePresence initial={false} custom={direction} mode="popLayout">
             <motion.div
               key={current.src}

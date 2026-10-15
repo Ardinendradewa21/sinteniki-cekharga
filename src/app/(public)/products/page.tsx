@@ -76,9 +76,9 @@ async function CatalogView({
         interpretation={result.interpretation}
       />
 
-      <AdSlot code="catalog_top" brand={adBrand} className="mt-8" />
+      <AdSlot code="catalog_top" brand={adBrand} className="mt-6" />
 
-      <div className="mt-8">
+      <div className="mt-5 md:mt-6">
         <CatalogResults
           result={result}
           query={query}
@@ -93,15 +93,14 @@ async function CatalogView({
 
 export default function ProductsPage(props: PageProps<"/products">) {
   return (
-    <Container className="py-10 md:py-14">
-      <header className="mb-8 max-w-2xl">
+    <Container className="py-6 md:py-8">
+      {/* Pengantar dibuat satu kalimat supaya kartu produk terlihat tanpa scroll (UX-24). */}
+      <header className="mb-5 max-w-2xl md:mb-6">
         <h1 className="heading-page text-foreground">
           Katalog smartphone
         </h1>
-        <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-          Cari nama, merek, spesifikasi, atau tulis kebutuhanmu dengan kalimat
-          biasa di satu kolom, lalu persempit dengan filter. Pilihan tersimpan di alamat halaman,
-          jadi hasilnya bisa dibagikan dan dibuka ulang.
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
+          Cari dengan nama, merek, atau kebutuhan, lalu persempit dengan filter.
         </p>
       </header>
 

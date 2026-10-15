@@ -1014,7 +1014,10 @@ function buildProductDetail(
     },
     { label: "Sistem operasi", value: product.specs.osVersion },
     {
-      label: "Pilihan warna",
+      // Bila pemilih warna sudah memakai warna listing toko, daftar dari sumber
+      // spesifikasi (sering versi global) diberi label sumber supaya dua daftar
+      // yang berbeda tidak terbaca saling bertentangan (UX-22).
+      label: colors.length > 0 ? `Warna versi global (${product.specsProvenance.source})` : "Pilihan warna",
       value: product.specs.colorOptions?.length
         ? product.specs.colorOptions.join(", ")
         : null,

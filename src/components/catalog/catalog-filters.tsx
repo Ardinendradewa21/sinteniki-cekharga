@@ -113,10 +113,11 @@ export function CatalogFilters({
   ];
 
   return (
-    <Form action="/products" className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex-1">
+    <Form action="/products" className="flex flex-col gap-3">
+      <div className="rounded-xl border border-border bg-card p-3 sm:p-5">
+        {/* Ponsel: kolom cari penuh, lalu urutan + tombol Cari sebaris (UX-24). */}
+        <div className="grid grid-cols-[1fr_auto] items-end gap-3 sm:flex sm:flex-row">
+          <div className="col-span-2 sm:flex-1">
             <Label htmlFor="katalog-cari">Cari produk atau kebutuhan</Label>
             <Input
               id="katalog-cari"
@@ -130,7 +131,7 @@ export function CatalogFilters({
             />
           </div>
 
-          <div className="sm:w-56">
+          <div className="min-w-0 sm:w-56">
             <Label htmlFor="katalog-urut">Urutkan</Label>
             <select
               id="katalog-urut"
@@ -151,10 +152,8 @@ export function CatalogFilters({
           </Button>
         </div>
         <p id="katalog-cari-bantuan" className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Satu kolom untuk nama, merek, spesifikasi (mis. AMOLED, IP68, lipat),
-          dan kebutuhan: batas harga, RAM/penyimpanan minimal, NFC, 5G, serta
-          topik ulasan yang tercatat. Kualitas pemakaian tidak ditebak dari angka
-          spesifikasi.
+          Bisa nama, spesifikasi (AMOLED, IP68), atau kebutuhan seperti “NFC di bawah 5 juta”.
+          Kualitas pemakaian tidak ditebak dari angka spesifikasi.
         </p>
       </div>
 

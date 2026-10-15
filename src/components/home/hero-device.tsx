@@ -177,6 +177,25 @@ export function HeroDevice({
                   Diperiksa {formatCheckedAt(product.price.checkedAt, now)}
                 </p>
               </>
+            ) : product.price.status === "stale" ? (
+              <>
+                <p className="mt-2 text-xs text-muted-foreground">Harga terakhir tercatat</p>
+                <p className="tabular text-lg font-extrabold tracking-tight text-foreground">
+                  {formatIdr(product.price.priceIdr)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Varian {product.priceReferenceVariant}
+                </p>
+                <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-warning">
+                  <HugeiconsIcon
+                    icon={Clock01Icon}
+                    size={13}
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                  Tercatat {formatCheckedAt(product.price.observedAt, now)}, belum diperiksa ulang
+                </p>
+              </>
             ) : (
               <p className="mt-2 text-sm font-semibold text-muted-foreground">
                 Harga belum tersedia
