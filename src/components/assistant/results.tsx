@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { RecommendationCard } from "@/components/assistant/recommendation-card";
 import { Button } from "@/components/ui/button";
-import type { ResultView } from "@/lib/assistant/results";
+import { numberCandidates, type ResultView } from "@/lib/assistant/results";
 import { PRICING_POLICY } from "@/lib/config";
 
 /**
@@ -34,6 +34,8 @@ export function AssistantResults({
   const now = new Date();
   const { totals } = result;
   const nothing = totals.matches === 0 && totals.staleMatches === 0;
+  // Nomor yang sama dipakai asisten saat menjelaskan ("kenapa nomor 2?").
+  const numberOf = new Map(numberCandidates(result).map((entry) => [entry.candidate, entry.number]));
 
   return (
     <div className="mt-8 space-y-8 border-t border-border pt-8">
@@ -68,7 +70,7 @@ export function AssistantResults({
           </p>
           <div className="mt-5 space-y-4">
             {result.matches.map((candidate) => (
-              <RecommendationCard key={candidate.slug} candidate={candidate} now={now} />
+              <RecommendationCard key={candidate.slug} candidate={candidate} now={now} number={numberOf.get(candidate)} />
             ))}
           </div>
         </section>
@@ -86,7 +88,7 @@ export function AssistantResults({
           </p>
           <div className="mt-5 space-y-4">
             {result.staleMatches.map((candidate) => (
-              <RecommendationCard key={candidate.slug} candidate={candidate} now={now} />
+              <RecommendationCard key={candidate.slug} candidate={candidate} now={now} number={numberOf.get(candidate)} />
             ))}
           </div>
         </section>
@@ -124,7 +126,7 @@ export function AssistantResults({
           </p>
           <div className="mt-5 space-y-4">
             {result.overBudget.map((candidate) => (
-              <RecommendationCard key={candidate.slug} candidate={candidate} now={now} />
+              <RecommendationCard key={candidate.slug} candidate={candidate} now={now} number={numberOf.get(candidate)} />
             ))}
           </div>
         </section>

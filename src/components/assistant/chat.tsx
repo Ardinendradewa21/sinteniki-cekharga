@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useRef } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AiMagicIcon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
@@ -23,7 +24,8 @@ import { ACTIVITY_LABELS, PRIORITY_LABELS, REQUIREMENT_LABELS } from "@/lib/assi
  * tampilannya berubah:
  *
  * - Kartu kandidat berasal dari mesin deterministik, bukan dari model. Model
- *   tidak pernah menyebut nama produk maupun harga.
+ *   hanya boleh menyebut produk dan harga yang ada di kartu giliran itu, dan
+ *   setiap balasannya diperiksa validator (`reply-validator.ts`).
  * - Apa yang sudah ditangkap sistem selalu terlihat sebagai chip, jadi
  *   pengguna tahu persis atas dasar apa pencarian dilakukan.
  * - Tidak ada animasi mengetik palsu. Indikator hanya muncul selama permintaan
@@ -129,6 +131,15 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
 
         <div ref={bottomRef} />
       </div>
+
+      {/* Pengguna minta dua kandidat dibandingkan: tautan ke halaman perbandingan */}
+      {state.compareHref && !pending ? (
+        <div className="mt-4">
+          <Button asChild variant="outline">
+            <Link href={state.compareHref}>Buka perbandingan lengkap</Link>
+          </Button>
+        </div>
+      ) : null}
 
       {/* Hasil pencarian tampil langsung di bawah percakapan: kartu dari mesin deterministik */}
       {state.result ? (

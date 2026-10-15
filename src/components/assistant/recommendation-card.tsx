@@ -37,9 +37,12 @@ function ReasonItem({ reason }: { reason: Candidate["reasons"][number] }) {
 export function RecommendationCard({
   candidate,
   now,
+  number,
 }: {
   candidate: Candidate;
   now: Date;
+  /** Nomor tampilan yang juga dipakai asisten ("nomor 2"). */
+  number?: number;
 }) {
   const isOverBudget = candidate.overBudgetByIdr !== null;
   const visible = candidate.reasons.slice(0, VISIBLE_REASONS);
@@ -67,7 +70,10 @@ export function RecommendationCard({
         </div>
         <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-x-3 gap-y-2">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">{candidate.brand}</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              {number ? <span className="mr-1.5 font-semibold text-foreground">#{number}</span> : null}
+              {candidate.brand}
+            </p>
             <h3 className="heading-card text-foreground">{candidate.model}</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">Varian {candidate.variantLabel}</p>
             {candidate.image.isGenericIllustration ? (

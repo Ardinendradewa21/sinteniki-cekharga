@@ -375,3 +375,56 @@ test("balasan: pembuka templat dibuang, sisa kalimat utuh", () => {
   assert.equal(tidyReply("Oke deh"), "Oke deh", "balasan yang hanya pembuka tidak dikosongkan");
   assert.equal(tidyReply("Okelah kalau begitu"), "Okelah kalau begitu");
 });
+
+import { checkReply, readAmounts } from "@/lib/assistant/reply-validator";
+import { compareRequest } from "@/lib/assistant/dialog-policy";
+import { numberCandidates } from "@/lib/assistant/results";
+
+test("validator: produk dan harga hanya dari hasil, tanpa superlatif", () => {
+  const base = {
+    allowedNames: ["Xiaomi Redmi 17", "Redmi 17", "Samsung Galaxy A17", "Galaxy A17"],
+    catalogNames: ["Xiaomi Redmi 17", "Redmi 17", "Samsung Galaxy A17", "Galaxy A17", "Xiaomi Redmi Note 17 Pro", "Redmi Note 17 Pro"],
+    allowedAmounts: [2_899_000, 3_000_000],
+  };
+  assert.deepEqual(
+    checkReply({ ...base, reply: "#1 Redmi 17 harga terakhir tercatat Rp2.899.000, masih di bawah 3 juta. Baterainya 7.500 mAh." }),
+    { ok: true }
+  );
+  const invented = checkReply({ ...base, reply: "Coba juga Redmi Note 17 Pro, cuma 4,5 juta." });
+  assert.equal(invented.ok, false);
+  if (!invented.ok) {
+    assert.ok(invented.problems.some((problem) => problem.includes("redmi note 17 pro")));
+    assert.ok(invented.problems.some((problem) => problem.includes("4500000")));
+  }
+  assert.equal(checkReply({ ...base, reply: "Galaxy A17 pilihan terbaik di kelasnya." }).ok, false);
+  assert.equal(checkReply({ ...base, reply: "Harganya sekitar 2,9 juta." }).ok, true, "pembulatan juta masih diterima");
+});
+
+test("validator: angka bertitik tanpa Rp bukan harga", () => {
+  assert.deepEqual(readAmounts("baterai 5.000 mAh dan layar 120 Hz"), []);
+  assert.deepEqual(readAmounts("Rp1.849.000 atau 2 juta"), [1_849_000, 2_000_000]);
+});
+
+test("permintaan bandingkan dibaca kode", () => {
+  assert.deepEqual(compareRequest("bandingkan 1 dan 3 dong", 5), [1, 3]);
+  assert.deepEqual(compareRequest("#2 vs #4", 5), [2, 4]);
+  assert.deepEqual(compareRequest("bedanya nomor 1 sama 2 apa?", 5), [1, 2]);
+  assert.equal(compareRequest("bandingkan 1 dan 9", 5), null, "nomor di luar hasil diabaikan");
+  assert.equal(compareRequest("yang nomor 2 kenapa?", 5), null);
+});
+
+test("nomor kandidat berurutan lintas grup", () => {
+  const data = catalog([
+    { brand: "A", model: "Segar", price: { idr: 2_000_000, ageHours: 2 } },
+    { brand: "B", model: "Mahal", price: { idr: 9_000_000, ageHours: 2 } },
+  ]);
+  const userNeeds = needs({ budgetIdr: 3_000_000, budgetIsHard: true });
+  const numbered = numberCandidates(toResultView(recommendFromCatalog(data, NOW, userNeeds), userNeeds));
+  assert.deepEqual(
+    numbered.map((entry) => [entry.number, entry.group, entry.candidate.name]),
+    [
+      [1, "cocok", "A Segar"],
+      [2, "luar-budget", "B Mahal"],
+    ]
+  );
+});

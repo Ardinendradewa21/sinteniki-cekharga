@@ -16,7 +16,11 @@ import { recommend } from "@/lib/assistant/recommend";
 import { parseNeeds } from "@/lib/assistant/needs";
 import { toResultView } from "@/lib/assistant/results";
 import { guardRequirements, mergeHints, readHints } from "@/lib/assistant/hints";
-import { nextFocus, refinementSuggestions, shouldSearch } from "@/lib/assistant/dialog-policy";
+import { compareRequest, nextFocus, refinementSuggestions, shouldSearch } from "@/lib/assistant/dialog-policy";
+import { writeResultReply } from "@/lib/assistant/ai/writer";
+import { numberCandidates } from "@/lib/assistant/results";
+import { loadPublishedCatalog } from "@/lib/catalog/queries";
+import { buildCompareHref } from "@/lib/catalog/compare-params";
 
 /**
  * Satu giliran percakapan (PRD FR-06).
@@ -135,20 +139,63 @@ export async function sendChatMessage(
       collected,
       suggestions: turn.suggestions,
       result: null,
+      compareHref: null,
       error: null,
     };
   }
 
+  const now = new Date();
+  const result = await cariKandidat(collected, now);
+
+  /*
+   * Giliran yang menampilkan hasil ditulis ulang oleh penulis balasan, yang
+   * boleh menyebut produk dan harga dari hasil giliran ini (PB-39). Bila
+   * penulis gagal atau ditolak validator, balasan giliran pertama yang tanpa
+   * nama produk tetap dipakai, jadi percakapan tidak pernah putus.
+   */
+  const catalog = await loadPublishedCatalog(now);
+  const written = await writeResultReply({
+    history: prev.messages,
+    userText: text,
+    collected,
+    view: result,
+    catalogNames: catalogNameList(catalog.products),
+  });
+  const numbered = numberCandidates(result);
+  const compareNumbers = compareRequest(text, numbered.length) ?? written?.compareNumbers ?? null;
+  const compareHref = compareNumbers
+    ? buildCompareHref(
+        compareNumbers.map((n) => {
+          const { candidate } = numbered[n - 1]!;
+          return { slug: candidate.slug, variantKey: candidate.variantKey };
+        })
+      )
+    : null;
+
   return {
-    messages,
+    messages: written ? [...withUser, { role: "assistant", content: written.reply }] : messages,
     collected,
     suggestions: refinementSuggestions(collected),
-    result: await cariKandidat(collected),
+    result,
+    compareHref,
     error: null,
   };
 }
 
-async function cariKandidat(collected: ChatState["collected"]) {
+/**
+ * Nama produk terbit untuk validator: merek + model, ditambah model saja bila
+ * cukup khas (mengandung huruf dan minimal 5 karakter). Model seperti "17"
+ * atau "A6s" terlalu pendek dan akan salah tangkap angka di kalimat biasa.
+ */
+function catalogNameList(products: readonly { brand: string; model: string }[]): string[] {
+  return products.flatMap((product) => {
+    const names = [`${product.brand} ${product.model}`];
+    if (/[a-z]/i.test(product.model) && product.model.length >= 5) names.push(product.model);
+    return names;
+  });
+}
+
+async function cariKandidat(collected: ChatState["collected"], now: Date) {
   /*
    * Jembatan antara hasil obrolan dan mesin rekomendasi.
    *
@@ -169,5 +216,5 @@ async function cariKandidat(collected: ChatState["collected"]) {
     hindari: collected.avoidBrands,
   });
 
-  return toResultView(await recommend(new Date(), needs), needs);
+  return toResultView(await recommend(now, needs), needs);
 }

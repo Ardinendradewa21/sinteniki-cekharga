@@ -58,6 +58,8 @@ export type ChatState = {
   suggestions: string[];
   /** Hasil pencarian; null selama masih mengobrol. */
   result: ChatResult | null;
+  /** Tautan halaman perbandingan bila pengguna minta dua kandidat dibandingkan. */
+  compareHref: string | null;
   error: string | null;
 };
 
@@ -66,5 +68,6 @@ export const CHAT_START: ChatState = {
   collected: EMPTY_COLLECTED,
   suggestions: [],
   result: null,
+  compareHref: null,
   error: null,
 };

@@ -15,6 +15,21 @@ import { formatIdr } from "@/lib/catalog/pricing";
  * - Setelah hasil tampil, setiap pesan menyempurnakan pencarian.
  */
 
+/**
+ * Permintaan membandingkan dua kandidat bernomor ("bandingkan 1 dan 3",
+ * "#2 vs #4", "nomor 1 sama 2"). Dibaca kode supaya tautan perbandingan
+ * tidak bergantung pada model. Mengembalikan null bila bukan permintaan itu.
+ */
+export function compareRequest(text: string, available: number): [number, number] | null {
+  const t = text.toLowerCase();
+  if (!/\b(bandingk\w*|compare|vs|versus|beda(nya)?|bedain)\b/.test(t)) return null;
+  const numbers = [...t.matchAll(/(?:#|nomor |no\.? ?)?\b(\d{1,2})\b/g)]
+    .map((match) => Number(match[1]))
+    .filter((n) => n >= 1 && n <= available);
+  const unique = [...new Set(numbers)];
+  return unique.length >= 2 ? [unique[0]!, unique[1]!] : null;
+}
+
 export type Focus = "budget" | "kegunaan" | "prioritas" | "penyempurnaan";
 
 /** Hal yang paling perlu ditanyakan berikutnya; satu saja. */
