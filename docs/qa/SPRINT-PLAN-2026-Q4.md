@@ -43,7 +43,7 @@ Target trafik awal (dikalibrasi di Sprint 4): domain baru biasanya butuh 2–3 b
 5. Rich Results Test lulus untuk 3 produk contoh (setelah deploy).
 6. Tidak ada defect baru berseverity Kritis atau Tinggi.
 
-### Progres Sprint 1 (per 14 Oktober 2026)
+### Progres Sprint 1 (per 15 Oktober 2026)
 
 | Item | Status |
 | --- | --- |
@@ -52,8 +52,9 @@ Target trafik awal (dikalibrasi di Sprint 4): domain baru biasanya butuh 2–3 b
 | PB-24 Kebersihan kode | ✅ Folder kosong dihapus; E2E menghapus batch ujinya (24 batch lama ikut bersih). Simpan pengaturan iklan atomik ditunda karena modul iklan ditahan (PB-10) |
 | PB-25 `eslint-disable` | ✅ Diganti `useEffectEvent`; 0 tersisa |
 | Perbaikan di luar rencana | ✅ Galeri foto melewati semua baris bila `model_name` sudah memuat merek; host `images.samsung.com` diizinkan dan parameter linknya dibuang |
-| PB-11, PB-01 | ⏳ Menunggu pemilik produk (kata sandi, akun Vercel, izin publikasi) |
-| PB-26 | ⏳ Tugas data; galeri Samsung siap diunggah ulang, dengan catatan kualitas data di laporan 14 Oktober |
+| PB-11 | ⏳ Skrip `scripts/ganti-sandi-admin.mjs` siap (kode 6 digit lewat email); tinggal dijalankan pemilik akun |
+| PB-01 | ⏳ Langkah di `docs/sop/SOP-DEPLOY-VERCEL.md`. Temuan 15 Okt: proyek Vercel yang ada tersambung ke repo lama `cekharga-frontend`, dan `main` belum di-push |
+| PB-26 | ✅ Spreadsheet dirapikan (panduan `docs/sop/KONTEKS-AI-PERBAIKAN-SPREADSHEET.md`) dan diunggah ulang oleh admin, 15 Oktober |
 
 ## Sprint 2 — 2 sampai 13 November 2026
 
