@@ -18,7 +18,7 @@ import { z } from "zod";
  *   sama dengan perilaku halaman detail.
  */
 
-export const COMPARE_PARAM = "produk";
+const COMPARE_PARAM = "produk";
 
 /** PRD FR-04: "Pengguna memilih 2-3 kandidat beserta variannya." */
 export const MIN_COMPARE_ITEMS = 2;

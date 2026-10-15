@@ -20,7 +20,7 @@ export const PRICING_LABEL: Record<PricingModel, string> = {
   flat: "Flat (sewa slot)",
 };
 
-export type DeliveryTotals = { impressions: number; clicks: number };
+type DeliveryTotals = { impressions: number; clicks: number };
 
 export type Billing = {
   /** Jumlah unit yang ditagihkan (tayangan untuk CPM, klik untuk CPC). */

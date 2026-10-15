@@ -12,7 +12,7 @@ import type { PricingModel } from "@/lib/ads/billing";
  * advertiser) tidak pernah dibaca di sini.
  */
 
-export type MediaKitSlot = {
+type MediaKitSlot = {
   code: string;
   label: string;
   page: string;

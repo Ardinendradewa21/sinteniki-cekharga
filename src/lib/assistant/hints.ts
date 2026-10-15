@@ -21,7 +21,7 @@ import {
 type Activity = (typeof ACTIVITIES)[number];
 type Priority = (typeof PRIORITIES)[number];
 
-export type Hints = {
+type Hints = {
   budgetIdr: number | null;
   budgetIsHard: boolean | null;
   activities: Activity[];

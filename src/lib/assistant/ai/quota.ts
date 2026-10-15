@@ -22,7 +22,7 @@ import { getInsforgeAdminClient } from "@/lib/backend/insforge";
  * tetap punya jalur form yang tidak memanggil model.
  */
 
-export type QuotaDecision =
+type QuotaDecision =
   | { allowed: true }
   | { allowed: false; reason: "client" | "global" | "unavailable" };
 

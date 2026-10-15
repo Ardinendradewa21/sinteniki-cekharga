@@ -53,7 +53,7 @@ const envSchema = z.object({
  *
  * Bisa diganti lewat OPENROUTER_CHAT_MODEL tanpa menyentuh kode.
  */
-export const DEFAULT_MODEL = "openai/gpt-6-luna";
+const DEFAULT_MODEL = "openai/gpt-6-luna";
 
 /**
  * Model cadangan, dicoba OpenRouter berurutan bila penyedia model utama gagal
@@ -61,7 +61,7 @@ export const DEFAULT_MODEL = "openai/gpt-6-luna";
  * sebelum cadangan dicoba, jadi salah ketik OPENROUTER_CHAT_MODEL tetap
  * terlihat sebagai galat, bukan diam-diam memakai cadangan.
  */
-export const FALLBACK_MODELS = ["google/gemini-2.5-flash-lite"] as const;
+const FALLBACK_MODELS = ["google/gemini-2.5-flash-lite"] as const;
 
 /** Batas operasional. Diubah di sini, bukan tersebar di pemanggil. */
 export const AI_LIMITS = {

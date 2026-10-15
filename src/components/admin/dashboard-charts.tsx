@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Analytics01Icon, ChartBarLineIcon } from "@hugeicons/core-free-icons";
 import { Badge } from "@/components/ui/badge";
 
-export type AdminBrandDatum = {
+type AdminBrandDatum = {
   brand: string;
   count: number;
 };

@@ -14,8 +14,8 @@ import type { ProductSpecs } from "@/lib/catalog/schema";
  * bukan nilai tinggi: tidak diketahui bukan berarti bagus.
  */
 
-export type Priority = (typeof PRIORITIES)[number];
-export type Activity = (typeof ACTIVITIES)[number];
+type Priority = (typeof PRIORITIES)[number];
+type Activity = (typeof ACTIVITIES)[number];
 export type Feature = "performa" | "baterai" | "kamera" | "layar" | "ringan" | "harga" | "memori";
 
 /** Nilai untuk data yang belum tercatat. */
@@ -26,7 +26,7 @@ const UNKNOWN = 0.3;
  * skornya turun bertahap, di atas +30% kandidat dipindah ke alternatif
  * berlabel "di luar budget" oleh pemanggil.
  */
-export const BUDGET_BAND = { inside: 0.15, stretch: 0.3 } as const;
+const BUDGET_BAND = { inside: 0.15, stretch: 0.3 } as const;
 
 /** Bobot prioritas berperingkat: pertama 3, kedua 2, ketiga 1. */
 const PRIORITY_WEIGHTS = [3, 2, 1] as const;
@@ -60,7 +60,7 @@ export type ScoreInput = {
 
 type Range = { min: number; max: number };
 
-export type ScoreContext = {
+type ScoreContext = {
   battery: Range | null;
   charging: Range | null;
   weight: Range | null;
@@ -156,7 +156,7 @@ export function featureWeights(
   return weights;
 }
 
-export type BudgetFit =
+type BudgetFit =
   | { band: "inside" | "stretch"; factor: number; ratio: number }
   | { band: "over"; factor: 0; ratio: number }
   | { band: "unknown"; factor: number; ratio: null };

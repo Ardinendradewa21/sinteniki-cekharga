@@ -64,7 +64,7 @@ type SaveResult =
   | { outcome: "created" | "updated"; productId: string }
   | { failed: string };
 
-export type ValidCandidate = {
+type ValidCandidate = {
   candidate: ImportCandidate;
   specs: ProductSpecs;
   /** Posisi baris di berkas (0-based), untuk batch pratinjau. */
@@ -72,7 +72,7 @@ export type ValidCandidate = {
 };
 
 /** Jejak asal tulisan impor: batch dan jenis sumbernya (Fase 4). */
-export type Lineage = { batchId: string | null; source: "import" | "scrape" };
+type Lineage = { batchId: string | null; source: "import" | "scrape" };
 
 function productPayload({ candidate, specs }: ValidCandidate, retrievedAt: string, lineage: Lineage) {
   return {
@@ -277,7 +277,7 @@ async function saveCandidates(
 }
 
 
-export type SpecPreparation = {
+type SpecPreparation = {
   /** Kandidat valid per `sourceKey`; baris ganda: yang terakhir menang. */
   validByKey: Map<string, ValidCandidate>;
   skipped: { label: string; reason: string; rowIndex: number }[];

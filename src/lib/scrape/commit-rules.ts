@@ -10,7 +10,7 @@ import type { OfficialVariantPrice, PreviewItem } from "@/lib/scrape/types";
  * Pilihan yang tidak cocok dengan data server diabaikan, bukan dipercaya.
  */
 
-export type CommitSelection = {
+type CommitSelection = {
   officialId: string;
   /** indeks harga di `lineup.unassignedPrices` → "ram+storage". */
   assignments?: Record<string, string>;
@@ -37,7 +37,7 @@ export function finalPrices(item: PreviewItem, assignments: Record<string, strin
   return [...item.lineup.prices, ...extra];
 }
 
-export type CommitPlan = {
+type CommitPlan = {
   accepted: { officialId: string; item: PreviewItem; prices: OfficialVariantPrice[] }[];
   rejected: { officialId: string; reason: string }[];
 };

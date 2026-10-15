@@ -24,7 +24,7 @@ function must<T>(result: { data: T | null; error: unknown }, what: string): T {
 
 /* ------------------------------------------------------------ tipe */
 
-export type Advertiser = {
+type Advertiser = {
   id: string;
   company_name: string;
   display_name: string;
@@ -38,7 +38,7 @@ export type Advertiser = {
   created_at: string;
 };
 
-export type Contract = {
+type Contract = {
   id: string;
   advertiser_id: string;
   contract_number: string;
@@ -49,7 +49,7 @@ export type Contract = {
   notes: string | null;
 };
 
-export type InsertionOrder = {
+type InsertionOrder = {
   id: string;
   contract_id: string;
   io_number: string;
@@ -92,7 +92,7 @@ export type LineItem = {
   status: "pending" | "active" | "paused" | "ended";
 };
 
-export type Creative = {
+type Creative = {
   id: string;
   line_item_id: string;
   format: "display" | "native";
@@ -112,7 +112,7 @@ export type Creative = {
   created_at: string;
 };
 
-export type Invoice = {
+type Invoice = {
   id: string;
   io_id: string;
   invoice_number: string;
@@ -126,7 +126,7 @@ export type Invoice = {
   notes: string | null;
 };
 
-export type RateCardRow = {
+type RateCardRow = {
   slot_id: string;
   pricing_model: PricingModel;
   rate: number;
@@ -134,7 +134,7 @@ export type RateCardRow = {
   notes: string | null;
 };
 
-export type AdsTxtEntry = {
+type AdsTxtEntry = {
   id: string;
   ad_system_domain: string;
   publisher_id: string;
@@ -210,7 +210,7 @@ export async function listLineItems(filter: { ioId?: string; ioIds?: string[] } 
   return rows.sort((a, b) => b.start_at.localeCompare(a.start_at));
 }
 
-export async function getLineItem(id: string): Promise<LineItem | null> {
+async function getLineItem(id: string): Promise<LineItem | null> {
   const rows = must<LineItem[]>(await db().from("line_items").select("*").eq("id", id).limit(1), "line item");
   return rows[0] ?? null;
 }
@@ -302,7 +302,7 @@ export async function readDailyReport(filter: {
   }
 }
 
-export type DeliverySummary = {
+type DeliverySummary = {
   impressions: number;
   clicks: number;
   botImpressions: number;

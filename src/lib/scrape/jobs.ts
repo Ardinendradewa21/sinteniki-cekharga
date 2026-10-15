@@ -24,7 +24,7 @@ import type { ScrapeBrand } from "@/lib/scrape/types";
 
 export type ScrapeJobStatus = "queued" | "running" | "done" | "failed" | "blocked" | "cancelled";
 
-export type ScrapeJob = {
+type ScrapeJob = {
   id: string;
   kind: "lineup" | "resolve";
   brand: ScrapeBrand;

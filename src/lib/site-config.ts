@@ -42,7 +42,7 @@ export function formatIndonesianPhone(international: string): string {
   return `+62 ${groups.join("-")}`;
 }
 
-export type SocialLink = {
+type SocialLink = {
   label: string;
   /** Ditulis apa adanya di footer, mis. "@cekharga.id". */
   handle: string | null;

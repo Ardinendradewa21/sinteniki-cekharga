@@ -7,16 +7,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:unused": "npx -y knip@5",
     "typecheck": "tsc --noEmit",
-    "test:assistant": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/assistant.test.ts",
+    "test": "pnpm -s test:import && pnpm -s test:assistant && pnpm -s test:catalog",
     "test:import": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/import.test.ts",
-    "test:assistant-eval": "node --env-file=.env.local --import ./scripts/tests/register.mjs --experimental-strip-types scripts/assistant-eval.ts",
+    "test:assistant": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/assistant.test.ts",
     "test:catalog": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/catalog.test.ts",
     "test:integration": "node --env-file=.env.local --import ./scripts/tests/register.mjs --experimental-strip-types --test --test-concurrency=1 scripts/tests/integration/import-flow.test.ts",
-    "qa:sql": "node scripts/qa/sql-checks.mjs",
+    "test:assistant-eval": "node --env-file=.env.local --import ./scripts/tests/register.mjs --experimental-strip-types scripts/assistant-eval.ts",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test --grep @smoke",
-    "test:e2e:regression": "playwright test --grep \"@smoke|@regression\""
+    "test:e2e:regression": "playwright test --grep \"@smoke|@regression\"",
+    "qa:sql": "node scripts/qa/sql-checks.mjs"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.3.0",
@@ -45,7 +47,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
-    "puppeteer-core": "^25.10.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

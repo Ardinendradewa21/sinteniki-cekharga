@@ -47,7 +47,7 @@ export function officialBrandName(brand: string): string {
  * menggabungkan keduanya begitu saja menghasilkan "Oppo Oppo Reno16 Pro" dan
  * slug "oppo-oppo-reno16-pro".
  */
-export function stripBrandPrefix(brand: string, model: string): string {
+function stripBrandPrefix(brand: string, model: string): string {
   const prefix = brand.trim().toLowerCase();
   const text = model.trim();
   if (prefix && text.toLowerCase().startsWith(prefix + " ")) {

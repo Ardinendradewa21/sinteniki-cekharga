@@ -28,7 +28,7 @@ export type ScrapeSession = {
   results: Record<string, ResultState>;
 };
 
-export type ScrapeSessionSummary = {
+type ScrapeSessionSummary = {
   id: string;
   brand: ScrapeBrand;
   models: number;
@@ -41,7 +41,7 @@ export type ScrapeSessionSummary = {
 const UUID = /^[0-9a-f-]{36}$/i;
 const STALE_COMMIT_MS = 5 * 60_000;
 /** Sesi tarik disimpan selama ini, lalu dihapus worker terjadwal. */
-export const SESSION_RETENTION_DAYS = 30;
+const SESSION_RETENTION_DAYS = 30;
 
 function db() {
   return getInsforgeAdminClient().database;

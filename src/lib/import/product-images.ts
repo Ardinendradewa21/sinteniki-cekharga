@@ -64,7 +64,7 @@ export type ProductImageCandidate = {
   isCover?: boolean;
 };
 
-export type ProductImageReading = {
+type ProductImageReading = {
   candidate: ProductImageCandidate | null;
   issue: string | null;
 };
@@ -539,7 +539,7 @@ export async function importGalleryImage({
   return saveAssetRow(productId, candidate, rights, retrievedAt, stored, existing, batchId, photos);
 }
 
-export type OutdatedPhoto = {
+type OutdatedPhoto = {
   id: string;
   product_id: string;
   storage_key: string | null;

@@ -17,7 +17,7 @@ import { catalogDatasetSchema, type CatalogDataset } from "@/lib/catalog/schema"
  * `import "server-only"` memastikan modul ini (termasuk seluruh dataset)
  * tidak pernah ikut ke bundle browser.
  */
-export type CatalogSource = {
+type CatalogSource = {
   readonly mode: DataSourceMode;
   loadDataset(now: Date): Promise<CatalogDataset>;
 };

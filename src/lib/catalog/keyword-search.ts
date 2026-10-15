@@ -40,7 +40,7 @@ const SUBJECTIVE = new Set([
   "recommended", "worth", "premium", "flagship",
 ]);
 
-export type KeywordPlan = {
+type KeywordPlan = {
   /** Kata yang dicocokkan ke produk (semua harus cocok). */
   keywords: string[];
   /** Kata penilaian yang tidak bisa diukur dari data. */
@@ -77,7 +77,7 @@ function words(value: string | null | undefined): string[] {
  * spesifikasi. Tag hanya dibuat dari data yang tercatat `true`/terisi;
  * nilai `null` (tidak diketahui) tidak pernah menjadi tag.
  */
-export type SearchDocument = { name: Set<string>; tags: Set<string> };
+type SearchDocument = { name: Set<string>; tags: Set<string> };
 
 export function buildSearchDocument(product: Product): SearchDocument {
   const specs = product.specs;
@@ -125,7 +125,7 @@ function matchesAny(keyword: string, tokens: Set<string>): boolean {
   return false;
 }
 
-export type KeywordMatch = {
+type KeywordMatch = {
   matched: boolean;
   /**
    * Skor kecocokan TEKS, bukan skor kualitas produk (PRD FR-02). Kecocokan di

@@ -50,7 +50,7 @@ export type ServedCreative = {
   href: string;
 };
 
-export type LiveCreativeRow = LiveRow;
+type LiveCreativeRow = LiveRow;
 
 type LiveRow = {
   creative_id: string;
@@ -110,7 +110,7 @@ function isLive(): boolean {
  * kampanye. Contoh berlabel "Contoh iklan", menautkan ke media kit, dan tidak
  * pernah dilacak atau ditagihkan. Jangan aktifkan di produksi.
  */
-export function isAdPreview(): boolean {
+function isAdPreview(): boolean {
   return process.env.CEKHARGA_AD_PREVIEW === "1";
 }
 

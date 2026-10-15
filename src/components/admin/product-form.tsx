@@ -28,7 +28,7 @@ const INITIAL: ActionState = { error: null };
  */
 type SpecValue = unknown;
 
-export type ProductFormValues = {
+type ProductFormValues = {
   slug?: string;
   brand?: string;
   model?: string;

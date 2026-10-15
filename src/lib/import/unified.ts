@@ -130,7 +130,7 @@ export function looksLikeUnifiedHeaders(headers: readonly string[]): boolean {
   );
 }
 
-export type UnifiedConversion = {
+type UnifiedConversion = {
   /** Baris spesifikasi gabungan per produk, format yang dibaca `mapRow`. */
   specRows: CsvRow[];
   /** Penawaran untuk produk di berkas ini: membawa `source_key`, diterapkan setelah produknya. */

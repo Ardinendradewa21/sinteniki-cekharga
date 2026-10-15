@@ -350,7 +350,7 @@ export type CatalogSearchResult = {
 };
 
 /** 20 = empat baris penuh pada grid desktop lima kolom. */
-export const CATALOG_PAGE_SIZE = 20;
+const CATALOG_PAGE_SIZE = 20;
 
 /** Skor kecocokan teks. BUKAN skor kualitas produk (PRD FR-02). */
 function matchScore(name: string, query: string): number {
@@ -1075,7 +1075,7 @@ export async function listPublishedSlugs(now: Date): Promise<string[]> {
  * data kosong dianggap lebih buruk atau bernilai nol, dan menyebut dua nilai
  * "sama" padahal salah satunya tidak diketahui sama saja mengarang kesimpulan.
  */
-export type CompareRowState = "same" | "different" | "incomplete";
+type CompareRowState = "same" | "different" | "incomplete";
 
 /** Ikon garis per atribut; digambar sendiri di `compare/spec-icons.tsx`. */
 export type CompareSpecIcon =

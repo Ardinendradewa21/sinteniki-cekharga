@@ -180,6 +180,32 @@ async function selectRemovable(batchId: string, appliedAt: string) {
   };
 }
 
+
+/**
+ * Menghapus objek storage dalam satu permintaan per kelompok, bukan satu
+ * permintaan per file (dulu berurutan, lambat untuk batch galeri besar).
+ * Mengembalikan jumlah objek yang terhapus atau memang sudah tidak ada.
+ */
+async function removeObjects(
+  bucket: ReturnType<ReturnType<typeof getInsforgeAdminClient>["storage"]["from"]>,
+  keys: readonly (string | null)[]
+): Promise<number> {
+  const present = keys.filter((key): key is string => Boolean(key));
+  let removedCount = 0;
+  for (const group of chunk(present, 80)) {
+    const removed = await bucket.remove(group);
+    if (removed.error || !removed.data || !("results" in removed.data)) {
+      console.error("[undo] objek foto gagal dihapus:", group.length, removed.error);
+      continue;
+    }
+    for (const entry of removed.data.results) {
+      if (entry.status === "failed") console.error("[undo] objek foto gagal dihapus:", entry.key, entry.message);
+      else removedCount += 1;
+    }
+  }
+  return removedCount;
+}
+
 export async function planUndo(batchId: string): Promise<UndoPlan | null> {
   const batch = await loadBatch(batchId);
   if (!batch) return null;
@@ -238,7 +264,7 @@ export async function planUndo(batchId: string): Promise<UndoPlan | null> {
   };
 }
 
-export type UndoResult = {
+type UndoResult = {
   products: number;
   offers: number;
   observations: number;
@@ -323,12 +349,10 @@ async function undoOne(batch: BatchRow, admin: AdminSession): Promise<UndoResult
         .in("product_id", group)
         .select("storage_key");
       if (removedAssets.error) return { error: "Foto produk yang diurungkan gagal dihapus." };
-      for (const asset of (removedAssets.data ?? []) as { storage_key: string | null }[]) {
-        if (!asset.storage_key) continue;
-        const removed = await bucket.remove(asset.storage_key);
-        if (removed.error) console.error("[undo] objek foto gagal dihapus:", asset.storage_key, removed.error);
-        else result.storageObjects += 1;
-      }
+      result.storageObjects += await removeObjects(
+        bucket,
+        ((removedAssets.data ?? []) as { storage_key: string | null }[]).map((asset) => asset.storage_key)
+      );
     }
   }
 
@@ -344,13 +368,9 @@ async function undoOne(batch: BatchRow, admin: AdminSession): Promise<UndoResult
       .eq("created_by_batch_id", batch.id)
       .select("id, storage_key");
     if (deleted.error) return { error: "Foto buatan batch gagal dihapus." };
-    for (const row of (deleted.data ?? []) as { id: string; storage_key: string | null }[]) {
-      result.photos += 1;
-      if (!row.storage_key) continue;
-      const removed = await photoBucket.remove(row.storage_key);
-      if (removed.error) console.error("[undo] objek foto gagal dihapus:", row.storage_key, removed.error);
-      else result.storageObjects += 1;
-    }
+    const deletedRows = (deleted.data ?? []) as { id: string; storage_key: string | null }[];
+    result.photos += deletedRows.length;
+    result.storageObjects += await removeObjects(photoBucket, deletedRows.map((row) => row.storage_key));
   }
 
   const { data: claimed } = await db()

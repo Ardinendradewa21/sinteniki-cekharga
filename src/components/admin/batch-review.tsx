@@ -16,7 +16,6 @@ import {
   type ReviewStatus,
 } from "@/lib/import/review-groups";
 
-export type { ReviewItem };
 
 const RESULT_LABEL = {
   pending: "Menunggu",

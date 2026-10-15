@@ -19,7 +19,7 @@ import { findSamePhoto, galleryLimitIssue, shouldBecomeCover, type StoredPhoto }
  * (`resolveNamedProduct`). Modul murni: tanpa jaringan dan database.
  */
 
-export const GALLERY_COLUMNS = [
+const GALLERY_COLUMNS = [
   "brand",
   "model_name",
   "color",

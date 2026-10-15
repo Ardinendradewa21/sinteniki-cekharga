@@ -50,7 +50,7 @@ export function selectedByDefault(item: ReviewItem): boolean {
   return status === "create" || status === "update" || status === "stale";
 }
 
-export type ReviewGroup = {
+type ReviewGroup = {
   key: string;
   title: string;
   items: ReviewItem[];

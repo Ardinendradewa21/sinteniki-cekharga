@@ -26,7 +26,7 @@ import { groupPhotoJobs, photoJobNextState, type PhotoJobKind } from "@/lib/impo
  * selama terbuka, dan worker terjadwal /api/admin/import/worker.
  */
 
-export type PhotoJobInput = {
+type PhotoJobInput = {
   productId: string;
   kind: PhotoJobKind;
   imageUrl: string;
@@ -256,7 +256,7 @@ export async function retryFailedPhotoJobs(productId?: string): Promise<number> 
 }
 
 /** Umur job foto selesai/dilewati sebelum dihapus; job gagal disimpan lebih lama untuk ditelusuri. */
-export const PHOTO_JOB_RETENTION_DAYS = { finished: 30, failed: 90 } as const;
+const PHOTO_JOB_RETENTION_DAYS = { finished: 30, failed: 90 } as const;
 
 /**
  * Retensi antrean foto. Job yang sudah selesai tidak dibutuhkan lagi: fotonya

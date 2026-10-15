@@ -13,7 +13,7 @@ import { chunk, mapWithConcurrency } from "@/lib/import/batch";
  *   row       = baris yang dipakai rencana dan penulisan (`row_indexes` item)
  *   follow_up = penawaran yang diterapkan setelah produk batch ini tersimpan
  */
-export type RawRole = "upload" | "row" | "follow_up";
+type RawRole = "upload" | "row" | "follow_up";
 
 /** Baris per insert; satu baris CSV sekitar 0,2-1,6 KB JSON. */
 const STAGE_CHUNK = 200;

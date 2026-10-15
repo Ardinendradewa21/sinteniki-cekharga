@@ -65,7 +65,7 @@ function describeError(error: unknown): { message: string; status?: unknown; cod
   };
 }
 
-export type OrderBy = { column: string; ascending: boolean };
+type OrderBy = { column: string; ascending: boolean };
 
 /**
  * Kolom penanda hapus lunak per tabel (aturan system design 8, migrasi
@@ -73,7 +73,7 @@ export type OrderBy = { column: string; ascending: boolean };
  * baris yang terhapus/dibatalkan; pemanggil yang memang butuh baris itu
  * (mis. impor yang memulihkan produk terhapus) meminta `includeDeleted`.
  */
-export const SOFT_DELETE_COLUMN: Readonly<Record<string, "deleted_at" | "voided_at">> = {
+const SOFT_DELETE_COLUMN: Readonly<Record<string, "deleted_at" | "voided_at">> = {
   products: "deleted_at",
   offers: "deleted_at",
   stores: "deleted_at",

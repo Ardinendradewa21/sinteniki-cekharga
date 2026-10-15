@@ -22,7 +22,7 @@ import type { ProductSpecs } from "@/lib/catalog/schema";
 export const CLEAR_TOKEN = "-";
 
 /** Kolom CSV sumber untuk setiap kunci spesifikasi; `-` di salah satunya mengosongkan kunci itu. */
-export const SPEC_SOURCE_COLUMNS: Record<keyof ProductSpecs, readonly string[]> = {
+const SPEC_SOURCE_COLUMNS: Record<keyof ProductSpecs, readonly string[]> = {
   displayInches: ["display_size_inches"],
   displayTechnology: ["display_type_raw"],
   refreshRateHz: ["refresh_rate_hz"],

@@ -19,7 +19,7 @@ import { setPublicThemeAction } from "@/lib/public/preferences"
 import type { PublicTheme } from "@/lib/public/preferences-config"
 import { cn } from "@/lib/utils"
 
-export type MainNavItem = {
+type MainNavItem = {
   href: string
   label: string
   description?: string

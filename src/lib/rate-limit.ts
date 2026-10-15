@@ -15,7 +15,7 @@ import { headers } from "next/headers";
 
 export type RateLimitResult = { allowed: boolean; retryAfterSec: number };
 
-export type RateLimiter = {
+type RateLimiter = {
   check(key: string): RateLimitResult;
 };
 

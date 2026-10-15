@@ -80,10 +80,6 @@ export type LineupItem = {
   gsmarenaPath: string | null;
 };
 
-export type LineupResult =
-  | { ok: true; items: LineupItem[]; fetchedAt: string }
-  | { ok: false; error: string };
-
 export type PreviewIssue = {
   /** `error` menghalangi penyimpanan model ini; `warning` perlu dicek manusia. */
   level: "error" | "warning";

@@ -68,7 +68,7 @@ const HEADER_ALIASES: Record<string, readonly string[]> = {
   image_usage_rights: ["hak pakai foto", "bukti hak pakai"],
 };
 
-export function normalizeHeaderName(value: string): string {
+function normalizeHeaderName(value: string): string {
   return value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
 }
 

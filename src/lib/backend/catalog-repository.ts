@@ -55,7 +55,7 @@ import type { CatalogDataset } from "@/lib/catalog/schema";
  * tetap ada sebagai lapis kedua dan ketiga, bukan satu-satunya pengaman.
  */
 
-export const CATALOG_CACHE_TAG = "catalog";
+const CATALOG_CACHE_TAG = "catalog";
 
 /** Detik sebelum cache dianggap basi walau tidak ada aksi tulis. */
 const CATALOG_REVALIDATE_SECONDS = 300;

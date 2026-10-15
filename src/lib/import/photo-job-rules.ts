@@ -33,7 +33,7 @@ export function isPermanentFailure(reason: string): boolean {
   return PERMANENT_FAILURE.some((pattern) => pattern.test(reason));
 }
 
-export type PhotoJobNextState = {
+type PhotoJobNextState = {
   status: "pending" | "done" | "failed";
   outcome: "created" | "updated" | "unchanged" | null;
   last_error: string | null;

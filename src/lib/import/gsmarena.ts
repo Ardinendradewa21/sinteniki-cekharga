@@ -48,7 +48,7 @@ const MOJIBAKE: [RegExp, string][] = [
   [/Â/g, ""],
 ];
 
-export function fixEncoding(value: string): string {
+function fixEncoding(value: string): string {
   return MOJIBAKE.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value)
     .replace(/\s+/g, " ")
     .trim();
@@ -109,7 +109,7 @@ function yesNo(value: string): boolean | null {
 }
 
 /** Memecah "128GB/8GB; 256GB/12GB" menjadi pasangan RAM dan penyimpanan. */
-export function parseVariants(
+function parseVariants(
   summary: string,
   fallbackRaw: string
 ): { ramGb: number; storageGb: number }[] {
@@ -148,8 +148,6 @@ export function parseVariants(
   return variants;
 }
 
-export { stripBrandPrefix, toSlug } from "@/lib/catalog/brands";
-
 export type ImportCandidate = {
   sourceKey: string;
   slug: string;
@@ -168,7 +166,7 @@ export type ImportCandidate = {
   clearedSpecs: (keyof ProductSpecs)[];
 };
 
-export type RowOutcome =
+type RowOutcome =
   | { ok: true; candidate: ImportCandidate }
   | { ok: false; label: string; reason: string };
 

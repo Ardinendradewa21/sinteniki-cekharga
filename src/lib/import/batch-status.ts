@@ -52,7 +52,7 @@ export const BATCH_STATUS_LABEL: Record<BatchStatus, string> = {
   reverted: "Diurungkan",
 };
 
-export const BATCH_STATUS_TONE: Record<BatchStatus, string> = {
+const BATCH_STATUS_TONE: Record<BatchStatus, string> = {
   analyzing: "bg-warning-muted text-warning",
   draft: "bg-brand-muted text-brand",
   queued: "bg-warning-muted text-warning",
@@ -122,8 +122,6 @@ export function finalStatus(progress: Progress): "applied" | "partial" | "failed
   if (progress.failed === 0) return "applied";
   return progress.done > 0 || progress.skipped > 0 ? "partial" : "failed";
 }
-
-export type ChunkItem = { id: string; rowIndexes: number[] };
 
 export type ItemOutcome = {
   id: string;

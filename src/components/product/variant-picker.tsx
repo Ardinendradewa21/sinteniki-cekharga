@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  * - `compact`: satu baris, untuk kolom perbandingan yang sempit.
  * Bentuk, ukuran sentuh (44px), dan warna aktif sama di kedua mode.
  */
-export type VariantPickerOption = {
+type VariantPickerOption = {
   key: string;
   label: string;
   href: string;

@@ -35,7 +35,7 @@ export type AdminProductRow = {
   } | null;
 };
 
-export type AdminProductPage = {
+type AdminProductPage = {
   items: AdminProductRow[];
   page: number;
   pageSize: number;
@@ -104,7 +104,7 @@ export type AdminReviewRow = {
   status: "draft" | "published";
 };
 
-export type AuditRow = {
+type AuditRow = {
   id: string;
   actorEmail: string | null;
   operation: string;

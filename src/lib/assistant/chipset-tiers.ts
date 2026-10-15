@@ -13,7 +13,7 @@
  * aturan yang lebih umum, karena aturan pertama yang cocok yang dipakai.
  */
 
-export type ChipsetTier = 1 | 2 | 3 | 4 | 5;
+type ChipsetTier = 1 | 2 | 3 | 4 | 5;
 
 export const CHIPSET_TIER_LABELS: Record<ChipsetTier, string> = {
   5: "flagship",

@@ -11,9 +11,9 @@
  * otomatis melindungi barisnya dari undo.
  */
 
-export const UNDOABLE_STATUSES = ["applied", "partial"] as const;
+const UNDOABLE_STATUSES = ["applied", "partial"] as const;
 
-export type ProductRow = {
+type ProductRow = {
   id: string;
   label: string;
   status: string;
@@ -38,7 +38,7 @@ export function classifyProduct(row: ProductRow, batchId: string, appliedAt: str
   return { id: row.id, label: row.label, remove: true };
 }
 
-export type OfferRow = { id: string; createdByBatchId: string | null; updatedAt: string };
+type OfferRow = { id: string; createdByBatchId: string | null; updatedAt: string };
 
 export function offerRemovable(row: OfferRow, batchId: string, appliedAt: string): boolean {
   return row.createdByBatchId === batchId && new Date(row.updatedAt).getTime() <= new Date(appliedAt).getTime();

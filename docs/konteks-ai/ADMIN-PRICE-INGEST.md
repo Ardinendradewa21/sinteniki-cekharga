@@ -1,4 +1,6 @@
 # ADMIN-PRICE-INGEST.md
+
+> **Status (2026-10-15): arsip konteks awal.** Sebagian sudah diwujudkan dengan bentuk berbeda: impor CSV terpadu, tarik otomatis situs resmi lewat `scrape_jobs`, `raw_listings` dengan retensi 30 hari, dan antrean tinjau di Pusat Impor. Adapter Tokopedia/Blibli belum dibuat. Rujukan yang berlaku: `docs/sop/SOP-IMPOR-DATA.md` dan `CLAUDE.md`.
 # Context Engineering: Modul Admin Pengambilan Harga Marketplace (CekHarga)
 
 Dokumen ini adalah konteks kerja untuk AI coding agent (Claude Code) dalam membangun modul admin pengambilan data harga produk HP dari marketplace (Tokopedia, Blibli, Shopee). Baca dokumen ini bersama CLAUDE.md, architecture.md, PRD, dan SRS yang sudah ada. Jika ada konflik, konvensi di CLAUDE.md dan architecture.md yang berlaku, lalu catat konfliknya di bagian "Open Questions".

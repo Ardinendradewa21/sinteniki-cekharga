@@ -105,7 +105,7 @@ export type BatchSummary = {
   createdByEmail: string | null;
 };
 
-export type BatchItem = {
+type BatchItem = {
   id: string;
   position: number;
   entity: "product" | "offer" | "photo";
@@ -120,7 +120,7 @@ export type BatchItem = {
   resultMessage: string | null;
 };
 
-export type BatchDetail = BatchSummary & {
+type BatchDetail = BatchSummary & {
   options: BatchOptions;
   malformedLines: number[];
   report: ImportReport | OfferImportReport | null;
@@ -405,7 +405,7 @@ export async function getBatchSummary(id: string): Promise<BatchSummary | null> 
   return row ? toSummary(row) : null;
 }
 
-export type ProductLineage = {
+type ProductLineage = {
   lastSource: "import" | "scrape" | "manual" | null;
   createdBy: { id: string; label: string } | null;
   updatedBy: { id: string; label: string } | null;
@@ -524,8 +524,12 @@ export async function expireStaleDrafts(admin: AdminSession | null): Promise<num
     return 0;
   }
   const expired = (data ?? []) as { id: string }[];
-  if (admin) {
-    for (const row of expired) await recordAudit(admin, "impor.kedaluwarsa", "import_batch", row.id);
+  // Satu catatan audit untuk seluruh draft yang kedaluwarsa, bukan satu
+  // insert per batch (aturan system design 4).
+  if (admin && expired.length > 0) {
+    await recordAudit(admin, "impor.kedaluwarsa", "import_batch", expired.length === 1 ? expired[0]!.id : null, {
+      batch_ids: expired.map((row) => row.id),
+    });
   }
   return expired.length;
 }
@@ -630,7 +634,7 @@ export async function queuePlannedItems(
 }
 
 /** Umur batch pemeriksaan harga harian sebelum dihapus (riwayat harganya tetap ada). */
-export const SCHEDULED_BATCH_RETENTION_DAYS = 30;
+const SCHEDULED_BATCH_RETENTION_DAYS = 30;
 
 /**
  * Menghapus batch terjadwal yang sudah selesai dan berumur lebih dari

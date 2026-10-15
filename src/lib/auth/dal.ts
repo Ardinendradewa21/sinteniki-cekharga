@@ -59,7 +59,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
  * jalur di mana browser menanyakan "apakah saya admin" dan dipercaya
  * jawabannya.
  */
-export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
+const getAdminSession = cache(async (): Promise<AdminSession | null> => {
   const session = await getSession();
   if (!session) return null;
 
@@ -123,10 +123,3 @@ export async function getStaffOrNull(roles: readonly StaffRole[]): Promise<Admin
   return admin.role === "admin" || roles.includes(admin.role) ? admin : null;
 }
 
-/**
- * Versi untuk Route Handler: mengembalikan sesi atau `null`, tanpa redirect,
- * sehingga pemanggil bisa membalas 401/403 sesuai konteks API.
- */
-export async function getAdminOrNull(): Promise<AdminSession | null> {
-  return getAdminSession();
-}

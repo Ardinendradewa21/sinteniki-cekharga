@@ -85,7 +85,7 @@ type LoadedBatch = {
   created_by_email: string | null;
 };
 
-export type StepResult = {
+type StepResult = {
   /** false = batch sedang dipegang worker lain atau tidak dalam antrean. */
   claimed: boolean;
   status: BatchStatus | null;

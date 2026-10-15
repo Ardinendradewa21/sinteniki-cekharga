@@ -37,9 +37,9 @@ export type RefreshOffer = {
   sellerVerified: boolean;
 };
 
-export type RefreshSource = { marketplace: string; sellerName: string; host: string };
+type RefreshSource = { marketplace: string; sellerName: string; host: string };
 
-export type RefreshPlan = {
+type RefreshPlan = {
   rows: CsvRow[];
   matchedOfferIds: string[];
   missing: { offerId: string; reason: string }[];
@@ -50,7 +50,7 @@ export const MISSING_MODEL_REASON = "Model ini tidak lagi tercantum di situs res
 export const MISSING_VARIANT_REASON = "Varian ini tidak lagi tercantum dengan harga di situs resmi saat pemeriksaan harga harian.";
 
 /** URL disamakan bentuknya: host huruf kecil, tanpa fragmen, tanpa garis miring di akhir path. */
-export function normalizeOfferUrl(value: string): string | null {
+function normalizeOfferUrl(value: string): string | null {
   try {
     const url = new URL(value);
     url.hash = "";

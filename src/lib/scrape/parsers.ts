@@ -27,14 +27,14 @@ const ENTITIES: Record<string, string> = {
   "&#163;": "£",
 };
 
-export function decodeEntities(value: string): string {
+function decodeEntities(value: string): string {
   return value
     .replace(/&[a-z#0-9]+;/gi, (entity) => ENTITIES[entity.toLowerCase()] ?? entity)
     .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)));
 }
 
 /** Isi sel HTML menjadi teks satu baris: `<br>` jadi spasi, tag dibuang. */
-export function cellText(html: string): string {
+function cellText(html: string): string {
   return decodeEntities(
     html
       .replace(/<br\s*\/?>/gi, " ")
@@ -52,7 +52,7 @@ export type OfficialPrice = {
   priceIdr: number;
 };
 
-export type OfficialPriceReading = {
+type OfficialPriceReading = {
   prices: OfficialPrice[];
   /** Potongan teks yang tidak bisa dipasangkan dengan yakin ke satu varian. */
   issues: string[];
@@ -316,7 +316,7 @@ function validPrice(value: unknown): number | null {
 }
 
 /** "8+256G", "12+1T", "8 GB + 256 GB" -> RAM dan penyimpanan (GB). */
-export function parseMemoryPair(text: string): { ramGb: number; storageGb: number } | null {
+function parseMemoryPair(text: string): { ramGb: number; storageGb: number } | null {
   const match = text.match(/(\d{1,2})\s*(?:GB?)?\s*\+\s*(\d{1,4})\s*(TB?|GB?)?/i);
   if (!match) return null;
   const storage = Number(match[2]);
@@ -668,7 +668,7 @@ function afterLabel(html: string, label: string): string {
 }
 
 /** Refresh rate layar, bukan frekuensi PWM ("144Hz, 2160Hz PWM" -> 144). */
-export function refreshRate(displayType: string): string {
+function refreshRate(displayType: string): string {
   const values = [...displayType.matchAll(/(\d{2,3})\s*Hz(?!\s*PWM)/gi)]
     .map((match) => Number(match[1]))
     .filter((hz) => hz >= 30 && hz <= 240);
@@ -676,7 +676,7 @@ export function refreshRate(displayType: string): string {
 }
 
 /** "256GB 8GB RAM, 1TB 16GB RAM" -> "256GB/8GB; 1024GB/16GB" (format dataset). */
-export function variantsSummary(internalMemory: string): string {
+function variantsSummary(internalMemory: string): string {
   return [...internalMemory.matchAll(/(\d+)\s*(GB|TB)\s+(\d+)\s*GB\s*RAM/gi)]
     .map((match) => {
       const storage = Number(match[1]) * (match[2].toUpperCase() === "TB" ? 1024 : 1);

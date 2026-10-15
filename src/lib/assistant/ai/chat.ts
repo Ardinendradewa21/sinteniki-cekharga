@@ -18,7 +18,6 @@ import {
 } from "@/lib/assistant/ai/chat-state";
 import type { Focus } from "@/lib/assistant/dialog-policy";
 
-export type { ChatMessage, Collected };
 
 /**
  * Lapisan percakapan asisten (PRD FR-06).
@@ -56,7 +55,7 @@ const turnSchema = z.object({
   cukup: z.boolean(),
 });
 
-export type TurnOutcome =
+type TurnOutcome =
   | {
       ok: true;
       reply: string;
@@ -166,7 +165,7 @@ function buildContextNote(context: TurnContext): string {
 - kebutuhan tersimpan sebelum pesan ini: ${JSON.stringify(context.collected)}`;
 }
 
-export type TurnContext = {
+type TurnContext = {
   collected: Collected;
   focus: Focus;
   hasResult: boolean;

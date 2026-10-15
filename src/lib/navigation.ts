@@ -8,7 +8,7 @@
  * /admin sengaja tidak ada di sini: aksesnya terproteksi dan dikerjakan bersama
  * backend (PRD §11 Irisan B), bukan bagian navigasi publik.
  */
-export type NavItem = {
+type NavItem = {
   href: string;
   label: string;
   description: string;

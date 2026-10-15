@@ -51,7 +51,7 @@ function scheduleWorker() {
 
 /* ------------------------------------------------------------ tahap 1 */
 
-export type StartLineupResult = { ok: true; jobId: string } | { ok: false; error: string };
+type StartLineupResult = { ok: true; jobId: string } | { ok: false; error: string };
 
 /** Mengantrekan pengambilan daftar model satu merek. Pengambilannya di worker. */
 export async function startLineupAction(brand: string): Promise<StartLineupResult> {

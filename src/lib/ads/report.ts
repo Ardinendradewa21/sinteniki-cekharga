@@ -16,7 +16,7 @@ import { isDay, jakartaDay, shiftDay } from "@/lib/ads/dates";
  * supaya angka di layar dan di berkas yang dikirim ke advertiser selalu sama.
  */
 
-export type ReportFilter = { from: string; to: string; ioId: string | null };
+type ReportFilter = { from: string; to: string; ioId: string | null };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -32,7 +32,7 @@ export function parseReportFilter(params: Record<string, string | string[] | und
   return { from, to, ioId: io && UUID.test(io) ? io : null };
 }
 
-export type ReportRow = DailyRow & {
+type ReportRow = DailyRow & {
   advertiser: string;
   ioNumber: string;
   campaign: string;

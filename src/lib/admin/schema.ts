@@ -51,7 +51,7 @@ const optionalList = z.preprocess(
     )
 );
 
-export const productSpecsInput = z.object({
+const productSpecsInput = z.object({
   displayInches: optionalFloat,
   displayTechnology: optionalText,
   refreshRateHz: optionalInt,
@@ -118,8 +118,6 @@ export const priceInput = z.object({
     .nonnegative("Harga tidak boleh negatif")
     .max(500_000_000, "Harga di luar batas wajar, periksa lagi angkanya"),
 });
-
-export type ProductInput = z.infer<typeof productInput>;
 
 /** Membaca FormData bernama titik (mis. "specs.chipset") menjadi objek bertingkat. */
 export function formToNestedObject(formData: FormData): Record<string, unknown> {

@@ -28,13 +28,13 @@ import { SCRAPE_BRANDS, type LineupItem, type ScrapeBrand } from "@/lib/scrape/t
  * membanjiri riwayat dengan kegagalan yang bukan milik penawarannya.
  */
 
-export const SCHEDULE_ACTOR: AdminSession = {
+const SCHEDULE_ACTOR: AdminSession = {
   userId: "",
   email: "sistem: pemeriksaan harga harian",
   role: "admin",
 };
 
-export type RefreshOutcome = {
+type RefreshOutcome = {
   brand: ScrapeBrand;
   status: "already-checked" | "no-offers" | "source-error" | "blocked" | "nothing-to-update" | "queued" | "error";
   batchId?: string;

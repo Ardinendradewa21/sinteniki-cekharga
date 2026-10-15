@@ -87,7 +87,7 @@ export type PreparedItem = {
   reviewNote: string | null;
 };
 
-export type ListingImage = {
+type ListingImage = {
   productId: string;
   url: string;
   sourceUrl: string;
@@ -154,7 +154,7 @@ export async function loadOfferContext(): Promise<OfferContext | null> {
   return { catalogProducts, bySlug, byVariantKey, storeFor };
 }
 
-export type OfferPreparation = {
+type OfferPreparation = {
   items: PreparedItem[];
   skipped: { label: string; reason: string; rowIndex?: number }[];
   sourceFormats: Set<OfferSourceFormat>;

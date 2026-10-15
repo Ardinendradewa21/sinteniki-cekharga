@@ -6,7 +6,7 @@ import type { Correction, CorrectionLevel } from "@/lib/import/normalize";
  * menyimpan sebagian daftar ditambah hitungan lengkapnya.
  */
 
-export const MAX_STORED_CORRECTIONS = 300;
+const MAX_STORED_CORRECTIONS = 300;
 
 export type CorrectionSummary = Record<CorrectionLevel, number> & { total: number };
 

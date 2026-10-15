@@ -31,16 +31,16 @@ import { looksLikeUnifiedHeaders } from "@/lib/import/unified";
  * memakai katalog yang sudah dibaca pemanggil.
  */
 
-export type SourceFormat = "gsmarena-spec" | OfferSourceFormat;
-export type ImportKind = "specs" | "offers" | "photos";
+type SourceFormat = "gsmarena-spec" | OfferSourceFormat;
+type ImportKind = "specs" | "offers" | "photos";
 
-export type CanonicalProduct = {
+type CanonicalProduct = {
   candidate: ImportCandidate;
   /** Spesifikasi yang sudah lolos gerbang Zod katalog. */
   specs: ProductSpecs;
 };
 
-export type CanonicalOffer = {
+type CanonicalOffer = {
   row: OfferRow;
   origin: "manual" | "automatic";
   /** True bila judul tidak menyebut memori dan varian dasar disimpulkan. */
@@ -51,7 +51,7 @@ export type CanonicalOffer = {
   reviewNote: string | null;
 };
 
-export type CanonicalRow = {
+type CanonicalRow = {
   /** Posisi baris di berkas (0-based). */
   rowIndex: number;
   format: SourceFormat;
@@ -64,7 +64,7 @@ export type CanonicalRow = {
 
 /* ------------------------------------------------------- deteksi berkas */
 
-export type FileDetection =
+type FileDetection =
   | { kind: ImportKind; format: SourceFormat | "mixed-offers" | "photo-gallery" }
   /** Templat terpadu (unified.ts): spesifikasi dan penawaran dalam satu berkas. */
   | { kind: "unified"; format: "unified" }

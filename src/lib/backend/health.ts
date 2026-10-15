@@ -34,7 +34,7 @@ const REQUIRED_CATALOG_TABLES = [
 
 const PROBE_TIMEOUT_MS = 5000;
 
-export type BackendHealth =
+type BackendHealth =
   | { status: "not-configured" }
   | { status: "unreachable"; reason: string }
   | {

@@ -85,7 +85,7 @@ export const offerRowSchema = z.object({
 
 export type OfferRow = z.infer<typeof offerRowSchema>;
 
-export type OfferOutcome =
+type OfferOutcome =
   | { ok: true; row: OfferRow }
   | { ok: false; label: string; reason: string };
 
@@ -103,7 +103,7 @@ export type OfferCatalogProduct = {
 
 export type OfferSourceFormat = "template" | "shopee-scrape" | "erafone-scrape";
 
-export type PreparedOfferOutcome =
+type PreparedOfferOutcome =
   | {
       ok: true;
       row: OfferRow;
@@ -157,7 +157,7 @@ export function readTemplateListingImage(row: CsvRow): { image: ListingImageRef 
 }
 
 /** Kolom warna listing: `color` atau `warna`. */
-export function readRowColor(row: CsvRow): string | null {
+function readRowColor(row: CsvRow): string | null {
   return normalizeColorName(valueFrom(row, ["color", "warna"]));
 }
 
@@ -185,7 +185,7 @@ function hostMatches(hostname: string, domain: string): boolean {
  * Shopee (?extraParams=…) dibuang supaya satu listing tidak tercatat dua kali.
  * URL yang tidak terbaca diteruskan apa adanya; validasi skema menolaknya.
  */
-export function checkTemplateListingUrl(rawUrl: string, marketplace: string): { url: string } | { error: string } {
+function checkTemplateListingUrl(rawUrl: string, marketplace: string): { url: string } | { error: string } {
   let url: URL;
   try {
     url = new URL(rawUrl.trim());
@@ -715,7 +715,7 @@ export function prepareOfferRow(
  * harga. Harga coret, persen diskon, rating, dan label promo sengaja diabaikan:
  * yang dicatat hanya harga jual yang tampil.
  */
-export type ErafoneListing = {
+type ErafoneListing = {
   url: string;
   imageUrl: string | null;
   /** Judul apa adanya, termasuk warna; dipakai sebagai label laporan. */

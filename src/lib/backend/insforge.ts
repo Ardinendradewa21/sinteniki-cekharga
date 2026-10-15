@@ -39,7 +39,7 @@ const envSchema = z.object({
     .describe("Kunci admin project. Setara service-role, server-only."),
 });
 
-export type InsforgeAdminClient = ReturnType<typeof createAdminClient>;
+type InsforgeAdminClient = ReturnType<typeof createAdminClient>;
 
 let cachedClient: InsforgeAdminClient | null = null;
 
@@ -85,7 +85,7 @@ const publicEnvSchema = z.object({
   INSFORGE_ANON_KEY: z.string().min(1),
 });
 
-export type InsforgePublicClient = ReturnType<typeof createClient>;
+type InsforgePublicClient = ReturnType<typeof createClient>;
 
 let cachedPublicClient: InsforgePublicClient | null = null;
 

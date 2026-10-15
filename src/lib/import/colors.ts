@@ -9,9 +9,9 @@
  * Modul murni.
  */
 
-export const MAX_COLOR_LENGTH = 60;
+const MAX_COLOR_LENGTH = 60;
 /** Batas warna per penawaran, sama dengan CHECK di database. */
-export const MAX_OFFER_COLORS = 24;
+const MAX_OFFER_COLORS = 24;
 
 /** Nama warna rapi, atau null bila kosong, "-", atau terlalu panjang untuk nama warna. */
 export function normalizeColorName(value: string | null | undefined): string | null {

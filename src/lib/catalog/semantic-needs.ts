@@ -1,9 +1,9 @@
 import type { ReviewSummary } from "@/lib/catalog/schema";
 
-export type ReviewTopic = "foto-malam" | "game" | "daya-tahan-baterai";
-export type RequiredFeature = "nfc" | "5g";
+type ReviewTopic = "foto-malam" | "game" | "daya-tahan-baterai";
+type RequiredFeature = "nfc" | "5g";
 
-export type SemanticNeeds = {
+type SemanticNeeds = {
   maxPriceIdr: number | null;
   maxPriceExclusive: boolean;
   minRamGb: number | null;

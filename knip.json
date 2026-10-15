@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "scripts/*.{ts,mjs}",
+    "scripts/qa/*.mjs",
+    "scripts/tests/**/*.test.ts",
+    "e2e/**/*.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/**/*.{ts,mjs}",
+    "e2e/**/*.ts"
+  ],
+  "ignore": [
+    "src/components/ui/**"
+  ],
+  "ignoreDependencies": [
+    "postcss",
+    "tailwindcss",
+    "tw-animate-css",
+    "shadcn"
+  ]
+}

@@ -38,7 +38,7 @@ const MAX_REMOVED_RATIO = 0.94;
 /** Tepi objek yang nyaris putih dibuat semi-transparan agar tidak ada halo. */
 const EDGE_FLOOR = 200;
 
-export type MatteResult = {
+type MatteResult = {
   /** false = gambar tidak diubah; alasannya ada di `reason`. */
   applied: boolean;
   reason: "matted" | "border-not-plain" | "subject-lost" | "no-background";

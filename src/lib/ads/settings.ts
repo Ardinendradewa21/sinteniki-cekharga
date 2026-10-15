@@ -11,7 +11,7 @@ import { getDataSourceMode } from "@/lib/config";
  * dan banner persetujuan tidak dimuat sama sekali.
  */
 
-export type AdSettings = {
+type AdSettings = {
   adsenseClient: string | null;
   salesEmail: string | null;
   salesWhatsapp: string | null;

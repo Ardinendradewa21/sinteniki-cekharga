@@ -11,7 +11,7 @@
  * Modul murni.
  */
 
-export type ColorPhoto = {
+type ColorPhoto = {
   src: string;
   alt: string;
   source: string;
@@ -36,7 +36,7 @@ export type ProductColorOption = {
   offerCount: number;
 };
 
-export function colorUrlKey(name: string): string {
+function colorUrlKey(name: string): string {
   return name
     .normalize("NFKD")
     .replace(/[^a-zA-Z0-9]+/g, "-")

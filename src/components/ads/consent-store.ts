@@ -4,7 +4,7 @@
  * memakai cookie dan tidak bergantung pada persetujuan ini.
  */
 
-export type AdConsent = "all" | "essential";
+type AdConsent = "all" | "essential";
 
 const COOKIE = "ck_ads_consent";
 const EVENT = "ck-ads-consent";

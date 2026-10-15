@@ -28,7 +28,7 @@ export const SORT_OPTIONS = [
   "checked",
 ] as const;
 
-export type SortOption = (typeof SORT_OPTIONS)[number];
+type SortOption = (typeof SORT_OPTIONS)[number];
 
 export const SORT_LABELS: Record<SortOption, string> = {
   // "Relevansi pencarian bukan skor kualitas produk" (PRD FR-02), jadi labelnya
@@ -174,14 +174,3 @@ export function buildCatalogHref(
   return search ? `/products?${search}` : "/products";
 }
 
-/** Query kosong, untuk tombol reset. */
-export const EMPTY_CATALOG_QUERY: CatalogQuery = {
-  query: "",
-  brands: [],
-  ram: [],
-  storage: [],
-  minPrice: null,
-  maxPrice: null,
-  sort: "relevance",
-  page: 1,
-};

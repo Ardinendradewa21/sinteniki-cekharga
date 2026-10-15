@@ -13,11 +13,10 @@ import { z } from "zod";
  * yang sama.
  */
 
-export const publicationStatusSchema = z.enum(["draft", "published"]);
-export type PublicationStatus = z.infer<typeof publicationStatusSchema>;
+const publicationStatusSchema = z.enum(["draft", "published"]);
 
 /** Asal informasi, supaya kesalahan bisa ditelusuri (PRD §10). */
-export const provenanceSchema = z.object({
+const provenanceSchema = z.object({
   /** Nama sumber, mis. "GSMArena" atau "Fixture demo". */
   source: z.string().min(1),
   /** URL sumber bila ada dan boleh ditampilkan. */
@@ -25,9 +24,8 @@ export const provenanceSchema = z.object({
   /** Kapan data diambil dari sumber. */
   retrievedAt: z.iso.datetime(),
 });
-export type Provenance = z.infer<typeof provenanceSchema>;
 
-export const priceIdrSchema = z
+const priceIdrSchema = z
   .int()
   .nonnegative()
   .describe("Harga dalam Rupiah, integer non-negatif");
@@ -91,7 +89,7 @@ export const variantSchema = z.object({
 });
 export type Variant = z.infer<typeof variantSchema>;
 
-export const productAssetSchema = z.object({
+const productAssetSchema = z.object({
   id: z.string().min(1),
   productId: z.string().min(1),
   variantId: z.string().min(1).nullable(),
@@ -111,7 +109,6 @@ export const productAssetSchema = z.object({
   sortOrder: z.int().nonnegative().optional(),
   isCover: z.boolean().optional(),
 });
-export type ProductAsset = z.infer<typeof productAssetSchema>;
 
 export const productSchema = z.object({
   id: z.string().min(1),
@@ -172,21 +169,19 @@ export const offerSchema = z.object({
 });
 export type Offer = z.infer<typeof offerSchema>;
 
-export const storeSchema = z.object({
+const storeSchema = z.object({
   id: z.string().min(1),
   slug: z.string().min(1),
   name: z.string().min(1),
   /** official = situs resmi merek; marketplace = banyak penjual; retailer = satu penjual. */
   kind: z.enum(["official", "marketplace", "retailer"]),
 });
-export type Store = z.infer<typeof storeSchema>;
 
 /** Slug lama yang diganti; URL lama diarahkan permanen ke produknya. */
-export const slugRedirectSchema = z.object({
+const slugRedirectSchema = z.object({
   oldSlug: z.string().min(1),
   productId: z.string().min(1),
 });
-export type SlugRedirect = z.infer<typeof slugRedirectSchema>;
 
 export const priceObservationSchema = z.object({
   id: z.string().min(1),
