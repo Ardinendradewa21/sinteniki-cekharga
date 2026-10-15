@@ -7,6 +7,7 @@ import { requireStaff } from "@/lib/auth/dal";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { invalidateCatalogCache } from "@/lib/backend/catalog-repository";
 import { recordAudit } from "@/lib/admin/audit";
+import { loadPublishBlockers } from "@/lib/admin/publish-gate";
 import {
   formToNestedObject,
   offerInput,
@@ -194,18 +195,17 @@ export async function setProductStatusAction(formData: FormData): Promise<void> 
 
   const db = getInsforgeAdminClient().database;
 
-  // Menerbitkan produk tanpa varian akan menghasilkan halaman publik yang tidak
-  // bisa menampilkan harga sama sekali, karena harga selalu terikat varian
-  // (PRD §7). Lebih baik ditolak di sini daripada terbit setengah jadi.
+  // Gerbang terbit (PB-15): produk tanpa varian atau tanpa penawaran aktif
+  // menghasilkan halaman publik tanpa harga dan tanpa tempat membeli. Lebih
+  // baik ditolak di sini daripada terbit setengah jadi.
   if (status === "published") {
-    const { data } = await db
-      .from("variants")
-      .select("id")
-      .eq("product_id", productId)
-      .limit(1);
-    if ((data ?? []).length === 0) {
-      redirect(`/admin/products/${productId}?galat=tanpa-varian`);
+    let blocker: string | undefined;
+    try {
+      blocker = (await loadPublishBlockers([productId])).get(productId);
+    } catch {
+      redirect(`/admin/products/${productId}?galat=status`);
     }
+    if (blocker) redirect(`/admin/products/${productId}?galat=${blocker}`);
   }
 
   const { error } = await db.from("products").update({ status }).eq("id", productId);
@@ -262,39 +262,23 @@ export async function setProductsStatusBulkAction(formData: FormData): Promise<v
     redirect(adminProductsResultHref(formData, { galat: "pilihan-status" }));
   }
 
-  // Aturan yang sama dengan penerbitan satu produk: setiap produk wajib punya
-  // sedikitnya satu varian. Seluruh operasi dibatalkan bila ada yang belum
-  // memenuhi syarat, supaya hasil bulk update tidak setengah berhasil.
+  // Aturan yang sama dengan penerbitan satu produk (PB-15). Seluruh operasi
+  // dibatalkan bila ada yang belum memenuhi syarat, supaya hasil bulk update
+  // tidak setengah berhasil.
   if (status === "published") {
-    const variants = await db
-      .from("variants")
-      .select("product_id")
-      .in(
-        "product_id",
-        rows.map((row) => row.id)
-      )
-      .limit(1000);
-
-    if (variants.error) {
+    let blockers: Map<string, string>;
+    try {
+      blockers = await loadPublishBlockers(rows.map((row) => row.id));
+    } catch {
       redirect(adminProductsResultHref(formData, { galat: "status-banyak" }));
     }
-
-    const productIdsWithVariants = new Set(
-      ((variants.data ?? []) as { product_id: string }[]).map(
-        (variant) => variant.product_id
-      )
-    );
-    const withoutVariants = rows.filter(
-      (row) => !productIdsWithVariants.has(row.id)
-    );
-
-    if (withoutVariants.length > 0) {
-      redirect(
-        adminProductsResultHref(formData, {
-          galat: "tanpa-varian-banyak",
-          jumlah: withoutVariants.length,
-        })
-      );
+    const noVariant = [...blockers.values()].filter((reason) => reason === "tanpa-varian").length;
+    const noOffer = [...blockers.values()].filter((reason) => reason === "tanpa-penawaran").length;
+    if (noVariant > 0) {
+      redirect(adminProductsResultHref(formData, { galat: "tanpa-varian-banyak", jumlah: noVariant }));
+    }
+    if (noOffer > 0) {
+      redirect(adminProductsResultHref(formData, { galat: "tanpa-penawaran-banyak", jumlah: noOffer }));
     }
   }
 

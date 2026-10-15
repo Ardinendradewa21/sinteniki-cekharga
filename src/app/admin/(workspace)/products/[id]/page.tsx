@@ -39,6 +39,8 @@ export const dynamic = "force-dynamic";
 const GALAT: Record<string, string> = {
   "tanpa-varian":
     "Produk belum bisa diterbitkan karena belum punya varian. Harga selalu terikat varian.",
+  "tanpa-penawaran":
+    "Produk belum bisa diterbitkan karena belum punya penawaran aktif. Tambahkan minimal satu penawaran berstatus aktif supaya pembeli punya harga dan tempat membeli.",
   konfirmasi: "Penghapusan dibatalkan karena slug yang diketik tidak cocok.",
   status: "Gagal mengubah status produk.",
   "alasan-kosong": "Pemeriksaan gagal harus disertai alasan, supaya riwayatnya bisa dibaca ulang.",

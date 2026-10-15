@@ -144,3 +144,24 @@ test("SEO: 'Terbaru' dan 'Mulai' hanya dengan harga segar; bulan dari pemeriksaa
   assert.equal(monthLabel("2026-12-31T18:00:00.000Z"), "Jan 2027");
   assert.ok(!serializeJsonLd({ name: "</script><script>" }).includes("<"));
 });
+
+import { publishBlockers } from "@/lib/admin/publish-rules";
+
+test("gerbang terbit (PB-15): wajib varian dan minimal satu penawaran aktif", () => {
+  const blockers = publishBlockers(
+    ["tanpa-varian", "tanpa-aktif", "siap"],
+    [
+      { id: "v1", product_id: "tanpa-aktif" },
+      { id: "v2", product_id: "siap" },
+      { id: "v3", product_id: "siap" },
+    ],
+    [
+      { variant_id: "v1", listing_status: "out-of-stock" },
+      { variant_id: "v1", listing_status: "inactive" },
+      { variant_id: "v3", listing_status: "active" },
+    ]
+  );
+  assert.equal(blockers.get("tanpa-varian"), "tanpa-varian");
+  assert.equal(blockers.get("tanpa-aktif"), "tanpa-penawaran");
+  assert.equal(blockers.has("siap"), false);
+});

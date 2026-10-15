@@ -131,9 +131,11 @@ export default async function AdminProductsPage({
               ? "Pilih sedikitnya satu produk untuk diubah statusnya."
               : errorCode === "tanpa-varian-banyak"
                 ? `${changedCount} produk terpilih belum memiliki varian. Tidak ada status yang diubah.`
-                : errorCode === "status-banyak"
-                  ? "Status produk terpilih gagal diubah. Tidak ada perubahan yang dilakukan."
-                  : "Produk terpilih gagal dihapus. Tidak ada perubahan yang dilakukan."}
+                : errorCode === "tanpa-penawaran-banyak"
+                  ? `${changedCount} produk terpilih belum punya penawaran aktif. Tidak ada status yang diubah.`
+                  : errorCode === "status-banyak"
+                    ? "Status produk terpilih gagal diubah. Tidak ada perubahan yang dilakukan."
+                    : "Produk terpilih gagal dihapus. Tidak ada perubahan yang dilakukan."}
         </p>
       ) : null}
 
