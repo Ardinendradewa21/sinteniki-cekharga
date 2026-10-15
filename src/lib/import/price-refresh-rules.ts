@@ -202,3 +202,52 @@ export function refreshKeyFor(brand: string, at: Date): string {
   const wib = new Date(at.getTime() + 7 * 3_600_000).toISOString().slice(0, 10);
   return `${brand}:${wib}`;
 }
+
+/* ------------------------------------------- peringatan pemeriksaan harian */
+
+/** Status hasil pemeriksaan per merek yang disimpan di `price_refresh_runs`. */
+export type RefreshRunStatus = "queued" | "nothing-to-update" | "no-offers" | "source-error" | "blocked" | "error";
+
+export type RefreshRun = { brand: string; runDate: string; status: RefreshRunStatus; message: string | null };
+
+export type RefreshAlert =
+  | { kind: "belum-jalan"; runDate: string }
+  | { kind: "gagal"; brand: string; status: "source-error" | "blocked" | "error"; message: string | null }
+  | { kind: "lama-tidak-berhasil"; brand: string; lastSuccess: string | null };
+
+const SUCCESS: ReadonlySet<RefreshRunStatus> = new Set(["queued", "nothing-to-update"]);
+const FAILURE: ReadonlySet<RefreshRunStatus> = new Set(["source-error", "blocked", "error"]);
+/** Cron Hobby berjalan antara 06.00 dan 06.59 WIB; setelah 09.00 WIB dianggap terlambat. */
+const LATE_HOUR_WIB = 9;
+/** Merek yang belum berhasil diperiksa selama ini dianggap bermasalah. */
+const STALE_DAYS = 2;
+
+function wibDate(at: Date, offsetDays = 0): string {
+  return new Date(at.getTime() + 7 * 3_600_000 + offsetDays * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * Peringatan untuk dasbor admin (PB-05). Merek tanpa penawaran resmi
+ * (`no-offers`) tidak diperingatkan karena memang tidak ada yang diperiksa.
+ */
+export function refreshAlerts(runs: readonly RefreshRun[], now: Date): RefreshAlert[] {
+  const today = wibDate(now);
+  const alerts: RefreshAlert[] = [];
+  const todayRuns = runs.filter((run) => run.runDate === today);
+  const hourWib = new Date(now.getTime() + 7 * 3_600_000).getUTCHours();
+  if (todayRuns.length === 0 && hourWib >= LATE_HOUR_WIB) alerts.push({ kind: "belum-jalan", runDate: today });
+
+  const brands = [...new Set(runs.filter((run) => run.status !== "no-offers").map((run) => run.brand))].sort();
+  const staleBefore = wibDate(now, -STALE_DAYS);
+  for (const brand of brands) {
+    const own = runs.filter((run) => run.brand === brand).sort((a, b) => b.runDate.localeCompare(a.runDate));
+    const latest = own[0]!;
+    if (latest.runDate === today && FAILURE.has(latest.status)) {
+      alerts.push({ kind: "gagal", brand, status: latest.status as "source-error" | "blocked" | "error", message: latest.message });
+      continue;
+    }
+    const lastSuccess = own.find((run) => SUCCESS.has(run.status))?.runDate ?? null;
+    if (lastSuccess === null || lastSuccess < staleBefore) alerts.push({ kind: "lama-tidak-berhasil", brand, lastSuccess });
+  }
+  return alerts;
+}

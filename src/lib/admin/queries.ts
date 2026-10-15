@@ -4,6 +4,7 @@ import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectWhereIn } from "@/lib/backend/paged-read";
 import { requireStaff } from "@/lib/auth/dal";
 import { isFresh } from "@/lib/catalog/pricing";
+import type { RefreshRun } from "@/lib/import/price-refresh-rules";
 
 /**
  * Pembacaan data untuk antarmuka admin.
@@ -683,6 +684,28 @@ export async function listRecentAudit(limit = 20): Promise<AuditRow[]> {
     objectType: String(r.object_type),
     objectId: (r.object_id as string | null) ?? null,
     createdAt: String(r.created_at),
+  }));
+}
+
+/**
+ * Hasil pemeriksaan harga harian beberapa hari terakhir (PB-05), bahan
+ * peringatan dasbor. 14 hari x 9 merek = paling banyak 126 baris.
+ */
+export async function listRecentRefreshRuns(now: Date, days = 14): Promise<RefreshRun[]> {
+  await requireStaff([]);
+  const since = new Date(now.getTime() + 7 * 3_600_000 - days * 86_400_000).toISOString().slice(0, 10);
+  const { data, error } = await getInsforgeAdminClient()
+    .database.from("price_refresh_runs")
+    .select("brand, run_date, status, message")
+    .gte("run_date", since)
+    .order("run_date", { ascending: false })
+    .limit(500);
+  if (error) throw new Error("Gagal membaca hasil pemeriksaan harga harian.");
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    brand: String(r.brand),
+    runDate: String(r.run_date),
+    status: r.status as RefreshRun["status"],
+    message: (r.message as string | null) ?? null,
   }));
 }
 

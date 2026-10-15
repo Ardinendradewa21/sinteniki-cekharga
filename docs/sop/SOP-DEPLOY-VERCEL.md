@@ -65,7 +65,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 4. Pantau build di Vercel → Deployments. Build gagal berarti production tetap memakai versi sebelumnya.
 5. Migrasi database tidak ikut deploy. Jalankan sebelum push bila rilis membawa migrasi baru:
    ```
-   npx -y @insforge/cli db migrations up <file>
+   npx -y @insforge/cli db migrations up <nama-file.sql>   # nama file saja, tanpa folder migrations/
    ```
 
 ## 5. Setelah deploy pertama

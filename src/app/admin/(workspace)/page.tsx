@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AdminDataHealth } from "@/components/admin/data-health";
 import { AdminDashboardCharts } from "@/components/admin/dashboard-charts";
 import { ImportQualityPanel } from "@/components/admin/import-quality";
+import { PriceRefreshAlerts } from "@/components/admin/price-refresh-alerts";
 import { Container } from "@/components/layout/container";
 import { Reveal, StaggerItem, StaggerList } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,13 @@ import {
   getImportQuality,
   listAdminProducts,
   listRecentAudit,
+  listRecentRefreshRuns,
 } from "@/lib/admin/queries";
 import { requireAdmin } from "@/lib/auth/dal";
 import { checkBackendHealth } from "@/lib/backend/health";
 import { getDataSourceMode, PRICING_POLICY } from "@/lib/config";
 import { listBatches } from "@/lib/import/batches";
+import { refreshAlerts } from "@/lib/import/price-refresh-rules";
 
 export const metadata: Metadata = {
   title: "Dashboard Admin",
@@ -59,6 +62,8 @@ export default async function AdminPage(props: PageProps<"/admin">) {
   }
   const now = new Date();
   const importQualityPromise = getImportQuality(now).catch(() => null);
+  // Peringatan pemeriksaan harga harian (PB-05); gagal dibaca tidak menjatuhkan dasbor.
+  const refreshRunsPromise = listRecentRefreshRuns(now).catch(() => null);
   const [health, products, audit, imports] = await Promise.all([
     checkBackendHealth(),
     listAdminProducts(now),
@@ -67,6 +72,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
   ]);
   // Panel kualitas impor bersifat pelengkap: gagal dibaca tidak menjatuhkan dasbor.
   const importQuality = await importQualityPromise;
+  const refreshRuns = await refreshRunsPromise;
   const draftCount = products.filter((product) => product.status === "draft").length;
   const publishedCount = products.filter((product) => product.status === "published").length;
   const productsWithOffers = products.filter((product) => product.offerCount > 0).length;
@@ -133,6 +139,8 @@ export default async function AdminPage(props: PageProps<"/admin">) {
           Backend belum siap untuk mode live. Periksa konfigurasi dan skema database sebelum mengubah data.
         </p>
       ) : null}
+
+      {refreshRuns ? <PriceRefreshAlerts alerts={refreshAlerts(refreshRuns, now)} /> : null}
 
       <Reveal>
         <AdminDataHealth

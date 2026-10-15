@@ -1023,3 +1023,34 @@ test("galeri: merek tidak digandakan bila model sudah memuat merek; link foto Sa
   assert.equal(plan[0]!.photo?.url, "https://images.samsung.com/is/image/samsung/p6pim/id/a-1");
   assert.equal(safeHttpsImageUrl("https://images.samsung.com/a?$650_519_PNG$")?.href, "https://images.samsung.com/a");
 });
+
+import { refreshAlerts, type RefreshRun } from "@/lib/import/price-refresh-rules";
+
+test("PB-05 peringatan pemeriksaan harian: belum jalan, gagal hari ini, dan lama tidak berhasil", () => {
+  // 16 Okt 2026 10.00 WIB
+  const now = new Date("2026-10-16T03:00:00Z");
+  const run = (brand: string, runDate: string, status: RefreshRun["status"], message: string | null = null): RefreshRun => ({
+    brand,
+    runDate,
+    status,
+    message,
+  });
+  const alerts = refreshAlerts(
+    [
+      run("vivo", "2026-10-16", "queued"),
+      run("oppo", "2026-10-16", "blocked", "Turnstile"),
+      run("samsung", "2026-10-16", "nothing-to-update"),
+      run("xiaomi", "2026-10-13", "queued"),
+      run("xiaomi", "2026-10-16", "no-offers"),
+      run("itel", "2026-10-16", "no-offers"),
+    ],
+    now
+  );
+  assert.deepEqual(alerts, [
+    { kind: "gagal", brand: "oppo", status: "blocked", message: "Turnstile" },
+    { kind: "lama-tidak-berhasil", brand: "xiaomi", lastSuccess: "2026-10-13" },
+  ]);
+
+  assert.deepEqual(refreshAlerts([], now), [{ kind: "belum-jalan", runDate: "2026-10-16" }]);
+  assert.deepEqual(refreshAlerts([], new Date("2026-10-15T23:30:00Z")), [], "06.30 WIB: cron mungkin belum dipanggil");
+});

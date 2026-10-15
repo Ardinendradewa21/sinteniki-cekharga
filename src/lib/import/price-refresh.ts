@@ -203,5 +203,36 @@ export async function runPriceRefresh(now = new Date(), brands: readonly ScrapeB
       outcomes.push({ brand, status: "error", message: error instanceof Error ? error.message : String(error) });
     }
   }
+  await recordRuns(outcomes, now);
   return outcomes;
+}
+
+/** Catatan hasil pemeriksaan disimpan 90 hari; cukup untuk melihat pola gangguan. */
+const RUN_RETENTION_DAYS = 90;
+
+/**
+ * Menyimpan hasil per merek ke `price_refresh_runs` untuk peringatan dasbor
+ * (PB-05). Satu baris per merek per tanggal WIB; pemanggilan ulang memperbarui
+ * baris yang sama. "already-checked" tidak disimpan karena tidak mengubah
+ * apa pun. Gagal mencatat tidak membatalkan pemeriksaan yang sudah berjalan.
+ */
+async function recordRuns(outcomes: readonly RefreshOutcome[], now: Date): Promise<void> {
+  const rows = outcomes
+    .filter((outcome) => outcome.status !== "already-checked")
+    .map((outcome) => ({
+      brand: outcome.brand,
+      run_date: refreshKeyFor(outcome.brand, now).split(":")[1],
+      status: outcome.status,
+      message: outcome.message ? outcome.message.slice(0, 300) : null,
+      batch_id: outcome.batchId ?? null,
+      updated_count: outcome.updated ?? 0,
+      missing_count: outcome.missing ?? 0,
+      ambiguous_count: outcome.ambiguous ?? 0,
+    }));
+  if (rows.length === 0) return;
+  const { error } = await db().from("price_refresh_runs").upsert(rows, { onConflict: "brand,run_date" });
+  if (error) console.error("[harga-harian] hasil pemeriksaan gagal dicatat:", error);
+  const cutoff = new Date(now.getTime() - RUN_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const purge = await db().from("price_refresh_runs").delete().lt("run_date", cutoff);
+  if (purge.error) console.error("[harga-harian] catatan lama gagal dihapus:", purge.error);
 }
