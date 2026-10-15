@@ -81,6 +81,9 @@ export const PRIORITY_LABELS: Record<(typeof PRIORITIES)[number], string> = {
   layar: "Layar besar dan mulus",
 };
 
+/** Prioritas berperingkat paling banyak tiga. */
+export const MAX_PRIORITIES = 3;
+
 /** Batas panjang dan jumlah nama merek dari pengguna (masukan bebas). */
 const BRAND_MAX_CHARS = 30;
 const BRAND_MAX_COUNT = 8;
@@ -162,7 +165,11 @@ const needsSchema = z.object({
     .nullable()
     .catch(null)
     .transform((value) => value === "ya"),
-  priority: z.enum(PRIORITIES).nullable().catch(null),
+  /**
+   * Prioritas berperingkat, paling penting dulu, paling banyak 3 (rancangan
+   * Tanya AI §3.3). URL menulisnya sebagai `prioritas` berulang sesuai urutan.
+   */
+  priorities: knownValues(PRIORITIES).transform((values) => values.slice(0, MAX_PRIORITIES)),
   brands: brandList,
   brandsOnly: z
     .enum(["ya"])
@@ -172,22 +179,26 @@ const needsSchema = z.object({
   avoidBrands: brandList,
 });
 
-export type UserNeeds = z.infer<typeof needsSchema>;
+export type UserNeeds = z.infer<typeof needsSchema> & {
+  /** Prioritas pertama; dipakai jalur formulir yang menanyakan satu prioritas. */
+  priority: (typeof PRIORITIES)[number] | null;
+};
 
 export function parseNeeds(
   raw: Record<string, string | string[] | undefined>
 ): UserNeeds {
-  return needsSchema.parse({
+  const parsed = needsSchema.parse({
     budgetIdr: toList(raw[NEEDS_PARAM.budget])[0],
     budgetIsHard: toList(raw[NEEDS_PARAM.budgetIsHard])[0],
     activities: toList(raw[NEEDS_PARAM.activities]),
     requirements: toList(raw[NEEDS_PARAM.requirements]),
     requirementsAnswered: toList(raw[NEEDS_PARAM.requirementsAnswered])[0],
-    priority: toList(raw[NEEDS_PARAM.priority])[0],
+    priorities: toList(raw[NEEDS_PARAM.priority]),
     brands: toList(raw[NEEDS_PARAM.brands]),
     brandsOnly: toList(raw[NEEDS_PARAM.brandsOnly])[0],
     avoidBrands: toList(raw[NEEDS_PARAM.avoidBrands]),
   });
+  return { ...parsed, priority: parsed.priorities[0] ?? null };
 }
 
 /**
@@ -223,6 +234,10 @@ export function buildNeedsHref(
   overrides: Partial<UserNeeds> = {}
 ): string {
   const next = { ...needs, ...overrides };
+  // Jalur formulir mengganti satu prioritas; daftar berperingkat mengikutinya.
+  if ("priority" in overrides && !("priorities" in overrides)) {
+    next.priorities = overrides.priority ? [overrides.priority] : [];
+  }
   // Selalu jalur formulir: tautan ini dipakai untuk berbagi hasil dan untuk
   // berpindah dari chat ke formulir, jadi harus membuka tampilan yang sama
   // walau mode percakapan sedang aktif.
@@ -246,8 +261,8 @@ export function buildNeedsHref(
   if (next.requirementsAnswered) {
     parts.push(`${NEEDS_PARAM.requirementsAnswered}=ya`);
   }
-  if (next.priority !== null) {
-    parts.push(`${NEEDS_PARAM.priority}=${next.priority}`);
+  for (const priority of next.priorities) {
+    parts.push(`${NEEDS_PARAM.priority}=${priority}`);
   }
   for (const brand of next.brands) parts.push(`${NEEDS_PARAM.brands}=${enc(brand)}`);
   if (next.brandsOnly && next.brands.length > 0) parts.push(`${NEEDS_PARAM.brandsOnly}=ya`);

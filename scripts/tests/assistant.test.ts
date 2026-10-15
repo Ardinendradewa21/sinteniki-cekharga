@@ -102,17 +102,19 @@ function catalog(items: Spec[]): CatalogDataset {
 }
 
 function needs(overrides: Partial<UserNeeds> = {}): UserNeeds {
+  const priority = overrides.priority ?? overrides.priorities?.[0] ?? null;
   return {
+    priorities: priority ? [priority] : [],
     budgetIdr: null,
     budgetIsHard: null,
     activities: [],
     requirements: [],
     requirementsAnswered: true,
-    priority: null,
     brands: [],
     brandsOnly: false,
     avoidBrands: [],
     ...overrides,
+    priority,
   };
 }
 
@@ -291,4 +293,85 @@ test("kuota AI: penolakan menyarankan form, dan batas retry tetap terbatas", () 
   }
   assert.ok(AI_LIMITS.maxRetries >= 1 && AI_LIMITS.maxRetries <= 2);
   assert.ok(AI_LIMITS.dailyPerClient < AI_LIMITS.dailyGlobal);
+});
+
+import { mergeHints, readBudget, readHints } from "@/lib/assistant/hints";
+import { nextFocus, refinementSuggestions, shouldSearch } from "@/lib/assistant/dialog-policy";
+import { EMPTY_COLLECTED, type Collected } from "@/lib/assistant/ai/chat-state";
+
+test("kamus sinonim: bahasa sehari-hari menjadi kebutuhan, penyangkalan diabaikan", () => {
+  const ojol = readHints("buat ojol, budget 2jtan");
+  assert.deepEqual(ojol.activities.sort(), ["baterai", "sosial-media"]);
+  assert.deepEqual(ojol.priorities, ["baterai"]);
+  assert.equal(ojol.budgetIdr, 2_000_000);
+  assert.equal(ojol.budgetIsHard, false);
+
+  const genshin = readHints("gue mau main genshin rata kanan, maksimal 8 juta");
+  assert.ok(genshin.activities.includes("game"));
+  assert.deepEqual(genshin.priorities, ["performa"]);
+  assert.equal(genshin.budgetIdr, 8_000_000);
+  assert.equal(genshin.budgetIsHard, true);
+
+  assert.deepEqual(readHints("ga main game, cuma wa").activities, ["sosial-media"]);
+  assert.deepEqual(readHints("ada nfc lebih bagus").requirements, [], "tanpa kata keharusan bukan syarat wajib");
+  assert.deepEqual(readHints("pokoknya harus ada NFC").requirements, ["nfc"]);
+  assert.deepEqual(readHints("tanpa nfc juga gpp").requirements, []);
+});
+
+test("kamus sinonim: bentuk budget", () => {
+  assert.equal(readBudget("1,5 jt")?.budgetIdr, 1_500_000);
+  assert.equal(readBudget("Rp3.500.000")?.budgetIdr, 3_500_000);
+  assert.equal(readBudget("dua setengah juta")?.budgetIdr, 2_500_000);
+  assert.deepEqual(readBudget("2-3 juta"), { budgetIdr: 3_000_000, isRange: true });
+  assert.equal(readBudget("800rb")?.budgetIdr, 800_000);
+  assert.equal(readBudget("main game 120 fps"), null);
+});
+
+test("kamus sinonim hanya menambah, tidak menimpa hasil model", () => {
+  const model: Collected = { ...EMPTY_COLLECTED, budgetIdr: 4_000_000, priorities: ["kamera"] };
+  const merged = mergeHints(model, readHints("budget 3jt, baterai awet"));
+  assert.equal(merged.budgetIdr, 4_000_000, "budget dari model tetap");
+  assert.deepEqual(merged.priorities, ["kamera", "baterai"]);
+});
+
+test("kebijakan dialog: hasil paling lambat setelah dua pertanyaan", () => {
+  const empty = EMPTY_COLLECTED;
+  const withBudget: Collected = { ...empty, budgetIdr: 3_000_000 };
+  const ready: Collected = { ...withBudget, activities: ["game"] };
+
+  assert.equal(nextFocus(empty, false), "budget");
+  assert.equal(nextFocus(withBudget, false), "kegunaan");
+  assert.equal(nextFocus(ready, false), "prioritas");
+  assert.equal(nextFocus(ready, true), "penyempurnaan");
+
+  assert.equal(shouldSearch(withBudget, { userTurns: 1, modelEnough: false, hasResult: false }), false);
+  assert.equal(shouldSearch(ready, { userTurns: 1, modelEnough: false, hasResult: false }), true);
+  assert.equal(shouldSearch(withBudget, { userTurns: 3, modelEnough: false, hasResult: false }), true);
+  assert.equal(shouldSearch(empty, { userTurns: 5, modelEnough: true, hasResult: false }), false, "tanpa informasi apa pun tidak mencari");
+  assert.equal(shouldSearch(empty, { userTurns: 1, modelEnough: false, hasResult: true }), true);
+});
+
+test("kebijakan dialog: pilihan penyempurnaan tidak menawarkan yang sudah dipakai", () => {
+  const chips = refinementSuggestions({ ...EMPTY_COLLECTED, budgetIdr: 3_000_000, requirements: ["nfc"] });
+  assert.ok(chips.includes("Yang lebih murah"));
+  assert.ok(chips.some((chip) => chip.startsWith("Maksimal Rp3.000.000")));
+  assert.ok(!chips.includes("Harus ada NFC"));
+  assert.ok(chips.length <= 4);
+});
+
+test("prioritas berperingkat bolak-balik lewat URL, jalur formulir mengganti satu prioritas", () => {
+  const parsed = parseNeeds({ prioritas: ["kamera", "baterai", "kamera", "palsu"] });
+  assert.deepEqual(parsed.priorities, ["kamera", "baterai"]);
+  assert.equal(parsed.priority, "kamera");
+  assert.match(buildNeedsHref(parsed), /prioritas=kamera&prioritas=baterai/);
+  assert.match(buildNeedsHref(parsed, { priority: "layar" }), /prioritas=layar(?!&prioritas)/);
+});
+
+import { tidyReply } from "@/lib/assistant/ai/chat";
+
+test("balasan: pembuka templat dibuang, sisa kalimat utuh", () => {
+  assert.equal(tidyReply("Oke, siap. Wajib ada NFC buat e-money ya."), "Wajib ada NFC buat e-money ya.");
+  assert.equal(tidyReply("Sip, buat main ML sambil TikTok masih realistis."), "Buat main ML sambil TikTok masih realistis.");
+  assert.equal(tidyReply("Oke deh"), "Oke deh", "balasan yang hanya pembuka tidak dikosongkan");
+  assert.equal(tidyReply("Okelah kalau begitu"), "Okelah kalau begitu");
 });

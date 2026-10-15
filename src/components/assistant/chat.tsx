@@ -28,6 +28,8 @@ import { ACTIVITY_LABELS, PRIORITY_LABELS, REQUIREMENT_LABELS } from "@/lib/assi
  *   pengguna tahu persis atas dasar apa pencarian dilakukan.
  * - Tidak ada animasi mengetik palsu. Indikator hanya muncul selama permintaan
  *   benar-benar berjalan (PRD §8: loading mewakili proses nyata).
+ * - Setelah hasil tampil, kotak tulis tetap ada: setiap pesan berikutnya
+ *   menyempurnakan pencarian ("lebih murah", "selain Samsung", "harus NFC").
  */
 
 const OPENER =
@@ -128,8 +130,17 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
         <div ref={bottomRef} />
       </div>
 
+      {/* Hasil pencarian tampil langsung di bawah percakapan: kartu dari mesin deterministik */}
+      {state.result ? (
+        <AssistantResults
+          result={state.result}
+          newConversationHref="/assistant"
+          extraActions={<ShareResultButton href={state.result.shareHref} />}
+        />
+      ) : null}
+
       {/* Yang sudah ditangkap sistem, selalu terlihat */}
-      {chips.length > 0 && !state.result ? (
+      {chips.length > 0 ? (
         <div className="mt-6 border-t border-border pt-5">
           <p className="text-xs text-muted-foreground">Yang sudah saya catat</p>
           <ul className="mt-2 flex flex-wrap gap-2">
@@ -145,9 +156,12 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
         </div>
       ) : null}
 
-      {/* Pilihan cepat untuk pertanyaan tertutup */}
+      {/* Pilihan cepat: jawaban pertanyaan tertutup, atau penyempurnaan setelah hasil */}
       {state.suggestions.length > 0 && !pending ? (
-        <ul className="mt-5 flex flex-wrap gap-2">
+        <ul
+          className="mt-5 flex flex-wrap gap-2"
+          aria-label={state.result ? "Sempurnakan hasil" : "Pilihan jawaban"}
+        >
           {state.suggestions.map((s) => (
             <li key={s}>
               <Button
@@ -162,54 +176,58 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
         </ul>
       ) : null}
 
-      {/* Kotak tulis */}
-      {!state.result ? (
-        <form
-          ref={formRef}
-          action={action}
-          className="mt-6 rounded-xl border border-border bg-card shadow-sm"
-        >
-          <label htmlFor="pesan" className="sr-only">
-            Tulis pesan untuk asisten
-          </label>
-          <textarea
-            id="pesan"
-            name="pesan"
-            rows={1}
-            maxLength={600}
-            required
-            placeholder={kosong ? "Contoh: budget 3 juta, buat main game" : "Tulis balasanmu"}
-            /*
-             * Satu baris, bukan dua. Terlihat di QA browser: rows={2} membuat
-             * rongga kosong menganga antara teks dan baris tombol, sehingga
-             * kotaknya tampak seperti gagal memuat sesuatu.
-             */
-            className="w-full resize-none bg-transparent px-5 pt-4 pb-1 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
-            onKeyDown={(e) => {
-              // Enter mengirim, Shift+Enter baris baru. Kebiasaan chat.
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                formRef.current?.requestSubmit();
-              }
-            }}
-          />
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-1 pb-3">
-            <p className="min-w-0 text-xs text-muted-foreground">
-              Percakapan tidak disimpan.
-            </p>
-            <Button
-              type="submit"
-              disabled={pending}
-              className="shrink-0"
-            >
-              {pending ? "Mengirim" : "Kirim"}
-              {pending ? null : (
-                <HugeiconsIcon icon={ArrowRight01Icon} size={16} strokeWidth={2} aria-hidden />
-              )}
-            </Button>
-          </div>
-        </form>
-      ) : null}
+      {/* Kotak tulis, tetap ada setelah hasil untuk menyempurnakan pencarian */}
+      <form
+        ref={formRef}
+        action={action}
+        className="mt-6 rounded-xl border border-border bg-card shadow-sm"
+      >
+        <label htmlFor="pesan" className="sr-only">
+          Tulis pesan untuk asisten
+        </label>
+        <textarea
+          id="pesan"
+          name="pesan"
+          rows={1}
+          maxLength={600}
+          required
+          placeholder={
+            kosong
+              ? "Contoh: budget 3 juta, buat main game"
+              : state.result
+                ? "Mau diubah? Mis. lebih murah, selain Samsung, harus NFC"
+                : "Tulis balasanmu"
+          }
+          /*
+           * Satu baris, bukan dua. Terlihat di QA browser: rows={2} membuat
+           * rongga kosong menganga antara teks dan baris tombol, sehingga
+           * kotaknya tampak seperti gagal memuat sesuatu.
+           */
+          className="w-full resize-none bg-transparent px-5 pt-4 pb-1 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
+          onKeyDown={(e) => {
+            // Enter mengirim, Shift+Enter baris baru. Kebiasaan chat.
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              formRef.current?.requestSubmit();
+            }
+          }}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-1 pb-3">
+          <p className="min-w-0 text-xs text-muted-foreground">
+            Percakapan tidak disimpan.
+          </p>
+          <Button
+            type="submit"
+            disabled={pending}
+            className="shrink-0"
+          >
+            {pending ? "Mengirim" : "Kirim"}
+            {pending ? null : (
+              <HugeiconsIcon icon={ArrowRight01Icon} size={16} strokeWidth={2} aria-hidden />
+            )}
+          </Button>
+        </div>
+      </form>
 
       {/*
         Jalan pintas. Pengguna berhak berhenti mengobrol kapan pun dan melihat
@@ -226,15 +244,6 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
             Sudah cukup, cari kandidat sekarang
           </Button>
         </div>
-      ) : null}
-
-      {/* Hasil pencarian: kartu dari mesin deterministik */}
-      {state.result ? (
-        <AssistantResults
-          result={state.result}
-          newConversationHref="/assistant"
-          extraActions={<ShareResultButton href={state.result.shareHref} />}
-        />
       ) : null}
 
       <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
@@ -256,12 +265,13 @@ function ringkasKebutuhan(state: ChatState): string[] {
   const c = state.collected;
   const chips: string[] = [];
 
-  if (c.budgetIdr !== null) chips.push(`Budget ${formatIdr(c.budgetIdr)}`);
-  if (c.budgetIsHard !== null) {
-    chips.push(c.budgetIsHard ? "Batas keras" : "Budget perkiraan");
+  if (c.budgetIdr !== null) {
+    chips.push(c.budgetIsHard ? `Maksimal ${formatIdr(c.budgetIdr)}` : `Sekitar ${formatIdr(c.budgetIdr)}`);
   }
   for (const a of c.activities) chips.push(ACTIVITY_LABELS[a]);
-  if (c.priority) chips.push(`Utamakan ${PRIORITY_LABELS[c.priority].toLowerCase()}`);
+  c.priorities.forEach((p, i) => {
+    chips.push(`${i === 0 ? "Utamakan" : "Lalu"} ${PRIORITY_LABELS[p].toLowerCase()}`);
+  });
   for (const r of c.requirements) chips.push(REQUIREMENT_LABELS[r]);
   if (c.brands.length > 0) {
     chips.push(`${c.brandsOnly ? "Hanya" : "Suka"} ${c.brands.join(", ")}`);

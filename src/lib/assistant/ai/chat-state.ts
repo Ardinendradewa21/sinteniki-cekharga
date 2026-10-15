@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ACTIVITIES, PRIORITIES, REQUIREMENTS } from "@/lib/assistant/needs";
+import { ACTIVITIES, MAX_PRIORITIES, PRIORITIES, REQUIREMENTS } from "@/lib/assistant/needs";
 import type { ResultView } from "@/lib/assistant/results";
 
 /**
@@ -27,7 +27,8 @@ export const collectedSchema = z.object({
   budgetIdr: z.number().int().positive().max(500_000_000).nullable(),
   budgetIsHard: z.boolean().nullable(),
   activities: z.array(z.enum(ACTIVITIES)),
-  priority: z.enum(PRIORITIES).nullable(),
+  /** Prioritas berperingkat, paling penting dulu. */
+  priorities: z.array(z.enum(PRIORITIES)).max(MAX_PRIORITIES),
   requirements: z.array(z.enum(REQUIREMENTS)),
   /** Merek yang disebut pengguna, apa adanya; dicocokkan ke katalog oleh kode. */
   brands: z.array(z.string().min(1).max(30)).max(8),
@@ -41,7 +42,7 @@ export const EMPTY_COLLECTED: Collected = {
   budgetIdr: null,
   budgetIsHard: null,
   activities: [],
-  priority: null,
+  priorities: [],
   requirements: [],
   brands: [],
   brandsOnly: false,

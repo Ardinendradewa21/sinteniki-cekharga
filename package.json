@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test:assistant": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/assistant.test.ts",
     "test:import": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/import.test.ts",
+    "test:assistant-eval": "node --env-file=.env.local --import ./scripts/tests/register.mjs --experimental-strip-types scripts/assistant-eval.ts",
     "test:catalog": "node --import ./scripts/tests/register.mjs --experimental-strip-types --test scripts/tests/catalog.test.ts",
     "test:integration": "node --env-file=.env.local --import ./scripts/tests/register.mjs --experimental-strip-types --test --test-concurrency=1 scripts/tests/integration/import-flow.test.ts",
     "qa:sql": "node scripts/qa/sql-checks.mjs",

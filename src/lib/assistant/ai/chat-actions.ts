@@ -15,6 +15,8 @@ import { clientIp } from "@/lib/rate-limit";
 import { recommend } from "@/lib/assistant/recommend";
 import { parseNeeds } from "@/lib/assistant/needs";
 import { toResultView } from "@/lib/assistant/results";
+import { guardRequirements, mergeHints, readHints } from "@/lib/assistant/hints";
+import { nextFocus, refinementSuggestions, shouldSearch } from "@/lib/assistant/dialog-policy";
 
 /**
  * Satu giliran percakapan (PRD FR-06).
@@ -24,8 +26,11 @@ import { toResultView } from "@/lib/assistant/results";
  *   1. Batasi laju    — endpoint ini memanggil model berbayar (PRD §10):
  *                       per menit di memori, lalu kuota harian di database.
  *   2. Model bicara   — mengobrol, bertanya, mengumpulkan kebutuhan.
- *   3. Kode mencari   — kalau datanya sudah cukup, `recommend()` yang
- *                       menentukan kandidat, bukan model.
+ *                       Kamus sinonim (`hints.ts`) menambah yang terlewat.
+ *   3. Kode memutuskan — `dialog-policy.ts` menentukan kapan hasil tampil
+ *                       (paling banyak dua pertanyaan sebelum hasil pertama).
+ *   4. Kode mencari   — `recommend()` yang menentukan kandidat, bukan model.
+ *                       Setelah hasil tampil, setiap pesan menyempurnakannya.
  *
  * Riwayat percakapan datang dari klien dan kembali ke klien; tidak ada yang
  * disimpan di server (PRD §10).
@@ -61,12 +66,12 @@ export async function sendChatMessage(
   // `suggestions` hanya dipantulkan balik ke klien yang sama (tidak pernah
   // dikirim ke model atau disimpan), jadi dibiarkan supaya panel hasil tidak
   // hilang saat giliran berikutnya gagal.
-  const collected = collectedSchema.safeParse(rawPrev.collected);
+  const prevCollected = collectedSchema.safeParse(rawPrev.collected);
   const prev: ChatState = {
     ...CHAT_START,
     ...rawPrev,
     messages: history.data,
-    collected: collected.success ? collected.data : CHAT_START.collected,
+    collected: prevCollected.success ? prevCollected.data : CHAT_START.collected,
     error: null,
   };
 
@@ -102,7 +107,15 @@ export async function sendChatMessage(
   // membingungkan.
   const withUser: ChatMessage[] = [...prev.messages, { role: "user", content: text }];
 
-  const turn = await runChatTurn(prev.messages, text);
+  // Petunjuk dari kamus sinonim ikut menentukan fokus pertanyaan giliran ini,
+  // supaya model tidak menanyakan hal yang sudah tersirat di pesan terbaru.
+  const hints = readHints(text);
+  const hasResult = prev.result !== null;
+  const turn = await runChatTurn(prev.messages, text, {
+    collected: prev.collected,
+    focus: nextFocus(mergeHints(prev.collected, hints), hasResult),
+    hasResult,
+  });
 
   if (!turn.ok) {
     return { ...prev, messages: withUser, suggestions: [], error: turn.reason };
@@ -113,10 +126,13 @@ export async function sendChatMessage(
     { role: "assistant", content: turn.reply },
   ];
 
-  if (!turn.enough) {
+  const collected = mergeHints(guardRequirements(prev.collected.requirements, turn.collected, text), hints);
+  const userTurns = withUser.filter((message) => message.role === "user").length;
+
+  if (!shouldSearch(collected, { userTurns, modelEnough: turn.enough, hasResult })) {
     return {
       messages,
-      collected: turn.collected,
+      collected,
       suggestions: turn.suggestions,
       result: null,
       error: null,
@@ -125,9 +141,9 @@ export async function sendChatMessage(
 
   return {
     messages,
-    collected: turn.collected,
-    suggestions: [],
-    result: await cariKandidat(turn.collected),
+    collected,
+    suggestions: refinementSuggestions(collected),
+    result: await cariKandidat(collected),
     error: null,
   };
 }
@@ -145,7 +161,7 @@ async function cariKandidat(collected: ChatState["collected"]) {
     budget_wajib:
       collected.budgetIsHard === null ? undefined : collected.budgetIsHard ? "ya" : "tidak",
     kegiatan: collected.activities,
-    prioritas: collected.priority ?? undefined,
+    prioritas: collected.priorities,
     wajib: collected.requirements,
     wajib_jawab: "ya",
     merek: collected.brands,

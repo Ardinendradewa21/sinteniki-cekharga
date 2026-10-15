@@ -362,7 +362,7 @@ export function recommendFromCatalog(
     }
 
     // Alasan berbasis angka tercatat. Sengaja tidak menyimpulkan rasa pemakaian.
-    if (needs.activities.includes("baterai") || needs.priority === "baterai") {
+    if (needs.activities.includes("baterai") || needs.priorities.includes("baterai")) {
       reasons.push({
         kind: "fact",
         text: specs.batteryMah
@@ -371,10 +371,10 @@ export function recommendFromCatalog(
         source: null,
       });
     }
-    if (needs.activities.includes("foto") || needs.priority === "kamera") {
+    if (needs.activities.includes("foto") || needs.priorities.includes("kamera")) {
       reasons.push({ kind: "fact", text: cameraFact(specs), source: null });
     }
-    if (needs.activities.includes("game") || needs.activities.includes("kerja") || needs.priority === "performa") {
+    if (needs.activities.includes("game") || needs.activities.includes("kerja") || needs.priorities.includes("performa")) {
       const tier = chipsetTier(specs.chipset);
       reasons.push({
         kind: "fact",
@@ -393,7 +393,7 @@ export function recommendFromCatalog(
         source: null,
       });
     }
-    if (needs.priority === "ringan") {
+    if (needs.priorities.includes("ringan")) {
       reasons.push({
         kind: "fact",
         text: specs.weightGrams
@@ -402,7 +402,7 @@ export function recommendFromCatalog(
         source: null,
       });
     }
-    if (needs.priority === "layar") {
+    if (needs.priorities.includes("layar")) {
       const parts = [
         specs.displayInches ? `${specs.displayInches} inci` : null,
         specs.refreshRateHz ? `${specs.refreshRateHz} Hz` : null,
@@ -421,11 +421,11 @@ export function recommendFromCatalog(
     for (const review of catalog.reviews) {
       if (review.productId !== product.id) continue;
       const relevant =
-        (needs.priority === "baterai" &&
+        (needs.priorities.includes("baterai") &&
           review.aspect.toLowerCase().includes("baterai")) ||
-        (needs.priority === "kamera" &&
+        (needs.priorities.includes("kamera") &&
           review.aspect.toLowerCase().includes("kamera")) ||
-        (needs.priority === "performa" &&
+        (needs.priorities.includes("performa") &&
           review.aspect.toLowerCase().includes("performa"));
 
       if (relevant) {
@@ -567,7 +567,7 @@ export function recommendFromCatalog(
   // Skor dihitung setelah semua kandidat terkumpul, karena nilai fitur relatif
   // terhadap kandidat yang sedang dibandingkan. Skor hanya mengurutkan; tidak
   // pernah ditampilkan dan tidak pernah membuang kandidat.
-  const priorities = needs.priority ? [needs.priority] : [];
+  const priorities = needs.priorities;
   const weights = featureWeights(priorities, needs.activities);
   const totalWeight = Object.values(weights).reduce((sum, weight) => sum + (weight ?? 0), 0) || 1;
   const context = buildScoreContext([...matchPending, ...stalePending].map((entry) => entry.input));
