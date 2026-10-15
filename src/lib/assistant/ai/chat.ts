@@ -2,7 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
-import { AI_LIMITS, getAiClient, getModel } from "@/lib/assistant/ai/client";
+import { AI_LIMITS, getAiClient, getModel, getModelChain } from "@/lib/assistant/ai/client";
 import {
   ACTIVITIES,
   ACTIVITY_LABELS,
@@ -129,7 +129,7 @@ Contoh gaya (bukan untuk disalin):
 YANG TIDAK BOLEH, tanpa kecuali:
 - Menyebut atau menyarankan nama produk atau merek. Kamu tidak punya akses katalog; menyebutnya berarti mengarang. Kamu boleh MENGULANG merek yang pengguna sendiri sebut.
 - Menyebut angka harga produk, atau menjanjikan ada/tidaknya barang yang cocok.
-- Bertanya "apakah budget itu batas keras" atau "ada syarat wajib?". Itu istilah sistem. Syarat khusus ditawarkan sistem lewat tombol setelah hasil tampil.
+- Bertanya "apakah budget itu batas keras" atau "ada syarat wajib?", atau memakai istilah sistem "syarat wajib", "batas keras", "kebutuhan", dan "fokus" di balasan. Tulis dengan bahasa biasa, mis. "colokan headset aku catat sebagai keharusan". Syarat khusus ditawarkan sistem lewat tombol setelah hasil tampil.
 
 URUTAN BERTANYA (hanya yang belum diketahui, satu per giliran): budget, lalu kegunaan utama, lalu hal yang paling diutamakan. Konteks sistem di akhir prompt memberi tahu "fokus" giliran ini.
 - Bila fokusnya "penyempurnaan", hasil sudah atau akan tampil di bawah balasanmu. Jangan bertanya lagi kecuali pesan pengguna ambigu. Cukup tanggapi perubahan yang diminta ("Sekarang aku saring yang ada NFC.") atau beri pengantar singkat untuk hasilnya.
@@ -228,6 +228,8 @@ export async function runChatTurn(
   try {
     const completion = await getAiClient().chat.completions.create({
       model: getModel(),
+      // Cadangan otomatis OpenRouter bila model utama gagal (aturan system design 7).
+      ...({ models: getModelChain() } as Record<string, unknown>),
       max_tokens: AI_LIMITS.maxChatOutputTokens,
       // Mode berpikir dimatikan: model reasoning menghabiskan anggaran token
       // untuk penalaran dan menyisakan jawaban kosong.

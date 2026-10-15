@@ -37,12 +37,31 @@ const envSchema = z.object({
  * - `google/gemini-2.5-flash-lite` konsisten di kisaran 1,1 detik dan benar
  *   di seluruh kasus sulit.
  *
- * Selisih biayanya tidak berarti untuk pemakaian di sini: sekitar $0,000065
- * per panggilan, jadi kredit $1 cukup untuk belasan ribu percakapan.
+ * Pembaruan 2026-10-15 (rancangan Tanya AI §3.5, PO menyetujui anggaran
+ * model naik). Diuji dengan set emas `pnpm test:assistant-eval` (30 pesan):
+ *
+ * - `openai/gpt-6-luna`: ekstraksi 100%, balasan paling natural, 0 gagal
+ *   panggil, latensi median 2,6 dtk (p90 4,0 dtk). $0,10/$0,50 per juta token.
+ * - `anthropic/claude-haiku-5.5`: 98,5%, natural, salah membaca "range 2-3
+ *   juta", median 2,7 dtk.
+ * - `google/gemini-2.5-flash-lite`: 100% dan paling cepat (median 1,6 dtk),
+ *   tetapi bahasanya kaku dan membuka 63% balasan dengan "Oke".
+ *
+ * Model utama `gpt-6-luna`; `flash-lite` menjadi cadangan otomatis lewat
+ * daftar `models` OpenRouter bila model utama gagal atau tidak tersedia
+ * (aturan system design 7). Perkiraan biaya: sekitar $0,0004 per giliran.
  *
  * Bisa diganti lewat OPENROUTER_CHAT_MODEL tanpa menyentuh kode.
  */
-export const DEFAULT_MODEL = "google/gemini-2.5-flash-lite";
+export const DEFAULT_MODEL = "openai/gpt-6-luna";
+
+/**
+ * Model cadangan, dicoba OpenRouter berurutan bila penyedia model utama gagal
+ * (gangguan, batas laju, penolakan). ID model yang salah tetap ditolak 400
+ * sebelum cadangan dicoba, jadi salah ketik OPENROUTER_CHAT_MODEL tetap
+ * terlihat sebagai galat, bukan diam-diam memakai cadangan.
+ */
+export const FALLBACK_MODELS = ["google/gemini-2.5-flash-lite"] as const;
 
 /** Batas operasional. Diubah di sini, bukan tersebar di pemanggil. */
 export const AI_LIMITS = {
@@ -112,6 +131,11 @@ export function getAiClient(): OpenAI {
 
 export function getModel(): string {
   return process.env.OPENROUTER_CHAT_MODEL || DEFAULT_MODEL;
+}
+
+/** Urutan model untuk parameter `models` OpenRouter: utama dulu, lalu cadangan. */
+export function getModelChain(): string[] {
+  return [...new Set([getModel(), ...FALLBACK_MODELS])];
 }
 
 export function hasAiCredentials(): boolean {

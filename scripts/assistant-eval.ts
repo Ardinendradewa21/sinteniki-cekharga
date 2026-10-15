@@ -22,7 +22,8 @@ const { kasus } = JSON.parse(fs.readFileSync("scripts/tests/fixtures/assistant-e
   kasus: { id: string; pesan: string; harap: Expect }[];
 };
 
-const FORBIDDEN = [/\bterbaik\b/i, /\btermurah\b/i, /batas keras/i, /syarat wajib/i, /Rp\s?\d/i, /\d+\s?(jt|juta)\b.*\b(harga|seharga)/i];
+// Harga produk di balasan berbentuk "Rp…"; menyebut budget pengguna ("2,5 juta") bukan pelanggaran.
+const FORBIDDEN = [/\bterbaik\b/i, /\btermurah\b/i, /batas keras/i, /syarat wajib/i, /Rp\s?\d/i, /\bseharga\b/i];
 const sameSet = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((value) => b.map((x) => x.toLowerCase()).includes(value.toLowerCase()));
 const includesAll = (actual: readonly string[], expected: readonly string[]) =>
@@ -33,14 +34,17 @@ let passed = 0;
 let styleIssues = 0;
 let failures = 0;
 let openers = 0;
+const latencies: number[] = [];
 
 for (const item of kasus) {
   const hints = readHints(item.pesan);
+  const started = Date.now();
   const turn = await runChatTurn([], item.pesan, {
     collected: EMPTY_COLLECTED,
     focus: nextFocus(mergeHints(EMPTY_COLLECTED, hints), false),
     hasResult: false,
   });
+  latencies.push(Date.now() - started);
   if (!turn.ok) {
     failures += 1;
     console.log(`✗ ${item.id}: gagal (${turn.reason})`);
@@ -80,6 +84,9 @@ for (const item of kasus) {
 
 const accuracy = checks === 0 ? 0 : Math.round((passed / checks) * 1000) / 10;
 const openerShare = Math.round((openers / kasus.length) * 100);
+const sorted = [...latencies].sort((a, b) => a - b);
+const pct = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? 0;
+console.log(`Model: ${process.env.OPENROUTER_CHAT_MODEL || "bawaan"}. Latensi median ${pct(0.5)} ms, p90 ${pct(0.9)} ms, maks ${sorted.at(-1) ?? 0} ms.`);
 console.log(`\nAkurasi ekstraksi: ${passed}/${checks} (${accuracy}%). Pelanggaran gaya: ${styleIssues}. Pembuka "Oke/Siap": ${openerShare}%. Gagal panggil: ${failures}.`);
 // Pembuka yang sama di lebih dari sepertiga balasan terasa seperti templat.
 if (accuracy < 90 || styleIssues > 0 || failures > 0 || openerShare > 33) process.exitCode = 1;
