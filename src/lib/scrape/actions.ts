@@ -4,7 +4,9 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { requireStaff } from "@/lib/auth/dal";
-import { stageUpload } from "@/lib/import/batches";
+import { createBatch, stageUpload } from "@/lib/import/batches";
+import { loadOfferContext } from "@/lib/import/offer-runner";
+import { planPricesOnly } from "@/lib/scrape/prices-only-rules";
 import { processBatchStep } from "@/lib/import/jobs";
 import { readImageRights } from "@/lib/import/image-rights";
 import { mapRow } from "@/lib/import/gsmarena";
@@ -22,7 +24,7 @@ import {
 } from "@/lib/scrape/jobs";
 import { claimCommit, getSession, getSessionResults, linkBatch, type ResultState } from "@/lib/scrape/sessions";
 import { GSMARENA_PATH, officialSourceFor } from "@/lib/scrape/sources";
-import { SCRAPE_BRANDS, type CommitSummary, type LineupItem } from "@/lib/scrape/types";
+import { SCRAPE_BRAND_LABELS, SCRAPE_BRANDS, type CommitSummary, type LineupItem } from "@/lib/scrape/types";
 
 /**
  * Aksi tarik otomatis (admin). Semua langkah bekerja di atas SESI yang
@@ -276,4 +278,59 @@ function stringRow(row: SpecRow): Record<string, string> {
   return Object.fromEntries(
     Object.entries(row).map(([key, value]) => [key, value === null || value === undefined ? "" : String(value)])
   );
+}
+
+export type PricesOnlySummary = {
+  error: string | null;
+  batchId?: string;
+  matched: number;
+  rows: number;
+  unmatched: string[];
+  notes: { name: string; reason: string }[];
+};
+
+/**
+ * Tarik "harga saja" (PB-16): penawaran resmi untuk produk katalog yang sudah
+ * ada, dari daftar harga sesi ini, tanpa membuka GSMArena. Hasilnya batch
+ * penawaran di Pusat Impor yang DITINJAU admin sebelum diterapkan; tidak ada
+ * yang tampil ke publik tanpa keputusan manusia.
+ */
+export async function pricesOnlyAction(sessionId: string): Promise<PricesOnlySummary> {
+  const admin = await requireStaff([]);
+  const empty = { matched: 0, rows: 0, unmatched: [], notes: [] };
+  const session = await getSession(sessionId);
+  if (!session) return { error: "Sesi tarik tidak ditemukan. Muat ulang daftar model.", ...empty };
+  const ageDays = sessionAgeDays(session.fetchedAt, new Date());
+  if (ageDays > SESSION_PRICE_MAX_AGE_DAYS) {
+    return { error: `Daftar harga sesi ini diambil ${ageDays} hari lalu. Muat daftar baru dulu.`, ...empty };
+  }
+  const source = officialSourceFor(session.brand);
+  if (!source) return { error: "Merek ini tidak punya sumber harga resmi; harga hanya lewat CSV penawaran.", ...empty };
+
+  const context = await loadOfferContext();
+  if (!context) return { error: "Data katalog gagal dibaca. Coba lagi sebentar.", ...empty };
+
+  const plan = planPricesOnly({
+    lineup: session.lineup,
+    products: context.catalogProducts,
+    source,
+    brandName: SCRAPE_BRAND_LABELS[session.brand].split(" (")[0]!,
+    observedAt: session.fetchedAt,
+  });
+  const summary = { matched: plan.matched.length, rows: plan.rows.length, unmatched: plan.unmatched, notes: plan.notes };
+  if (plan.rows.length === 0) {
+    return { error: "Tidak ada harga yang cocok dengan produk dan varian di katalog.", ...summary };
+  }
+
+  const created = await createBatch({
+    kind: "offers",
+    origin: "scrape",
+    sourceLabel: `Harga saja ${source.marketplace} ${session.fetchedAt.slice(0, 10)}`,
+    options: { defaultObservedAt: session.fetchedAt, imageRights: null },
+    rows: plan.rows,
+    malformedLines: [],
+    admin,
+  });
+  if (!created.ok) return { error: created.error, ...summary };
+  return { error: null, batchId: created.id, ...summary };
 }

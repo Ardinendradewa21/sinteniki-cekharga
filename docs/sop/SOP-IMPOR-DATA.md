@@ -286,6 +286,22 @@ Langkahnya sama dengan 3.3. Laporan memisahkan tiga angka: penawaran baru, penaw
 
 Situs resmi juga diperiksa otomatis setiap hari pukul 06.00 WIB (batch berasal "Pemeriksaan harian"). Jadwal ini baru berjalan setelah situs di-deploy dengan `CRON_SECRET` (backlog PB-01). Sebelum itu, jalankan tarik otomatis secara manual minimal sekali sehari, supaya harga tidak basi lewat 30 jam.
 
+### 5.0 Perbarui harga saja (sejak 16 Oktober 2026, PB-16)
+
+Untuk model yang sudah ada di katalog, harga resmi bisa diperbarui tanpa mengambil spesifikasi GSMArena (yang sering meminta verifikasi anti-bot):
+
+1. Di tab **Tarik otomatis**, pilih merek lalu klik **Muat daftar model**.
+2. Pada blok **Perbarui harga saja**, klik **Buat batch harga saja**.
+3. Sistem mencocokkan nama resmi ke katalog dengan aturan yang sama seperti templat terpadu, lalu membuat batch penawaran dan membuka halamannya.
+4. Tinjau pratinjau, lalu terapkan seperti batch biasa.
+
+Yang tidak dilakukan otomatis:
+
+- Model yang belum ada di katalog dilewati dan namanya disebutkan. Tarik lewat alur lengkap di bawah.
+- Varian yang tidak tercatat di katalog tidak dibuat.
+- Harga yang hanya menyebut penyimpanan (Samsung) dipasangkan hanya bila penyimpanan itu punya satu pilihan RAM di katalog.
+- "Harga mulai" tanpa varian (Infinix) tetap dipilih lewat alur lengkap.
+
 ### 5.1 Dari mana harga diambil
 
 Tarik otomatis dan pemeriksaan harian **hanya** membaca situs resmi merek di Indonesia, ditambah Digimap untuk Apple. Keduanya tidak membaca e-commerce.

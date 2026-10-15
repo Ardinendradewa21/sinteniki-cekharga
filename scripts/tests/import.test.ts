@@ -1054,3 +1054,56 @@ test("PB-05 peringatan pemeriksaan harian: belum jalan, gagal hari ini, dan lama
   assert.deepEqual(refreshAlerts([], now), [{ kind: "belum-jalan", runDate: "2026-10-16" }]);
   assert.deepEqual(refreshAlerts([], new Date("2026-10-15T23:30:00Z")), [], "06.30 WIB: cron mungkin belum dipanggil");
 });
+
+import { planPricesOnly } from "@/lib/scrape/prices-only-rules";
+
+test("PB-16 harga saja: hanya produk dan varian katalog, tanpa mengarang", () => {
+  const products = [
+    { id: "p1", slug: "xiaomi-redmi-17", brand: "Xiaomi", model: "Redmi 17", is5G: true, colorOptions: null, variants: [{ id: "v1", ramGb: 4, storageGb: 128 }, { id: "v2", ramGb: 6, storageGb: 128 }] },
+    { id: "p2", slug: "samsung-galaxy-a57", brand: "Samsung", model: "Galaxy A57", is5G: true, colorOptions: null, variants: [{ id: "v3", ramGb: 8, storageGb: 256 }] },
+  ];
+  const item = (officialName: string, extra: Partial<LineupItemForTest>): LineupItemForTest => ({
+    officialId: officialName,
+    brand: "xiaomi",
+    officialName,
+    officialUrl: "https://www.mi.co.id/id/product/x/",
+    prices: [],
+    storageOnlyPrices: [],
+    unassignedPrices: [],
+    priceIssues: [],
+    siblingHas5g: false,
+    gsmarenaPath: null,
+    ...extra,
+  });
+  const plan = planPricesOnly({
+    lineup: [
+      item("Redmi 17", { prices: [
+        { ramGb: 4, storageGb: 128, priceIdr: 2_899_000, isPromotion: false },
+        { ramGb: 8, storageGb: 256, priceIdr: 3_999_000, isPromotion: false },
+      ] }),
+      item("Redmi 99", { prices: [{ ramGb: 4, storageGb: 128, priceIdr: 1, isPromotion: false }] }),
+      item("Redmi 17", { officialId: "luar", officialUrl: "https://contoh.com/redmi" }),
+    ],
+    products,
+    source: { marketplace: "Situs resmi Xiaomi Indonesia", sellerName: "Xiaomi Indonesia", host: "www.mi.co.id" },
+    brandName: "Xiaomi",
+    observedAt: "2026-10-16T00:00:00.000Z",
+  });
+  assert.equal(plan.rows.length, 1);
+  assert.equal(plan.rows[0]!.slug, "xiaomi-redmi-17");
+  assert.equal(plan.rows[0]!.price_idr, "2899000");
+  assert.deepEqual(plan.unmatched, ["Xiaomi Redmi 99"]);
+  assert.ok(plan.notes.some((note) => /8\/256 GB tidak tercatat/.test(note.reason)));
+  assert.ok(plan.notes.some((note) => /tidak berada di situs resmi/.test(note.reason)));
+
+  const samsung = planPricesOnly({
+    lineup: [item("Galaxy A57 5G", { brand: "samsung", officialUrl: "https://www.samsung.com/id/a57/", storageOnlyPrices: [{ storageGb: 256, priceIdr: 6_499_000, isPromotion: false }] })],
+    products,
+    source: { marketplace: "Situs resmi Samsung Indonesia", sellerName: "Samsung Indonesia", host: "www.samsung.com" },
+    brandName: "Samsung",
+    observedAt: "2026-10-16T00:00:00.000Z",
+  });
+  assert.deepEqual([samsung.rows[0]?.ram_gb, samsung.rows[0]?.storage_gb], ["8", "256"], "RAM diambil dari satu-satunya varian katalog");
+});
+
+type LineupItemForTest = import("@/lib/scrape/types").LineupItem;

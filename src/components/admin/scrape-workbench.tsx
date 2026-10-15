@@ -16,6 +16,8 @@ import {
 } from "@/lib/import/image-rights";
 import {
   commitScrapeAction,
+  pricesOnlyAction,
+  type PricesOnlySummary,
   pollScrapeAction,
   queueResolveAction,
   startLineupAction,
@@ -133,6 +135,18 @@ export function ScrapeWorkbench({
   const router = useRouter();
   const [committing, setCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState<CommitSummary | null>(null);
+  const [pricesOnlyBusy, setPricesOnlyBusy] = useState(false);
+  const [pricesOnly, setPricesOnly] = useState<PricesOnlySummary | null>(null);
+
+  /** Tarik "harga saja" (PB-16): penawaran resmi untuk produk yang sudah ada, tanpa GSMArena. */
+  async function runPricesOnly() {
+    if (!sessionId) return;
+    setPricesOnlyBusy(true);
+    const summary = await pricesOnlyAction(sessionId);
+    setPricesOnly(summary);
+    setPricesOnlyBusy(false);
+    if (summary.batchId) router.push(`/admin/import/batch/${summary.batchId}`);
+  }
 
   const running = progress !== null;
 
@@ -442,6 +456,40 @@ export function ScrapeWorkbench({
           </p>
         ) : null}
       </section>
+
+      {/* Jalan pintas: perbarui harga produk yang sudah ada tanpa mengambil spesifikasi */}
+      {lineup && sessionId && BRANDS_WITH_OFFICIAL_PRICES.includes(lineup[0]?.brand ?? brand) ? (
+        <section className="rounded-xl border border-border bg-card p-6">
+          <h2 className="text-base font-bold text-foreground">Perbarui harga saja</h2>
+          <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+            Untuk model yang sudah ada di katalog: harga resmi dari daftar ini dijadikan batch penawaran tanpa membuka
+            GSMArena. Model yang belum ada di katalog dilewati dan disebutkan. Batch tetap ditinjau sebelum diterapkan.
+          </p>
+          <Button type="button" variant="outline" className="mt-4" onClick={runPricesOnly} disabled={pricesOnlyBusy || running}>
+            {pricesOnlyBusy ? "Mencocokkan ke katalog..." : "Buat batch harga saja"}
+          </Button>
+          {pricesOnly ? (
+            <div role="status" className="mt-4 space-y-2 text-sm">
+              {pricesOnly.error ? <p className="font-medium text-destructive">{pricesOnly.error}</p> : null}
+              <p className="text-muted-foreground">
+                {pricesOnly.matched} model cocok dengan katalog, {pricesOnly.rows} harga varian.
+                {pricesOnly.unmatched.length > 0
+                  ? ` Belum ada di katalog (${pricesOnly.unmatched.length}): ${pricesOnly.unmatched.slice(0, 12).join(", ")}${pricesOnly.unmatched.length > 12 ? ", ..." : ""}.`
+                  : ""}
+              </p>
+              {pricesOnly.notes.length > 0 ? (
+                <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                  {pricesOnly.notes.slice(0, 10).map((note, index) => (
+                    <li key={`${note.name}-${index}`}>
+                      {note.name}: {note.reason}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {/* Tahap 2 */}
       {lineup ? (
