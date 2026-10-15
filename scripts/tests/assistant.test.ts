@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { buildNeedsHref, parseNeeds, type UserNeeds } from "@/lib/assistant/needs";
 import { recommendFromCatalog } from "@/lib/assistant/recommend";
 import { RESULT_LIMITS, toResultView } from "@/lib/assistant/results";
+import { chipsetShortName, chipsetTier } from "@/lib/assistant/chipset-tiers";
 import type { CatalogDataset, ProductSpecs } from "@/lib/catalog/schema";
 
 const NOW = new Date("2026-10-02T05:00:00.000Z");
@@ -196,6 +197,52 @@ test("tampilan dibatasi dan sisanya diarahkan ke katalog dengan filter setara", 
   assert.equal(view.totals.matches, 8);
   assert.equal(view.catalogHref, "/products?harga_max=2000000&merek=Alpha");
   assert.ok(view.shareHref.startsWith("/assistant?tanya=form&"));
+});
+
+test("budget sekitar: lebih dari +30% pindah ke alternatif berlabel, +15–30% turun dan dicatat", () => {
+  const data = catalog([
+    { brand: "Mahal", model: "Lipat", price: { idr: 32_500_000, ageHours: 2 } },
+    { brand: "Pas", model: "Satu", price: { idr: 2_900_000, ageHours: 2 } },
+    { brand: "Lebih", model: "Dikit", price: { idr: 3_600_000, ageHours: 2 } },
+  ]);
+  const result = recommendFromCatalog(data, NOW, needs({ budgetIdr: 3_000_000, budgetIsHard: false }));
+  assert.deepEqual(names(result.matches), ["Pas Satu", "Lebih Dikit"]);
+  assert.deepEqual(names(result.overBudget), ["Mahal Lipat"]);
+  assert.ok(result.matches[1].tradeOffs.some((tradeOff) => /Melewati budget .*\(20%\)/.test(tradeOff.text)));
+  assert.ok(result.matches[0].reasons.some((reason) => /masuk budget/.test(reason.text)));
+});
+
+test("kegunaan ikut menentukan urutan: game mendahulukan chipset kelas lebih tinggi", () => {
+  const data = catalog([
+    { brand: "Entry", model: "G81", specs: { chipset: "Mediatek Helio G81 Ultra (12 nm)" }, price: { idr: 2_500_000, ageHours: 2 } },
+    { brand: "Mid", model: "7s", specs: { chipset: "Qualcomm SM7635 Snapdragon 7s Gen 3 (4 nm)" }, price: { idr: 2_900_000, ageHours: 2 } },
+  ]);
+  const result = recommendFromCatalog(data, NOW, needs({ budgetIdr: 3_000_000, budgetIsHard: false, activities: ["game"] }));
+  assert.deepEqual(names(result.matches), ["Mid 7s", "Entry G81"]);
+  assert.ok(result.matches[0].reasons.some((reason) => /perkiraan kelas menengah/.test(reason.text)));
+});
+
+test("keragaman: satu seri dan paling banyak dua merek yang sama di tiga teratas", () => {
+  const data = catalog([
+    { brand: "Xiaomi", model: "Redmi Note 17 Pro Max", price: { idr: 1_000_000, ageHours: 2 } },
+    { brand: "Xiaomi", model: "Redmi Note 17 Pro", price: { idr: 1_100_000, ageHours: 2 } },
+    { brand: "Xiaomi", model: "Redmi 17", price: { idr: 1_200_000, ageHours: 2 } },
+    { brand: "Xiaomi", model: "Poco X8", price: { idr: 1_300_000, ageHours: 2 } },
+    { brand: "Samsung", model: "Galaxy A17", price: { idr: 1_400_000, ageHours: 2 } },
+  ]);
+  const top = names(recommendFromCatalog(data, NOW, needs({ priority: "harga" })).matches).slice(0, 3);
+  assert.deepEqual(top, ["Xiaomi Redmi Note 17 Pro Max", "Xiaomi Redmi 17", "Samsung Galaxy A17"]);
+});
+
+test("kelas chipset: aturan seri dan chipset ganda per wilayah", () => {
+  assert.equal(chipsetTier("Qualcomm SM8850-AC Snapdragon 8 Elite Gen 5 (3 nm)"), 5);
+  assert.equal(chipsetTier("Mediatek Dimensity 8400 Ultra (4 nm)"), 4);
+  assert.equal(chipsetTier("Mediatek Dimensity 7300 Energy (4 nm)"), 3);
+  assert.equal(chipsetTier("Mediatek Dimensity 6300 (6 nm)"), 2);
+  assert.equal(chipsetTier("Unisoc Tiger T612 (12 nm)"), 1);
+  assert.equal(chipsetTier("Qualcomm SM8850-1-AD Snapdragon 8 Elite Gen 5 (3 nm) - US/CA/CN Exynos 2600 (2 nm) - ROW"), 5);
+  assert.equal(chipsetTier("Chip Uji"), null);
+  assert.equal(chipsetShortName("Qualcomm SM7635-AC Snapdragon 7s Gen 4 (4 nm)"), "Snapdragon 7s Gen 4");
 });
 
 test("tautan kebutuhan bolak-balik tanpa kehilangan data", () => {

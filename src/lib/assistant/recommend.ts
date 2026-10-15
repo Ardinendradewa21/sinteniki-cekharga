@@ -5,7 +5,7 @@ import {
   formatVariantLabel,
   variantKey,
 } from "@/lib/catalog/queries";
-import { resolveVariantPrice } from "@/lib/catalog/pricing";
+import { formatIdr, resolveVariantPrice } from "@/lib/catalog/pricing";
 import type { PriceResolution } from "@/lib/catalog/pricing";
 import type { CatalogDataset, Product, ProductSpecs, Variant } from "@/lib/catalog/schema";
 import { PRICING_POLICY } from "@/lib/config";
@@ -14,6 +14,17 @@ import {
   type Requirement,
   type UserNeeds,
 } from "@/lib/assistant/needs";
+import { CHIPSET_TIER_LABELS, chipsetShortName, chipsetTier } from "@/lib/assistant/chipset-tiers";
+import {
+  buildScoreContext,
+  diversify,
+  featureScores,
+  featureWeights,
+  seriesKey,
+  softBudgetFit,
+  type Feature,
+  type ScoreInput,
+} from "@/lib/assistant/scoring";
 
 /**
  * Mesin rekomendasi (PRD FR-06).
@@ -89,6 +100,16 @@ export type RecommendationResult = {
   /** Catatan untuk pengguna, mis. merek yang diminta belum ada di katalog. */
   notes: string[];
   totalPublished: number;
+};
+
+/** Kandidat yang lolos syarat wajib, menunggu diberi skor setelah semua terkumpul. */
+type Pending = {
+  candidate: Candidate;
+  order: number;
+  input: ScoreInput;
+  /** Faktor kecocokan budget "sekitar" (1 = pas). */
+  fit: number;
+  preferredBrand: boolean;
 };
 
 type Scored = { candidate: Candidate; score: number; order: number };
@@ -183,6 +204,32 @@ function bestPricedVariant(
   return best ?? bestStale ?? fallback;
 }
 
+/**
+ * Fakta kamera dari susunan lensa, bukan megapiksel (megapiksel tidak
+ * menentukan kualitas foto). Kualitas hasil hanya dari kutipan reviewer.
+ */
+function cameraFact(specs: ProductSpecs): string {
+  const parts: string[] = [];
+  if (specs.cameraLensCount) parts.push(`${specs.cameraLensCount} lensa belakang`);
+  if (specs.cameraHasUltrawide) parts.push("termasuk ultrawide");
+  if (specs.cameraHasTelephoto) {
+    parts.push(specs.cameraOpticalZoomX ? `telefoto zoom optik ${specs.cameraOpticalZoomX}x` : "telefoto");
+  } else if (specs.cameraHasTelephoto === false) {
+    parts.push("tanpa telefoto");
+  }
+  return parts.length > 0
+    ? `Kamera tercatat: ${parts.join(", ")}. Kualitas foto tidak bisa disimpulkan dari spesifikasi`
+    : "Susunan kamera belum tercatat";
+}
+
+/** Kalimat fakta harga terhadap budget; harga lama disebut "terakhir tercatat". */
+function budgetFact(price: Exclude<PriceResolution, { status: "unavailable" }>, budgetIdr: number): string {
+  const label = price.status === "available" ? "Harga" : "Harga terakhir tercatat";
+  return price.priceIdr <= budgetIdr
+    ? `${label} ${formatIdr(price.priceIdr)}, masuk budget ${formatIdr(budgetIdr)}`
+    : `${label} ${formatIdr(price.priceIdr)}, masih di kisaran budget ${formatIdr(budgetIdr)}`;
+}
+
 function sameBrand(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
@@ -234,6 +281,8 @@ export function recommendFromCatalog(
   const staleMatches: Scored[] = [];
   const overBudget: Scored[] = [];
   const exclusions: { name: string; reason: string }[] = [];
+  const matchPending: Pending[] = [];
+  const stalePending: Pending[] = [];
 
   catalog.products.forEach((product: Product, order: number) => {
     const name = `${product.brand} ${product.model}`;
@@ -323,19 +372,16 @@ export function recommendFromCatalog(
       });
     }
     if (needs.activities.includes("foto") || needs.priority === "kamera") {
-      reasons.push({
-        kind: "fact",
-        text: specs.mainCameraMp
-          ? `Kamera utama tercatat ${specs.mainCameraMp} MP. Angka megapiksel tidak menentukan kualitas foto`
-          : "Resolusi kamera utama belum tercatat",
-        source: null,
-      });
+      reasons.push({ kind: "fact", text: cameraFact(specs), source: null });
     }
-    if (needs.activities.includes("game") || needs.priority === "performa") {
+    if (needs.activities.includes("game") || needs.activities.includes("kerja") || needs.priority === "performa") {
+      const tier = chipsetTier(specs.chipset);
       reasons.push({
         kind: "fact",
         text: specs.chipset
-          ? `Chipset tercatat: ${specs.chipset}`
+          ? tier
+            ? `Chipset ${chipsetShortName(specs.chipset)}, perkiraan kelas ${CHIPSET_TIER_LABELS[tier]} menurut pengelompokan seri chipset CekHarga`
+            : `Chipset tercatat: ${chipsetShortName(specs.chipset)}`
           : "Chipset belum tercatat, jadi performanya belum bisa dinilai",
         source: null,
       });
@@ -435,23 +481,20 @@ export function recommendFromCatalog(
       overBudgetByIdr: null,
     };
 
-    // Skor hanya untuk mengurutkan preferensi lunak. Tidak pernah ditampilkan
-    // sebagai nilai, dan tidak pernah membuang kandidat.
-    let score = 0;
-    if (price.status === "available") score += 1;
-    if (preferredBrand) score += 3;
-    if (needs.priority === "harga" && price.status !== "unavailable") {
-      score += 1_000_000_000 / Math.max(price.priceIdr, 1);
-    }
-    if (needs.priority === "baterai" && specs.batteryMah) score += specs.batteryMah / 1000;
-    if (needs.priority === "kamera" && specs.mainCameraMp) score += specs.mainCameraMp / 20;
-    if (needs.priority === "performa" && specs.chipset) score += 2;
-    if (needs.priority === "ringan" && specs.weightGrams) {
-      score += Math.max(0, 250 - specs.weightGrams) / 10;
-    }
-    if (needs.priority === "layar") {
-      score += (specs.refreshRateHz ?? 0) / 30 + (specs.displayInches ?? 0) / 3;
-    }
+    const pending: Pending = {
+      candidate,
+      order,
+      input: {
+        specs,
+        ramGb: variant.ramGb,
+        priceIdr: price.status === "unavailable" ? null : price.priceIdr,
+        hasCameraReview: catalog.reviews.some(
+          (review) => review.productId === product.id && review.aspect.toLowerCase().includes("kamera")
+        ),
+      },
+      fit: 1,
+      preferredBrand,
+    };
 
     // Penyaring budget dijalankan paling akhir supaya kandidat yang lolos semua
     // syarat lain tetap bisa ditawarkan sebagai alternatif berlabel.
@@ -479,36 +522,87 @@ export function recommendFromCatalog(
 
       const over = price.priceIdr - needs.budgetIdr;
       if (over > 0) {
-        overBudget.push({ candidate: { ...candidate, overBudgetByIdr: over }, score, order });
+        overBudget.push({ candidate: { ...candidate, overBudgetByIdr: over }, score: 0, order });
         return;
       }
+      reasons.unshift({ kind: "fact", text: budgetFact(price, needs.budgetIdr), source: null });
+      if (price.priceIdr < needs.budgetIdr * 0.5) pending.fit = 0.75;
       if (price.status === "stale") {
-        staleMatches.push({ candidate, score, order });
+        stalePending.push(pending);
         return;
       }
-    } else if (needs.budgetIdr !== null && price.status !== "unavailable") {
-      // Budget hanya perkiraan: kelebihannya dicatat sebagai kompromi, bukan
-      // sebagai alasan membuang kandidat.
-      const over = price.priceIdr - needs.budgetIdr;
-      if (over > 0) {
+    } else if (needs.budgetIdr !== null) {
+      /*
+        Budget "sekitar" (rancangan Tanya AI §3.4): sampai +15% masih masuk,
+        +15% sampai +30% skornya turun dan dicatat sebagai kompromi, di atas
+        +30% dipindah ke alternatif berlabel "di luar budget". Dulu kelebihan
+        harga hanya dicatat, sehingga HP Rp32 juta bersaing dengan budget Rp3
+        juta.
+      */
+      const fit = softBudgetFit(pending.input.priceIdr, needs.budgetIdr);
+      if (fit.band === "over" && price.status !== "unavailable") {
+        overBudget.push({
+          candidate: { ...candidate, overBudgetByIdr: price.priceIdr - needs.budgetIdr },
+          score: 0,
+          order,
+        });
+        return;
+      }
+      pending.fit = fit.factor;
+      if (fit.band === "stretch" && price.status !== "unavailable") {
+        const over = price.priceIdr - needs.budgetIdr;
         tradeOffs.push({
           kind: "fact",
-          text: `Melewati budget yang kamu sebut sebesar ${over.toLocaleString("id-ID")} rupiah`,
+          text: `Melewati budget yang kamu sebut sebesar ${over.toLocaleString("id-ID")} rupiah (${Math.round((fit.ratio - 1) * 100)}%)`,
           source: null,
         });
+      } else if (fit.band === "inside" && price.status !== "unavailable") {
+        reasons.unshift({ kind: "fact", text: budgetFact(price, needs.budgetIdr), source: null });
       }
     }
 
-    matches.push({ candidate, score, order });
+    matchPending.push(pending);
   });
+
+  // Skor dihitung setelah semua kandidat terkumpul, karena nilai fitur relatif
+  // terhadap kandidat yang sedang dibandingkan. Skor hanya mengurutkan; tidak
+  // pernah ditampilkan dan tidak pernah membuang kandidat.
+  const priorities = needs.priority ? [needs.priority] : [];
+  const weights = featureWeights(priorities, needs.activities);
+  const totalWeight = Object.values(weights).reduce((sum, weight) => sum + (weight ?? 0), 0) || 1;
+  const context = buildScoreContext([...matchPending, ...stalePending].map((entry) => entry.input));
+  const toScored = (entry: Pending): Scored => {
+    const features = featureScores(entry.input, context);
+    let base = 0;
+    for (const [feature, weight] of Object.entries(weights) as [Feature, number][]) {
+      base += features[feature] * weight;
+    }
+    const year = context.year && entry.input.specs.releaseYear !== null && context.year.max > context.year.min
+      ? (entry.input.specs.releaseYear - context.year.min) / (context.year.max - context.year.min)
+      : 0;
+    const freshness = entry.candidate.price.status === "available" ? 0.3 : entry.candidate.price.status === "stale" ? 0.1 : 0;
+    const score = ((base / totalWeight) * 10 + year * 0.5 + freshness + (entry.preferredBrand ? 3 : 0)) * entry.fit;
+    return { candidate: entry.candidate, score, order: entry.order };
+  };
+  matches.push(...matchPending.map(toScored));
+  staleMatches.push(...stalePending.map(toScored));
 
   const sortByScore = (a: Scored, b: Scored) => b.score - a.score || a.order - b.order;
   const byOverAmount = (a: Scored, b: Scored) =>
     (a.candidate.overBudgetByIdr ?? 0) - (b.candidate.overBudgetByIdr ?? 0) || a.order - b.order;
 
+  // Keragaman di posisi teratas: satu per seri, dua per merek (kecuali pengguna
+  // memang meminta merek tertentu saja).
+  const varied = (list: Scored[]) =>
+    diversify(
+      list.sort(sortByScore).map((entry) => entry.candidate),
+      (candidate) => ({ series: seriesKey(candidate.brand, candidate.model), brand: candidate.brand.toLowerCase() }),
+      { brandLimit: !brandsOnly }
+    );
+
   return {
-    matches: matches.sort(sortByScore).map((entry) => entry.candidate),
-    staleMatches: staleMatches.sort(sortByScore).map((entry) => entry.candidate),
+    matches: varied(matches),
+    staleMatches: varied(staleMatches),
     overBudget: overBudget.sort(byOverAmount).map((entry) => entry.candidate),
     exclusions,
     appliedHardRules,
