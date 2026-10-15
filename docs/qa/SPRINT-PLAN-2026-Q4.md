@@ -77,26 +77,29 @@ Susunan diubah atas persetujuan PO 15 Oktober 2026 setelah deploy pertama: rekom
 - Search Console: ≥80% halaman produk terindeks (butuh `SITE_URL` di Vercel).
 - Tanya AI: `pnpm test:assistant-eval` lulus, hasil pertama muncul dalam ≤3 pesan pengguna.
 
-## Sprint 3 — 16 sampai 27 November 2026
+## Sprint 3 — dimajukan, dikerjakan 16 Oktober 2026
 
-**Sprint goal:** *Harga e-commerce masuk otomatis dari sumber resmi.*
+**Sprint goal:** *Tanya AI yang menjelaskan hasilnya, harga resmi yang terpantau, dan halaman yang jujur soal angkanya.*
 
-| Item | SP |
-| --- | --- |
-| PB-16 Tarik otomatis "harga saja" (dari Sprint 2) | 3 |
-| PB-05 Peringatan pemeriksaan harian gagal (dari Sprint 2) | 3 |
-| PB-30 Halaman Cara Kerja + statistik hidup (dari Sprint 2) | 2 |
-| PB-39 Tanya AI tahap C | 5 |
-| PB-17a Pendaftaran Shopee Affiliate atas nama PT, telaah syarat tampil dan simpan harga, uji Open API | 3 |
-| PB-17b Penyerapan harga dari API ke batch penawaran (hanya bila 17a lolos) | 5 |
-| PB-27 Filter garansi resmi dan stok | 3 |
-| **Total** | **11** |
+Sebelum sprint dimulai, codebase dirapikan (knip: kode mati, export, dependensi, folder kosong, README) dan dua bottleneck diperbaiki (hapus storage massal saat undo, audit draft kedaluwarsa satu entri).
 
-**Ukuran keberhasilan:**
+| Item | SP | Status |
+| --- | --- | --- |
+| PB-39 Tanya AI tahap C | 5 | ✅ Penulis balasan menyebut produk dan harga dari kartu bernomor; validator menolak produk/harga di luar hasil; "kenapa nomor 2?" dan "bandingkan 1 dan 3" |
+| PB-05 Peringatan pemeriksaan harian gagal | 3 | ✅ Tabel `price_refresh_runs` (migrasi 20261016090000) + panel peringatan dasbor |
+| PB-30 Halaman Cara Kerja + statistik hidup | 2 | ✅ Produk, merek, penawaran, toko, % harga segar, pemeriksaan terakhir; bagian "Sikap kami" |
+| PB-16 Tarik "harga saja" | 3 | ✅ Uji baca: sesi Samsung 14 Okt, 15 model cocok, 27 harga |
+| PB-27 Filter garansi resmi dan stok | 3 | ✅ Sebagian: filter di halaman produk + normalisasi garansi. Filter katalog menunggu data garansi (0 penawaran mencatat garansi per 16 Okt) |
+| PB-17a Pendaftaran Shopee Affiliate atas nama PT | 3 | ⏳ Tugas bisnis/legal PT, bukan kode |
+| PB-17b Penyerapan harga dari API | 5 | ⏳ Menunggu PB-17a |
+
+**Pemeriksaan penutup:** typecheck, lint, dan knip bersih; tes unit 58 + 28 + 10; integrasi 13; E2E publik, mobile, dan keamanan 60 lulus (2 dilewati); build produksi lulus.
+
+**Ukuran keberhasilan (dicek setelah cron harian berjalan beberapa hari):**
 
 - ≥150 produk terbit.
-- ≥80% harga segar.
-- Satu marketplace masuk otomatis. Bila syarat program tidak mengizinkan, keputusan tertulis dan jalur cadangan (Blibli) disepakati.
+- ≥80% harga segar. Per 16 Oktober 0%, karena cron harian proyek Vercel baru belum pernah berjalan (jadwal pertama 16 Oktober 06.00–06.59 WIB).
+- Satu marketplace masuk otomatis, atau keputusan tertulis bila syarat program tidak mengizinkan (bergantung PB-17a).
 
 ## Sprint 4 — 30 November sampai 11 Desember 2026
 

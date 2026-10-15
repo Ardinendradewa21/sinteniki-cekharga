@@ -1,6 +1,6 @@
 # Product Backlog — CekHarga
 
-Diperbarui 2026-10-15 (PB-37 sampai PB-39 dari rancangan Tanya AI; PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
+Diperbarui 2026-10-16 (Sprint 3 selesai untuk item kode; PB-37 sampai PB-39 dari rancangan Tanya AI; PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
 
 > WSJF = (Nilai bisnis + Urgensi waktu + Pengurangan risiko) ÷ Ukuran
 
@@ -12,7 +12,7 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | PB-11 | Ganti kata sandi akun admin utama (pernah dibagikan lewat chat) | Audit keamanan | 5 | 8 | 13 | 1 | **26.0** | Siap |
 | 2 | PB-01 | Deploy ke Vercel; isi `CRON_SECRET` dan `IMPORT_WORKER_SECRET`; jadwal worker per menit di InsForge | US-10, TEST-PLAN §4 | 13 | 8 | 8 | 3 | **9.7** | Siap |
-| 3 | PB-05 | Peringatan di dasbor bila pemeriksaan harian sebuah merek gagal | US-33 | 5 | 5 | 8 | 3 | **6.0** | Siap |
+| 3 | PB-05 | Peringatan di dasbor bila pemeriksaan harian sebuah merek gagal | US-33 | 5 | 5 | 8 | 3 | **6.0** | ✅ Selesai 2026-10-16 (Sprint 3): tabel `price_refresh_runs` + peringatan dasbor |
 | 4 | PB-08 | Remote git + CI (unit, integrasi di staging, E2E smoke setiap PR); pindahkan register defect ke issue tracker | TEST-PLAN §3 | 5 | 3 | 8 | 3 | **5.3** | Perlu remote |
 | 5 | PB-03 | Lengkapi penawaran untuk 29 produk terbit tanpa harga (tarik ulang atau CSV) | SQL-11 | 8 | 5 | 3 | 3 | **5.3** | Siap (tugas data) |
 | 6 | PB-04 | Lengkapi NFC/IP rating untuk 34 produk terbit | US-25 | 5 | 3 | 2 | 3 | **3.3** | Siap |
@@ -24,7 +24,7 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 12 | PB-13 | Konfirmasi nama badan hukum (PT Sinteniki vs PT Sinteniki Digital Solusi) lalu seragamkan situs dan dokumen | UX-23 | 3 | 5 | 5 | 1 | **13.0** | ✅ Selesai 2026-10-08 |
 | 13 | PB-14 | Selaraskan batas harga segar dengan jadwal cron (±30 jam atau cron 2×/hari) | UX-24 | 5 | 3 | 3 | 1 | **11.0** | ✅ Selesai 2026-10-08 (30 jam) |
 | 14 | PB-15 | Gerbang terbit: tombol Terbitkan menolak produk tanpa varian atau tanpa penawaran aktif, dengan alasan yang jelas (SOP impor §7). Per 2026-10-08 ada 29 produk terbit tanpa penawaran | SOP-IMPOR §10 | 5 | 5 | 3 | 2 | **6.5** | ✅ Selesai 2026-10-15 (Sprint 2): satuan dan massal |
-| 15 | PB-16 | Tarik otomatis "harga saja" untuk produk katalog yang sudah ada: membuat penawaran resmi dari lineup tanpa menarik ulang spesifikasi GSMArena (yang sering terkena Turnstile) | SOP-IMPOR §5.1 | 8 | 5 | 5 | 3 | **6.0** | Usulan |
+| 15 | PB-16 | Tarik otomatis "harga saja" untuk produk katalog yang sudah ada: membuat penawaran resmi dari lineup tanpa menarik ulang spesifikasi GSMArena (yang sering terkena Turnstile) | SOP-IMPOR §5.1 | 8 | 5 | 5 | 3 | **6.0** | ✅ Selesai 2026-10-16 (Sprint 3): blok "Perbarui harga saja" di Tarik otomatis |
 | 16 | PB-17 | Sumber harga e-commerce yang sah (program afiliasi marketplace atau kerja sama toko). Saat ini Shopee/Erafone hanya lewat CSV dan basi setelah 30 jam | SOP-IMPOR §5.1 | 8 | 5 | 5 | 8 | **2.3** | Perlu riset bisnis (urgensi dinaikkan 2026-10-13: juga menjawab beban input manual) |
 | 17 | PB-18 | Masalah awal: Soft delete (`deleted_at`) untuk produk, toko, dan kampanye iklan; hapus produk tidak lagi menghanyutkan `price_observations`/`price_checks` lewat ON DELETE CASCADE. Kurasi 2026-10-08 masih hard delete (cadangan di `data/backups/`) | Aturan SD-8 | 8 | 8 | 8 | 5 | **4.8** | ✅ Selesai 2026-10-09 |
 | 18 | PB-19 | Masalah awal: Tarik otomatis sebagai background job: `loadLineupAction` dan `resolveModelAction` (kini dihapus) mengambil situs resmi/GSMArena di dalam request admin. Pindahkan ke tabel `scrape_jobs` + worker, UI hanya membaca status. Bagian impor CSV SELESAI 2026-10-11: analisis unggahan di worker (status `analyzing`), baris mentah per baris di `raw_listings` dengan retensi 30 hari | Aturan SD-3 | 5 | 3 | 8 | 5 | **3.2** | ✅ Selesai 2026-10-11: tabel `scrape_jobs` + worker; commit tarik otomatis juga dianalisis di worker |
@@ -35,10 +35,10 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 23 | PB-24 | Kebersihan kode: hapus folder kosong `src/app/products/[slug]`, tes E2E menghapus batch ujinya, simpan pengaturan iklan secara atomik (RPC, bukan loop) | Audit 2026-10-13 | 2 | 2 | 3 | 2 | **3.5** | ✅ Selesai 2026-10-14, kecuali simpan pengaturan iklan atomik: ditunda sampai modul iklan dibuka (PB-10) |
 | 24 | PB-25 | Tinjau dua `eslint-disable react-hooks/exhaustive-deps` (`batch-progress.tsx`, `scrape-workbench.tsx`): perbaiki atau tulis alasannya | Audit 2026-10-13 | 2 | 1 | 3 | 1 | **6.0** | ✅ Selesai 2026-10-14: diganti `useEffectEvent` (React 19.2), 0 `eslint-disable` tersisa |
 | 25 | PB-26 | Impor data Xiaomi Okt 2026 (templat terpadu + galeri foto); perbaiki RAM 17 Ultra lebih dulu | Data pemilik produk | 8 | 5 | 2 | 1 | **15.0** | Siap (tugas data) |
-| 26 | PB-27 | Filter "hanya garansi resmi Indonesia" dan "sembunyikan stok habis" (filter pilihan pengguna, bukan aturan katalog) + normalisasi teks garansi saat impor | Analisis BigGo | 5 | 2 | 2 | 3 | **3.0** | Perlu refinement |
+| 26 | PB-27 | Filter "hanya garansi resmi Indonesia" dan "sembunyikan stok habis" (filter pilihan pengguna, bukan aturan katalog) + normalisasi teks garansi saat impor | Analisis BigGo | 5 | 2 | 2 | 3 | **3.0** | ✅ Sebagian 2026-10-16 (Sprint 3): filter di halaman produk + normalisasi garansi; filter katalog menunggu data garansi |
 | 27 | PB-28 | Halaman perbandingan "A vs B" untuk pasangan pilihan admin, tanpa label pemenang | Analisis BigGo | 8 | 3 | 2 | 3 | **4.3** | Siap setelah PB-23 |
 | 28 | PB-29 | Halaman kebutuhan programatik (mis. "HP 5G di bawah Rp3 juta"), urutan netral, terbit hanya bila ≥3 produk berharga segar | Analisis BigGo | 8 | 3 | 3 | 5 | **2.8** | Perlu refinement |
-| 29 | PB-30 | Perluas halaman Cara Kerja: sikap transparansi + statistik hidup (produk, penawaran, toko, % harga segar), tanpa jumlah pengguna | Analisis BigGo | 5 | 3 | 2 | 2 | **5.0** | Siap |
+| 29 | PB-30 | Perluas halaman Cara Kerja: sikap transparansi + statistik hidup (produk, penawaran, toko, % harga segar), tanpa jumlah pengguna | Analisis BigGo | 5 | 3 | 2 | 2 | **5.0** | ✅ Selesai 2026-10-16 (Sprint 3) |
 | 30 | PB-31 | Keputusan PO atas fitur yang ditunda PRD §3: grafik riwayat harga publik, pantau harga (email), "harga turun minggu ini", kategori lain, ekstensi browser | Analisis BigGo | 8 | 3 | 3 | 1 | **14.0** | Menunggu keputusan PO |
 | 31 | PB-32 | Katalog dibaca per halaman/filter di database (bukan seluruh dataset dalam satu cache); dipicu peringatan ukuran dataset atau >500 produk terbit | Audit 2026-10-13 | 5 | 2 | 8 | 8 | **1.9** | Menunggu pemicu |
 | 32 | PB-33 | Pecah `src/lib/catalog/queries.ts` (1.388 baris) per fitur tanpa mengubah perilaku; bersama PB-32 | Audit 2026-10-13 | 2 | 1 | 3 | 3 | **2.0** | Bersama PB-32 |
@@ -47,7 +47,7 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 35 | PB-36 | Grafik riwayat harga per varian (shadcn Chart, garis tangga, ambang ≥5 pemeriksaan dalam ≥7 hari, tabel alternatif) sesuai `docs/ux/ANALISIS-UX-GRAFIK-HARGA-2026-10.md` §3 | Analisis BigGo, UX §3 | 8 | 2 | 3 | 5 | **2.6** | Menunggu PB-01 + PB-31 |
 | 36 | PB-37 | Tanya AI tahap A: mesin rekomendasi v2 (pita budget ±15/30%, skor kegunaan + prioritas berbobot, kelas chipset, keragaman seri/merek, alasan dari posisi harga dan susunan lensa) | `docs/ux/RANCANGAN-TANYA-AI-2026-10.md` §3.4 | 13 | 8 | 5 | 5 | **5.2** | ✅ Selesai 2026-10-15 (Sprint 2) |
 | 37 | PB-38 | Tanya AI tahap B: kebijakan bertanya di kode, prioritas berperingkat, kamus sinonim, penyempurnaan setelah hasil, set emas + `pnpm test:assistant-eval` | Rancangan §3.2, §3.3, §3.7 | 13 | 8 | 5 | 5 | **5.2** | ✅ Selesai 2026-10-15 (Sprint 2) |
-| 38 | PB-39 | Tanya AI tahap C: penulis balasan terpisah (model lebih fasih), validator nama/harga, menjelaskan hasil ("kenapa nomor 2?"), bandingkan dari chat | Rancangan §3.1, §3.5, §3.6 | 8 | 3 | 5 | 5 | **3.2** | Sprint 3; butuh keputusan PO §5 butir 1 dan 4 |
+| 38 | PB-39 | Tanya AI tahap C: penulis balasan terpisah (model lebih fasih), validator nama/harga, menjelaskan hasil ("kenapa nomor 2?"), bandingkan dari chat | Rancangan §3.1, §3.5, §3.6 | 8 | 3 | 5 | 5 | **3.2** | ✅ Selesai 2026-10-16 (Sprint 3): penulis balasan gpt-6-luna + validator + perbandingan |
 | – | PB-10 | Modul iklan: Fase 3–4 (laporan otomatis, invoice, portal advertiser, sponsored listing) | ADS-CONTEXT §10 | – | – | – | – | – | **Ditahan** oleh pemilik produk |
 
 ### Catatan prioritas
