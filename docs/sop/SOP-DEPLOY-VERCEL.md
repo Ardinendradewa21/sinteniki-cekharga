@@ -1,6 +1,8 @@
 # SOP Deploy CekHarga ke Vercel (PB-01)
 
-Disusun 15 Oktober 2026. Berlaku untuk repo `Ardinendradewa21/sinteniki-cekharga` (Next.js 16, pnpm, InsForge).
+Disusun 15 Oktober 2026. Berlaku untuk repo `Ardinendradewa21/sinteniki-cekharga` (Next.js 16, pnpm, InsForge). Rujukan: dokumentasi Vercel (Cron Jobs, Functions duration, Deployment Protection) dan InsForge (Schedules, Secrets) lewat Context7, 15 Oktober 2026.
+
+`pnpm build` lokal lulus pada 15 Oktober 2026 (88 halaman, semua rute admin ikut ter-build).
 
 ## 1. Kenapa halaman admin "tidak ikut ter-deploy"
 
@@ -12,7 +14,7 @@ Halaman admin (`src/app/admin/**`) ada di kode yang sama dengan situs publik dan
 | **Kode belum di-push ke branch `main` di GitHub** | Vercel hanya mem-build kode yang ada di GitHub. `main` lokal lebih maju 12 commit dari `origin/main`, ditambah rantai branch Sprint 1 yang belum di-merge. Production selalu dibangun dari `main` di GitHub. |
 | **Variabel lingkungan admin belum diisi** | Situs publik cukup dengan `INSFORGE_URL` dan `INSFORGE_API_KEY`. Login admin juga butuh `INSFORGE_ANON_KEY`; tanpa itu `/admin/login` gagal dengan "Konfigurasi auth belum lengkap". |
 
-Ada juga perlindungan bawaan Vercel (Deployment Protection, sekarang "Standard"). URL preview (`…-git-<branch>-….vercel.app`) dan URL per deploy meminta login akun Vercel. Akibatnya, orang lain yang membuka admin di URL preview melihat halaman login Vercel, bukan login CekHarga. Pakai domain production untuk admin, cron, dan worker.
+Ada juga perlindungan bawaan Vercel (Deployment Protection "Standard"): semua URL **kecuali domain production** meminta login akun Vercel. Ini termasuk URL preview (`…-git-<branch>-….vercel.app`) dan URL per deploy (`<proyek>-<hash>-….vercel.app`). Akibatnya, orang lain yang membuka admin lewat URL itu melihat halaman login Vercel, bukan login CekHarga. Pakai domain production (mis. `<proyek>.vercel.app`) untuk admin, cron, dan worker.
 
 ## 2. Sekali saja: sambungkan repo yang benar
 
@@ -27,7 +29,7 @@ Ada juga perlindungan bawaan Vercel (Deployment Protection, sekarang "Standard")
    - Install/Build: biarkan default. Vercel membaca `packageManager: pnpm@11.24.0` dan menjalankan `next build`.
    - Root Directory: `./`.
    - Production Branch: `main` (Settings → Git).
-3. Isi variabel lingkungan (§3) **sebelum** deploy pertama. `next.config.ts` membaca `INSFORGE_URL` saat build untuk izin domain foto, jadi variabel yang ditambahkan setelah build baru berlaku setelah **Redeploy**.
+3. Isi variabel lingkungan (§3) **sebelum** deploy pertama. Perubahan variabel baru berlaku setelah **Redeploy**. Ada dua nilai yang dibaca saat build: `next.config.ts` membaca `INSFORGE_URL` untuk izin domain foto, dan `robots.txt` dibuat statis dari `SITE_URL`.
 4. Proyek lama `cekharga-frontend` biarkan dulu sebagai arsip. Hapus hanya setelah yang baru berjalan.
 
 Alternatif: di proyek lama, buka Settings → Git → Disconnect, lalu Connect ke `sinteniki-cekharga`. Cara ini mempertahankan domain `cekharga-frontend.vercel.app`, tetapi riwayat deploy lama tercampur.
@@ -69,11 +71,23 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ## 5. Setelah deploy pertama
 
 1. Ganti `SITE_URL` dengan domain production yang sebenarnya, lalu Redeploy.
-2. Buat jadwal worker impor per menit di InsForge Schedules: `* * * * *`, `POST https://<domain-production>/api/admin/import/worker`, header `Authorization: Bearer ${{secrets.IMPORT_WORKER_SECRET}}`. Simpan nilai yang sama sebagai secret InsForge `IMPORT_WORKER_SECRET`.
-3. Cron harian sudah diatur di `vercel.json` (`0 23 * * *` = 06.00 WIB). Vercel mengirim `CRON_SECRET` otomatis. Cek di Settings → Cron Jobs.
+2. Buat jadwal worker impor per menit di InsForge. Paket Hobby Vercel hanya mengizinkan cron harian, jadi jadwal per menit dibuat di InsForge.
+   1. Simpan rahasia worker sebagai secret InsForge, dengan nilai yang **sama** dengan `IMPORT_WORKER_SECRET` di Vercel:
+      ```
+      npx @insforge/cli secrets add IMPORT_WORKER_SECRET <nilai>
+      ```
+   2. Buat jadwalnya. `${{secrets.…}}` diganti InsForge saat jadwal dibuat lalu disimpan terenkripsi:
+      ```
+      npx @insforge/cli schedules create --name import-worker --cron "* * * * *" --method POST --url https://<domain-production>/api/admin/import/worker --headers '{"Authorization":"Bearer ${{secrets.IMPORT_WORKER_SECRET}}"}'
+      ```
+      Perintah di atas untuk Git Bash. Windows PowerShell 5.1 membuang tanda kutip ganda pada argumen JSON, jadi di PowerShell tulis `--headers '{\"Authorization\":\"Bearer ${{secrets.IMPORT_WORKER_SECRET}}\"}'`.
+   3. Cek hasil eksekusi dengan `npx @insforge/cli schedules list`, lalu `npx @insforge/cli schedules logs <id>`. Status harus 200, bukan 401.
+3. Cron harian sudah diatur di `vercel.json` (`0 23 * * *`). Di paket Hobby, Vercel menjalankannya kapan saja dalam jam itu, yaitu **06.00–06.59 WIB**. Vercel mengirim header `Authorization: Bearer <CRON_SECRET>` otomatis. Cek di Settings → Cron Jobs.
+4. Batas durasi fungsi Hobby (dengan Fluid compute bawaan) adalah 300 detik. Rute berat CekHarga memakai `maxDuration = 60`, jadi masih di bawah batas.
 
 ## 6. Checklist verifikasi
 
+- [ ] `https://<domain>/api/health` menjawab sehat.
 - [ ] `https://<domain>/` tampil dengan data live (tanpa label "Data demo").
 - [ ] `https://<domain>/admin/login` tampil, login berhasil, dan menu Dashboard, Kelola produk, Impor data terbuka.
 - [ ] Unggah CSV kecil di Impor data sampai pratinjau. Batch selesai diterapkan, tidak macet di "Sedang diterapkan".
