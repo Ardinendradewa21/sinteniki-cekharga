@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { normalizeWarranty } from "@/lib/catalog/warranty";
 import type { CsvRow } from "@/lib/import/csv-parser";
 import { normalizeColorName } from "@/lib/import/colors";
 import { ALLOWED_IMAGE_HOSTS, IMAGE_HOST_ISSUE, safeHttpsImageUrl } from "@/lib/import/image-hosts";
@@ -25,9 +26,6 @@ import { CLEAR_TOKEN, OFFER_KEEPABLE_FIELDS } from "@/lib/import/patch-rules";
  *   defaultnya false, sebab FR-05 mensyaratkan badge itu punya bukti.
  */
 
-const emptyToNull = (v: unknown) =>
-  typeof v === "string" && v.trim() === "" ? null : v;
-
 export const offerRowSchema = z.object({
   slug: z
     .string()
@@ -39,7 +37,8 @@ export const offerRowSchema = z.object({
   marketplace: z.string().trim().min(1, "Marketplace wajib diisi"),
   sellerName: z.string().trim().min(1, "Nama penjual wajib diisi"),
   url: z.httpUrl("URL listing harus http atau https"),
-  warranty: z.preprocess(emptyToNull, z.string().trim().min(1).nullable()),
+  // Teks garansi dibakukan saat impor supaya filter "garansi resmi" bisa diandalkan (PB-27).
+  warranty: z.preprocess((v) => normalizeWarranty(typeof v === "string" ? v : null), z.string().trim().min(1).nullable()),
   listingStatus: z.preprocess(
     (v) => (typeof v === "string" && v.trim() ? v.trim().toLowerCase() : "active"),
     z.enum(["active", "out-of-stock", "ambiguous", "inactive"])

@@ -270,7 +270,8 @@ test("INT-05 impor ulang sebagai patch: sel kosong tidak menghapus, '-' mengoson
     await applyAll(batch.id);
   }
   const offer = ((await db.from("offers").select("warranty, seller_verified, listing_status").eq("url", "https://www.blibli.com/p/qauji-patch-1")).data ?? [])[0];
-  assert.deepEqual(offer, { warranty: "Resmi 1 tahun", seller_verified: true, listing_status: "active" });
+  // Teks garansi dibakukan saat impor (PB-27).
+  assert.deepEqual(offer, { warranty: "Garansi resmi Indonesia, 1 tahun", seller_verified: true, listing_status: "active" });
 });
 
 test("INT-06 templat terpadu: produk baru + harga dalam satu berkas, harga lanjutan ditinjau dulu", async () => {

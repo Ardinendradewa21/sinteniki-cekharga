@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { formatCheckedAt, formatIdr } from "@/lib/catalog/pricing";
 import type { ProductDetailOffer } from "@/lib/catalog/queries";
 import { Badge } from "@/components/ui/badge";
+import { OfferFilters } from "@/components/product/offer-filters";
+import { isOfficialWarranty } from "@/lib/catalog/warranty";
 import { cn } from "@/lib/utils";
 
 /**
@@ -50,9 +52,14 @@ function OfferCard({
   const inactive = offer.listingStatus !== "active";
   const cta = isOfficialSite ? "Buka situs resmi" : `Buka di ${offer.marketplace}`;
 
+  const official = isOfficialWarranty(offer.warranty);
   return (
     <li
+      data-out-of-stock={offer.listingStatus === "out-of-stock"}
+      data-official={official}
       className={cn(
+        // Filter pilihan pengguna (OfferFilters) menyembunyikan lewat atribut data.
+        "group-data-[hide-oos=true]/offers:data-[out-of-stock=true]:hidden group-data-[official-only=true]/offers:data-[official=false]:hidden",
         "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 rounded-2xl border bg-card p-3 transition-colors duration-150 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:p-4",
         offer.isPriceBasis && offer.isFreshPrice
           ? "border-brand/50 ring-1 ring-brand/20"
@@ -189,11 +196,17 @@ export function OfferList({
           </p>
         </div>
       ) : (
-        <ul className="mt-4 grid gap-3 lg:grid-cols-2">
-          {offers.map((offer) => (
-            <OfferCard key={offer.id} offer={offer} selectedColor={selectedColor} now={now} />
-          ))}
-        </ul>
+        <OfferFilters
+          total={offers.length}
+          outOfStockCount={offers.filter((offer) => offer.listingStatus === "out-of-stock").length}
+          officialCount={offers.filter((offer) => isOfficialWarranty(offer.warranty)).length}
+        >
+          <ul className="mt-4 grid gap-3 lg:grid-cols-2">
+            {offers.map((offer) => (
+              <OfferCard key={offer.id} offer={offer} selectedColor={selectedColor} now={now} />
+            ))}
+          </ul>
+        </OfferFilters>
       )}
     </section>
   );

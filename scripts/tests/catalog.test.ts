@@ -165,3 +165,18 @@ test("gerbang terbit (PB-15): wajib varian dan minimal satu penawaran aktif", ()
   assert.equal(blockers.get("tanpa-aktif"), "tanpa-penawaran");
   assert.equal(blockers.has("siap"), false);
 });
+
+import { isOfficialWarranty, normalizeWarranty } from "@/lib/catalog/warranty";
+
+test("PB-27 teks garansi dibakukan; yang tidak jelas tidak dianggap resmi", () => {
+  assert.equal(normalizeWarranty("Resmi SEIN 1 thn"), "Garansi resmi Indonesia, 1 tahun");
+  assert.equal(normalizeWarranty("garansi resmi indonesia"), "Garansi resmi Indonesia");
+  assert.equal(normalizeWarranty("Inter, bukan resmi"), "Tanpa garansi resmi (internasional)");
+  assert.equal(normalizeWarranty("Garansi toko 7 hari"), "Garansi toko, 7 hari");
+  assert.equal(normalizeWarranty("Garansi distributor 12 bulan"), "Garansi distributor, 12 bulan");
+  assert.equal(normalizeWarranty("ada"), "ada");
+  assert.equal(normalizeWarranty("  "), null);
+  assert.equal(isOfficialWarranty(normalizeWarranty("Official Samsung")), true);
+  assert.equal(isOfficialWarranty("ada"), false);
+  assert.equal(isOfficialWarranty(normalizeWarranty("ex-inter")), false);
+});
