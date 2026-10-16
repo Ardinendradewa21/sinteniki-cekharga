@@ -50,6 +50,21 @@ const POINTS = [
   },
 ];
 
+/**
+ * Keterbatasan yang masih ada (masukan PO 16 Okt 2026). Hanya pernyataan
+ * yang benar hari ini, tanpa angka yang cepat basi. Hapus butirnya begitu
+ * celahnya tertutup; analisisnya di
+ * docs/bisnis/ANALISIS-PENDUKUNG-KEPUTUSAN-2026-10.md.
+ */
+const LIMITS = [
+  "Katalog belum mencakup semua model. Banyak model Infinix, Tecno, itel, dan realme belum masuk.",
+  "Harga marketplace masih dimasukkan berkala, belum diambil otomatis dari semua toko.",
+  "Ringkasan reviewer masih sedikit. Banyak produk belum punya.",
+  "Kami tidak menguji perangkat sendiri. Kualitas kamera dan baterai nyata kami rujuk ke reviewer.",
+  "Belum bisa memberi tahu saat harga turun.",
+  "Tidak menilai reputasi penjual, dan belum mencakup HP bekas.",
+];
+
 export function TransparencyTeaser() {
   return (
     <section className="relative isolate py-14 md:py-20">
@@ -85,6 +100,21 @@ export function TransparencyTeaser() {
                 </StaggerItem>
               ))}
             </StaggerList>
+          </div>
+
+          <div className="mt-8 border-t border-border pt-6 md:mt-10 md:pt-8">
+            <h3 className="text-base font-bold text-foreground">Yang belum bisa kami bantu</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Supaya kamu tahu kapan perlu mencari informasi di tempat lain.
+            </p>
+            <ul className="mt-4 grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2">
+              {LIMITS.map((limit) => (
+                <li key={limit} className="flex gap-2.5 text-sm leading-relaxed text-muted-foreground">
+                  <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-warning" />
+                  {limit}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </Container>
