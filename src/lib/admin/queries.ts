@@ -97,7 +97,7 @@ export type AdminReviewRow = {
   videoUrl: string;
   publishedAt: string;
   timestampSeconds: number | null;
-  aspect: string;
+  aspect: "umum" | "kamera";
   summary: string;
   strengths: string[];
   limitations: string[];
@@ -615,7 +615,7 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
       videoUrl: String(r.video_url),
       publishedAt: String(r.published_at),
       timestampSeconds: r.timestamp_seconds === null ? null : Number(r.timestamp_seconds),
-      aspect: String(r.aspect),
+      aspect: r.aspect === "kamera" ? ("kamera" as const) : ("umum" as const),
       summary: String(r.summary),
       strengths: Array.isArray(r.strengths) ? r.strengths.map(String) : [],
       limitations: Array.isArray(r.limitations) ? r.limitations.map(String) : [],

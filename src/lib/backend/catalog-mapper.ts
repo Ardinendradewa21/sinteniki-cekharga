@@ -97,11 +97,12 @@ export function mapReviews(rows: Row[]): CatalogDataset["reviews"] {
     videoUrl: str(r.video_url),
     publishedAt: isoTime(r.published_at),
     timestampSeconds: numOrNull(r.timestamp_seconds),
-    aspect: str(r.aspect),
+    aspect: str(r.aspect) === "kamera" ? ("kamera" as const) : ("umum" as const),
     summary: str(r.summary),
     strengths: strArray(r.strengths),
     limitations: strArray(r.limitations),
     testContext: strOrNull(r.test_context),
+    isSponsored: r.is_sponsored === true,
     status: str(r.status) as "draft" | "published",
   }));
 }

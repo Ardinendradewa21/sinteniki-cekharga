@@ -133,12 +133,15 @@ export const reviewSummarySchema = z.object({
   publishedAt: z.iso.datetime(),
   /** Detik ke titik relevan di video, supaya klaim bisa diperiksa. */
   timestampSeconds: z.int().nonnegative().nullable(),
-  aspect: z.string().min(1),
+  /** Ulasan keseluruhan atau khusus kamera (PB-40); halaman produk memisahkan keduanya. */
+  aspect: z.enum(["umum", "kamera"]),
   summary: z.string().min(1),
   strengths: z.array(z.string().min(1)),
   limitations: z.array(z.string().min(1)),
   /** Konteks pengujian reviewer, mis. "pemakaian 1 minggu, jaringan 4G". */
   testContext: z.string().nullable(),
+  /** Video bersponsor wajib ditandai ke pembaca. */
+  isSponsored: z.boolean(),
   status: publicationStatusSchema,
 });
 export type ReviewSummary = z.infer<typeof reviewSummarySchema>;

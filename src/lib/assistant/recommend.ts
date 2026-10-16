@@ -246,6 +246,25 @@ export async function recommend(
  * pemuatan data supaya aturan syarat wajib bisa diuji dengan katalog kecil
  * yang dikendalikan (scripts/tests/assistant.test.ts).
  */
+/**
+ * Apakah sebuah ulasan membahas topik prioritas pengguna. Aspek ulasan hanya
+ * "umum" atau "kamera" (PB-40), jadi baterai dan performa dikenali dari isi
+ * ringkasan tulisan admin, bukan dari angka spesifikasi.
+ */
+const REVIEW_TOPIC_WORDS: Record<"baterai" | "kamera" | "performa", RegExp> = {
+  baterai: /baterai|daya tahan|pengisian|ngecas|charging/i,
+  kamera: /kamera|foto|video|lensa|zoom/i,
+  performa: /performa|game|gaming|chipset|panas|lag|lancar/i,
+};
+
+function reviewMentions(
+  review: { aspect: "umum" | "kamera"; summary: string; strengths: string[]; limitations: string[] },
+  topic: keyof typeof REVIEW_TOPIC_WORDS
+): boolean {
+  if (topic === "kamera" && review.aspect === "kamera") return true;
+  return REVIEW_TOPIC_WORDS[topic].test([review.summary, ...review.strengths, ...review.limitations].join(" "));
+}
+
 export function recommendFromCatalog(
   catalog: CatalogDataset,
   now: Date,
@@ -421,12 +440,9 @@ export function recommendFromCatalog(
     for (const review of catalog.reviews) {
       if (review.productId !== product.id) continue;
       const relevant =
-        (needs.priorities.includes("baterai") &&
-          review.aspect.toLowerCase().includes("baterai")) ||
-        (needs.priorities.includes("kamera") &&
-          review.aspect.toLowerCase().includes("kamera")) ||
-        (needs.priorities.includes("performa") &&
-          review.aspect.toLowerCase().includes("performa"));
+        (needs.priorities.includes("baterai") && reviewMentions(review, "baterai")) ||
+        (needs.priorities.includes("kamera") && reviewMentions(review, "kamera")) ||
+        (needs.priorities.includes("performa") && reviewMentions(review, "performa"));
 
       if (relevant) {
         reasons.push({
@@ -489,7 +505,7 @@ export function recommendFromCatalog(
         ramGb: variant.ramGb,
         priceIdr: price.status === "unavailable" ? null : price.priceIdr,
         hasCameraReview: catalog.reviews.some(
-          (review) => review.productId === product.id && review.aspect.toLowerCase().includes("kamera")
+          (review) => review.productId === product.id && review.aspect === "kamera"
         ),
       },
       fit: 1,

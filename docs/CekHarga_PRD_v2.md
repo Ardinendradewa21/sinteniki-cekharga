@@ -45,6 +45,15 @@ CekHarga adalah alat bantu keputusan, **bukan marketplace**. Transaksi dilakukan
 
 **Ditunda:** laptop/kategori lain, barang bekas/refurbished/open-box, pembayaran dan langganan, checkout, akun konsumen dan favorit lintas perangkat, notifikasi, pelacakan promo/voucher/cashback, ranking/skor numerik, dan pengambilan review otomatis.
 
+**Keputusan 17 Oktober 2026 (PB-40):** pemilik produk mengaktifkan **penemuan video ulasan semi-otomatis** dari channel terpercaya. "Pengambilan review otomatis" yang ditunda di atas tetap ditunda dalam arti isi ulasan: sistem hanya mencarikan video kandidat, isi ringkasan tetap ditulis admin. Aturannya:
+
+- Channel terpercaya ditetapkan pemilik produk dan dikelola admin: GadgetIn, Jagat Review, Youtuber Cupu, Bestindotech, Pixa Focus ID, dan DKID Media (per 17 Oktober 2026).
+- Video dicari lewat YouTube Data API resmi dari daftar unggahan channel itu, lalu dicocokkan ke produk katalog oleh kode. Transkrip tidak diambil dan isi video tidak diolah otomatis.
+- Admin memilih video yang relevan, menandai aspek **umum** atau **kamera**, menonton, lalu menulis ringkasan (kelebihan, kekurangan, konteks uji, menit yang dirujuk). Video bersponsor ditandai. Hanya ringkasan yang diterbitkan admin yang tampil.
+- Halaman produk memisahkan ulasan keseluruhan dan ulasan kamera. Setiap ringkasan menautkan video asli dan menyebut channel serta tanggalnya.
+- Halaman perbandingan boleh menampilkan rangkuman AI yang hanya disusun dari ringkasan terbit, berlabel inferensi AI, tanpa skor, peringkat, atau pemenang. Rangkuman ini wajib punya rate limit dan kuota harian (aturan system design 1).
+- Data dari YouTube yang disimpan hanya ID video, judul, channel, dan tanggal terbit; diperbarui setiap sinkronisasi, dan kandidat yang tidak terlihat lagi lebih dari 30 hari dihapus (YouTube API Services Developer Policies).
+
 **Keputusan 16 Oktober 2026 (PB-31):** pemilik produk mengaktifkan **grafik riwayat harga publik**. Fitur lain dari daftar ditunda tetap ditunda. Grafik wajib memenuhi syarat berikut:
 
 - Tampil hanya bila varian terpilih punya minimal 5 pemeriksaan berhasil dalam rentang minimal 7 hari. Di bawah ambang itu, tampilkan catatan harga terakhir dalam bentuk daftar, tanpa garis tren.
@@ -124,7 +133,7 @@ AI menanyakan informasi yang benar-benar kurang: budget, kegiatan utama, kebutuh
 
 Admin dapat membuat, menyunting, meninjau, dan mempublikasikan produk/varian; mengimpor dataset; mengelola penawaran; serta melihat hasil pemeriksaan harga. Data impor tidak langsung dipublikasikan tanpa validasi.
 
-Untuk review, admin memilih produk/varian dan mencatat channel, URL video, tanggal publikasi, timestamp relevan, aspek, ringkasan, kelebihan/kekurangan, konteks pengujian, serta status draft/published. Channel reviewer berasal dari kurasi pemilik produk.
+Untuk review, admin memilih produk/varian dan mencatat channel, URL video, tanggal publikasi, timestamp relevan, aspek, ringkasan, kelebihan/kekurangan, konteks pengujian, serta status draft/published. Channel reviewer berasal dari kurasi pemilik produk. Sejak PB-40, sistem mencarikan video kandidat dari channel itu; isi ringkasan tetap ditulis admin.
 
 **Diterima bila:** pengguna biasa tidak dapat membaca/mengubah data admin melalui API; draft tidak tampil ke publik/AI; review lintas sumber dapat disimpan tanpa menghapus perbedaan pendapat; perubahan penting dapat ditelusuri ke admin dan waktunya. Tidak perlu membangun CMS generik.
 
@@ -304,7 +313,7 @@ Keberhasilan awal dinilai melalui evaluasi pengguna: mereka memahami alasan reko
 | Kebutuhan | Status / tindakan saat relevan |
 | --- | --- |
 | Dataset smartphone | Pemilik produk menyiapkan; lanjutkan UI dengan demo berlabel, validasi sampel sebelum impor besar |
-| Channel reviewer | Daftar akan diberikan pemilik; siapkan kurasi admin, jangan isi review faktual karangan |
+| Channel reviewer | Diberikan pemilik 17 Oktober 2026 (lihat keputusan PB-40 di §3); kurasi oleh admin, jangan isi review faktual karangan |
 | Akses GSMArena dan hak aset | Verifikasi sebelum pengambilan otomatis/publikasi |
 | Marketplace pilot dan sumber harga | Pilih yang aksesnya layak; jangan mengasumsikan API seller menyediakan seluruh katalog marketplace |
 | AI/provider/auth/database credentials | Konfigurasi server saat integrasi; jangan meminta secret ditulis dalam PRD |

@@ -160,7 +160,7 @@ export type CompareItem = {
     storageGb: number;
   }[];
   /** Konteks pengalaman reviewer (PRD FR-04 meminta ini ikut ditampilkan). */
-  reviewNotes: { channelName: string; aspect: string; summary: string }[];
+  reviewNotes: { channelName: string; aspect: "umum" | "kamera"; summary: string }[];
 };
 
 export type CompareResult = {

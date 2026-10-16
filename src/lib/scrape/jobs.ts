@@ -2,6 +2,7 @@ import "server-only";
 
 import type { AdminSession } from "@/lib/auth/dal";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
+import { syncChannel } from "@/lib/reviews/sync";
 import { friendlyError, resolveLineupItem } from "@/lib/scrape/resolve";
 import { createSession, getSession, saveResult } from "@/lib/scrape/sessions";
 import { fetchLineup } from "@/lib/scrape/sources";
@@ -26,7 +27,8 @@ export type ScrapeJobStatus = "queued" | "running" | "done" | "failed" | "blocke
 
 type ScrapeJob = {
   id: string;
-  kind: "lineup" | "resolve";
+  /** `youtube` = sinkronisasi video ulasan satu channel (PB-40); official_id = review_channels.id. */
+  kind: "lineup" | "resolve" | "youtube";
   brand: ScrapeBrand;
   session_id: string | null;
   official_id: string | null;
@@ -183,6 +185,13 @@ async function runResolve(job: ScrapeJob): Promise<void> {
   }
 }
 
+async function runYoutube(job: ScrapeJob): Promise<void> {
+  const result = job.official_id
+    ? await syncChannel(job.official_id)
+    : { status: "failed" as const, error: "Job tanpa channel." };
+  await finish(job.id, result.status, result.error);
+}
+
 /**
  * Satu langkah worker: klaim dan kerjakan job satu per satu selama masih ada
  * waktu. Aman dipanggil bersamaan dari beberapa tempat; klaim di database
@@ -205,6 +214,7 @@ export async function processScrapeStep(budgetMs = 40_000): Promise<{ processed:
       continue;
     }
     if (job.kind === "lineup") await runLineup(job);
+    else if (job.kind === "youtube") await runYoutube(job);
     else await runResolve(job);
   }
   return { processed };

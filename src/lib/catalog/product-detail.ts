@@ -65,11 +65,12 @@ export type ProductReview = {
   videoUrl: string;
   publishedAt: string;
   timestampSeconds: number | null;
-  aspect: string;
+  aspect: "umum" | "kamera";
   summary: string;
   strengths: string[];
   limitations: string[];
   testContext: string | null;
+  isSponsored: boolean;
   /** Review yang terikat varian tertentu, supaya konteksnya tidak digeneralisir. */
   variantLabel: string | null;
 };
@@ -295,6 +296,7 @@ export function buildProductDetail(
       strengths: review.strengths,
       limitations: review.limitations,
       testContext: review.testContext,
+      isSponsored: review.isSponsored,
       variantLabel: review.variantId
         ? (variantLabelById.get(review.variantId) ?? null)
         : null,

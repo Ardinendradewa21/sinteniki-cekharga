@@ -7,6 +7,7 @@ import { purgeRawListings } from "@/lib/import/raw-rows";
 import { processScrapeStep, purgeScrapeJobs } from "@/lib/scrape/jobs";
 import { runPriceRefresh } from "@/lib/import/price-refresh";
 import { purgeOldSessions } from "@/lib/scrape/sessions";
+import { enqueueChannelSync, purgeStaleYoutubeVideos } from "@/lib/reviews/sync";
 
 /**
  * Pekerjaan harian katalog, dipanggil Cron Vercel (`vercel.json`).
@@ -62,6 +63,9 @@ export async function GET(request: Request) {
     purgedRawListings: await task(() => purgeRawListings()),
     purgedScrapeJobs: await task(() => purgeScrapeJobs()),
     priceRefresh: await task(() => runPriceRefresh()),
+    // PB-40: video ulasan dari channel terpercaya; dikerjakan worker scrape di bawah.
+    purgedYoutubeVideos: await task(() => purgeStaleYoutubeVideos()),
+    youtubeQueued: await task(() => enqueueChannelSync("all", null)),
   };
 
   // Sisa waktu dipakai menerapkan antrean (termasuk batch harga barusan).

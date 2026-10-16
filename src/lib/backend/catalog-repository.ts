@@ -148,7 +148,7 @@ async function fetchCatalogFromBackend(): Promise<CatalogDataset> {
       fetchAllRows({
         table: "review_summaries",
         columns:
-          "id, product_id, variant_id, channel_name, video_url, published_at, timestamp_seconds, aspect, summary, strengths, limitations, test_context, status",
+          "id, product_id, variant_id, channel_name, video_url, published_at, timestamp_seconds, aspect, summary, strengths, limitations, test_context, is_sponsored, status",
         order: byId,
         filters: [{ column: "status", value: "published" }],
       }),

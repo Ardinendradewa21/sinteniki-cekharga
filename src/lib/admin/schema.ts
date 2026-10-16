@@ -177,9 +177,12 @@ export const reviewInput = z.object({
     emptyToNull,
     z.coerce.number().int().nonnegative().max(86_400, "Timestamp melebihi 24 jam").nullable()
   ),
-  aspect: z.string().trim().min(1, "Aspek yang diulas wajib diisi"),
-  summary: z.string().trim().min(1, "Ringkasan wajib diisi"),
+  /** PB-40: halaman produk memisahkan ulasan keseluruhan dan ulasan kamera. */
+  aspect: z.enum(["umum", "kamera"], "Pilih aspek: umum atau kamera"),
+  summary: z.string().trim().min(1, "Ringkasan wajib diisi").max(1200, "Ringkasan maksimal 1.200 karakter"),
   strengths: linesToArray,
   limitations: linesToArray,
   testContext: optionalText,
+  /** Kotak centang: terkirim "on" hanya bila dicentang. */
+  isSponsored: z.preprocess((value) => value === "on" || value === "true", z.boolean()),
 });

@@ -82,7 +82,7 @@ export function CompareSummary({ result }: { result: CompareResult }) {
                       <span className="font-medium text-foreground">
                         {note.channelName}
                       </span>{" "}
-                      soal {note.aspect.toLowerCase()}: {note.summary}
+                      {note.aspect === "kamera" ? "soal kamera" : "secara umum"}: {note.summary}
                     </li>
                   ))}
                 </ul>

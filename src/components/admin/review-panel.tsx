@@ -89,7 +89,7 @@ export function ReviewPanel({
                     </Badge>
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {r.aspect} · {new Date(r.publishedAt).toLocaleDateString("id-ID")}
+                    {r.aspect === "kamera" ? "Ulasan kamera" : "Ulasan keseluruhan"} · {new Date(r.publishedAt).toLocaleDateString("id-ID")}
                     {r.variantLabel ? ` · varian ${r.variantLabel}` : " · seluruh varian"}
                     {r.timestampSeconds !== null
                       ? ` · menit ${Math.floor(r.timestampSeconds / 60)}:${String(r.timestampSeconds % 60).padStart(2, "0")}`
@@ -157,7 +157,15 @@ export function ReviewPanel({
           </div>
           <div className="space-y-2">
             <Label htmlFor="aspect">Aspek yang diulas</Label>
-            <Input id="aspect" name="aspect" placeholder="Baterai, kamera, performa" required />
+            <select
+              id="aspect"
+              name="aspect"
+              defaultValue="umum"
+              className="flex min-h-11 w-full rounded-lg border border-border-strong bg-card px-3 text-base text-foreground"
+            >
+              <option value="umum">Ulasan keseluruhan</option>
+              <option value="kamera">Ulasan kamera</option>
+            </select>
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="videoUrl">URL video</Label>
@@ -176,6 +184,10 @@ export function ReviewPanel({
             </Label>
             <Input id="timestampSeconds" name="timestampSeconds" type="number" min={0} />
           </div>
+          <label className="flex min-h-11 items-center gap-3 text-sm text-foreground sm:col-span-2">
+            <input type="checkbox" name="isSponsored" className="size-5 accent-[var(--brand)]" />
+            Video ini bersponsor (ditampilkan ke pembaca)
+          </label>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="variantId">Berlaku untuk</Label>
             <select

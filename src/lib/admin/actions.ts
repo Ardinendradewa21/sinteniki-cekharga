@@ -18,6 +18,7 @@ import {
 } from "@/lib/admin/schema";
 import { officialBrandName } from "@/lib/catalog/brands";
 import { loadStoreResolver } from "@/lib/import/stores";
+import { parseYoutubeVideoId } from "@/lib/reviews/youtube-match";
 
 /**
  * Aksi tulis untuk admin (PRD FR-07).
@@ -630,6 +631,8 @@ export async function addReviewAction(
         strengths: input.strengths,
         limitations: input.limitations,
         test_context: input.testContext,
+        is_sponsored: input.isSponsored,
+        youtube_video_id: parseYoutubeVideoId(input.videoUrl),
         // Review baru selalu draft. Ringkasan pendapat orang lain harus
         // ditinjau dulu sebelum tampil membawa nama channel mereka.
         status: "draft",
