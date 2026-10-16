@@ -7,6 +7,7 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/admin/audit";
 import { requireStaff } from "@/lib/auth/dal";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
+import { invalidateComparePairs } from "@/lib/catalog/compare-pairs";
 
 /**
  * Aksi admin pasangan "A vs B" (PB-28). Hanya peran admin, tercatat di audit.
@@ -18,6 +19,7 @@ const PAGE = "/admin/products/perbandingan";
 const pairInput = z.object({ productA: z.uuid(), productB: z.uuid() }).refine((value) => value.productA !== value.productB);
 
 function refreshPublicPages() {
+  invalidateComparePairs();
   revalidatePath("/bandingkan/[pasangan]", "page");
   revalidatePath("/compare");
   revalidatePath("/sitemap.xml");

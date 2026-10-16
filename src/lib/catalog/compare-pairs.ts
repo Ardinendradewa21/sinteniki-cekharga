@@ -1,5 +1,7 @@
 import "server-only";
 
+import { revalidateTag, unstable_cache } from "next/cache";
+
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectWhereIn } from "@/lib/backend/paged-read";
 import type { PairSlugs } from "@/lib/catalog/compare-pair-rules";
@@ -19,7 +21,24 @@ export type ComparePair = PairSlugs & {
   createdAt: string;
 };
 
-export async function listComparePairs(): Promise<ComparePair[]> {
+/**
+ * Tag cache pasangan. Pasangan juga ikut tag `catalog`, karena status terbit
+ * produk menentukan pasangan mana yang tampil; setiap perubahan katalog ikut
+ * menyegarkannya.
+ */
+const COMPARE_PAIRS_TAG = "compare-pairs";
+
+export const listComparePairs = unstable_cache(fetchComparePairs, ["compare-pairs", "v1"], {
+  tags: [COMPARE_PAIRS_TAG, "catalog"],
+  revalidate: 3600,
+});
+
+/** Dipanggil aksi admin pasangan; request berikutnya langsung membaca data baru. */
+export function invalidateComparePairs(): void {
+  revalidateTag(COMPARE_PAIRS_TAG, { expire: 0 });
+}
+
+async function fetchComparePairs(): Promise<ComparePair[]> {
   const { data, error } = await getInsforgeAdminClient()
     .database.from("compare_pairs")
     .select("id, product_a, product_b, created_at")

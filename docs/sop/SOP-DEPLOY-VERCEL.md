@@ -83,7 +83,8 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
       Perintah di atas untuk Git Bash. Windows PowerShell 5.1 membuang tanda kutip ganda pada argumen JSON, jadi di PowerShell tulis `--headers '{\"Authorization\":\"Bearer ${{secrets.IMPORT_WORKER_SECRET}}\"}'`.
    3. Cek hasil eksekusi dengan `npx @insforge/cli schedules list`, lalu `npx @insforge/cli schedules logs <id>`. Status harus 200, bukan 401.
 3. Cron harian sudah diatur di `vercel.json` (`0 23 * * *`). Di paket Hobby, Vercel menjalankannya kapan saja dalam jam itu, yaitu **06.00–06.59 WIB**. Vercel mengirim header `Authorization: Bearer <CRON_SECRET>` otomatis. Cek di Settings → Cron Jobs.
-4. Batas durasi fungsi Hobby (dengan Fluid compute bawaan) adalah 300 detik. Rute berat CekHarga memakai `maxDuration = 60`, jadi masih di bawah batas.
+4. Region fungsi diatur `sin1` (Singapura) di `vercel.json`, dekat dengan database InsForge (`ap-southeast`) dan pengguna di Indonesia. Bawaan Vercel adalah `iad1` (Washington); dengan region itu setiap query yang tidak kena cache menyeberangi Pasifik bolak-balik. Paket Hobby hanya boleh satu region.
+5. Batas durasi fungsi Hobby (dengan Fluid compute bawaan) adalah 300 detik. Rute berat CekHarga memakai `maxDuration = 60`, jadi masih di bawah batas.
 
 ## 6. Checklist verifikasi
 
