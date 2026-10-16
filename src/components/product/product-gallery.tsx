@@ -13,6 +13,13 @@ import { cn } from "@/lib/utils";
 type Photo = { src: string; alt: string; source: string };
 
 /** Geser minimal (px) atau kecepatan (px/detik) agar swipe dianggap pindah foto. */
+/**
+ * Latar samar di belakang foto, dari token desain yang ada. Foto produk sudah
+ * dihapus latarnya (WebP transparan), jadi HP berwarna putih tidak menyatu
+ * dengan kartu putih (masukan PO 16 Okt 2026).
+ */
+const PHOTO_BACKDROP = "rounded-lg bg-gradient-to-br from-muted via-muted/70 to-brand-muted";
+
 const SWIPE_OFFSET = 60;
 const SWIPE_VELOCITY = 400;
 
@@ -51,7 +58,7 @@ export function ProductGallery({
     const photo = photos[0];
     return (
       <figure className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-8">
-        <div className="relative flex h-60 w-full items-center justify-center sm:h-96">
+        <div className={cn("relative flex h-60 w-full items-center justify-center sm:h-96", PHOTO_BACKDROP)}>
           {photo || !fallback.isGenericIllustration ? (
             <Image
               src={photo?.src ?? fallback.src}
@@ -102,7 +109,7 @@ export function ProductGallery({
         onKeyDown={onKeyDown}
         className="relative overflow-hidden rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
       >
-        <div className="relative h-60 w-full sm:h-96">
+        <div className={cn("relative h-60 w-full sm:h-96", PHOTO_BACKDROP)}>
           <AnimatePresence initial={false} custom={direction} mode="popLayout">
             <motion.div
               key={current.src}

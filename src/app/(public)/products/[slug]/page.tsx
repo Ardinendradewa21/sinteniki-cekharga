@@ -160,7 +160,8 @@ export default async function ProductDetailPage(
       ) : null}
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
-        <div className="lg:sticky lg:top-24 lg:self-start">
+        {/* Kolom foto sengaja tidak menempel saat di-scroll (masukan PO 16 Okt 2026). */}
+        <div className="lg:self-start">
           {/* key: ganti warna memulai galeri dari foto pertama warna itu. */}
           <ProductGallery
             key={detail.selectedColor?.key ?? "semua"}
