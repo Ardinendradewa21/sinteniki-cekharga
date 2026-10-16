@@ -70,7 +70,7 @@ async function call<T>(path: string, params: Record<string, string>): Promise<T>
   }
 }
 
-export type YoutubeChannel = { channelId: string; title: string; uploadsPlaylistId: string };
+type YoutubeChannel = { channelId: string; title: string; uploadsPlaylistId: string };
 
 export async function resolveChannelHandle(handle: string): Promise<YoutubeChannel | null> {
   const data = await call<{
@@ -80,7 +80,7 @@ export async function resolveChannelHandle(handle: string): Promise<YoutubeChann
   return item ? { channelId: item.id, title: item.snippet.title, uploadsPlaylistId: item.contentDetails.relatedPlaylists.uploads } : null;
 }
 
-export type YoutubeUpload = { videoId: string; title: string; publishedAt: string };
+type YoutubeUpload = { videoId: string; title: string; publishedAt: string };
 
 /**
  * Unggahan channel dari yang terbaru, berhenti di video yang lebih lama dari
@@ -111,7 +111,7 @@ export async function listUploads(playlistId: string, since: Date, maxPages: num
   return uploads;
 }
 
-export type YoutubeVideo = YoutubeUpload & { channelId: string; channelTitle: string };
+type YoutubeVideo = YoutubeUpload & { channelId: string; channelTitle: string };
 
 /** Detail video untuk tambah manual: 1 unit untuk sampai 50 ID. */
 export async function getVideos(videoIds: readonly string[]): Promise<YoutubeVideo[]> {

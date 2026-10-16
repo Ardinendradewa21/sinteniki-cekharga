@@ -18,7 +18,7 @@
 
 export type MatchableProduct = { id: string; brand: string; model: string };
 
-export type VideoMatch = {
+type VideoMatch = {
   productId: string;
   suggestedAspect: "umum" | "kamera";
   looksLikeReview: boolean;
@@ -36,7 +36,7 @@ const GENERIC = new Set(["pro", "max", "plus", "ultra", "mini", "lite", "fe", "n
 const CAMERA_WORDS = /\b(kamera|camera|foto|photo|zoom|lensa|selfie)\b/;
 const REVIEW_WORDS = /\b(review|ulasan|unboxing|jajal|tes|test|vs|bandingin|komparasi|setelah|bulan kemudian|daily driver|in depth|first impression|hands on)\b/;
 
-export function normalizeTitle(text: string): string[] {
+function normalizeTitle(text: string): string[] {
   return text
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")

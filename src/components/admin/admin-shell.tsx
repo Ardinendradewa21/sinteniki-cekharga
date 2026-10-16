@@ -14,6 +14,7 @@ import {
   Moon02Icon,
   Package01Icon,
   Sun02Icon,
+  Video01Icon,
 } from "@hugeicons/core-free-icons";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
@@ -55,6 +56,13 @@ const ADMIN_NAV: readonly {
     label: "Impor data",
     description: "CSV, tarik otomatis, foto",
     icon: DatabaseImportIcon,
+    roles: [],
+  },
+  {
+    href: "/admin/ulasan",
+    label: "Ulasan YouTube",
+    description: "Kandidat video dan ringkasan",
+    icon: Video01Icon,
     roles: [],
   },
   {
