@@ -94,6 +94,9 @@ export default async function AdminProductsPage({
           <Button asChild variant="outline">
             <Link href="/admin">Dasbor</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/admin/products/perbandingan">Perbandingan pilihan</Link>
+          </Button>
           <Button asChild>
             <Link href="/admin/products/baru">Tambah produk</Link>
           </Button>

@@ -180,3 +180,13 @@ test("PB-27 teks garansi dibakukan; yang tidak jelas tidak dianggap resmi", () =
   assert.equal(isOfficialWarranty("ada"), false);
   assert.equal(isOfficialWarranty(normalizeWarranty("ex-inter")), false);
 });
+
+import { findPair, pairPath } from "@/lib/catalog/compare-pair-rules";
+
+test("PB-28 alamat A vs B: slug bertanda hubung, urutan terbalik dikenali", () => {
+  const pairs = [{ a: "xiaomi-redmi-note-17-pro", b: "xiaomi-redmi-note-17-pro-max" }];
+  assert.equal(pairPath(pairs[0]!), "/bandingkan/xiaomi-redmi-note-17-pro-vs-xiaomi-redmi-note-17-pro-max");
+  assert.deepEqual(findPair("xiaomi-redmi-note-17-pro-vs-xiaomi-redmi-note-17-pro-max", pairs), { pair: pairs[0], reversed: false });
+  assert.deepEqual(findPair("xiaomi-redmi-note-17-pro-max-vs-xiaomi-redmi-note-17-pro", pairs), { pair: pairs[0], reversed: true });
+  assert.equal(findPair("apple-iphone-17-vs-samsung-galaxy-s26", pairs), null, "pasangan yang tidak dipilih admin tidak punya halaman");
+});

@@ -60,7 +60,7 @@ test.describe("API database dengan anon key (RLS)", () => {
     return { status: response.status(), rows: Array.isArray(body) ? body : [] };
   };
 
-  for (const table of ["admin_users", "admin_audit", "import_batches", "import_items", "photo_jobs", "scrape_sessions", "ad_events", "invoices", "price_refresh_runs"]) {
+  for (const table of ["admin_users", "admin_audit", "import_batches", "import_items", "photo_jobs", "scrape_sessions", "ad_events", "invoices", "price_refresh_runs", "compare_pairs"]) {
     test(`TC-SEC-05 anon tidak bisa membaca ${table} @regression`, async ({ request }) => {
       const { rows } = await read(request, table);
       expect(rows).toHaveLength(0);

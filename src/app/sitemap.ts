@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { pairPath } from "@/lib/catalog/compare-pair-rules";
+import { listComparePairs } from "@/lib/catalog/compare-pairs";
 import { loadOrNull } from "@/lib/catalog/load";
 import { listProductSummaries } from "@/lib/catalog/queries";
 import { siteUrl } from "@/lib/site-url";
@@ -24,6 +26,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const now = new Date();
   const products = (await loadOrNull(() => listProductSummaries(now))) ?? [];
+  // Halaman "A vs B" hanya untuk pasangan pilihan admin yang kedua produknya terbit (PB-28).
+  const pairs = (await loadOrNull(() => listComparePairs())) ?? [];
 
   return [
     ...STATIC_PATHS.map((path) => ({ url: new URL(path, base).href })),
@@ -31,5 +35,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: new URL(`/products/${product.slug}`, base).href,
       ...(product.price.status === "available" ? { lastModified: new Date(product.price.checkedAt) } : {}),
     })),
+    ...pairs.map((pair) => ({ url: new URL(pairPath(pair), base).href })),
   ];
 }

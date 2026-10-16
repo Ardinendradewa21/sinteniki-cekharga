@@ -13,6 +13,8 @@ import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getComparison, isDemoData } from "@/lib/catalog/queries";
+import { pairPath } from "@/lib/catalog/compare-pair-rules";
+import { listComparePairs } from "@/lib/catalog/compare-pairs";
 import {
   MIN_COMPARE_ITEMS,
   parseCompareSelections,
@@ -43,6 +45,31 @@ function CompareSkeleton() {
         <Skeleton key={index} className="h-[32rem] w-full rounded-xl" />
       ))}
     </div>
+  );
+}
+
+/** Pasangan pilihan admin (PB-28), sebagai contoh siap buka. Tanpa klaim "populer". */
+async function PairExamples() {
+  const pairs = (await loadOrNull(() => listComparePairs())) ?? [];
+  if (pairs.length === 0) return null;
+  return (
+    <section aria-labelledby="contoh-perbandingan" className="mt-10">
+      <h2 id="contoh-perbandingan" className="heading-section text-foreground">
+        Contoh perbandingan
+      </h2>
+      <ul className="mt-4 flex flex-wrap gap-2">
+        {pairs.map((pair) => (
+          <li key={pair.id}>
+            <Link
+              href={pairPath(pair)}
+              className="inline-flex min-h-11 items-center rounded-pill border border-border bg-card px-4 text-sm text-foreground hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {pair.nameA} vs {pair.nameB}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -112,6 +139,8 @@ async function CompareView({
           <CompareSummary result={result} />
         </section>
       ) : null}
+
+      {result.items.length === 0 ? <PairExamples /> : null}
 
       {result.items.length > 0 ? <AdSlot code="compare_bottom" className="mt-12" /> : null}
     </>
