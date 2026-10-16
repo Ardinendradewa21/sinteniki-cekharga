@@ -190,3 +190,19 @@ test("PB-28 alamat A vs B: slug bertanda hubung, urutan terbalik dikenali", () =
   assert.deepEqual(findPair("xiaomi-redmi-note-17-pro-max-vs-xiaomi-redmi-note-17-pro", pairs), { pair: pairs[0], reversed: true });
   assert.equal(findPair("apple-iphone-17-vs-samsung-galaxy-s26", pairs), null, "pasangan yang tidak dipilih admin tidak punya halaman");
 });
+
+import { findNeedPage, needPagePath, needPageQualifies, NEED_PAGES } from "@/lib/catalog/need-pages";
+import { interpretCatalogNeeds } from "@/lib/catalog/semantic-needs";
+
+test("PB-29 halaman kebutuhan: minimal 3 produk segar, dan kalimatnya dipahami pencarian", () => {
+  assert.equal(needPageQualifies(2), false);
+  assert.equal(needPageQualifies(3), true);
+  assert.equal(needPagePath(findNeedPage("hp-5g-di-bawah-3-juta")!), "/hp/hp-5g-di-bawah-3-juta");
+  assert.equal(findNeedPage("tidak-ada"), null);
+  assert.equal(new Set(NEED_PAGES.map((page) => page.slug)).size, NEED_PAGES.length, "slug unik");
+  for (const page of NEED_PAGES) {
+    const needs = interpretCatalogNeeds(page.query);
+    assert.ok(needs.maxPriceIdr !== null, `${page.slug}: batas harga terbaca`);
+    assert.equal(needs.keywordText.trim(), "", `${page.slug}: tidak ada kata yang tersisa sebagai kata kunci`);
+  }
+});
