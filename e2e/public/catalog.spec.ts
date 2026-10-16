@@ -98,4 +98,23 @@ test.describe("Katalog (FR-02)", () => {
     await expect(priced).toContainText(/Varian \d+\/\d+ (GB|TB)/);
     await expect(priced).toContainText(/diperiksa|tercatat/i);
   });
+  test("TC-KAT-10 tombol Bandingkan mengisi baki, menolak pilihan keempat, lalu membuka perbandingan @regression", async ({ page }) => {
+    await page.goto("/products");
+    const toggles = page.getByRole("button", { name: /untuk dibandingkan$/ });
+    const tray = page.getByRole("region", { name: "Pilihan untuk dibandingkan" });
+    await toggles.nth(0).click();
+    await expect(toggles.nth(0)).toHaveAttribute("aria-pressed", "true");
+    await expect(tray).toContainText("Pilih 1 lagi");
+    for (const index of [1, 2, 3]) await toggles.nth(index).click();
+    await expect(tray).toContainText("Maksimal 3 produk");
+    await expect(toggles.nth(3)).toHaveAttribute("aria-pressed", "false");
+    // Pilihan bertahan saat pindah halaman katalog.
+    await page.goto("/products?hal=2");
+    await expect(tray).toContainText("3 produk dipilih");
+    await Promise.all([
+      page.waitForURL(/\/compare\?produk=[^&]+&produk=[^&]+&produk=/, { timeout: 60_000 }),
+      page.getByRole("link", { name: "Bandingkan 3 produk terpilih" }).click(),
+    ]);
+    await expect(tray).toHaveCount(0);
+  });
 });

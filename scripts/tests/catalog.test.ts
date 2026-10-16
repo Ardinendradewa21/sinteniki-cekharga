@@ -241,3 +241,44 @@ test("PB-36 riwayat harga: ambang 5 titik dalam 7 hari, cek gagal bukan titik, c
   assert.match(path.dashed, /H[\d.]+ V[\d.]+/, "segmen celah berbentuk tangga putus-putus");
   assert.equal(geometry.yTicks.length, 3);
 });
+
+// Baki pilihan bandingkan di katalog (src/lib/catalog/compare-tray-rules.ts).
+import { parseTrayItems, toggleTrayItem } from "@/lib/catalog/compare-tray-rules";
+
+const tray = (slug: string) => ({ slug, name: slug.toUpperCase(), image: null });
+
+test("baki bandingkan: tambah, hapus, dan tolak saat penuh tanpa membuang pilihan lama", () => {
+  let result = toggleTrayItem([], tray("a"));
+  assert.equal(result.outcome, "added");
+  result = toggleTrayItem(result.items, tray("b"));
+  result = toggleTrayItem(result.items, tray("c"));
+  assert.deepEqual(result.items.map((item) => item.slug), ["a", "b", "c"]);
+  const full = toggleTrayItem(result.items, tray("d"));
+  assert.equal(full.outcome, "full");
+  assert.deepEqual(full.items.map((item) => item.slug), ["a", "b", "c"]);
+  const removed = toggleTrayItem(result.items, tray("b"));
+  assert.equal(removed.outcome, "removed");
+  assert.deepEqual(removed.items.map((item) => item.slug), ["a", "c"]);
+});
+
+test("baki bandingkan: isi penyimpanan rusak atau asing disaring", () => {
+  assert.deepEqual(parseTrayItems(null), []);
+  assert.deepEqual(parseTrayItems("{bukan json"), []);
+  assert.deepEqual(parseTrayItems(JSON.stringify({ slug: "a" })), []);
+  const items = parseTrayItems(
+    JSON.stringify([
+      { slug: "oppo-a6s", name: "OPPO A6s", image: "https://x/y.png" },
+      { slug: "oppo-a6s", name: "dobel", image: null },
+      { slug: "../jahat", name: "X", image: null },
+      { slug: "vivo-y29", name: "  ", image: null },
+      { slug: "vivo-y29", name: "vivo Y29", image: 5 },
+      { slug: "c", name: "C" },
+      { slug: "d", name: "D" },
+    ])
+  );
+  assert.deepEqual(items, [
+    { slug: "oppo-a6s", name: "OPPO A6s", image: "https://x/y.png" },
+    { slug: "vivo-y29", name: "vivo Y29", image: null },
+    { slug: "c", name: "C", image: null },
+  ]);
+});

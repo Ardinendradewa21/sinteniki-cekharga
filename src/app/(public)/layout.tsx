@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 import { AdRails } from "@/components/ads/ad-slot";
 import { ConsentBanner } from "@/components/ads/consent-banner";
+import { CompareTray } from "@/components/compare/compare-tray";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import {
@@ -33,6 +34,7 @@ export default async function PublicLayout({
       {/* Rail iklan kiri/kanan, hanya di layar sangat lebar (lihat AdRails). */}
       <AdRails />
       <SiteFooter />
+      <CompareTray />
       {adsenseClient ? <ConsentBanner /> : null}
     </div>
   );

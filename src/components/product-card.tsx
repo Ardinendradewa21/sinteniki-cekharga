@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { DemoBadge } from "@/components/demo-marker";
 import { CardPriceMeta, CardPriceValue } from "@/components/price-display";
-import { buildCompareHref } from "@/lib/catalog/compare-params";
+import { CompareToggle } from "@/components/compare/compare-toggle";
 import type { ProductSummary } from "@/lib/catalog/queries";
 import { DevicePlaceholder } from "@/components/product/device-placeholder";
 import { cn } from "@/lib/utils";
@@ -18,8 +18,8 @@ import { cn } from "@/lib/utils";
  * TIDAK diambil dari referensi adalah fungsi tokonya: tidak ada tombol favorit
  * atau keranjang, karena CekHarga bukan marketplace dan belum punya akun
  * pengguna (PRD §3 dan §8). Slot kanan atas dipakai penanda data demo.
- * Tombol Bandingkan di bagian bawah adalah pintasan ke fitur perbandingan,
- * bukan aksi belanja.
+ * Tombol Bandingkan di bagian bawah memasukkan produk ke baki perbandingan
+ * (CompareTray), bukan aksi belanja.
  *
  * Isi kartu sengaja ringkas: merek, nama, harga, dan varian. Spesifikasi detail
  * seperti baterai dan chipset ada di halaman detail, bukan di kartu. PRD FR-02
@@ -98,13 +98,13 @@ export function ProductCard({
 
         {href ? (
           <div className="relative z-10 mt-auto border-t border-border pt-1.5">
-            <Link
-              href={buildCompareHref([{ slug: product.slug, variantKey: null }])}
-              aria-label={`Bandingkan ${product.name} dengan produk lain`}
-              className="flex min-h-11 w-full items-center justify-center rounded-md text-xs font-semibold text-brand transition-colors hover:bg-brand-muted/40 focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Bandingkan
-            </Link>
+            <CompareToggle
+              item={{
+                slug: product.slug,
+                name: product.name,
+                image: product.image.isGenericIllustration ? null : product.image.src,
+              }}
+            />
           </div>
         ) : null}
       </div>
