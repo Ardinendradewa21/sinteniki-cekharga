@@ -87,4 +87,12 @@ test.describe("Detail produk (FR-03, FR-05)", () => {
     // PRD §7: harga kosong bukan nol.
     await expect(page.locator("main")).not.toContainText(/Rp\s?0(?![\d.])/);
   });
+  test("TC-DET-10 ulasan reviewer dipisah keseluruhan dan kamera (PB-40) @regression", async ({ page }) => {
+    await page.goto("/products?urut=checked");
+    const [href] = await productLinks(page);
+    await page.goto(href);
+    const section = page.locator("section", { has: page.getByRole("heading", { name: "Pengalaman reviewer", level: 2 }) });
+    await expect(section.getByRole("heading", { name: "Ulasan keseluruhan", level: 3 })).toBeVisible();
+    await expect(section.getByRole("heading", { name: "Ulasan kamera", level: 3 })).toBeVisible();
+  });
 });

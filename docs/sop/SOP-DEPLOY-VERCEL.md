@@ -46,6 +46,7 @@ Isi di Settings → Environment Variables. Nilai diambil dari `.env.local`, atau
 | `INSFORGE_ANON_KEY` | wajib | wajib | **Wajib untuk login admin** |
 | `CRON_SECRET` | wajib | – | String acak panjang. Dipakai cron Vercel `/api/cron/daily` (06.00 WIB) |
 | `IMPORT_WORKER_SECRET` | wajib | – | String acak panjang. Dipakai InsForge Schedules (§5) |
+| `YOUTUBE_API_KEY` | wajib untuk ulasan | – | YouTube Data API v3, dibatasi ke API itu saja (PB-40, `SOP-ULASAN-YOUTUBE.md`) |
 | `SITE_URL` | URL production, mis. `https://cekharga-xxx.vercel.app` | **kosong** | Kosong = robots.txt menolak crawler, supaya preview tidak terindeks |
 | `OPENROUTER_API_KEY` | opsional | opsional | Tanpa ini kotak cerita bebas Tanya AI disembunyikan |
 | `AI_QUOTA_SECRET` | disarankan | disarankan | String acak |
