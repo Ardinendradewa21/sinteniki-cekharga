@@ -17,7 +17,7 @@ import {
   subscribeTrayFull,
 } from "@/components/compare/compare-tray-store";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { buildCompareHref, MAX_COMPARE_ITEMS, MIN_COMPARE_ITEMS } from "@/lib/catalog/compare-params";
+import { buildCompareHref, MAX_COMPARE_ITEMS, MIN_COMPARE_ITEMS } from "@/lib/catalog/compare-href";
 import type { TrayItem } from "@/lib/catalog/compare-tray-rules";
 import { cn } from "@/lib/utils";
 

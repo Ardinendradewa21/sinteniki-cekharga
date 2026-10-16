@@ -8,7 +8,7 @@ import { DemoBadge } from "@/components/demo-marker";
 import { CardPriceMeta, CardPriceValue } from "@/components/price-display";
 import { formatIdr } from "@/lib/catalog/pricing";
 import type { ComparisonExample } from "@/lib/catalog/queries";
-import { buildCompareHref } from "@/lib/catalog/compare-params";
+import { buildCompareHref } from "@/lib/catalog/compare-href";
 
 /**
  * Contoh perbandingan di beranda, PRD §4 menyebut beranda memuat "contoh

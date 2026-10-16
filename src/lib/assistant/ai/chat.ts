@@ -11,11 +11,8 @@ import {
   REQUIREMENTS,
   REQUIREMENT_LABELS,
 } from "@/lib/assistant/needs";
-import {
-  collectedSchema,
-  type ChatMessage,
-  type Collected,
-} from "@/lib/assistant/ai/chat-state";
+import type { ChatMessage, Collected } from "@/lib/assistant/ai/chat-state";
+import { collectedSchema } from "@/lib/assistant/ai/collected-schema";
 import type { Focus } from "@/lib/assistant/dialog-policy";
 
 

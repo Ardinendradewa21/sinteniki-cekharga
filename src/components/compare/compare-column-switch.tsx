@@ -8,7 +8,7 @@ import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import {
   buildCompareHref,
   type CompareSelection,
-} from "@/lib/catalog/compare-params";
+} from "@/lib/catalog/compare-href";
 import { cn } from "@/lib/utils";
 
 /**

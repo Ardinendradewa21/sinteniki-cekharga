@@ -15,10 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getComparison, isDemoData } from "@/lib/catalog/queries";
 import { pairPath } from "@/lib/catalog/compare-pair-rules";
 import { listComparePairs } from "@/lib/catalog/compare-pairs";
-import {
-  MIN_COMPARE_ITEMS,
-  parseCompareSelections,
-} from "@/lib/catalog/compare-params";
+import { MIN_COMPARE_ITEMS } from "@/lib/catalog/compare-href";
+import { parseCompareSelections } from "@/lib/catalog/compare-params";
 
 export const metadata: Metadata = {
   title: "Bandingkan",

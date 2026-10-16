@@ -5,12 +5,8 @@ import { z } from "zod";
 import { AI_LIMITS, rateLimit } from "@/lib/assistant/ai/client";
 import { runChatTurn } from "@/lib/assistant/ai/chat";
 import { consumeDailyQuota, quotaMessage } from "@/lib/assistant/ai/quota";
-import {
-  CHAT_START,
-  collectedSchema,
-  type ChatMessage,
-  type ChatState,
-} from "@/lib/assistant/ai/chat-state";
+import { CHAT_START, type ChatMessage, type ChatState } from "@/lib/assistant/ai/chat-state";
+import { collectedSchema } from "@/lib/assistant/ai/collected-schema";
 import { clientIp } from "@/lib/rate-limit";
 import { recommend } from "@/lib/assistant/recommend";
 import { parseNeeds } from "@/lib/assistant/needs";
@@ -18,9 +14,9 @@ import { toResultView } from "@/lib/assistant/results";
 import { guardRequirements, mergeHints, readHints } from "@/lib/assistant/hints";
 import { compareRequest, nextFocus, refinementSuggestions, shouldSearch } from "@/lib/assistant/dialog-policy";
 import { writeResultReply } from "@/lib/assistant/ai/writer";
-import { numberCandidates } from "@/lib/assistant/results";
+import { numberCandidates } from "@/lib/assistant/result-numbering";
 import { loadPublishedCatalog } from "@/lib/catalog/queries";
-import { buildCompareHref } from "@/lib/catalog/compare-params";
+import { buildCompareHref } from "@/lib/catalog/compare-href";
 
 /**
  * Satu giliran percakapan (PRD FR-06).

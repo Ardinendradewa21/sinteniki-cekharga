@@ -8,7 +8,7 @@ import { CompareTable } from "@/components/compare/compare-table";
 import { DemoNotice } from "@/components/demo-marker";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
-import { buildCompareHref } from "@/lib/catalog/compare-params";
+import { buildCompareHref } from "@/lib/catalog/compare-href";
 import { findPair, pairPath } from "@/lib/catalog/compare-pair-rules";
 import { listComparePairs, type ComparePair } from "@/lib/catalog/compare-pairs";
 import { monthLabel } from "@/lib/catalog/product-seo";

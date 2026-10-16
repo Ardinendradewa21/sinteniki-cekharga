@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { sendChatMessage } from "@/lib/assistant/ai/chat-actions";
 import { CHAT_START, type ChatState } from "@/lib/assistant/ai/chat-state";
 import { formatIdr } from "@/lib/catalog/pricing";
-import { ACTIVITY_LABELS, PRIORITY_LABELS, REQUIREMENT_LABELS } from "@/lib/assistant/needs";
+import { ACTIVITY_LABELS, PRIORITY_LABELS, REQUIREMENT_LABELS } from "@/lib/assistant/needs-options";
 
 /**
  * Percakapan asisten (PRD FR-06).

@@ -23,7 +23,7 @@ import {
   listPublishedSlugs,
   resolveProductSlugRedirect,
 } from "@/lib/catalog/queries";
-import { buildCompareHref } from "@/lib/catalog/compare-params";
+import { buildCompareHref } from "@/lib/catalog/compare-href";
 import { productDescription, productJsonLd, productTitle, serializeJsonLd } from "@/lib/catalog/product-seo";
 import { siteUrl } from "@/lib/site-url";
 

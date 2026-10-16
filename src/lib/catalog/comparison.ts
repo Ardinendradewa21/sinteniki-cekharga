@@ -1,7 +1,7 @@
 import "server-only";
 
 import { priceDifference, resolveStartingPrice, type PriceResolution, type StartingPriceResolution } from "@/lib/catalog/pricing";
-import { buildCompareHref, MAX_COMPARE_ITEMS, type CompareSelection } from "@/lib/catalog/compare-params";
+import { buildCompareHref, MAX_COMPARE_ITEMS, type CompareSelection } from "@/lib/catalog/compare-href";
 import { type ProductSummary, formatVariantLabel, findProductBySlug, loadPublishedCatalog } from "@/lib/catalog/core";
 import { buildProductDetail } from "@/lib/catalog/product-detail";
 

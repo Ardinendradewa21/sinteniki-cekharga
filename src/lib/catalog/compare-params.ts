@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { COMPARE_PARAM, MAX_COMPARE_ITEMS, type CompareSelection } from "@/lib/catalog/compare-href";
+
 /**
  * Kontrak URL halaman perbandingan (PRD FR-04).
  *
@@ -17,18 +19,6 @@ import { z } from "zod";
  * - Bagian varian opsional. Tanpa varian, halaman memakai varian basis harga,
  *   sama dengan perilaku halaman detail.
  */
-
-const COMPARE_PARAM = "produk";
-
-/** PRD FR-04: "Pengguna memilih 2-3 kandidat beserta variannya." */
-export const MIN_COMPARE_ITEMS = 2;
-export const MAX_COMPARE_ITEMS = 3;
-
-export type CompareSelection = {
-  slug: string;
-  /** `null` = pakai varian basis harga. */
-  variantKey: string | null;
-};
 
 const slugSchema = z
   .string()
@@ -79,23 +69,4 @@ export function parseCompareSelections(
   }
 
   return selections;
-}
-
-export function buildCompareHref(selections: CompareSelection[]): string {
-  if (selections.length === 0) return "/compare";
-
-  /*
-    Query string dirakit manual, bukan lewat `URLSearchParams`, karena
-    `toString()` meng-encode `~` menjadi `%7E` dan URL-nya jadi sulit dibaca.
-    Aman dilakukan di sini: slug sudah dibatasi pola kebab-case dan kunci varian
-    hanya angka dengan tanda hubung, jadi tidak ada karakter yang perlu di-escape.
-  */
-  const parts = selections.map((selection) => {
-    const value = selection.variantKey
-      ? `${selection.slug}~${selection.variantKey}`
-      : selection.slug;
-    return `${COMPARE_PARAM}=${value}`;
-  });
-
-  return `/compare?${parts.join("&")}`;
 }

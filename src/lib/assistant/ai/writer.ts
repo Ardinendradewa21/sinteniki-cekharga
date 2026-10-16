@@ -6,7 +6,8 @@ import { AI_LIMITS, getAiClient, getModel, getModelChain } from "@/lib/assistant
 import type { ChatMessage, Collected } from "@/lib/assistant/ai/chat-state";
 import { tidyReply } from "@/lib/assistant/ai/chat";
 import { checkReply } from "@/lib/assistant/reply-validator";
-import { numberCandidates, type NumberedCandidate, type ResultView } from "@/lib/assistant/results";
+import { numberCandidates, type NumberedCandidate } from "@/lib/assistant/result-numbering";
+import type { ResultView } from "@/lib/assistant/results";
 import { formatIdr } from "@/lib/catalog/pricing";
 
 /**

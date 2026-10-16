@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { CompareSearch } from "@/components/compare/compare-search";
-import { MAX_COMPARE_ITEMS } from "@/lib/catalog/compare-params";
+import { MAX_COMPARE_ITEMS } from "@/lib/catalog/compare-href";
 import type { CompareResult } from "@/lib/catalog/queries";
 
 /** Pilihan kandidat tetap ada di URL agar hasil bandingkan bisa dibagikan. */

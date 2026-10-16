@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { RecommendationCard } from "@/components/assistant/recommendation-card";
 import { Button } from "@/components/ui/button";
-import { numberCandidates, type ResultView } from "@/lib/assistant/results";
+import { numberCandidates } from "@/lib/assistant/result-numbering";
+import type { ResultView } from "@/lib/assistant/results";
 import { PRICING_POLICY } from "@/lib/config";
 
 /**

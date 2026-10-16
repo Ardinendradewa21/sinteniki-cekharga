@@ -378,7 +378,7 @@ test("balasan: pembuka templat dibuang, sisa kalimat utuh", () => {
 
 import { checkReply, readAmounts } from "@/lib/assistant/reply-validator";
 import { compareRequest } from "@/lib/assistant/dialog-policy";
-import { numberCandidates } from "@/lib/assistant/results";
+import { numberCandidates } from "@/lib/assistant/result-numbering";
 
 test("validator: produk dan harga hanya dari hasil, tanpa superlatif", () => {
   const base = {

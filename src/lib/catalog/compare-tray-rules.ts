@@ -1,4 +1,4 @@
-import { MAX_COMPARE_ITEMS } from "@/lib/catalog/compare-params";
+import { MAX_COMPARE_ITEMS } from "@/lib/catalog/compare-href";
 
 /**
  * Aturan baki pilihan bandingkan di katalog (masukan PO 16 Okt 2026).
