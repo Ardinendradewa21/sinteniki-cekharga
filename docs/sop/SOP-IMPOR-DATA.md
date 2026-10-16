@@ -322,6 +322,29 @@ Akibatnya:
 - **Pemeriksaan harian hanya memperbarui penawaran yang sudah ada.** Model yang tercantum di situs resmi tetapi belum punya penawaran di CekHarga harus ditarik sekali lewat tarik otomatis dan ditinjau admin. Setelah itu harganya ikut diperiksa setiap hari.
 - **API e-commerce tidak bisa dipakai untuk harga toko lain.** Contohnya Shop API di Shopee Open Platform hanya bisa dipanggil untuk toko yang sudah memberi otorisasi. Harga e-commerce yang sah datang dari CSV hasil pemeriksaan tim, program afiliasi marketplace, atau kerja sama dengan toko.
 
+### 5.2 Rutinitas harga setiap pagi (ditetapkan 16 Oktober 2026)
+
+Harga dianggap segar selama **30 jam** sejak terakhir diperiksa. Setelah itu label otomatis berubah menjadi "harga terakhir tercatat". Karena itu pembaruan harus terjadi setiap hari.
+
+| Waktu (WIB) | Siapa | Apa |
+| --- | --- | --- |
+| 06.00–06.59 | Sistem (cron Vercel) | Membaca harga situs resmi vivo, iQOO, OPPO, Samsung, Xiaomi, Infinix, dan Digimap (Apple) untuk penawaran yang sudah ada, lalu menerapkannya |
+| setelah 07.00 | Admin | Buka Dashboard admin. Bila ada panel **Pemeriksaan harga harian perlu dicek**, tindak lanjuti merek yang gagal (lihat di bawah) |
+| pagi hari | Admin data | Perbarui harga e-commerce (Shopee dan toko lain) di spreadsheet, unduh CSV, lalu unggah di Pusat Impor. `observed_at` diisi waktu harga dilihat |
+| bila ada model baru | Admin | Tarik otomatis lengkap (spesifikasi + harga), atau **Perbarui harga saja** untuk model yang sudah ada |
+
+Yang dikerjakan otomatis dan yang tidak:
+
+- **Otomatis:** hanya harga situs resmi merek, dan hanya untuk penawaran yang sudah tercatat. Sistem tidak membuat penawaran atau produk baru tanpa ditinjau admin.
+- **Tidak otomatis:** harga e-commerce. Sistem tidak mengambil data dari Shopee, Tokopedia, Blibli, Lazada, TikTok Shop, atau Erafone, karena halamannya dilindungi dan aturan proyek melarang menembus perlindungan itu. Harga e-commerce hanya masuk lewat CSV, sampai ada jalur resmi (program afiliasi marketplace, PB-17).
+- **Worker per menit** (InsForge Schedules, opsional) tidak mengambil harga. Tugasnya hanya melanjutkan pekerjaan yang sudah antre: menerapkan batch impor, memproses foto, dan menjalankan job tarik otomatis, supaya tetap selesai walau admin menutup tab. Tanpa worker, pekerjaan itu tetap berjalan lewat halaman batch yang terbuka dan cron harian, hanya lebih lambat.
+
+Bila panel peringatan muncul:
+
+- **Situs resmi tidak bisa dibaca / meminta verifikasi anti-bot:** jangan diakali. Coba tarik otomatis manual siang hari; bila tetap gagal, perbarui harga merek itu lewat CSV.
+- **Pemeriksaan harian belum berjalan:** cek Vercel → Settings → Cron Jobs dan variabel `CRON_SECRET`.
+- **Merek lama tidak berhasil diperiksa:** periksa apakah URL produk di situs resmi berubah (penawaran lama perlu diperbarui lewat tarik otomatis).
+
 ## 6. Foto
 
 - Foto diproses di antrean terpisah: diunduh, diperkecil maksimal 1200 px, latar putih dihapus, lalu disimpan sebagai WebP.
