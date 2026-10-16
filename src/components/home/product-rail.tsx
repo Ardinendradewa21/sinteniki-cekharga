@@ -1,128 +1,96 @@
 "use client";
 
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { useReducedMotion } from "motion/react";
-import {
-  useEffect,
-  useRef,
-  type FocusEvent,
-  type PointerEvent,
-  type ReactNode,
-} from "react";
 
-/** Kecepatan dibuat sengaja pelan agar kartu tetap mudah dibaca. */
-const AUTO_SCROLL_PX_PER_SECOND = 14;
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+/** Lebar pudar tepi, hanya di sisi yang masih bisa digeser. */
+const FADE_PX = 40;
 
 /**
- * Jalur produk yang bergerak pelan tanpa menggandakan isi katalog.
+ * Deretan produk yang digeser mendatar, dengan pola carousel ritel:
+ * kartu berhenti rapi per kartu (scroll snap), tombol panah di layar lebar
+ * yang hanya muncul bila masih ada kartu ke arah itu, dan pudar tepi yang
+ * hanya tampil di sisi yang masih bisa digeser.
  *
- * Gerak berhenti saat pointer berada di area kartu, saat pengguna menyentuhnya,
- * atau ketika tautan di dalamnya menerima fokus keyboard. Preferensi reduced
- * motion mematikan gerak otomatis, tetapi geser manual tetap tersedia.
+ * Dulu deretan ini bergerak sendiri dan punya gradien permanen di kedua
+ * tepi, sehingga tampak seperti bayangan saat digeser (masukan PO 16 Okt
+ * 2026). Tidak ada lagi gerak otomatis; pengguna yang mengendalikan.
  */
 export function ProductRail({ children }: { children: ReactNode }) {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const pauseRef = useRef({
-    hover: false,
-    focus: false,
-    pointer: false,
-    offscreen: true,
-  });
-  const directionRef = useRef<1 | -1>(1);
+  const [edges, setEdges] = useState({ atStart: true, atEnd: true });
   const reduceMotion = useReducedMotion();
+  const id = useId();
 
   useEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport || reduceMotion) return;
-
-    let animationFrame = 0;
-    let previousTime = performance.now();
-    const observer = new IntersectionObserver(([entry]) => {
-      pauseRef.current.offscreen = !entry?.isIntersecting;
-    });
-
-    observer.observe(viewport);
-
-    const animate = (time: number) => {
-      const elapsed = Math.min(time - previousTime, 50);
-      const maxScroll = Math.max(
-        0,
-        viewport.scrollWidth - viewport.clientWidth
-      );
-      const isPaused = Object.values(pauseRef.current).some(Boolean);
-
-      if (!isPaused && maxScroll > 1) {
-        viewport.scrollLeft +=
-          directionRef.current *
-          AUTO_SCROLL_PX_PER_SECOND *
-          (elapsed / 1000);
-
-        if (viewport.scrollLeft >= maxScroll - 1) {
-          viewport.scrollLeft = maxScroll;
-          directionRef.current = -1;
-        } else if (viewport.scrollLeft <= 1) {
-          viewport.scrollLeft = 0;
-          directionRef.current = 1;
-        }
-      }
-
-      previousTime = time;
-      animationFrame = requestAnimationFrame(animate);
+    if (!viewport) return;
+    const update = () => {
+      const max = viewport.scrollWidth - viewport.clientWidth;
+      setEdges({ atStart: viewport.scrollLeft <= 2, atEnd: viewport.scrollLeft >= max - 2 });
     };
-
-    animationFrame = requestAnimationFrame(animate);
+    update();
+    viewport.addEventListener("scroll", update, { passive: true });
+    const resize = new ResizeObserver(update);
+    resize.observe(viewport);
     return () => {
-      observer.disconnect();
-      cancelAnimationFrame(animationFrame);
+      viewport.removeEventListener("scroll", update);
+      resize.disconnect();
     };
-  }, [reduceMotion]);
+  }, []);
 
-  const handlePointerEnter = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "mouse") pauseRef.current.hover = true;
+  const scrollByPage = (direction: 1 | -1) => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.scrollBy({ left: direction * viewport.clientWidth * 0.85, behavior: reduceMotion ? "auto" : "smooth" });
   };
 
-  const handlePointerLeave = () => {
-    pauseRef.current.hover = false;
-    pauseRef.current.pointer = false;
-  };
-
-  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget)) {
-      pauseRef.current.focus = false;
-    }
-  };
+  const left = edges.atStart ? "black 0" : `transparent 0, black ${FADE_PX}px`;
+  const right = edges.atEnd ? "black 100%" : `black calc(100% - ${FADE_PX}px), transparent 100%`;
+  const mask = `linear-gradient(to right, ${left}, ${right})`;
 
   return (
     <div className="relative">
       <div
+        id={id}
         ref={viewportRef}
-        aria-label="Produk terbaru di katalog. Daftar dapat digeser mendatar."
-        className="-mx-4 overflow-x-auto px-4 pb-3 [scrollbar-color:var(--border-strong)_transparent] [scrollbar-width:thin] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-        onPointerDown={() => {
-          pauseRef.current.pointer = true;
-        }}
-        onPointerUp={() => {
-          pauseRef.current.pointer = false;
-        }}
-        onPointerCancel={() => {
-          pauseRef.current.pointer = false;
-        }}
-        onFocusCapture={() => {
-          pauseRef.current.focus = true;
-        }}
-        onBlurCapture={handleBlur}
+        role="region"
+        aria-label="Produk di katalog. Daftar dapat digeser mendatar."
+        className="-mx-4 snap-x snap-mandatory scroll-px-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8 [&::-webkit-scrollbar]:hidden [&>ul>li]:snap-start"
+        style={{ maskImage: mask, WebkitMaskImage: mask }}
       >
         {children}
       </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 left-0 hidden w-8 bg-linear-to-r from-background to-transparent sm:block"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 right-0 hidden w-8 bg-linear-to-l from-background to-transparent sm:block"
-      />
+
+      {(
+        [
+          { direction: -1, hidden: edges.atStart, label: "Geser ke produk sebelumnya", icon: ArrowLeft01Icon, side: "-left-3 lg:-left-5" },
+          { direction: 1, hidden: edges.atEnd, label: "Geser ke produk berikutnya", icon: ArrowRight01Icon, side: "-right-3 lg:-right-5" },
+        ] as const
+      ).map((arrow) => (
+        <Button
+          key={arrow.direction}
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={arrow.label}
+          aria-controls={id}
+          tabIndex={arrow.hidden ? -1 : 0}
+          onClick={() => scrollByPage(arrow.direction)}
+          className={cn(
+            "absolute top-[38%] z-10 hidden size-11 -translate-y-1/2 rounded-pill bg-card shadow-md transition-opacity duration-200 sm:inline-flex",
+            arrow.side,
+            arrow.hidden && "pointer-events-none opacity-0"
+          )}
+        >
+          <HugeiconsIcon icon={arrow.icon} size={20} strokeWidth={1.8} aria-hidden />
+        </Button>
+      ))}
     </div>
   );
 }
