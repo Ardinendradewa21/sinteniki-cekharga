@@ -41,8 +41,8 @@ async function fetchRaw(variantId: string): Promise<Raw> {
 
   const ids = offers.map((offer) => offer.id);
   const since = new Date(Date.now() - HISTORY_WINDOW_DAYS * 86_400_000).toISOString();
-  // Satu query per tabel untuk semua penawaran varian (tanpa N+1).
-  const [observationRows, checkRows] = await Promise.all([
+  // Satu query per tabel untuk semua penawaran varian (tanpa N+1), berjalan paralel.
+  const [observationRows, checkRows, earlier] = await Promise.all([
     db
       .from("price_observations")
       .select("offer_id, price_idr, observed_at")
@@ -60,18 +60,17 @@ async function fetchRaw(variantId: string): Promise<Raw> {
       .gte("attempted_at", since)
       .order("attempted_at", { ascending: true })
       .limit(2000),
+    // Observasi sebelum jendela dibutuhkan untuk harga pemeriksaan pertama di dalam jendela.
+    db
+      .from("price_observations")
+      .select("offer_id, price_idr, observed_at")
+      .in("offer_id", ids)
+      .is("voided_at", null)
+      .lt("observed_at", since)
+      .order("observed_at", { ascending: false })
+      .limit(ids.length * 2),
   ]);
   if (observationRows.error || checkRows.error) throw new Error("Riwayat harga gagal dibaca.");
-
-  // Observasi sebelum jendela dibutuhkan untuk harga pemeriksaan pertama di dalam jendela.
-  const earlier = await db
-    .from("price_observations")
-    .select("offer_id, price_idr, observed_at")
-    .in("offer_id", ids)
-    .is("voided_at", null)
-    .lt("observed_at", since)
-    .order("observed_at", { ascending: false })
-    .limit(ids.length * 2);
 
   const toObservation = (row: { offer_id: string; price_idr: number; observed_at: string }) => ({
     offerId: row.offer_id,
