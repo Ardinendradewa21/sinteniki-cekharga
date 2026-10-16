@@ -206,3 +206,38 @@ test("PB-29 halaman kebutuhan: minimal 3 produk segar, dan kalimatnya dipahami p
     assert.equal(needs.keywordText.trim(), "", `${page.slug}: tidak ada kata yang tersisa sebagai kata kunci`);
   }
 });
+
+import { buildPriceHistory, chartGeometry } from "@/lib/catalog/price-history-rules";
+
+test("PB-36 riwayat harga: ambang 5 titik dalam 7 hari, cek gagal bukan titik, celah >30 jam", () => {
+  const now = new Date("2026-10-16T00:00:00Z");
+  const day = (d: number) => new Date(Date.UTC(2026, 9, d, 0, 0, 0)).toISOString();
+  const history = buildPriceHistory({
+    offers: [{ id: "o1", label: "Shopee" }, { id: "o2", label: "Situs resmi" }],
+    observations: [
+      { offerId: "o1", priceIdr: 3_000_000, observedAt: day(1) },
+      { offerId: "o1", priceIdr: 2_900_000, observedAt: day(5) },
+      { offerId: "o2", priceIdr: 2_950_000, observedAt: day(2) },
+    ],
+    checks: [
+      { offerId: "o1", attemptedAt: day(2), outcome: "success" },
+      { offerId: "o1", attemptedAt: day(3), outcome: "failure" },
+      { offerId: "o1", attemptedAt: day(9), outcome: "success" },
+    ],
+    now,
+  });
+  assert.equal(history.totalPoints, 5, "4 titik Shopee (2 observasi + 2 cek berhasil) + 1 situs resmi; cek gagal diabaikan");
+  assert.equal(history.qualifies, true);
+  const shopee = history.series.find((series) => series.label === "Shopee")!;
+  assert.deepEqual(shopee.points.map((point) => point.priceIdr), [3_000_000, 3_000_000, 2_900_000, 2_900_000]);
+  assert.ok(shopee.gaps.length >= 2, "jarak 3-4 hari ditandai tidak diperiksa");
+  assert.equal(history.minPriceIdr, 2_900_000);
+
+  const sedikit = buildPriceHistory({ offers: [{ id: "o1", label: "A" }], observations: [{ offerId: "o1", priceIdr: 1, observedAt: day(14) }], checks: [], now });
+  assert.equal(sedikit.qualifies, false);
+
+  const geometry = chartGeometry(history, { width: 360, height: 220 });
+  const path = geometry.series.find((series) => series.label === "Shopee")!;
+  assert.match(path.dashed, /H[\d.]+ V[\d.]+/, "segmen celah berbentuk tangga putus-putus");
+  assert.equal(geometry.yTicks.length, 3);
+});

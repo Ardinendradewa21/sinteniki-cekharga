@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -11,6 +12,7 @@ import { Container } from "@/components/layout/container";
 import { PriceDisplay } from "@/components/price-display";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { OfferList } from "@/components/product/offer-list";
+import { PriceHistorySection } from "@/components/product/price-history";
 import { ReviewList } from "@/components/product/review-list";
 import { SpecTable } from "@/components/product/spec-table";
 import { VariantSelector } from "@/components/product/variant-selector";
@@ -253,6 +255,17 @@ export default async function ProductDetailPage(
           now={now}
         />
       </div>
+
+      {detail.selectedVariant ? (
+        // Riwayat dimuat terpisah dan mengalir belakangan supaya tidak menahan bagian atas halaman.
+        <Suspense fallback={<div className="mt-12 h-[320px]" aria-hidden />}>
+          <PriceHistorySection
+            variantId={detail.selectedVariant.id}
+            variantLabel={detail.selectedVariant.label}
+            now={now}
+          />
+        </Suspense>
+      ) : null}
 
       <AdSlot code="product_inline" brand={detail.brand} className="mt-12" />
 
