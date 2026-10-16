@@ -338,6 +338,7 @@ Yang dikerjakan otomatis dan yang tidak:
 - **Otomatis:** hanya harga situs resmi merek, dan hanya untuk penawaran yang sudah tercatat. Sistem tidak membuat penawaran atau produk baru tanpa ditinjau admin.
 - **Tidak otomatis:** harga e-commerce. Sistem tidak mengambil data dari Shopee, Tokopedia, Blibli, Lazada, TikTok Shop, atau Erafone, karena halamannya dilindungi dan aturan proyek melarang menembus perlindungan itu. Harga e-commerce hanya masuk lewat CSV, sampai ada jalur resmi (program afiliasi marketplace, PB-17).
 - **Worker per menit** (InsForge Schedules, opsional) tidak mengambil harga. Tugasnya hanya melanjutkan pekerjaan yang sudah antre: menerapkan batch impor, memproses foto, dan menjalankan job tarik otomatis, supaya tetap selesai walau admin menutup tab. Tanpa worker, pekerjaan itu tetap berjalan lewat halaman batch yang terbuka dan cron harian, hanya lebih lambat.
+- **Koreksi 16 Oktober 2026:** cron pertama membuat batch harga tetapi tidak sempat menerapkannya karena batas waktu 60 detik habis untuk membaca situs resmi. Batas cron kini 300 detik sehingga batch harga hari itu ikut diterapkan. Bila di Pusat Impor masih ada batch "Pemeriksaan harga harian" berstatus antre, buka halaman batch itu; halaman melanjutkan penerapannya sendiri.
 
 Bila panel peringatan muncul:
 

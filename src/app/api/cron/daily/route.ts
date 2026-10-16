@@ -23,9 +23,16 @@ import { purgeOldSessions } from "@/lib/scrape/sessions";
  * menit (`/api/admin/import/worker`, InsForge Schedules) atau halaman batch.
  */
 
-export const maxDuration = 60;
+/*
+ * 300 detik = batas paket Hobby dengan Fluid compute. Pemeriksaan 16 Oktober
+ * 2026: dengan batas 60 detik, membaca tujuh situs resmi menghabiskan
+ * anggaran sehingga batch harga yang baru dibuat tertahan "queued" dan tidak
+ * pernah diterapkan tanpa worker per menit. Sisa waktu kini cukup untuk
+ * menerapkan batch harga hari itu.
+ */
+export const maxDuration = 300;
 
-const TOTAL_BUDGET_MS = 50_000;
+const TOTAL_BUDGET_MS = 270_000;
 
 type TaskReport = { ok: true; result: unknown } | { ok: false; error: string };
 
