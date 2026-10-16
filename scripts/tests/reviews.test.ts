@@ -76,3 +76,50 @@ test("tautan YouTube dikenali dalam berbagai bentuk", () => {
   assert.equal(parseYoutubeVideoId("https://www.youtube.com/watch?v=pendek"), null);
   assert.equal(youtubeWatchUrl("dQw4w9WgXcQ", 95), "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=95s");
 });
+
+// Rangkuman AI di halaman perbandingan (src/lib/reviews/digest-rules.ts).
+import { digestCacheKey, digestFacts, validateDigest, type DigestProduct } from "@/lib/reviews/digest-rules";
+
+const note = (aspect: "umum" | "kamera", summary: string, channelName = "GadgetIn") => ({
+  channelName,
+  aspect,
+  summary,
+  strengths: ["Baterai awet"],
+  limitations: [],
+  isSponsored: false,
+});
+const PRODUCTS: DigestProduct[] = [
+  { slug: "a", name: "OPPO A6", notes: [note("umum", "Baterai tahan seharian penuh untuk pemakaian campuran.")] },
+  { slug: "b", name: "vivo Y29", notes: [] },
+];
+
+test("rangkuman: kunci cache berubah bila isi ringkasan berubah, tidak bila urutannya", () => {
+  const key = digestCacheKey(PRODUCTS);
+  assert.equal(key.length, 64);
+  const reordered: DigestProduct[] = [
+    { ...PRODUCTS[0], notes: [...PRODUCTS[0].notes, note("kamera", "Foto malam cukup terang.", "Pixa Focus ID")] },
+    PRODUCTS[1],
+  ];
+  const reversed: DigestProduct[] = [{ ...reordered[0], notes: [...reordered[0].notes].reverse() }, PRODUCTS[1]];
+  assert.notEqual(digestCacheKey(reordered), key);
+  assert.equal(digestCacheKey(reversed), digestCacheKey(reordered));
+});
+
+test("rangkuman: fakta menyebut channel tiap poin dan produk tanpa ulasan", () => {
+  const facts = digestFacts(PRODUCTS);
+  assert.match(facts, /\[umum\] GadgetIn: Baterai tahan/);
+  assert.match(facts, /## vivo Y29\n\(belum ada ringkasan reviewer\)/);
+});
+
+test("rangkuman: penilaian, skor, dan kamera karangan ditolak", () => {
+  const ok = "Menurut GadgetIn, OPPO A6 bertahan seharian penuh; vivo Y29 belum punya ringkasan reviewer.";
+  assert.deepEqual(validateDigest({ overall: ok, camera: "" }, PRODUCTS), { overall: ok, camera: "" });
+  assert.equal(validateDigest({ overall: `${ok} OPPO A6 adalah pilihan terbaik.`, camera: "" }, PRODUCTS), null);
+  assert.equal(validateDigest({ overall: `${ok} Nilainya 8/10.`, camera: "" }, PRODUCTS), null);
+  assert.equal(validateDigest({ overall: ok, camera: "Kamera OPPO A6 tajam." }, PRODUCTS), null);
+  assert.equal(validateDigest({ overall: "pendek", camera: "" }, PRODUCTS), null);
+  assert.equal(validateDigest("bukan objek", PRODUCTS), null);
+  // Klaim tanpa nama produk tidak bisa dibandingkan.
+  assert.equal(validateDigest({ overall: "Menurut GadgetIn, baterainya bertahan seharian penuh untuk pemakaian campuran.", camera: "" }, PRODUCTS), null);
+  assert.ok(validateDigest({ overall: "Menurut GadgetIn, baterai A6 bertahan seharian penuh untuk pemakaian campuran.", camera: "" }, PRODUCTS));
+});

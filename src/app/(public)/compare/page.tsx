@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { ComparePicker } from "@/components/compare/compare-picker";
 import { CompareSummary } from "@/components/compare/compare-summary";
+import { ReviewDigestSection } from "@/components/compare/review-digest-section";
 import { CompareTable } from "@/components/compare/compare-table";
 import { DataErrorBoundary, DataUnavailable } from "@/components/data-error";
 import { loadOrNull } from "@/lib/catalog/load";
@@ -135,6 +136,7 @@ async function CompareView({
             Selisih harga dan catatan reviewer memberi konteks, bukan keputusan akhir.
           </p>
           <CompareSummary result={result} />
+          <ReviewDigestSection result={result} />
         </section>
       ) : null}
 

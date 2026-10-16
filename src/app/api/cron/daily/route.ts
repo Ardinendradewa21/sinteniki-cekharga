@@ -7,6 +7,7 @@ import { purgeRawListings } from "@/lib/import/raw-rows";
 import { processScrapeStep, purgeScrapeJobs } from "@/lib/scrape/jobs";
 import { runPriceRefresh } from "@/lib/import/price-refresh";
 import { purgeOldSessions } from "@/lib/scrape/sessions";
+import { purgeOldDigests } from "@/lib/reviews/digest";
 import { enqueueChannelSync, purgeStaleYoutubeVideos } from "@/lib/reviews/sync";
 
 /**
@@ -65,6 +66,7 @@ export async function GET(request: Request) {
     priceRefresh: await task(() => runPriceRefresh()),
     // PB-40: video ulasan dari channel terpercaya; dikerjakan worker scrape di bawah.
     purgedYoutubeVideos: await task(() => purgeStaleYoutubeVideos()),
+    purgedReviewDigests: await task(() => purgeOldDigests()),
     youtubeQueued: await task(() => enqueueChannelSync("all", null)),
   };
 

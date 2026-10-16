@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { AdSlot } from "@/components/ads/ad-slot";
 import { CompareSummary } from "@/components/compare/compare-summary";
+import { ReviewDigestSection } from "@/components/compare/review-digest-section";
 import { CompareTable } from "@/components/compare/compare-table";
 import { DemoNotice } from "@/components/demo-marker";
 import { Container } from "@/components/layout/container";
@@ -97,6 +98,7 @@ export default async function ComparePairPage(props: PageProps<"/bandingkan/[pas
           Selisih harga dan catatan reviewer memberi konteks, bukan keputusan akhir.
         </p>
         <CompareSummary result={result} />
+        <ReviewDigestSection result={result} />
       </section>
 
       <div className="mt-8 flex flex-wrap gap-3">
