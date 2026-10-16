@@ -68,7 +68,7 @@ Di 390×844, kartu harga baru muncul di bawah lipatan karena tinggi area foto 28
 
 ## 3. Rancangan grafik riwayat harga
 
-Status: **rancangan, belum dibangun.** Membutuhkan keputusan PB-31 (PRD §3 menunda "grafik harga publik") dan data harian dari PB-01.
+Status: **dibangun 16 Oktober 2026 (PB-36)** setelah keputusan PB-31. Keputusan teknis: SVG yang dirender server (opsi alternatif di §3.4), bukan Recharts, supaya halaman produk tidak membawa JavaScript tambahan; tooltip per titik diganti tabel lengkap di bawah grafik. Ringkasan rentang di kartu harga atas belum dibuat.
 
 ### 3.1 Syarat data agar jujur
 

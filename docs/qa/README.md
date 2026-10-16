@@ -25,6 +25,13 @@ Folder ini berisi seluruh artefak jaminan kualitas (QA) dan pengelolaan produk (
 | `pnpm test:e2e:smoke` | E2E jalur kritis (Playwright, tag `@smoke`) | ± 1 menit | Chrome terpasang |
 | `pnpm test:e2e` | E2E lengkap: publik, mobile, keamanan, admin, peran | ± 3 menit | lihat di bawah |
 
+**Saran (16 Oktober 2026):** jalankan E2E terhadap build produksi, bukan server dev. Server dev mengompilasi rute saat pertama dibuka, dan saat banyak rute berubah sekaligus hasilnya bisa timeout padahal kodenya benar:
+
+```bash
+pnpm build && npx next start -p 3101
+E2E_BASE_URL=http://localhost:3101 pnpm test:e2e
+```
+
 Uji admin dan peran hanya berjalan bila kredensial admin diberikan lewat environment. Kredensial **tidak pernah** ditulis ke repo:
 
 ```bash

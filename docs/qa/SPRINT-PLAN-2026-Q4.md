@@ -127,6 +127,23 @@ Sebelum sprint dimulai, codebase dirapikan (knip: kode mati, export, dependensi,
 - Target trafik awal tercapai atau selisihnya dijelaskan.
 - Target Fase B ditetapkan bersama pimpinan.
 
+## Sprint 5 — dikerjakan 16 Oktober 2026
+
+**Sprint goal:** *Riwayat harga yang jujur di halaman produk, dan kode katalog yang lebih mudah dicek.*
+
+| Item | SP | Status |
+| --- | --- | --- |
+| PB-31 Keputusan fitur yang ditunda PRD | 1 | ✅ Hanya grafik harga publik yang diaktifkan; syaratnya ditulis di PRD §3 |
+| PB-36 Grafik riwayat harga | 5 | ✅ SVG dirender server (tanpa dependensi baru), ambang 5 titik dalam 7 hari, garis tangga per toko, celah >30 jam putus-putus, tabel alternatif, daftar catatan bila data kurang |
+| PB-33 Pecah `queries.ts` | 3 | ✅ Empat modul per fitur, API publik tetap |
+
+**Temuan dan perbaikan:**
+
+- Pemuat riwayat harga menjalankan ketiga query-nya paralel; riwayat tidak masuk dataset katalog global (sejalan PB-32) dan di-cache per varian dengan tag `catalog`.
+- E2E terhadap server dev tidak stabil saat banyak rute baru dikompilasi (17 timeout di satu putaran). Terhadap build produksi lokal semua lulus. Panduan QA diperbarui.
+
+**Pemeriksaan penutup:** typecheck, lint, knip bersih; tes unit 58 + 28 + 13; integrasi 13; E2E 61 lulus (2 dilewati) terhadap build produksi; build lulus.
+
 ## Setelah Sprint 4
 
 - PB-32 dan PB-33 (skala katalog) dikerjakan saat pemicunya muncul: peringatan ukuran dataset atau >500 produk terbit.
