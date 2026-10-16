@@ -53,11 +53,14 @@ async function CatalogView({
 }: Pick<PageProps<"/products">, "searchParams">) {
   const query = parseCatalogQuery(await searchParams);
   const now = new Date();
-  const result = await loadOrNull(() => searchCatalog(now, query));
   // Targeting kontekstual: bila katalog disaring ke satu merek, iklan merek
   // itu didahulukan. In-feed dipilih di sini supaya baris kosong tidak dirender.
+  // Pencarian dan keputusan iklan tidak saling bergantung, jadi berjalan paralel.
   const adBrand = query.brands.length === 1 ? query.brands[0] : null;
-  const inFeedAd = await resolveAd("catalog_infeed", { brand: adBrand });
+  const [result, inFeedAd] = await Promise.all([
+    loadOrNull(() => searchCatalog(now, query)),
+    resolveAd("catalog_infeed", { brand: adBrand }),
+  ]);
   if (!result) return <DataUnavailable area="Katalog" />;
   const isDemo = isDemoData();
 
