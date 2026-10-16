@@ -166,11 +166,11 @@ export default async function AdminPage(props: PageProps<"/admin">) {
         />
       </Reveal>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+      <div className="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
         <section aria-labelledby="aksi-admin" className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
           <h2 id="aksi-admin" className="text-lg font-bold text-foreground">Tindakan cepat</h2>
           <p className="mt-1 text-sm text-muted-foreground">Pilih pekerjaan yang ingin kamu lanjutkan.</p>
-          <div className="mt-5 grid gap-3">
+          <div className="mt-5 grid grid-cols-1 gap-3">
             <Link href="/admin/products" className="group flex min-h-20 items-center justify-between gap-4 rounded-xl border border-border p-4 transition-colors hover:border-brand/40 hover:bg-brand-muted/30 focus-visible:ring-2 focus-visible:ring-ring">
               <span><span className="block text-sm font-bold text-foreground">Kelola produk</span><span className="mt-1 block text-xs text-muted-foreground">Cari, edit, atau ubah status produk.</span></span>
               <span aria-hidden="true" className="text-brand transition-transform group-hover:translate-x-1">→</span>

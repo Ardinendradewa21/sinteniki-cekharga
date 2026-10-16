@@ -201,7 +201,7 @@ export function OfferList({
           outOfStockCount={offers.filter((offer) => offer.listingStatus === "out-of-stock").length}
           officialCount={offers.filter((offer) => isOfficialWarranty(offer.warranty)).length}
         >
-          <ul className="mt-4 grid gap-3 lg:grid-cols-2">
+          <ul className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
             {offers.map((offer) => (
               <OfferCard key={offer.id} offer={offer} selectedColor={selectedColor} now={now} />
             ))}

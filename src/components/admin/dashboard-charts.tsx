@@ -45,7 +45,7 @@ export function AdminDashboardCharts({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
           <h3 className="text-sm font-bold text-foreground">Status publikasi</h3>
           <div className="mt-5 flex flex-col items-center gap-6 sm:flex-row">

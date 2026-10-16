@@ -70,7 +70,7 @@ export default async function CreativeReviewPage() {
             }
             actions={<Pill tone="warn">{creative.format === "native" ? "Native" : "Display"}</Pill>}
           >
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
               <div className="space-y-3">
                 {creative.image_url ? (
                   <div className="relative aspect-[16/7] overflow-hidden rounded-lg border border-border bg-muted">

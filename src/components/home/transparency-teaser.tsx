@@ -57,7 +57,7 @@ export function TransparencyTeaser() {
       <div className="warmth-blob" />
       <Container>
         <div className="rounded-xl border border-border bg-card p-6 md:p-10">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
             <div>
               <h2 className="heading-section-lg text-foreground">
                 Supaya kamu tahu angkanya dari mana

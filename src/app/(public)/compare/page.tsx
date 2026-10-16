@@ -40,7 +40,7 @@ export const metadata: Metadata = {
 
 function CompareSkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {Array.from({ length: 2 }, (_, index) => (
         <Skeleton key={index} className="h-[32rem] w-full rounded-xl" />
       ))}

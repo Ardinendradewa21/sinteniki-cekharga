@@ -19,7 +19,7 @@ export function CompareSummary({ result }: { result: CompareResult }) {
   const withNotes = items.filter((item) => item.reviewNotes.length > 0);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-border bg-card p-5">
         <h3 className="heading-label text-foreground">Selisih harga</h3>
 

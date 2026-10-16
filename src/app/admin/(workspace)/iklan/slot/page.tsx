@@ -32,7 +32,7 @@ export default async function SlotPage() {
         migrasi, karena materi yang sudah disetujui bergantung pada ukurannya.
       </Notice>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {slots.map((slot) => {
           const rates = rateCard.filter((row) => row.slot_id === slot.id);
           return (

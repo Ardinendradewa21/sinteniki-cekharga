@@ -65,7 +65,7 @@ export function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-border bg-card">
       <Container className="py-12 md:py-14">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1.4fr)]">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1.4fr)]">
           <div>
             <p className="text-lg font-extrabold tracking-tight text-foreground">
               {COMPANY.product}

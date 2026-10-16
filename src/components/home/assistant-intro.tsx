@@ -72,7 +72,7 @@ export function AssistantIntro() {
       title="Kalau lebih mudah menjelaskan kebutuhan"
       description="Sebagian orang lebih nyaman bercerita daripada menyaring spesifikasi."
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <StaggerList
           as="dl"
           className="grid gap-x-8 gap-y-7 rounded-xl border border-border bg-card p-6 sm:grid-cols-2"

@@ -159,7 +159,8 @@ export default async function ProductDetailPage(
         </DemoNotice>
       ) : null}
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
+      {/* grid-cols-1 = minmax(0,1fr): tanpa ini strip thumbnail galeri melebarkan halaman di ponsel. */}
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
         {/* Kolom foto sengaja tidak menempel saat di-scroll (masukan PO 16 Okt 2026). */}
         <div className="lg:self-start">
           {/* key: ganti warna memulai galeri dari foto pertama warna itu. */}
@@ -198,8 +199,10 @@ export default async function ProductDetailPage(
                 Membawa varian yang sedang dilihat, supaya perbandingan memakai
                 basis harga yang sama dengan yang barusan dibaca pengguna.
               */}
-              <Button asChild variant="outline" className="shrink-0">
+              {/* Di ponsel hanya ikon, supaya judul produk tidak terjepit jadi dua baris pendek. */}
+              <Button asChild variant="outline" className="shrink-0 max-sm:size-11 max-sm:px-0">
                 <Link
+                  aria-label="Bandingkan"
                   href={buildCompareHref([
                     {
                       slug: detail.slug,
@@ -208,7 +211,7 @@ export default async function ProductDetailPage(
                   ])}
                 >
                   <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} size={16} strokeWidth={2} aria-hidden />
-                  Bandingkan
+                  <span className="max-sm:hidden">Bandingkan</span>
                 </Link>
               </Button>
             </div>
@@ -270,7 +273,7 @@ export default async function ProductDetailPage(
 
       <AdSlot code="product_inline" brand={detail.brand} className="mt-12" />
 
-      <div className="mt-12 grid gap-12 lg:grid-cols-2 lg:gap-14">
+      <div className="mt-12 grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-14">
         <SpecTable specs={detail.specs} source={detail.specsSource} />
         <div className="flex flex-col gap-10">
           <ReviewList reviews={detail.reviews} />

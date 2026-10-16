@@ -418,7 +418,7 @@ export function AdminDataHealth({
 
       <PublishedGaps products={products} />
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
+      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
         <section
           aria-labelledby="antrean-perbaikan"
           className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
