@@ -1,6 +1,6 @@
 # CekHarga — PRD dan Kebutuhan Sistem
 
-Versi: 2.0 • Tanggal: 3 September 2026 • Pembaruan §8: 7 Oktober 2026 (keputusan pemilik produk, lihat "Keputusan visual" di §8)
+Versi: 2.0 • Tanggal: 3 September 2026 • Pembaruan §8: 7 Oktober 2026 (keputusan pemilik produk, lihat "Keputusan visual" di §8) • Pembaruan §3: 16 Oktober 2026 (grafik harga publik diaktifkan, PB-31)
 
 Status: baseline perencanaan untuk implementasi AI Agent, berdasarkan keputusan produk dalam percakapan. Dokumen ini bukan laporan audit repository atau bukti bahwa fitur telah tersedia.
 
@@ -43,7 +43,14 @@ CekHarga adalah alat bantu keputusan, **bukan marketplace**. Transaksi dilakukan
 - Penawaran didaftarkan admin secara manual. Target pembaruan harga adalah otomatis berkala; pembaruan manual tetap menjadi fallback yang sah bila akses otomatis belum tersedia.
 - Hanya kondisi baru. Jenis garansi tetap dicatat; batas “hanya garansi resmi Indonesia” belum ditetapkan.
 
-**Ditunda:** laptop/kategori lain, barang bekas/refurbished/open-box, pembayaran dan langganan, checkout, akun konsumen dan favorit lintas perangkat, notifikasi, pelacakan promo/voucher/cashback, grafik harga publik, ranking/skor numerik, dan pengambilan review otomatis.
+**Ditunda:** laptop/kategori lain, barang bekas/refurbished/open-box, pembayaran dan langganan, checkout, akun konsumen dan favorit lintas perangkat, notifikasi, pelacakan promo/voucher/cashback, ranking/skor numerik, dan pengambilan review otomatis.
+
+**Keputusan 16 Oktober 2026 (PB-31):** pemilik produk mengaktifkan **grafik riwayat harga publik**. Fitur lain dari daftar ditunda tetap ditunda. Grafik wajib memenuhi syarat berikut:
+
+- Tampil hanya bila varian terpilih punya minimal 5 pemeriksaan berhasil dalam rentang minimal 7 hari. Di bawah ambang itu, tampilkan catatan harga terakhir dalam bentuk daftar, tanpa garis tren.
+- Terikat varian terpilih (§7 butir 3). Garis berbentuk tangga, titik adalah pemeriksaan nyata, dan celah lebih dari batas freshness ditandai "tidak diperiksa" (§7 butir 6).
+- Tanpa klaim "harga terendah", "waktu terbaik membeli", prediksi, atau skor (§3, FR-02, FR-04). Perubahan harga bukan bukti promo (§7 butir 7).
+- Ada alternatif tabel untuk aksesibilitas (§8).
 
 ## 4. Alur layanan dan halaman
 
