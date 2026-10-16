@@ -10,15 +10,15 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 
 | # | ID | Item | Sumber | Nilai | Urgensi | Risiko | Ukuran | WSJF | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | PB-11 | Ganti kata sandi akun admin utama (pernah dibagikan lewat chat) | Audit keamanan | 5 | 8 | 13 | 1 | **26.0** | Siap |
-| 2 | PB-01 | Deploy ke Vercel; isi `CRON_SECRET` dan `IMPORT_WORKER_SECRET`; jadwal worker per menit di InsForge | US-10, TEST-PLAN §4 | 13 | 8 | 8 | 3 | **9.7** | Siap |
+| 1 | PB-11 | Ganti kata sandi akun admin utama (pernah dibagikan lewat chat) | Audit keamanan | 5 | 8 | 13 | 1 | **26.0** | ✅ Selesai 2026-10-15: akun admin baru dengan email pemilik, akses akun lama dicabut dan tercatat di audit |
+| 2 | PB-01 | Deploy ke Vercel; isi `CRON_SECRET` dan `IMPORT_WORKER_SECRET`; jadwal worker per menit di InsForge | US-10, TEST-PLAN §4 | 13 | 8 | 8 | 3 | **9.7** | ✅ Sebagian 2026-10-16: deploy Vercel (region sin1), CRON_SECRET berjalan; jadwal worker per menit belum dibuat (opsional sejak cron 300 detik) |
 | 3 | PB-05 | Peringatan di dasbor bila pemeriksaan harian sebuah merek gagal | US-33 | 5 | 5 | 8 | 3 | **6.0** | ✅ Selesai 2026-10-16 (Sprint 3): tabel `price_refresh_runs` + peringatan dasbor |
 | 4 | PB-08 | Remote git + CI (unit, integrasi di staging, E2E smoke setiap PR); pindahkan register defect ke issue tracker | TEST-PLAN §3 | 5 | 3 | 8 | 3 | **5.3** | Perlu remote |
 | 5 | PB-03 | Lengkapi penawaran untuk 29 produk terbit tanpa harga (tarik ulang atau CSV) | SQL-11 | 8 | 5 | 3 | 3 | **5.3** | Siap (tugas data) |
 | 6 | PB-04 | Lengkapi NFC/IP rating untuk 34 produk terbit | US-25 | 5 | 3 | 2 | 3 | **3.3** | Siap |
 | 7 | PB-09 | Lingkungan uji terpisah (InsForge branch) | US-32 | 3 | 3 | 8 | 5 | **2.8** | Perlu refinement |
 | 8 | PB-06 | Tandai dan perbarui URL penawaran resmi yang berganti (Samsung) | US-26, DEF-015 | 3 | 2 | 3 | 3 | **2.7** | Siap |
-| 9 | PB-07 | Tanya AI Sprint B | Rencana Tanya AI | 8 | 2 | 2 | 8 | **1.5** | Perlu refinement |
+| 9 | PB-07 | Tanya AI Sprint B | Rencana Tanya AI | 8 | 2 | 2 | 8 | **1.5** | Digantikan PB-37 sampai PB-39 (rancangan ulang Tanya AI, selesai) |
 | 10 | PB-02 | Pemeriksaan ulang harga marketplace (69 penawaran > 7 hari) | US-12, SQL-12 | 8 | 5 | 3 | 13 | **1.2** | Perlu refinement (izin sumber) |
 | 11 | PB-12 | Structured data `Product` + `Offer`/`AggregateOffer` di halaman detail (tanpa `aggregateRating`/`review` karangan, AGENTS.md) dan uji Rich Results | UX-22 | 8 | 3 | 3 | 3 | **4.7** | ✅ Selesai 2026-10-14 bersama PB-23; uji Rich Results setelah deploy |
 | 12 | PB-13 | Konfirmasi nama badan hukum (PT Sinteniki vs PT Sinteniki Digital Solusi) lalu seragamkan situs dan dokumen | UX-23 | 3 | 5 | 5 | 1 | **13.0** | ✅ Selesai 2026-10-08 |
@@ -34,7 +34,7 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 22 | PB-23 | SEO halaman produk dan katalog: judul "Harga {produk} Terbaru {bulan} – Mulai Rp… di n Toko", deskripsi dengan varian acuan dan waktu periksa, canonical, Open Graph; dikerjakan bersama PB-12 | Audit 2026-10-13, analisis BigGo | 8 | 5 | 3 | 2 | **8.0** | ✅ Selesai 2026-10-14 (Sprint 1); canonical aktif setelah `SITE_URL` diisi saat deploy |
 | 23 | PB-24 | Kebersihan kode: hapus folder kosong `src/app/products/[slug]`, tes E2E menghapus batch ujinya, simpan pengaturan iklan secara atomik (RPC, bukan loop) | Audit 2026-10-13 | 2 | 2 | 3 | 2 | **3.5** | ✅ Selesai 2026-10-14, kecuali simpan pengaturan iklan atomik: ditunda sampai modul iklan dibuka (PB-10) |
 | 24 | PB-25 | Tinjau dua `eslint-disable react-hooks/exhaustive-deps` (`batch-progress.tsx`, `scrape-workbench.tsx`): perbaiki atau tulis alasannya | Audit 2026-10-13 | 2 | 1 | 3 | 1 | **6.0** | ✅ Selesai 2026-10-14: diganti `useEffectEvent` (React 19.2), 0 `eslint-disable` tersisa |
-| 25 | PB-26 | Impor data Xiaomi Okt 2026 (templat terpadu + galeri foto); perbaiki RAM 17 Ultra lebih dulu | Data pemilik produk | 8 | 5 | 2 | 1 | **15.0** | Siap (tugas data) |
+| 25 | PB-26 | Impor data Xiaomi Okt 2026 (templat terpadu + galeri foto); perbaiki RAM 17 Ultra lebih dulu | Data pemilik produk | 8 | 5 | 2 | 1 | **15.0** | ✅ Selesai 2026-10-15: spreadsheet dirapikan dan diunggah ulang admin |
 | 26 | PB-27 | Filter "hanya garansi resmi Indonesia" dan "sembunyikan stok habis" (filter pilihan pengguna, bukan aturan katalog) + normalisasi teks garansi saat impor | Analisis BigGo | 5 | 2 | 2 | 3 | **3.0** | ✅ Sebagian 2026-10-16 (Sprint 3): filter di halaman produk + normalisasi garansi; filter katalog menunggu data garansi |
 | 27 | PB-28 | Halaman perbandingan "A vs B" untuk pasangan pilihan admin, tanpa label pemenang | Analisis BigGo | 8 | 3 | 2 | 3 | **4.3** | ✅ Selesai 2026-10-16 (Sprint 4): `/bandingkan/a-vs-b`, panel admin Perbandingan pilihan |
 | 28 | PB-29 | Halaman kebutuhan programatik (mis. "HP 5G di bawah Rp3 juta"), urutan netral, terbit hanya bila ≥3 produk berharga segar | Analisis BigGo | 8 | 3 | 3 | 5 | **2.8** | ✅ Selesai 2026-10-16 (Sprint 4): 5 halaman `/hp/...`, terbit hanya bila ≥3 produk berharga segar |
