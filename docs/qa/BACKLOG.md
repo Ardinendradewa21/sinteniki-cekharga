@@ -1,6 +1,6 @@
 # Product Backlog — CekHarga
 
-Diperbarui 2026-10-16 (Sprint 3 selesai untuk item kode; PB-37 sampai PB-39 dari rancangan Tanya AI; PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
+Diperbarui 2026-10-16 (Sprint 4: PB-28 dan PB-29 selesai; Sprint 3 selesai untuk item kode; PB-37 sampai PB-39 dari rancangan Tanya AI; PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
 
 > WSJF = (Nilai bisnis + Urgensi waktu + Pengurangan risiko) ÷ Ukuran
 
@@ -36,8 +36,8 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 24 | PB-25 | Tinjau dua `eslint-disable react-hooks/exhaustive-deps` (`batch-progress.tsx`, `scrape-workbench.tsx`): perbaiki atau tulis alasannya | Audit 2026-10-13 | 2 | 1 | 3 | 1 | **6.0** | ✅ Selesai 2026-10-14: diganti `useEffectEvent` (React 19.2), 0 `eslint-disable` tersisa |
 | 25 | PB-26 | Impor data Xiaomi Okt 2026 (templat terpadu + galeri foto); perbaiki RAM 17 Ultra lebih dulu | Data pemilik produk | 8 | 5 | 2 | 1 | **15.0** | Siap (tugas data) |
 | 26 | PB-27 | Filter "hanya garansi resmi Indonesia" dan "sembunyikan stok habis" (filter pilihan pengguna, bukan aturan katalog) + normalisasi teks garansi saat impor | Analisis BigGo | 5 | 2 | 2 | 3 | **3.0** | ✅ Sebagian 2026-10-16 (Sprint 3): filter di halaman produk + normalisasi garansi; filter katalog menunggu data garansi |
-| 27 | PB-28 | Halaman perbandingan "A vs B" untuk pasangan pilihan admin, tanpa label pemenang | Analisis BigGo | 8 | 3 | 2 | 3 | **4.3** | Siap setelah PB-23 |
-| 28 | PB-29 | Halaman kebutuhan programatik (mis. "HP 5G di bawah Rp3 juta"), urutan netral, terbit hanya bila ≥3 produk berharga segar | Analisis BigGo | 8 | 3 | 3 | 5 | **2.8** | Perlu refinement |
+| 27 | PB-28 | Halaman perbandingan "A vs B" untuk pasangan pilihan admin, tanpa label pemenang | Analisis BigGo | 8 | 3 | 2 | 3 | **4.3** | ✅ Selesai 2026-10-16 (Sprint 4): `/bandingkan/a-vs-b`, panel admin Perbandingan pilihan |
+| 28 | PB-29 | Halaman kebutuhan programatik (mis. "HP 5G di bawah Rp3 juta"), urutan netral, terbit hanya bila ≥3 produk berharga segar | Analisis BigGo | 8 | 3 | 3 | 5 | **2.8** | ✅ Selesai 2026-10-16 (Sprint 4): 5 halaman `/hp/...`, terbit hanya bila ≥3 produk berharga segar |
 | 29 | PB-30 | Perluas halaman Cara Kerja: sikap transparansi + statistik hidup (produk, penawaran, toko, % harga segar), tanpa jumlah pengguna | Analisis BigGo | 5 | 3 | 2 | 2 | **5.0** | ✅ Selesai 2026-10-16 (Sprint 3) |
 | 30 | PB-31 | Keputusan PO atas fitur yang ditunda PRD §3: grafik riwayat harga publik, pantau harga (email), "harga turun minggu ini", kategori lain, ekstensi browser | Analisis BigGo | 8 | 3 | 3 | 1 | **14.0** | Menunggu keputusan PO |
 | 31 | PB-32 | Katalog dibaca per halaman/filter di database (bukan seluruh dataset dalam satu cache); dipicu peringatan ukuran dataset atau >500 produk terbit | Audit 2026-10-13 | 5 | 2 | 8 | 8 | **1.9** | Menunggu pemicu |

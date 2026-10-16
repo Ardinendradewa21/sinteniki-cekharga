@@ -101,19 +101,27 @@ Sebelum sprint dimulai, codebase dirapikan (knip: kode mati, export, dependensi,
 - ≥80% harga segar. Per 16 Oktober 0%, karena cron harian proyek Vercel baru belum pernah berjalan (jadwal pertama 16 Oktober 06.00–06.59 WIB).
 - Satu marketplace masuk otomatis, atau keputusan tertulis bila syarat program tidak mengizinkan (bergantung PB-17a).
 
-## Sprint 4 — 30 November sampai 11 Desember 2026
+## Sprint 4 — dimajukan, dikerjakan 16 Oktober 2026
 
-**Sprint goal:** *Konten yang membedakan CekHarga, dan angka dasar untuk target berikutnya.*
+**Sprint goal:** *Konten yang membedakan CekHarga, tanpa halaman tipis atau klaim tanpa data.*
 
-| Item | SP |
-| --- | --- |
-| PB-28 Halaman "A vs B" (20 pasangan pilihan admin) | 3 |
-| PB-29 Halaman kebutuhan (5 halaman, hanya yang berisi ≥3 produk berharga segar) | 5 |
-| PB-31 Keputusan PO atas fitur yang ditunda PRD | 1 |
-| PB-36 Grafik riwayat harga (hanya bila PB-31 disetujui dan data ≥30 hari) | 5 |
-| **Total** | **9–14** |
+| Item | SP | Status |
+| --- | --- | --- |
+| PB-28 Halaman "A vs B" | 3 | ✅ Tabel `compare_pairs` (migrasi 20261016120000), `/bandingkan/{a}-vs-{b}`, panel admin, sitemap, contoh di /compare |
+| PB-29 Halaman kebutuhan | 5 | ✅ 5 halaman `/hp/...` + indeks `/hp`; terbit hanya bila ≥3 produk berharga segar (per 16 Okt semuanya 404 karena belum ada harga segar) |
+| PB-31 Keputusan PO atas fitur yang ditunda PRD | 1 | ⏳ Menunggu keputusan pemilik produk |
+| PB-36 Grafik riwayat harga | 5 | ⏳ Menunggu PB-31 dan data harian ≥30 hari |
 
-**Ukuran keberhasilan:**
+**Temuan bottleneck yang diperbaiki di sprint ini:**
+
+- Region fungsi Vercel dipindah dari `iad1` (Washington) ke `sin1` (Singapura), dekat database InsForge dan pengguna. TTFB live sebelumnya: beranda 1,5 detik, katalog 0,7 detik, detail produk 0,46 detik.
+- Daftar pasangan perbandingan di-cache dengan tag, tidak lagi dibaca dari database setiap request.
+- Pencarian katalog dan keputusan iklan in-feed berjalan paralel.
+- Dicek dan tidak perlu diubah: perhitungan harga per varian (1,6 ms untuk seluruh katalog), cache katalog per request (`cache()` React) dan lintas request (`unstable_cache`), serta pengaturan dan keputusan iklan yang sudah di-cache.
+
+**Pemeriksaan penutup:** typecheck, lint, dan knip bersih; tes unit 58 + 28 + 12; integrasi 13; E2E 61 lulus (2 dilewati); build produksi lulus.
+
+**Ukuran keberhasilan (dievaluasi setelah data 30 hari):**
 
 - Baseline 30 hari terdokumentasi: kunjungan, klik ke toko, dan halaman teratas.
 - Target trafik awal tercapai atau selisihnya dijelaskan.
