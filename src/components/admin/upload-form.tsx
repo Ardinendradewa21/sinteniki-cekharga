@@ -12,11 +12,6 @@ import { previewUploadAction, type PreviewState } from "@/lib/import/batch-actio
 
 const PARTS = [
   {
-    value: "specs",
-    title: "Spesifikasi produk",
-    body: "Baris yang mengisi kolom spesifikasi atau gsmarena_url. Produk baru masuk sebagai draft.",
-  },
-  {
     value: "offers",
     title: "Penawaran & harga",
     body: "Baris yang mengisi offer_url, harga, atau toko. Harga hanya menempel ke varian yang ada.",
@@ -29,13 +24,13 @@ const PARTS = [
 ] as const;
 
 /**
- * Formulir unggah CSV gabungan (Sprint 8, 2026-10-17).
+ * Formulir unggah CSV gabungan (Sprint 8-9, 2026-10-17).
  *
- * Satu berkas boleh berisi baris spesifikasi, penawaran, dan foto sekaligus,
- * atau salah satunya saja. Admin memilih bagian yang ingin diimpor; kolom
- * bagian lain diabaikan saat analisis. Berkas tidak langsung ditulis:
- * unggahan disimpan, dianalisis di worker, lalu ditinjau per tahap (produk,
- * harga, foto) sebelum diterapkan.
+ * Satu berkas boleh berisi baris penawaran dan foto sekaligus, atau salah
+ * satunya saja. Admin memilih bagian yang ingin diimpor; kolom bagian lain
+ * diabaikan saat analisis. Produk baru dan spesifikasi tidak lewat CSV,
+ * melainkan lewat Tarik otomatis. Berkas tidak langsung ditulis: unggahan
+ * disimpan, dianalisis di worker, lalu ditinjau per tahap (harga, lalu foto).
  */
 export function UploadForm({ template }: { template: string }) {
   const [state, action, pending] = useActionState<PreviewState, FormData>(previewUploadAction, { error: null });
@@ -53,9 +48,9 @@ export function UploadForm({ template }: { template: string }) {
       <fieldset>
         <legend className="text-sm font-semibold text-foreground">Bagian yang diimpor dari berkas ini</legend>
         <p className="mt-1 text-xs text-muted-foreground">
-          Satu berkas boleh berisi ketiganya. Bagian yang tidak dicentang diabaikan walau kolomnya terisi.
+          Satu berkas boleh berisi keduanya. Bagian yang tidak dicentang diabaikan walau kolomnya terisi.
         </p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {PARTS.map((part) => (
             <label
               key={part.value}
@@ -86,7 +81,7 @@ export function UploadForm({ template }: { template: string }) {
           // Tanggal berkas dipakai sebagai waktu pengamatan harga bila kolom observed_at kosong.
           lastModifiedName="file_last_modified"
           label="Berkas CSV gabungan"
-          hint="Ekspor sheet sebagai CSV. Satu baris boleh membawa spesifikasi, penawaran, dan foto sekaligus; kolom yang tidak dipakai biarkan kosong. Berkas format lama (ekspor GSMArena, hasil scraper Shopee, ekspor erafone.com) tetap dikenali otomatis."
+          hint="Ekspor sheet sebagai CSV. Satu baris boleh membawa penawaran dan foto sekaligus; kolom yang tidak dipakai biarkan kosong. Kolom spesifikasi di sheet lama diabaikan. Hasil scraper Shopee dan ekspor erafone.com tetap dikenali otomatis."
         />
       </div>
 

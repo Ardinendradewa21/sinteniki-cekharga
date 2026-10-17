@@ -52,6 +52,7 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 40 | PB-41 | Tambah produk Infinix, Tecno, itel, dan realme (mulai segmen di bawah Rp3 juta); Transsion memimpin pasar Q2 2026 | Analisis pendukung keputusan §2 | 8 | 3 | 2 | 3 | **4.3** | Siap (tugas data) |
 | 41 | PB-42 | Jadwalkan worker impor per menit di InsForge Schedules; per 16 Okt 18.00 WIB enam batch harga cron masih `queued` dan 0 produk berharga segar | Analisis pendukung keputusan §5 | 13 | 13 | 8 | 1 | **34.0** | Siap (bagian sisa PB-01) |
 | 42 | PB-43 | CSV gabungan: spesifikasi, penawaran, dan foto per warna dalam satu berkas; pilihan bagian di formulir; foto lewat aturan galeri sebagai tahap terakhir; tab Galeri dan templat lama dihapus dari UI | Masukan PO 17 Okt 2026 | 13 | 8 | 5 | 5 | **5.2** | ✅ Selesai 2026-10-17 (Sprint 8) |
+| 43 | PB-44 | CSV gabungan tanpa kolom spesifikasi: produk baru dan spesifikasi hanya lewat Tarik otomatis; kolom spesifikasi sheet lama diabaikan dengan peringatan; berkas spesifikasi format lama ditolak | Masukan PO 17 Okt 2026 | 5 | 5 | 3 | 2 | **6.5** | ✅ Selesai 2026-10-17 (Sprint 9) |
 | – | PB-10 | Modul iklan: Fase 3–4 (laporan otomatis, invoice, portal advertiser, sponsored listing) | ADS-CONTEXT §10 | – | – | – | – | – | **Ditahan** oleh pemilik produk |
 
 ### Catatan prioritas

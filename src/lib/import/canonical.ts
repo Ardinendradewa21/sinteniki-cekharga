@@ -91,14 +91,22 @@ export function detectFileKind(headers: readonly string[], rows: readonly CsvRow
   const erafone = rows.slice(0, ERAFONE_SAMPLE_ROWS).some((row) => readErafoneListing(row) !== null);
   const offers = template || shopee || erafone;
 
+  // Sejak Sprint 9 (2026-10-17) spesifikasi tidak lagi diimpor lewat CSV:
+  // produk baru dan spesifikasinya diambil lewat Tarik otomatis.
+  if (spec && !offers) {
+    return {
+      kind: null,
+      reason:
+        "Berkas spesifikasi tidak lagi diimpor lewat CSV. Tambahkan produk baru lewat Tarik otomatis (situs resmi + GSMArena), lalu sunting spesifikasinya di halaman produk. CSV gabungan hanya untuk penawaran dan foto.",
+    };
+  }
   if (spec && offers) {
     return {
       kind: null,
       reason:
-        "Berkas mencampur kolom spesifikasi format lama dengan kolom penawaran. Gunakan templat terpadu (kolom gsmarena_url, ram_gb, storage_gb, offer_url) untuk menggabungkan keduanya.",
+        "Berkas mencampur kolom spesifikasi format lama dengan kolom penawaran. Gunakan templat CSV gabungan (kolom brand, model_name, ram_gb, storage_gb, offer_url).",
     };
   }
-  if (spec) return { kind: "specs", format: "gsmarena-spec" };
   if (template) return { kind: "offers", format: "template" };
   // Shopee dan Erafone sama-sama dibaca per baris oleh adaptor penawaran.
   if (shopee && erafone) return { kind: "offers", format: "mixed-offers" };
@@ -107,7 +115,7 @@ export function detectFileKind(headers: readonly string[], rows: readonly CsvRow
   return {
     kind: null,
     reason:
-      "Format berkas tidak dikenali. Gunakan templat spesifikasi (kolom brand dan model_name) atau templat penawaran (kolom slug, ram_gb, storage_gb).",
+      "Format berkas tidak dikenali. Gunakan templat CSV gabungan dari tombol Unduh templat CSV gabungan.",
   };
 }
 

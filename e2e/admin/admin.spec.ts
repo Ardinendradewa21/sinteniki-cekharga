@@ -64,11 +64,12 @@ test.describe("Pusat Impor", () => {
     await expect(page).toHaveURL(/\/admin\/import\?tab=tarik/);
   });
 
-  test("TC-IMP-03 hanya templat CSV gabungan yang ditawarkan, lengkap dengan kolom foto @regression", async ({ page }) => {
+  test("TC-IMP-03 hanya templat CSV gabungan (penawaran + foto) yang ditawarkan, tanpa bagian spesifikasi @regression", async ({ page }) => {
     await page.goto("/admin/import?tab=unggah");
     await expect(page.getByRole("button", { name: "Templat spesifikasi" })).toHaveCount(0);
+    await expect(page.getByRole("checkbox", { name: /Spesifikasi/ })).toHaveCount(0);
     const cases = [
-      { button: "Unduh templat CSV gabungan", file: "templat-csv-gabungan-cekharga.csv", header: /^\uFEFF?brand,model_name,slug,gsmarena_url,ram_gb,storage_gb,.*image_url,urutan,is_cover,image_source_url,/ },
+      { button: "Unduh templat CSV gabungan", file: "templat-csv-gabungan-cekharga.csv", header: /^\uFEFF?brand,model_name,slug,ram_gb,storage_gb,color,image_url,urutan,is_cover,image_source_url,/ },
     ];
     for (const { button, file, header } of cases) {
       const [download] = await Promise.all([
@@ -105,7 +106,6 @@ test.describe("Pusat Impor", () => {
       page.waitForEvent("download"),
       page.getByRole("button", { name: "Unduh templat CSV gabungan" }).click(),
     ]);
-    await page.getByRole("checkbox", { name: /Spesifikasi produk/ }).uncheck();
     await page.getByRole("checkbox", { name: /Penawaran & harga/ }).uncheck();
     await page.locator("#berkas").setInputFiles({ name: "qa-e2e-galeri.csv", mimeType: "text/csv", buffer: fs.readFileSync(await download.path()) });
     await page.getByRole("button", { name: "Buat pratinjau" }).click();
@@ -117,7 +117,7 @@ test.describe("Pusat Impor", () => {
     await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
   });
 
-  test("TC-IMP-05 CSV gabungan: koreksi otomatis tampil, harga dan foto menjadi tahap lanjutan @regression", async ({ page }) => {
+  test("TC-IMP-05 CSV gabungan: koreksi otomatis tampil, harga ditinjau dulu lalu foto sebagai tahap lanjutan @regression", async ({ page }) => {
     await page.goto("/admin/import?tab=unggah");
     const [download] = await Promise.all([
       page.waitForEvent("download"),
@@ -131,14 +131,13 @@ test.describe("Pusat Impor", () => {
     const panel = page.locator("section[aria-labelledby=koreksi-otomatis]");
     await expect(panel).toContainText("nilai dirapikan");
     await panel.getByText("Lihat rincian").click();
-    await expect(panel).toContainText("4999000");
-    await expect(page.locator("main")).toContainText("batch harga lanjutan");
+    await expect(panel).toContainText("1999000");
+    await expect(page.locator("main")).toContainText("Penawaran dan harga");
     await expect(page.locator("main")).toContainText("menjadi batch foto");
     await expect(page.getByRole("navigation", { name: "Tahapan berkas" })).toContainText("Foto");
-    // Pratinjau per produk (langkah 5): kartu produk, pilihan mode, dan harga saja.
-    await expect(page.getByRole("heading", { name: /OPPO Reno16c/ })).toBeVisible();
-    await expect(page.getByRole("radio", { name: "Spesifikasi saja" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Terapkan harga saja" })).toBeVisible();
+    // Pratinjau per produk: kartu produk dan pilihan mode tahap lanjutan.
+    await expect(page.getByRole("heading", { name: /OPPO A6c/ })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Penawaran saja" })).toBeVisible();
     await page.getByRole("button", { name: "Batalkan batch ini" }).click();
     await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
   });

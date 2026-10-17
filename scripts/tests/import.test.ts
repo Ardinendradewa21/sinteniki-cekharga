@@ -556,8 +556,9 @@ const detect = (csv: string) => {
   return detectFileKind(parsed.headers, parsed.rows);
 };
 
-test("deteksi berkas: templat resmi dikenali dari isinya, bukan dari formulir", () => {
-  assert.deepEqual(detect(templateSpesifikasi()), { kind: "specs", format: "gsmarena-spec" });
+test("deteksi berkas: templat resmi dikenali dari isinya, bukan dari formulir; berkas spesifikasi ditolak", () => {
+  const spec = detect(templateSpesifikasi());
+  assert.ok(spec.kind === null && /Tarik otomatis/.test(spec.reason), "spesifikasi tidak lagi lewat CSV (Sprint 9)");
   assert.deepEqual(detect(templatePenawaran()), { kind: "offers", format: "template" });
   assert.deepEqual(detect(templateShopeeScrape()), { kind: "offers", format: "shopee-scrape" });
   const erafone = detect(
@@ -570,7 +571,7 @@ test("deteksi berkas: gabungan dan format asing ditolak dengan alasan, bukan dit
   // Format spesifikasi lama dicampur kolom penawaran lama: diarahkan ke templat terpadu.
   const mixed = detect("brand,model_name,url,slug\nOPPO,A6,oppo_a6-1.php,oppo-a6\n");
   assert.equal(mixed.kind, null);
-  assert.ok(mixed.kind === null && /templat terpadu/.test(mixed.reason));
+  assert.ok(mixed.kind === null && /CSV gabungan/.test(mixed.reason));
   const unknown = detect("nama,harga\nHP,1000\n");
   assert.ok(unknown.kind === null && /tidak dikenali/.test(unknown.reason));
 });
@@ -652,23 +653,14 @@ test("alias header: nama Indonesia dikenali, kolom scraper Shopee tidak dibajak"
   assert.deepEqual(detect(templateShopeeScrape()), { kind: "offers", format: "shopee-scrape" });
 });
 
-test("templat terpadu: produk digabung per varian, penawaran dipisah lanjutan vs produk lama", () => {
+test("CSV gabungan: penawaran untuk produk di katalog dicari lewat nama, harga kosong tetap kosong", () => {
   const converted = convertUnifiedRows(parseCsv(templateTerpadu()).rows);
-  assert.equal(converted.specRows.length, 1, "dua baris Reno16c menjadi satu produk");
-  const product = mapRow(converted.specRows[0]!);
-  assert.ok(product.ok);
-  assert.equal(product.candidate.sourceKey, "gsmarena:oppo_reno16c_5g-14768");
-  assert.deepEqual(product.candidate.variants, [{ ramGb: 8, storageGb: 128 }, { ramGb: 8, storageGb: 256 }]);
-
-  assert.equal(converted.followUpOfferRows.length, 2);
-  assert.ok(converted.followUpOfferRows.every((row) => row.source_key === product.candidate.sourceKey));
-  assert.equal(converted.followUpOfferRows[0]!.price_idr, "4999000");
-  assert.equal(converted.followUpOfferRows[1]!.price_idr, "", "harga kosong tetap kosong, bukan nol");
-  assert.equal(converted.offerRows.length, 1);
-  assert.equal(converted.offerRows[0]!.slug, "oppo-a6c");
-  assert.equal(converted.offerRows[0]!.listing_status, "active");
-
-  const offer = mapOfferRow({ ...converted.followUpOfferRows[0]!, slug: "oppo-reno16c" });
+  assert.equal(converted.offerRows.length, 2, "dua varian A6c");
+  assert.ok(converted.offerRows.every((row) => row.slug === "oppo-a6c" && row.product_name === "OPPO A6c"));
+  assert.equal(converted.offerRows[0]!.price_idr, "1999000");
+  assert.equal(converted.offerRows[1]!.price_idr, "", "harga kosong tetap kosong, bukan nol");
+  assert.equal(converted.offerRows[1]!.listing_status, "active");
+  const offer = mapOfferRow(converted.offerRows[0]!);
   assert.ok(offer.ok, offer.ok ? "" : offer.reason);
   assert.equal(offer.row.observedAt, "2026-10-10T02:00:00.000Z", "09.00 WIB");
   const notes = converted.corrections.map((c) => `${c.line}:${c.column}`);
@@ -676,33 +668,23 @@ test("templat terpadu: produk digabung per varian, penawaran dipisah lanjutan vs
   assert.ok(converted.corrections.every((c) => c.level === "info"));
 });
 
-test("templat terpadu: konflik antarbaris dicatat dan nilai baris pertama dipakai", () => {
+test("CSV gabungan: kolom spesifikasi sheet lama diabaikan dengan satu peringatan, harga dan foto tetap masuk", () => {
   const rows: Record<string, string>[] = [
-    { merek: "QAUji", model: "Konflik 1", ram: "8", storage: "128", chipset: "Chip A" },
-    { merek: "QAUji", model: "Konflik 1", ram: "8", storage: "256", chipset: "Chip B" },
+    { merek: "QAUji", model: "Lama 1", ram: "8", storage: "128", chipset: "Chip A", gsmarena_url: "qauji_lama_1-1.php", link: "https://www.blibli.com/p/l1", harga: "Rp 4.000.000" },
+    { merek: "QAUji", model: "Lama 1", ram: "8", storage: "256", chipset: "Chip B", warna: "Hitam", foto: "https://fdn2.gsmarena.com/vv/bigpic/l1.jpg" },
     { merek: "", model: "", harga: "1000000" },
+    { merek: "QAUji", model: "Lama 2", nfc: "Yes" },
   ];
   const converted = convertUnifiedRows(rows);
-  assert.equal(converted.specRows[0]!.chipset, "Chip A");
-  const conflict = converted.corrections.find((c) => c.level === "warning");
-  assert.equal(conflict?.line, 3);
-  assert.match(conflict?.note ?? "", /baris 2/);
-  const skipped = converted.corrections.find((c) => c.level === "error");
-  assert.equal(skipped?.line, 4, "penawaran tanpa slug atau merek+model dilewati dengan alasan");
-});
-
-test("templat terpadu: baris varian + harga tanpa spesifikasi tetap milik produk di berkas, di atas maupun di bawah", () => {
-  const rows: Record<string, string>[] = [
-    { merek: "QAUji", model: "Urutan 1", ram: "8", storage: "256", link: "https://www.blibli.com/p/u1", harga: "Rp 4.000.000" },
-    { merek: "QAUji", model: "Urutan 1", ram: "8", storage: "128", chipset: "Chip QA", gsmarena_url: "qauji_urutan_1-1.php" },
-  ];
-  const converted = convertUnifiedRows(rows);
-  assert.equal(converted.offerRows.length, 0, "bukan penawaran untuk produk lama");
-  assert.equal(converted.followUpOfferRows[0]!.source_key, "gsmarena:qauji_urutan_1-1");
-  const product = mapRow(converted.specRows[0]!);
-  assert.ok(product.ok);
-  assert.equal(product.candidate.sourceKey, "gsmarena:qauji_urutan_1-1");
-  assert.deepEqual(product.candidate.variants.map((v) => v.storageGb).sort(), [128, 256]);
+  assert.equal(converted.offerRows.length, 1, "baris harga tetap menjadi penawaran untuk produk lama");
+  assert.equal(converted.offerRows[0]!.slug, "qauji-lama-1");
+  assert.equal(converted.photoRows.length, 1);
+  const warnings = converted.corrections.filter((c) => c.level === "warning");
+  assert.equal(warnings.length, 1, "satu peringatan untuk seluruh berkas, bukan per baris");
+  assert.match(warnings[0]!.note, /Kolom spesifikasi di 3 baris diabaikan.*Tarik otomatis/);
+  assert.equal(warnings[0]!.line, 2);
+  const skipped = converted.corrections.filter((c) => c.level === "error").map((c) => c.line);
+  assert.deepEqual(skipped, [4], "penawaran tanpa slug atau merek+model dilewati; baris spesifikasi saja tidak dianggap galat");
 });
 
 import { selectStoredCorrections } from "@/lib/import/corrections";
@@ -752,35 +734,28 @@ test("pratinjau per produk: penawaran dikelompokkan per produk dan diurutkan per
 import { imageSourceName, safeHttpsImageUrl } from "@/lib/import/image-hosts";
 import { readTemplateListingImage } from "@/lib/import/offers";
 
-test("CSV gabungan: templat memuat ketiga jenis baris; semua foto jadi baris galeri, bukan menempel ke produk/penawaran", () => {
+test("CSV gabungan: templat hanya penawaran dan foto; semua foto jadi baris galeri, bukan menempel ke penawaran", () => {
   const header = templateTerpadu().split("\n")[0]!.split(",");
-  for (const column of ["image_url", "urutan", "is_cover", "image_source_url", "image_usage_basis"]) assert.ok(header.includes(column), column);
+  for (const column of ["image_url", "urutan", "is_cover", "image_source_url", "image_usage_basis", "offer_url"]) assert.ok(header.includes(column), column);
+  for (const column of ["gsmarena_url", "chipset", "colors", "nfc"]) assert.ok(!header.includes(column), `${column} tidak lagi di templat`);
   const converted = convertUnifiedRows(parseCsv(templateTerpadu()).rows);
-  assert.equal(converted.specRows.length, 1, "Reno16c produk baru");
-  assert.equal(converted.specRows[0]!.image_url, undefined, "foto tidak lagi di baris spesifikasi");
-  assert.equal(converted.followUpOfferRows.length, 2, "dua varian Reno16c");
-  assert.equal(converted.offerRows.length, 1, "A6c produk lama");
-  assert.ok([...converted.followUpOfferRows, ...converted.offerRows].every((row) => !row.image_url), "penawaran tanpa foto");
+  assert.ok(converted.offerRows.every((row) => !row.image_url), "penawaran tanpa foto");
   assert.deepEqual(
     converted.photoRows.map((row) => [row.model_name, row.color, row.urutan, row.is_cover]),
-    [["Reno16c", "Hitam", "1", "ya"], ["Reno16c", "Hitam", "2", ""], ["Reno16c", "Ungu", "1", "ya"], ["A6c", "Biru", "1", "ya"]]
+    [["A6c", "Biru", "1", "ya"], ["A6c", "Biru", "2", ""], ["A6c", "Hitam", "1", "ya"]]
   );
-  assert.equal(converted.photoRows[3]!.source_url, "https://www.blibli.com/p/contoh");
+  assert.equal(converted.photoRows[2]!.source_url, "https://www.blibli.com/p/contoh");
   assert.equal(converted.corrections.filter((c) => c.level === "error").length, 0);
 });
 
 test("CSV gabungan: bagian yang tidak dipilih diabaikan sejak awal", () => {
   const rows = parseCsv(templateTerpadu()).rows;
   const photosOnly = convertUnifiedRows(rows, ["photos"]);
-  assert.equal(photosOnly.specRows.length + photosOnly.offerRows.length + photosOnly.followUpOfferRows.length, 0);
-  assert.equal(photosOnly.photoRows.length, 4);
+  assert.equal(photosOnly.offerRows.length, 0);
+  assert.equal(photosOnly.photoRows.length, 3);
   const offersOnly = convertUnifiedRows(rows, ["offers"]);
-  assert.equal(offersOnly.specRows.length, 0, "tanpa spesifikasi, Reno16c dicari di katalog");
-  assert.equal(offersOnly.offerRows.length, 3);
+  assert.equal(offersOnly.offerRows.length, 2);
   assert.equal(offersOnly.photoRows.length, 0);
-  const specsOnly = convertUnifiedRows(rows, ["specs"]);
-  assert.equal(specsOnly.specRows.length, 1);
-  assert.equal(specsOnly.offerRows.length + specsOnly.followUpOfferRows.length + specsOnly.photoRows.length, 0);
 });
 
 test("foto: kolom url_image dikenali, baris foto saja sah, dan foto tidak membuat baris produk palsu", () => {
@@ -794,7 +769,6 @@ test("foto: kolom url_image dikenali, baris foto saja sah, dan foto tidak membua
     },
     { brand: "Xiaomi", model_name: "Redmi 17", url_image: "https://i02.appmifile.com/contoh/lain.png" },
   ]);
-  assert.equal(converted.specRows.length, 0, "foto saja bukan alasan membuat atau menimpa produk");
   assert.equal(converted.offerRows.length, 1);
   assert.equal(converted.offerRows[0]!.slug, "xiaomi-redmi-17");
   assert.equal(converted.offerRows[0]!.image_url, undefined);
@@ -814,8 +788,8 @@ test("foto: foto yang diulang per varian dihitung sekali, foto warna lain jadi b
     { merek: "QAUji", model: "Foto 1", ram: "8", storage: "128", link: "https://www.blibli.com/p/biru", harga: "1000000", warna: "Biru", foto: "https://down-id.img.susercontent.com/file/biru" },
   ]);
   assert.deepEqual(converted.photoRows.map((row) => row.color), ["Hitam", "Biru"]);
-  assert.equal(converted.followUpOfferRows[0]!.image_url, undefined);
-  assert.equal(converted.corrections.filter((c) => c.level !== "info").length, 0);
+  assert.equal(converted.offerRows[0]!.image_url, undefined);
+  assert.deepEqual(converted.corrections.filter((c) => c.level !== "info").map((c) => c.column), ["spesifikasi"], "hanya peringatan kolom spesifikasi diabaikan");
   assert.match(converted.corrections.find((c) => c.column === "image_url")?.note ?? "", /sama dengan baris 2/);
 });
 
@@ -866,7 +840,8 @@ test("warna: kolom url dibaca dari isinya, kolom warna masuk baris penawaran dan
   const product = convertUnifiedRows([
     { brand: "QAUji", model_name: "Warna 2", url: "https://www.gsmarena.com/qauji_warna_2-92.php", ram_gb: "8", storage_gb: "128", chipset: "Chip", image_url: "https://fdn2.gsmarena.com/vv/bigpic/a.jpg", color: "Hitam" },
   ]);
-  assert.equal(product.specRows[0]!.url, "qauji_warna_2-92.php", "tautan GSMArena di kolom url menjadi sumber spesifikasi");
+  assert.equal(product.offerRows.length, 0, "tautan GSMArena di kolom url bukan listing toko");
+  assert.match(product.corrections.find((c) => c.level === "warning")?.note ?? "", /spesifikasi .* diabaikan/);
   assert.deepEqual(product.photoRows.map((row) => row.color), ["Hitam"], "warna ikut baris foto");
   assert.equal(canonicalHeader("Warna"), "color");
   assert.equal(canonicalHeader("daftar warna"), "colors");
@@ -962,8 +937,7 @@ test("warna spesifikasi: nama dalam kurung dihitung, kolom colors tidak membuat 
   const converted = convertUnifiedRows([
     { brand: "Xiaomi", model_name: "17T", ram_gb: "12", storage_gb: "256", colors: "Black, Violet", color: "Black", offer_url: "https://shopee.co.id/a-i.1.2", marketplace: "Shopee", seller_name: "Toko", price_idr: "8999000" },
   ]);
-  assert.equal(converted.specRows.length, 0, "daftar warna di berkas harga bukan alasan membuat produk");
-  assert.equal(converted.offerRows.length, 1);
+  assert.equal(converted.offerRows.length, 1, "daftar warna di berkas harga tidak mengganggu penawaran");
 });
 
 test("aturan galeri: foto dikenali dari URL + warna, batas per warna, sampul tidak menimpa", () => {

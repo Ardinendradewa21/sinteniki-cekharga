@@ -274,35 +274,36 @@ test("INT-05 impor ulang sebagai patch: sel kosong tidak menghapus, '-' mengoson
   assert.deepEqual(offer, { warranty: "Garansi resmi Indonesia, 1 tahun", seller_verified: true, listing_status: "active" });
 });
 
-test("INT-06 templat terpadu: produk baru + harga dalam satu berkas, harga lanjutan ditinjau dulu", async () => {
-  const { convertUnifiedRows } = await import("@/lib/import/unified");
-  const converted = convertUnifiedRows([
-    { merek: "QAUji", model: "Terpadu 1", ram: "8", storage: "128", chipset: "Chip QA", marketplace: "Blibli", toko: "Toko QA",
-      link: "https://www.blibli.com/p/qauji-terpadu-1", harga: "Rp 3.499.000", diperiksa: "10/10/2026 09:00" },
-    { merek: "QAUji", model: "Terpadu 1", ram: "8", storage: "256", marketplace: "Blibli", toko: "Toko QA",
-      link: "https://www.blibli.com/p/qauji-terpadu-1", harga: "", diperiksa: "10/10/2026 09:00" },
-  ]);
-  assert.equal(converted.specRows.length, 1);
-  const created = await createBatch({
-    kind: "specs", origin: "csv", sourceLabel: "QA-UJI terpadu", rows: converted.specRows, malformedLines: [], admin: actor,
-    options: { sourceFormat: "unified", imageRights: null,
-      followUpOffers: { sourceLabel: "QA-UJI terpadu (harga)", defaultObservedAt: new Date().toISOString(), rows: converted.followUpOfferRows } },
+test("INT-06 CSV gabungan: harga untuk produk dari tarik otomatis; harga kosong bukan nol, waktu WIB", async () => {
+  const { stageUpload } = await import("@/lib/import/batches");
+  // Produk baru masuk lewat tarik otomatis (batch spesifikasi), bukan CSV.
+  const base = await createBatch({ kind: "specs", origin: "scrape", sourceLabel: "QA-UJI terpadu produk", options: {}, rows: [spec("Terpadu", 1)], malformedLines: [], admin: actor });
+  assert.ok(base.ok);
+  batches.push(base.id);
+  await applyAll(base.id);
+
+  const staged = await stageUpload({
+    kind: "offers", origin: "csv", sourceLabel: "QA-UJI terpadu harga", role: "upload", malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: null, defaultObservedAt: new Date().toISOString() },
+    rows: [
+      { merek: "QAUji", model: "Terpadu 1", ram: "8", storage: "128", chipset: "Chip lama diabaikan", marketplace: "Blibli", toko: "Toko QA",
+        link: "https://www.blibli.com/p/qauji-terpadu-1", harga: "Rp 3.499.000", diperiksa: "10/10/2026 09:00" },
+      { merek: "QAUji", model: "Terpadu 1", ram: "8", storage: "128", marketplace: "Erafone", toko: "Erafone",
+        link: "https://erafone.com/qauji-terpadu-1", harga: "", diperiksa: "10/10/2026 09:00" },
+    ],
   });
-  assert.ok(created.ok, JSON.stringify(created));
-  batches.push(created.id);
-  await applyAll(created.id);
+  assert.ok(staged.ok);
+  batches.push(staged.id);
+  await processBatchStep(staged.id);
+  const detail = (await getBatch(staged.id))!;
+  assert.equal(detail.kind, "offers");
+  assert.equal(detail.status, "draft", "harga dari CSV ditinjau dulu");
+  assert.match(JSON.stringify(detail.options.corrections?.items ?? []), /spesifikasi di 1 baris diabaikan/);
+  assert.deepEqual(detail.items.map((i) => i.action).sort(), ["create", "create"]);
 
-  const childId = (await getFollowUpBatchId(created.id))!;
-  assert.ok(childId, "batch harga lanjutan dibuat setelah produk tersimpan");
-  batches.push(childId);
-  const child = (await getBatch(childId))!;
-  assert.equal(child.status, "draft", "harga dari CSV ditinjau dulu, tidak langsung diterapkan");
-  assert.equal(child.origin, "csv");
-  assert.deepEqual(child.items.map((i) => i.action).sort(), ["create", "create"]);
-
-  await applyAll(childId);
-  const offers = ((await db.from("offers").select("id").eq("url", "https://www.blibli.com/p/qauji-terpadu-1")).data ?? []) as { id: string }[];
-  assert.equal(offers.length, 2, "satu penawaran per varian");
+  await applyAll(staged.id);
+  const offers = ((await db.from("offers").select("id, url").in("url", ["https://www.blibli.com/p/qauji-terpadu-1", "https://erafone.com/qauji-terpadu-1"])).data ?? []) as { id: string; url: string }[];
+  assert.equal(offers.length, 2, "satu penawaran per toko");
   const prices = ((await db.from("price_observations").select("price_idr, observed_at").in("offer_id", offers.map((o) => o.id))).data ?? []) as
     { price_idr: number; observed_at: string }[];
   assert.equal(prices.length, 1, "harga kosong tidak dicatat sebagai nol");
@@ -333,13 +334,13 @@ test("INT-07 unggahan dianalisis di worker: baris di raw_listings, status analyz
   assert.deepEqual(analysed.items.map((i) => i.action), ["create", "create"]);
   assert.equal((await processBatchStep(legacy.id)).claimed, false, "draft tidak dianalisis ulang");
 
-  // Templat terpadu: baris unggahan dikoreksi di worker, penawaran jadi lanjutan.
+  // CSV gabungan: baris unggahan dikoreksi di worker; produk yang belum ada dilewati dengan arahan.
   const unified = await stageUpload({
-    kind: "specs", origin: "csv", sourceLabel: "QA-UJI analisis terpadu", role: "upload", malformedLines: [], admin: actor,
+    kind: "offers", origin: "csv", sourceLabel: "QA-UJI analisis terpadu", role: "upload", malformedLines: [], admin: actor,
     options: { sourceFormat: "unified", imageRights: null, defaultObservedAt: new Date().toISOString() },
     rows: [
-      { merek: "QAUji", model: "Analisis 3", ram: "8", storage: "128", chipset: "Chip QA", link: "https://www.blibli.com/p/qa-a3", harga: "Rp 2.000.000" },
-      { merek: "QAUji", model: "Analisis 3", ram: "8", storage: "256", link: "https://www.blibli.com/p/qa-a3", harga: "2,5 jt" },
+      { merek: "QAUji", model: "Analisis 3", ram: "8", storage: "128", chipset: "Chip QA", marketplace: "Blibli", toko: "Toko QA", link: "https://www.blibli.com/p/qa-a3", harga: "Rp 2.000.000" },
+      { merek: "QAUji", model: "Analisis 3", ram: "8", storage: "256", marketplace: "Blibli", toko: "Toko QA", link: "https://www.blibli.com/p/qa-a3", harga: "2,5 jt" },
     ],
   });
   assert.ok(unified.ok);
@@ -347,13 +348,13 @@ test("INT-07 unggahan dianalisis di worker: baris di raw_listings, status analyz
   await processBatchStep(unified.id);
   const detail = (await getBatch(unified.id))!;
   assert.equal(detail.status, "draft");
-  assert.equal(detail.kind, "specs");
-  assert.equal(detail.options.followUpOffers?.staged, true);
-  assert.equal(detail.options.followUpOffers?.count, 2);
+  assert.equal(detail.kind, "offers", "CSV tidak lagi membuat produk");
   assert.ok((detail.options.corrections?.summary.info ?? 0) >= 2, "koreksi harga tercatat");
+  assert.ok(detail.items.every((i) => i.action === "skip"), "produk belum ada di katalog");
+  assert.match(detail.items[0]?.reason ?? "", /Tarik otomatis/);
   assert.equal(await rowsOf(unified.id, "upload"), 2);
-  assert.equal(await rowsOf(unified.id, "row"), 1, "dua baris jadi satu produk");
-  assert.equal(await rowsOf(unified.id, "follow_up"), 2);
+  assert.equal(await rowsOf(unified.id, "row"), 2);
+  assert.equal(await rowsOf(unified.id, "follow_up"), 0);
 
   // Berkas tanpa baris yang bisa dipakai: gagal dengan alasan, tidak menggantung.
   const empty = await stageUpload({
@@ -365,7 +366,7 @@ test("INT-07 unggahan dianalisis di worker: baris di raw_listings, status analyz
   await processBatchStep(empty.id);
   const failed = (await getBatch(empty.id))!;
   assert.equal(failed.status, "failed");
-  assert.match(String((failed.report as { error?: string } | null)?.error ?? ""), /Tidak ada baris/);
+  assert.match(String((failed.report as { error?: string } | null)?.error ?? ""), /Tidak ada baris penawaran atau foto/);
 
   // Retensi 30 hari tidak menyentuh batch yang baru dibuat.
   const purged = await db.rpc("import_purge_raw_listings", { p_keep_days: 30 });
@@ -528,45 +529,32 @@ test("INT-10 CSV gabungan: harga produk lama lalu foto per warna sebagai tahap l
   assert.ok(jobs.find((j) => j.color === "biru")?.is_cover, "sampul dari baris foto");
 });
 
-test("INT-14 CSV gabungan: produk baru + foto, foto menunggu produk tersimpan; bagian Foto saja langsung batch galeri", async () => {
+test("INT-14 CSV gabungan: foto saja langsung batch galeri; produk yang belum ada dilewati dengan arahan Tarik otomatis", async () => {
   const { stageUpload } = await import("@/lib/import/batches");
+  const base = await createBatch({ kind: "specs", origin: "scrape", sourceLabel: "QA-UJI gabung produk", options: {}, rows: [spec("Gabung", 1)], malformedLines: [], admin: actor });
+  assert.ok(base.ok);
+  batches.push(base.id);
+  await applyAll(base.id);
+
   const rows: Record<string, string>[] = [
-    { merek: "QAUji", model: "Gabung 1", ram: "8", storage: "128", chipset: "Chip QA", warna: "Hitam",
-      url_image: "https://down-id.img.susercontent.com/file/qa-uji-gabung-hitam", sampul: "ya" },
+    // Sheet lama: kolom spesifikasi diabaikan, fotonya tetap masuk.
+    { merek: "QAUji", model: "Gabung 1", chipset: "Chip QA", warna: "Hitam", url_image: "https://down-id.img.susercontent.com/file/qa-uji-gabung-hitam", sampul: "ya" },
     { merek: "QAUji", model: "Gabung 1", warna: "Putih", url_image: "https://down-id.img.susercontent.com/file/qa-uji-gabung-putih" },
+    { merek: "QAUji", model: "Belum Ada", warna: "Hijau", url_image: "https://down-id.img.susercontent.com/file/qa-uji-gabung-hijau" },
   ];
   const staged = await stageUpload({
-    kind: "specs", origin: "csv", sourceLabel: "QA-UJI gabung", role: "upload", malformedLines: [], admin: actor,
-    options: { sourceFormat: "unified", imageRights: { basis: "own-work", text: "Aset uji QA" }, defaultObservedAt: new Date().toISOString() },
+    kind: "photos", origin: "csv", sourceLabel: "QA-UJI gabung foto", role: "upload", malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: { basis: "own-work", text: "Aset uji QA" } },
     rows,
   });
   assert.ok(staged.ok);
   batches.push(staged.id);
   await processBatchStep(staged.id);
-  const specsBatch = (await getBatch(staged.id))!;
-  assert.equal(specsBatch.kind, "specs");
-  assert.equal(specsBatch.options.followUpPhotos?.count, 2);
-  assert.equal(specsBatch.options.followUpOffers, undefined, "berkas tanpa harga");
-  await applyAll(staged.id);
-  const photoBatchId = (await getBatch(staged.id))!.followUpPhotoBatchId!;
-  assert.ok(photoBatchId, "foto produk baru menjadi batch galeri setelah produknya tersimpan");
-  batches.push(photoBatchId);
-  const photoBatch = (await getBatch(photoBatchId))!;
-  assert.deepEqual(photoBatch.items.map((i) => i.action).sort(), ["create", "create"], "produk baru ditemukan");
-
-  // Bagian Foto saja dari berkas yang sama: tanpa tahap produk.
-  const photosOnly = await stageUpload({
-    kind: "specs", origin: "csv", sourceLabel: "QA-UJI gabung foto saja", role: "upload", malformedLines: [], admin: actor,
-    options: { sourceFormat: "unified", imageRights: { basis: "own-work", text: "Aset uji QA" }, parts: ["photos"] },
-    rows,
-  });
-  assert.ok(photosOnly.ok);
-  batches.push(photosOnly.id);
-  await processBatchStep(photosOnly.id);
-  const only = (await getBatch(photosOnly.id))!;
-  assert.equal(only.kind, "photos");
-  assert.equal(only.options.followUpPhotos, undefined);
-  assert.equal(only.items.length, 2);
+  const photoBatch = (await getBatch(staged.id))!;
+  assert.equal(photoBatch.kind, "photos", "tanpa harga: langsung batch galeri");
+  assert.equal(photoBatch.options.followUpPhotos, undefined);
+  assert.deepEqual(photoBatch.items.map((i) => i.action).sort(), ["create", "create", "skip"]);
+  assert.match(photoBatch.items.find((i) => i.action === "skip")?.reason ?? "", /Tarik otomatis/);
 });
 
 test("INT-11 warna penawaran: gabungan baris per warna, diganti saat impor ulang, sel kosong tidak menghapus", async () => {

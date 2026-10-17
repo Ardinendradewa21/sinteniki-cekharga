@@ -109,19 +109,19 @@ export async function previewUploadAction(_prev: PreviewState, formData: FormDat
   const rights = readImageRights(formData.get("image_usage_basis"), formData.get("image_usage_rights"));
   if (!rights.ok) return { error: rights.error };
 
-  // Bagian CSV gabungan yang dipilih admin (spesifikasi, penawaran, foto).
+  // Bagian CSV gabungan yang dipilih admin (penawaran, foto).
   const parts = formData
     .getAll("bagian")
     .map(String)
     .filter((value): value is UnifiedPart => (UNIFIED_PARTS as readonly string[]).includes(value));
-  if (parts.length === 0) return { error: "Pilih minimal satu bagian yang diimpor: spesifikasi, penawaran, atau foto." };
+  if (parts.length === 0) return { error: "Pilih minimal satu bagian yang diimpor: penawaran atau foto." };
 
   // Hanya header dan 20 baris pertama yang dibaca di sini.
   const detected = detectFileKind(read.parsed.headers, read.parsed.rows);
   if (detected.kind === null) return { error: detected.reason };
   const unified = detected.kind === "unified";
-  // Templat terpadu baru tahu jenis batchnya setelah dianalisis; sementara spesifikasi.
-  const kind = unified ? "specs" : detected.kind;
+  // CSV gabungan baru tahu jenis batchnya setelah dianalisis; sementara penawaran.
+  const kind = unified ? "offers" : detected.kind;
 
   const staged = await stageUpload({
     kind,

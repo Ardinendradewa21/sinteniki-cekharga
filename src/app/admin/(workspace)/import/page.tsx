@@ -33,8 +33,8 @@ export const maxDuration = 60;
 /**
  * Pusat Impor: satu pintu untuk semua sumber data (rencana kerja impor, Fase 3.3).
  *
- *   Unggah CSV     — CSV gabungan: spesifikasi, penawaran, dan foto per warna
- *                    dalam satu berkas (Sprint 8); format lama tetap dikenali.
+ *   Unggah CSV     — CSV gabungan: penawaran dan foto per warna dalam satu
+ *                    berkas (Sprint 8-9). Spesifikasi tidak lewat CSV.
  *   Tarik otomatis — daftar + harga dari situs resmi, spesifikasi dari GSMArena.
  *   Foto           — antrean foto produk dan proses ulang foto lama.
  *   Riwayat        — semua batch beserta statusnya.
@@ -124,12 +124,7 @@ const COLUMN_GROUPS = [
   {
     title: "Identitas (setiap baris)",
     columns: "brand, model_name, ram_gb, storage_gb",
-    note: "Produk dicocokkan lewat merek + model. slug opsional; bila diisi, harus menunjuk produk yang sama.",
-  },
-  {
-    title: "Spesifikasi (cukup satu baris per model)",
-    columns: "gsmarena_url, announced, network_technology, display_size_inches, chipset, battery_capacity_mah, nfc, ip_rating, colors, dan kolom spesifikasi lain",
-    note: "Mengisi kolom ini membuat baris membawa produk. Produk baru masuk sebagai draft.",
+    note: "Produk harus sudah ada di katalog dan dicocokkan lewat merek + model. slug opsional; bila diisi, harus menunjuk produk yang sama.",
   },
   {
     title: "Penawaran (satu baris per varian per toko)",
@@ -149,10 +144,13 @@ function UploadTab() {
       <section>
         <h2 className="text-xl font-bold tracking-tight text-foreground">Unggah CSV gabungan</h2>
         <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
-          Satu berkas untuk semua data: spesifikasi produk, penawaran dan harga, serta foto per warna. Berkas boleh berisi
-          ketiganya atau salah satunya saja, dan kamu memilih bagian mana yang diimpor. Setiap bagian ditinjau sebagai
-          tahap tersendiri: produk dulu, lalu harga, lalu foto, karena harga dan foto produk baru baru bisa dicocokkan
-          setelah produknya tersimpan.
+          Satu berkas untuk penawaran dan harga serta foto per warna, untuk produk yang sudah ada di katalog. Berkas boleh
+          berisi keduanya atau salah satunya saja, dan kamu memilih bagian mana yang diimpor. Bila keduanya ada, harga
+          ditinjau dulu, lalu foto sebagai tahap berikutnya. Produk baru dan spesifikasinya ditambahkan lewat tab{" "}
+          <Link href="/admin/import?tab=tarik" className="font-semibold text-brand underline-offset-4 hover:underline">
+            Tarik otomatis
+          </Link>
+          , lalu disunting di halaman produk.
         </p>
         <div className="mt-5">
           <UploadForm template={templateTerpadu()} />
@@ -199,10 +197,10 @@ function UploadTab() {
           <p className="text-sm font-semibold text-warning">Yang tidak ikut diimpor</p>
           <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-foreground">
             <li>
-              Harga dari dataset spesifikasi. Kolom harganya berisi harga referensi internasional dengan mata uang campur.
-              Harga hanya boleh berasal dari penawaran yang dicatat beserta waktu pemeriksaannya.
+              Spesifikasi dan produk baru. Keduanya diambil lewat Tarik otomatis; kolom spesifikasi di sheet lama
+              diabaikan dengan catatan di pratinjau.
             </li>
-            <li>Perangkat selain smartphone. Tablet dan jam tangan dilewati dengan alasan yang dinyatakan.</li>
+            <li>Harga untuk produk yang belum ada di katalog. Barisnya dilewati beserta alasannya.</li>
             <li>Ulasan reviewer. Kurasinya di menu Ulasan YouTube, tidak lewat berkas.</li>
           </ul>
         </div>

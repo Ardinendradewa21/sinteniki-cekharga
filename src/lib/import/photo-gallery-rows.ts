@@ -159,7 +159,7 @@ export function planGalleryRows(
     const named = resolveGalleryProduct(read.row, products);
     if (named && "error" in named) return { rowIndex, read, product: null, issue: named.error };
     if (!named) {
-      return { rowIndex, read, product: null, issue: `Produk "${read.row.name}" tidak ditemukan di katalog; impor spesifikasinya dulu.` };
+      return { rowIndex, read, product: null, issue: `Produk "${read.row.name}" tidak ditemukan di katalog; tambahkan lewat Tarik otomatis dulu.` };
     }
     return { rowIndex, read, product: named.product, issue: null, nameNote: named.reviewNote };
   });

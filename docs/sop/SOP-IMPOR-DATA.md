@@ -21,43 +21,40 @@ Dokumen ini adalah prosedur baku tim PT Sinteniki Digital Solusi untuk memasukka
 
 | Kebutuhan | Jalur | Tab di Pusat Impor |
 | --- | --- | --- |
-| Menambah atau memperbarui produk, harga, foto, atau kombinasinya | **CSV gabungan** (bagian 2a) | Unggah CSV |
-| Berkas format lama: ekspor GSMArena, templat penawaran/galeri lama, scraper Shopee, ekspor Erafone | Formulir yang sama; dikenali otomatis (bagian 3 dan 4) | Unggah CSV |
+| Menambah produk baru beserta spesifikasinya | **Tarik otomatis** (situs resmi + GSMArena), lalu sunting di halaman produk | Tarik otomatis |
+| Menambah atau memperbarui harga, foto, atau keduanya untuk produk yang sudah ada | **CSV gabungan** (bagian 2a) | Unggah CSV |
+| Berkas format lama: templat penawaran/galeri lama, scraper Shopee, ekspor Erafone | Formulir yang sama; dikenali otomatis (bagian 4) | Unggah CSV |
 | Mengambil lineup dan harga dari situs resmi merek | Tarik otomatis | Tarik otomatis |
 | Memproses ulang atau memantau foto | Antrean foto | Antrean foto |
 | Mengurutkan, memilih sampul, memindah warna, atau menghapus foto satu produk | Panel **Foto per warna** di halaman admin produk (bagian 6) | – |
 | Melihat, menerapkan, atau membatalkan batch | Riwayat batch | Riwayat batch |
 
-**Satu formulir, satu berkas** (sejak 17 Oktober 2026, Sprint 8). Tab **Unggah CSV** hanya berisi formulir CSV gabungan dan satu tombol **Unduh templat CSV gabungan**. Tab **Galeri foto** dan tombol templat format lama sudah dihapus. Berkas format lama tetap diterima dan dikenali dari isinya.
+**Satu formulir, satu berkas** (sejak 17 Oktober 2026, Sprint 8). Tab **Unggah CSV** hanya berisi formulir CSV gabungan dan satu tombol **Unduh templat CSV gabungan**. Tab **Galeri foto** dan tombol templat format lama sudah dihapus. Berkas penawaran dan galeri format lama tetap diterima dan dikenali dari isinya.
+
+**Spesifikasi tidak lagi lewat CSV** (Sprint 9, 17 Oktober 2026). Produk baru dan spesifikasinya hanya ditambahkan lewat **Tarik otomatis**, lalu dilengkapi di halaman sunting produk. Berkas spesifikasi format lama (ekspor GSMArena) ditolak dengan arahan ke Tarik otomatis. Kolom spesifikasi di sheet gabungan lama diabaikan, dengan satu peringatan di pratinjau.
 
 Merek yang didukung tarik otomatis: vivo, iQOO, OPPO, Samsung, Xiaomi, Digimap (Apple), dan Infinix. Merek lain memakai CSV.
 
 ## 2a. CSV gabungan (sejak 17 Oktober 2026)
 
-Spesifikasi, penawaran, dan foto cukup diisi dalam **satu sheet**, lalu diekspor sebagai satu CSV. Berkas boleh berisi ketiganya, atau salah satunya saja. Unduh contohnya lewat **Unduh templat CSV gabungan** (`templat-csv-gabungan-cekharga.csv`).
+Penawaran dan foto untuk produk yang **sudah ada di katalog** cukup diisi dalam **satu sheet**, lalu diekspor sebagai satu CSV. Berkas boleh berisi keduanya, atau salah satunya saja. Unduh contohnya lewat **Unduh templat CSV gabungan** (`templat-csv-gabungan-cekharga.csv`).
 
 ### Memilih bagian yang diimpor
 
-Di atas formulir ada tiga pilihan, semuanya tercentang secara bawaan:
+Di atas formulir ada dua pilihan, keduanya tercentang secara bawaan:
 
-- **Spesifikasi produk**
 - **Penawaran & harga**
 - **Foto per warna**
 
-Bagian yang tidak dicentang **diabaikan walau kolomnya terisi**. Contoh pemakaian:
+Bagian yang tidak dicentang **diabaikan walau kolomnya terisi**. Contohnya, untuk hanya menambah foto dari sheet lengkap, centang **Foto per warna** saja.
 
-- Hanya memperbarui harga dari sheet lengkap: centang **Penawaran & harga** saja.
-- Hanya menambah foto: centang **Foto per warna** saja.
-- Produk baru beserta harga dan fotonya: biarkan ketiganya tercentang.
-
-Tanpa **Spesifikasi produk**, harga dan foto dicocokkan ke produk yang sudah ada di katalog lewat merek + model.
+Harga dan foto dicocokkan ke produk di katalog lewat merek + model. Baris untuk produk yang belum ada dilewati dengan alasan "belum ada di katalog; tambahkan lewat Tarik otomatis dulu".
 
 ### Jenis baris dikenali dari kolom yang terisi
 
 | Kelompok | Kolom | Kapan diisi |
 | --- | --- | --- |
-| Identitas | `brand`, `model_name`; `ram_gb`, `storage_gb` untuk baris produk dan harga; `slug` opsional | selalu |
-| Spesifikasi | `gsmarena_url`, `announced`, `network_technology`, `display_size_inches`, `chipset`, `battery_capacity_mah`, `nfc`, `ip_rating`, `colors`, dan seterusnya (lihat 3.2) | hanya untuk produk baru atau yang diperbarui; **cukup di satu baris per model** |
+| Identitas | `brand`, `model_name`; `ram_gb`, `storage_gb` untuk baris harga; `slug` opsional | selalu |
 | Penawaran | `marketplace`, `seller_name`, `offer_url`, `price_idr`, `observed_at`, `warranty`, `listing_status`, `seller_verified`, `color` | satu baris per varian per toko |
 | Foto | `color`, `image_url`, `urutan`, `is_cover`, `image_source_url`, `image_usage_basis`, `image_usage_rights` | **satu baris per foto** |
 
@@ -136,31 +133,22 @@ Yang **tidak** dikoreksi otomatis:
 
 Baris seperti itu dilewati dengan alasan. Bila dua baris memberi nilai berbeda untuk produk yang sama, nilai baris pertama dipakai dan konfliknya ditandai **Konflik**.
 
-### Alur penerapan: tahap produk, harga, foto
+### Alur penerapan: tahap harga, lalu foto
 
-Setiap bagian ditinjau sebagai **tahap** tersendiri. Harga dan foto produk baru baru bisa dicocokkan setelah produknya tersimpan. Halaman batch menampilkan penanda **Tahapan berkas** dengan tautan ke tiap tahap.
+Halaman batch menampilkan penanda **Tahapan berkas** dengan tautan ke tiap tahap.
 
 1. Unggah berkas, lalu klik **Buat pratinjau**. Halaman batch terbuka dengan status **Sedang dianalisis**, dan pratinjau muncul otomatis begitu selesai.
-2. **Tahap pertama** mengikuti isi berkas:
-   - ada spesifikasi: tahap **Produk**;
-   - tanpa spesifikasi tetapi ada harga: tahap **Harga**;
-   - hanya foto: tahap **Foto**.
-3. Setelah tahap pertama diterapkan, sistem membuat tahap berikutnya berstatus draft:
-   - **batch harga lanjutan**, bila berkas berisi harga untuk produk baru;
-   - **batch foto**, bila berkas berisi foto.
+2. Berkas berisi harga: tahap pertama adalah **Harga**. Berkas foto saja langsung menjadi tahap **Foto**.
+3. Bila berkas berisi harga dan foto, **batch foto** dibuat berstatus draft setelah harga diterapkan. Buka lewat tombol **Lanjut: tinjau foto**, tinjau, lalu terapkan.
 
-   Buka lewat tombol **Lanjut: tinjau harga** / **Lanjut: tinjau foto**, tinjau, lalu terapkan.
+Di pratinjau tahap harga yang punya foto lanjutan ada dua pilihan:
 
-Di pratinjau tahap pertama yang punya tahap lanjutan ada dua pilihan:
+- **Penawaran lalu M foto** (bawaan): batch foto dibuat setelah harga diterapkan.
+- **Penawaran saja**: hanya harga yang diterapkan; foto di berkas diabaikan.
 
-- **… lalu N penawaran dan M foto** (bawaan): tahap lanjutan dibuat setelah tahap ini diterapkan.
-- **… saja**: hanya tahap ini yang diterapkan; harga dan foto di berkas diabaikan.
+## 3. Impor spesifikasi format lama (dataset GSMArena) — tidak dipakai lagi
 
-Batch produk yang membawa harga juga punya tombol **Terapkan harga saja**: spesifikasi diabaikan, dan langsung dibuat batch penawaran untuk produk yang sudah ada. Foto di berkas ikut pindah sebagai tahap setelah harga itu.
-
-## 3. Impor spesifikasi format lama (dataset GSMArena)
-
-Templatnya tidak lagi ditawarkan di Pusat Impor sejak 17 Oktober 2026; berkas lama tetap diterima. Untuk data baru, pakai CSV gabungan (bagian 2a).
+Sejak 17 Oktober 2026 (Sprint 9) berkas spesifikasi **ditolak** saat diunggah, dengan arahan ke Tarik otomatis. Bagian di bawah dipertahankan sebagai rujukan arti kolom spesifikasi, karena kolom yang sama dipakai hasil Tarik otomatis dan halaman sunting produk.
 
 Bagian ini untuk berkas spesifikasi format lama. Untuk berkas baru, pakai templat terpadu (bagian 2a); kolom spesifikasinya sama.
 
@@ -245,7 +233,7 @@ Bagian ini untuk berkas penawaran format lama. Untuk berkas baru, pakai templat 
 
 ### 4.1 Siapkan berkas
 
-Di formulir **Unggah data**, klik tautan **Templat penawaran** di baris "Format lama" untuk mengunduh `templat-penawaran-cekharga.csv`. Satu baris berisi satu listing toko untuk satu varian.
+Templat penawaran format lama tidak lagi bisa diunduh di Pusat Impor (sejak 17 Oktober 2026); pakai CSV gabungan (bagian 2a). Berkas lama dengan kolom `slug` tetap diterima. Satu baris berisi satu listing toko untuk satu varian.
 
 | Kolom | Isi | Contoh | Masuk ke database |
 | --- | --- | --- | --- |

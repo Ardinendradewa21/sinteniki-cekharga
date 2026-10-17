@@ -224,7 +224,7 @@ export function prepareOfferRows(
 
     const productId = bySlug.get(row.slug);
     if (!productId) {
-      skipped.push({ label, reason: `Produk dengan slug "${row.slug}" tidak ada di katalog.`, rowIndex });
+      skipped.push({ label, reason: `Produk "${row.slug}" belum ada di katalog. Tambahkan lewat Tarik otomatis dulu.`, rowIndex });
       continue;
     }
     if (outcome.image) {

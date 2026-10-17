@@ -430,51 +430,26 @@ async function analyzeBatch(batchId: string): Promise<StepResult> {
     if (options.sourceFormat === "unified") {
       const parts = options.parts?.length ? options.parts : [...UNIFIED_PARTS];
       const converted = convertUnifiedRows(await loadRawRowList(batchId, "upload"), parts);
-      const offerRows = [...converted.followUpOfferRows, ...converted.offerRows];
-      const photoRows = converted.photoRows;
+      const { offerRows, photoRows } = converted;
       const corrections = {
         items: selectStoredCorrections(converted.corrections),
         summary: summarizeCorrections(converted.corrections),
       };
-      if (converted.specRows.length === 0 && offerRows.length === 0 && photoRows.length === 0) {
+      if (offerRows.length === 0 && photoRows.length === 0) {
         throw new AnalysisError(
-          "Tidak ada baris yang bisa dipakai untuk bagian yang dipilih. Periksa kolom merek, model, varian, offer_url, dan image_url."
+          "Tidak ada baris penawaran atau foto untuk bagian yang dipilih. Periksa kolom merek, model, varian, offer_url, dan image_url. Produk baru ditambahkan lewat Tarik otomatis."
         );
       }
-      // Foto selalu tahap terakhir: menunggu produk (bila ada) atau penawaran
-      // tersimpan, lalu menjadi batch galeri. Hanya foto -> batch galeri langsung.
+      // Foto adalah tahap kedua bila berkas juga berisi harga; berkas foto
+      // saja langsung menjadi batch galeri.
       const photoFollowUp =
-        photoRows.length > 0 && (converted.specRows.length > 0 || offerRows.length > 0)
-          ? { sourceLabel: `${batch.source_label} (foto)`, count: photoRows.length }
-          : undefined;
+        photoRows.length > 0 && offerRows.length > 0 ? { sourceLabel: `${batch.source_label} (foto)`, count: photoRows.length } : undefined;
       await clearRawRows(batchId, "follow_up_photo");
       if (photoFollowUp) await stageRawRows(batchId, "follow_up_photo", photoRows);
 
-      // Berkas berisi produk -> batch spesifikasi; penawarannya menjadi batch
-      // harga lanjutan setelah produk diterapkan. Hanya penawaran -> batch penawaran.
-      if (converted.specRows.length > 0) {
-        kind = "specs";
-        rows = converted.specRows;
-        options = {
-          ...options,
-          corrections,
-          followUpPhotos: photoFollowUp,
-          followUpOffers:
-            offerRows.length > 0
-              ? {
-                  sourceLabel: `${batch.source_label} (harga)`,
-                  defaultObservedAt: options.defaultObservedAt ?? new Date().toISOString(),
-                  rows: [],
-                  staged: true,
-                  count: offerRows.length,
-                }
-              : undefined,
-        };
-        await clearRawRows(batchId, "follow_up");
-        await stageRawRows(batchId, "follow_up", offerRows);
-      } else if (offerRows.length > 0) {
+      if (offerRows.length > 0) {
         kind = "offers";
-        rows = converted.offerRows;
+        rows = offerRows;
         options = { ...options, corrections, followUpPhotos: photoFollowUp };
       } else {
         kind = "photos";
