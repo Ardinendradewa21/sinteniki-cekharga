@@ -1,5 +1,6 @@
 /**
- * Menghapus latar polos (putih/abu sangat terang) dari foto produk.
+ * Menghapus latar polos (putih/abu sangat terang, atau warna terang seragam
+ * di keempat sudut) dari foto produk.
  *
  * Foto toko dan GSMArena hampir selalu berupa ponsel di atas kanvas putih.
  * Di mode gelap kanvas itu tampil sebagai kotak putih. Yang dihapus HANYA
@@ -45,13 +46,46 @@ type MatteResult = {
   removedRatio: number;
 };
 
-function isBackground(data: Uint8Array, offset: number): boolean {
+/**
+ * Latar studio berwarna terang selain putih (2026-10-17): galeri situs resmi
+ * vivo memakai kanvas biru muda 242,250,253, yang gagal ambang "hampir putih"
+ * di atas. Bila keempat sudut berwarna sama dan terang, warna itu dipakai
+ * sebagai acuan latar dengan toleransi sempit. Toleransinya per kanal, jadi
+ * bodi pastel yang beda belasan poin dari latar tetap utuh.
+ */
+const REFERENCE_MIN_CHANNEL = 228;
+const REFERENCE_MAX_SPREAD = 18;
+const REFERENCE_CORNER_TOLERANCE = 4;
+const REFERENCE_TOLERANCE = 7;
+
+type Rgb = readonly [number, number, number];
+
+function rgbAt(data: Uint8Array, offset: number): Rgb {
+  return [data[offset]!, data[offset + 1]!, data[offset + 2]!];
+}
+
+function channelDistance(a: Rgb, b: Rgb): number {
+  return Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]));
+}
+
+/** Warna latar acuan dari sudut-sudut gambar, atau null bila sudutnya tidak seragam dan terang. */
+function referenceBackground(data: Uint8Array, corners: readonly number[]): Rgb | null {
+  const colors = corners.map((index) => rgbAt(data, index * 4));
+  const first = colors[0]!;
+  if (colors.some((color) => channelDistance(color, first) > REFERENCE_CORNER_TOLERANCE)) return null;
+  const min = Math.min(...first);
+  if (min < REFERENCE_MIN_CHANNEL || Math.max(...first) - min > REFERENCE_MAX_SPREAD) return null;
+  return first;
+}
+
+function isBackground(data: Uint8Array, offset: number, reference: Rgb | null = null): boolean {
   if (data[offset + 3]! < TRANSPARENT_ALPHA) return true;
   const r = data[offset]!;
   const g = data[offset + 1]!;
   const b = data[offset + 2]!;
   const min = Math.min(r, g, b);
-  return min >= MIN_CHANNEL && Math.max(r, g, b) - min <= MAX_SPREAD;
+  if (min >= MIN_CHANNEL && Math.max(r, g, b) - min <= MAX_SPREAD) return true;
+  return reference !== null && channelDistance([r, g, b], reference) <= REFERENCE_TOLERANCE;
 }
 
 /**
@@ -73,8 +107,9 @@ export function removePlainBackground(
   for (let y = 1; y < height - 1; y += 1) border.push(y * width, y * width + width - 1);
 
   const corners = [0, width - 1, (height - 1) * width, total - 1];
-  const plainCorners = corners.filter((index) => isBackground(data, index * 4)).length;
-  const plainBorder = border.filter((index) => isBackground(data, index * 4));
+  const reference = referenceBackground(data, corners);
+  const plainCorners = corners.filter((index) => isBackground(data, index * 4, reference)).length;
+  const plainBorder = border.filter((index) => isBackground(data, index * 4, reference));
   if (
     plainCorners < MIN_PLAIN_CORNERS ||
     plainBorder.length / border.length < MIN_BORDER_RATIO
@@ -103,7 +138,7 @@ export function removePlainBackground(
     ];
     for (const next of neighbours) {
       if (next < 0 || next >= total || removed[next]) continue;
-      if (!isBackground(data, next * 4)) continue;
+      if (!isBackground(data, next * 4, reference)) continue;
       removed[next] = 1;
       queue[tail++] = next;
     }

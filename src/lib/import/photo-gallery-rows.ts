@@ -159,6 +159,18 @@ export function planGalleryRows(
     return 0;
   });
 
+  // URL foto yang sama untuk dua warna berbeda pada satu produk hampir selalu
+  // salah salin di sheet (ditemukan 2026-10-17: vivo Y05, Y31d, iQOO Z11).
+  // Tetap boleh diterapkan, tetapi ditandai tinjau.
+  const colorsByUrl = new Map<string, Set<string>>();
+  for (const entry of parsed) {
+    if (!entry.read.ok || !entry.product) continue;
+    const key = `${entry.product.id} ${entry.read.row.imageUrl.trim()}`;
+    const colors = colorsByUrl.get(key) ?? new Set<string>();
+    colors.add(entry.read.row.color);
+    colorsByUrl.set(key, colors);
+  }
+
   const simulated = new Map<string, StoredPhoto[]>();
   const items: GalleryPlanItem[] = [];
   for (const entry of order) {
@@ -199,7 +211,11 @@ export function planGalleryRows(
     const colorNote = colorInOptions(row.color, product.colorOptions)
       ? null
       : `Warna "${row.color}" tidak ada di daftar warna spesifikasi produk (${product.colorOptions!.join(", ")}). Periksa ejaannya.`;
-    const note = [entry.nameNote, colorNote].filter(Boolean).join(" ") || null;
+    const sharedColors = [...(colorsByUrl.get(`${product.id} ${row.imageUrl.trim()}`) ?? [])].filter((color) => color !== row.color);
+    const sharedNote = sharedColors.length
+      ? `URL foto yang sama juga dipakai untuk warna ${sharedColors.join(", ")}. Pastikan fotonya memang warna ${row.color}.`
+      : null;
+    const note = [entry.nameNote, colorNote, sharedNote].filter(Boolean).join(" ") || null;
     const colorReview = note !== null;
     const base = { rowIndex, label, product: { id: product.id, name: `${product.brand} ${product.model}` }, colorReview };
     const photo = { ...row, url: url.href, rights };

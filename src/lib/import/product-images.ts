@@ -30,8 +30,10 @@ const WEBP_FALLBACK_QUALITY = 68;
  * Ikut membentuk key Storage. Menaikkan versi membuat impor berikutnya (dan
  * tombol "proses ulang foto") memproses ulang foto lama dari URL aslinya.
  * v2: latar putih polos dihapus menjadi transparan (lihat image-matte.ts).
+ * v3: tepi polos dipotong sebelum diperkecil, dan latar terang berwarna
+ * seragam (mis. biru muda galeri vivo) ikut dihapus.
  */
-const IMAGE_PIPELINE_VERSION = "webp-v2-matte";
+const IMAGE_PIPELINE_VERSION = "webp-v3-trim";
 
 const IMAGE_COLUMNS = [
   "image_url",
@@ -231,13 +233,37 @@ async function downloadImage(imageUrl: string): Promise<
 
 type Raster = { data: Uint8Array; width: number; height: number };
 
-/** Dekode, putar sesuai EXIF, perkecil, lalu hapus latar polos (bila aman). */
-async function prepareRaster(bytes: Uint8Array): Promise<Raster> {
-  const { data, info } = await sharp(bytes, {
+/**
+ * Margin yang disisakan setelah tepi polos dipotong, sebagai porsi sisi
+ * terpendek gambar asli. Sedikit ruang supaya ponsel tidak menempel tepi.
+ */
+const TRIM_MARGIN_RATIO = 0.04;
+/** Selisih warna yang masih dianggap tepi polos (default sharp 10; derau JPEG). */
+const TRIM_THRESHOLD = 12;
+
+/**
+ * Dekode, putar sesuai EXIF, potong tepi polos, perkecil, lalu hapus latar
+ * polos (bila aman).
+ *
+ * Potong tepi (2026-10-17): galeri situs resmi vivo berupa kanvas 5120x1536
+ * dengan ponsel kecil di tengah. Tanpa dipotong, ponsel tampil sangat kecil di
+ * kartu. `trim` hanya membuang baris/kolom di tepi yang warnanya sama dengan
+ * piksel kiri atas; foto yang sudah rapat (GSMArena, toko) praktis tidak
+ * berubah, dan sharp tidak memotong bila hasilnya kosong.
+ */
+async function prepareRaster(bytes: Uint8Array, size: { width: number; height: number }): Promise<Raster> {
+  const margin = Math.round(Math.min(size.width, size.height) * TRIM_MARGIN_RATIO);
+  const trimmed = await sharp(bytes, {
     failOn: "warning",
     limitInputPixels: MAX_INPUT_PIXELS,
   })
     .autoOrient()
+    .trim({ threshold: TRIM_THRESHOLD, margin })
+    .png()
+    .timeout({ seconds: SHARP_TIMEOUT_SECONDS })
+    .toBuffer();
+
+  const { data, info } = await sharp(trimmed, { limitInputPixels: MAX_INPUT_PIXELS })
     .resize({
       width: MAX_IMAGE_DIMENSION,
       height: MAX_IMAGE_DIMENSION,
@@ -286,7 +312,7 @@ async function optimizeImage(bytes: Uint8Array): Promise<
       return { ok: false, reason: "Gambar animasi atau multi-halaman tidak didukung." };
     }
 
-    const raster = await prepareRaster(bytes);
+    const raster = await prepareRaster(bytes, { width: metadata.width, height: metadata.height });
     let optimized = await encodeWebp(raster, WEBP_QUALITY);
     if (optimized.info.size > MAX_OPTIMIZED_IMAGE_BYTES) {
       optimized = await encodeWebp(raster, WEBP_FALLBACK_QUALITY);

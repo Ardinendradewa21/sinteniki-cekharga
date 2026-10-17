@@ -70,7 +70,7 @@ Kolom warna dan foto tidak menentukan jenis baris. Mengisi `image_url` atau `col
 - Foto di baris penawaran berwarna menjadi **sampul** warna itu, hanya bila warna itu belum punya sampul. Sampul pilihan admin tidak ditimpa impor.
 - Warna yang tidak ada di daftar warna spesifikasi produk tetap disimpan apa adanya, tetapi barisnya ditandai **Perlu tinjau** (tidak dicentang otomatis). Contoh: "Celestian Purple" di berkas vs "Celestial Purple" di spesifikasi, atau "Gold" vs "Desert Gold". Nama dalam kurung ikut dihitung: "Deep Blue (Endless Blue)" cocok dengan "Deep Blue" dan "Endless Blue".
 
-- **Host yang diizinkan:** `down-id.img.susercontent.com` (Shopee), `fdn.gsmarena.com` dan `fdn2.gsmarena.com` (GSMArena), `cdnpro.eraspace.com` (Erafone), `i02.appmifile.com` (situs resmi Xiaomi), dan `images.samsung.com` (situs resmi Samsung; parameter di belakang link dibuang otomatis karena `?imbypass=true` dan `?$LazyLoad…$` tidak mengembalikan foto aslinya). Wajib HTTPS. Host lain dilewati dengan alasan; harganya tetap masuk.
+- **Host yang diizinkan:** `down-id.img.susercontent.com` (Shopee), `fdn.gsmarena.com` dan `fdn2.gsmarena.com` (GSMArena), `cdnpro.eraspace.com` (Erafone), `i02.appmifile.com` (situs resmi Xiaomi), `images.samsung.com` (situs resmi Samsung; parameter di belakang link dibuang otomatis karena `?imbypass=true` dan `?$LazyLoad…$` tidak mengembalikan foto aslinya), dan `asia-exstatic-vivofs.vivo.com` (situs resmi vivo, sejak 17 Oktober 2026). Wajib HTTPS. Host lain dilewati dengan alasan; harganya tetap masuk.
 - **Produk baru di berkas:** foto pertama untuk produk itu menjadi **foto utama**. Foto berbeda di baris penawaran lain produk yang sama (misalnya per warna) masuk **galeri**, tanpa tanda konflik.
 - **Produk yang sudah ada:** foto harus berada di baris yang sama dengan penawarannya, dan masuk **galeri** produk itu. Galeri dibatasi 8 foto per produk.
 - **Baris foto saja untuk produk yang sudah ada** (tanpa penawaran) dilewati dengan alasan. Untuk mengganti foto utama produk lama, isi `gsmarena_url` produknya di baris itu.
@@ -180,7 +180,7 @@ Jadi berkas tidak perlu lengkap. Cukup isi kolom wajib dan kolom yang ingin dipe
 | `jack_3_5mm` | `Yes` atau `No` | `No` | `specs.has35mmJack` |
 | `os` | Sistem operasi | `Android 16, ColorOS 16` | `specs.osVersion` |
 | `colors` | Warna, dipisah koma | `Stellar Purple, Starry White` | `specs.colorOptions` |
-| `image_url` | URL foto HTTPS dari host yang diizinkan: `fdn.gsmarena.com`, `fdn2.gsmarena.com`, `down-id.img.susercontent.com`, `cdnpro.eraspace.com`, `i02.appmifile.com` | – | `product_assets` |
+| `image_url` | URL foto HTTPS dari host yang diizinkan (bagian 2a) | – | `product_assets` |
 | `image_usage_basis` | `written-permission`, `public-license`, `own-work`, atau `admin-declared` | `written-permission` | `product_assets.usage_basis` |
 | `image_usage_rights` | Bukti hak pakai, misalnya nomor surat izin atau nama lisensi | `Izin email PT X, 1 Okt 2026` | `product_assets.usage_rights` |
 
@@ -375,6 +375,14 @@ Untuk menambah banyak foto per warna ke produk yang **sudah ada** di katalog. Un
 | `image_usage_basis`, `image_usage_rights` | Hak pakai per baris; kosong = pilihan di formulir | – |
 
 Kolom lain (mis. `image_host`, `host_diizinkan_saat_ini`) diabaikan. Host tetap diperiksa importer, bukan dibaca dari kolom catatan.
+
+Aturan isi yang sering salah (temuan galeri vivo, 17 Oktober 2026):
+
+- **Satu baris = satu foto unik.** Baris yang URL, model, dan warnanya sama persis hanya dihitung sekali (tampil **Sama**). Hapus duplikatnya supaya pratinjau mudah dibaca.
+- **Satu URL untuk satu warna.** URL yang sama untuk dua warna berbeda pada satu produk ditandai **Perlu tinjau**, karena hampir selalu salah salin.
+- **Nama warna konsisten** dengan warna di listing toko dan di sheet spesifikasi, termasuk ejaan. Contoh salah: "Biru Langt", "Ocena Blue". Warna yang tidak ada di daftar warna spesifikasi ditandai **Perlu tinjau** dan tidak dicentang otomatis.
+- **Model harus sudah ada di katalog.** Impor sheet spesifikasinya dulu. Penulisan spasi yang berbeda ("V70FE" untuk "V70 FE") tetap dicocokkan, tetapi ditandai **Perlu tinjau**.
+- Foto kanvas lebar dari situs resmi (misalnya galeri vivo 5120×1536 berlatar biru muda) boleh dipakai. Importer memotong tepi polos dan menghapus latar terang yang seragam.
 
 Alur sama dengan impor lain: unggah, pratinjau per foto (**Baru**, **Sama** bila URL itu sudah tersimpan atau sudah antre untuk warna yang sama, **Dilewati** beserta alasannya), terapkan, lalu foto diantrekan. Batas per warna diperiksa di pratinjau dan sekali lagi saat foto diproses. **Undo** batch galeri membatalkan antrean yang belum jalan dan menghapus foto buatan batch itu beserta berkasnya, termasuk di produk terbit, karena isi batch galeri memang hanya foto.
 

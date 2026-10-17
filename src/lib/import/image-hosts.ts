@@ -18,6 +18,10 @@ const IMAGE_HOST_SOURCES = new Map<string, string>([
   ["i02.appmifile.com", "Situs resmi Xiaomi"],
   // CDN situs resmi Samsung (samsung.com/id), ditambahkan 2026-10-14.
   ["images.samsung.com", "Situs resmi Samsung"],
+  // CDN situs resmi vivo Indonesia (vivo.com/id), ditambahkan 2026-10-17.
+  // Galeri warnanya berupa kanvas lebar 5120x1536 berlatar biru muda; margin
+  // dan latarnya dirapikan di pipeline gambar (trim + matte warna sudut).
+  ["asia-exstatic-vivofs.vivo.com", "Situs resmi vivo"],
 ]);
 
 /**

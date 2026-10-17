@@ -533,8 +533,36 @@ export function resolveNamedProduct(
 ): { product: OfferCatalogProduct; reviewNote: string | null } | { error: string } | null {
   const product = matchCatalogProduct(name, products);
   if (product === "ambiguous") return { error: `Nama "${name}" cocok ke lebih dari satu produk katalog; isi kolom slug.` };
-  if (!product) return null;
-  return { product, reviewNote: networkSiblingNote(name, product, products) };
+  if (product) return { product, reviewNote: networkSiblingNote(name, product, products) };
+
+  // Spasi yang hilang atau berlebih ("vivo V70FE" untuk katalog "V70 FE",
+  // ditemukan 2026-10-17). Hanya untuk baris bernama (templat dan galeri),
+  // bukan judul toko, dan hanya bila hasilnya tunggal; tetap ditandai tinjau.
+  const compact = compactIndex(products).get(listingIdentity(name).replace(/ /g, "")) ?? [];
+  if (compact.length !== 1) return null;
+  const found = compact[0]!;
+  return {
+    product: found,
+    reviewNote: `Nama "${name}" dicocokkan ke "${found.brand} ${found.model}" walau penulisan spasinya berbeda. Pastikan produknya benar.`,
+  };
+}
+
+const compactIndexes = new WeakMap<readonly OfferCatalogProduct[], Map<string, OfferCatalogProduct[]>>();
+
+function compactIndex(products: readonly OfferCatalogProduct[]): Map<string, OfferCatalogProduct[]> {
+  const cached = compactIndexes.get(products);
+  if (cached) return cached;
+  const index = new Map<string, OfferCatalogProduct[]>();
+  for (const product of products) {
+    for (const alias of new Set(productAliases(product).map((value) => value.replace(/ /g, "")))) {
+      const list = index.get(alias);
+      if (list) {
+        if (!list.includes(product)) list.push(product);
+      } else index.set(alias, [product]);
+    }
+  }
+  compactIndexes.set(products, index);
+  return index;
 }
 
 function canonicalShopeeUrl(value: string): string | null {

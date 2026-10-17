@@ -1107,3 +1107,55 @@ test("PB-16 harga saja: hanya produk dan varian katalog, tanpa mengarang", () =>
 });
 
 type LineupItemForTest = import("@/lib/scrape/types").LineupItem;
+
+// Galeri vivo 2026-10-17: host resmi vivo, nama tanpa spasi, foto ganda lintas
+// warna, dan latar biru muda kanvas vivo.
+
+import { removePlainBackground } from "@/lib/import/image-matte";
+
+test("galeri vivo: host resmi diizinkan, V70FE cocok ke V70 FE dengan tinjau, URL ganda lintas warna ditandai", () => {
+  assert.ok(safeHttpsImageUrl("https://asia-exstatic-vivofs.vivo.com/PSee2l50xoirPK7y/Picture_library/1/zip/img/pc3.jpg"));
+  assert.equal(safeHttpsImageUrl("http://asia-exstatic-vivofs.vivo.com/a.jpg"), null, "tetap wajib HTTPS");
+
+  const products = [
+    { id: "v70fe", slug: "vivo-v70-fe", brand: "vivo", model: "V70 FE", colorOptions: null, variants: [] },
+    { id: "y05", slug: "vivo-y05", brand: "vivo", model: "Y05", colorOptions: null, variants: [] },
+    { id: "z10", slug: "iqoo-z10", brand: "iQOO", model: "Z10", colorOptions: null, variants: [] },
+  ];
+  const vivo = (model: string, color: string, file: string) => ({
+    brand: "Vivo", model_name: model, color, urutan: "1", is_cover: "ya", image_url: `https://asia-exstatic-vivofs.vivo.com/x/${file}`,
+  });
+  const plan = planGalleryRows(
+    [vivo("vivo V70FE", "Ocean Blue", "a.jpg"), vivo("vivo Y05", "Hitam Malam", "y.png"), vivo("vivo Y05", "Biru Langit", "y.png"), vivo("iQOO Z10R", "Black", "z.jpg")],
+    { products, existing: new Map(), defaultRights: { basis: "admin-declared", text: "uji" } }
+  );
+  assert.equal(plan[0]!.action, "create");
+  assert.equal(plan[0]!.colorReview, true);
+  assert.match(plan[0]!.reason ?? "", /penulisan spasinya berbeda/);
+  assert.match(plan[1]!.reason ?? "", /juga dipakai untuk warna Biru Langit/);
+  assert.equal(plan[2]!.colorReview, true);
+  assert.match(plan[3]!.reason ?? "", /tidak ditemukan di katalog/, "Z10R bukan Z10");
+});
+
+test("matte: latar terang seragam di sudut (biru muda vivo) dihapus, bodi pastel tetap utuh", () => {
+  const canvas = (width: number, height: number, bg: number[], body: number[]) => {
+    const data = new Uint8Array(width * height * 4);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const inside = x >= 3 && x < width - 3 && y >= 2 && y < height - 2;
+        data.set([...(inside ? body : bg), 255], (y * width + x) * 4);
+      }
+    }
+    return data;
+  };
+  const vivoBg = [242, 250, 253];
+  const lavender = [235, 230, 245];
+  const data = canvas(12, 10, vivoBg, lavender);
+  const result = removePlainBackground(data, 12, 10);
+  assert.equal(result.applied, true, "biru muda vivo dianggap latar");
+  assert.equal(data[3], 0, "sudut transparan");
+  assert.equal(data[(5 * 12 + 6) * 4 + 3], 255, "bodi lavender tetap utuh");
+
+  const busy = canvas(12, 10, [120, 160, 200], lavender);
+  assert.equal(removePlainBackground(busy, 12, 10).applied, false, "latar gelap/berwarna tidak disentuh");
+});
