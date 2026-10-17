@@ -22,6 +22,9 @@ import { SCRAPE_BRANDS, type LineupItem, type ScrapeBrand } from "@/lib/scrape/t
  *      batch harga `origin = schedule` dan langsung antrekan. Worker yang sama
  *      dengan impor biasa menulisnya, jadi jejak asal dan undo tetap berlaku.
  *   4. Penawaran yang tidak tercantum lagi dicatat sebagai pemeriksaan GAGAL.
+ *   5. Penawaran yang hanya cocok lewat nama model (URL tersimpan tidak
+ *      tercantum lagi) mendapat usulan URL baru di `offer_url_suggestions`
+ *      untuk diputuskan admin (PB-06). URL tersimpan tidak pernah ditimpa.
  *
  * Sumber yang tidak bisa dihubungi tidak menghasilkan catatan apa pun: harga
  * lama tetap menua dan diberi label kedaluwarsa oleh aturan harga, jujur tanpa
@@ -123,6 +126,29 @@ async function recordMissing(missing: { offerId: string; reason: string }[], att
   }
 }
 
+/**
+ * Usulan URL baru (PB-06): satu upsert untuk usulan dan satu delete per 200
+ * penawaran yang URL-nya tercantum lagi. `dismissed_url` tidak ikut dikirim,
+ * jadi penolakan admin tetap tersimpan. Gagal mencatat usulan tidak
+ * membatalkan pemeriksaan harga.
+ */
+async function recordUrlSuggestions(suggestions: { offerId: string; url: string }[], confirmed: string[], seenAt: string) {
+  try {
+    for (const group of chunk(suggestions, 200)) {
+      const { error } = await db()
+        .from("offer_url_suggestions")
+        .upsert(group.map(({ offerId, url }) => ({ offer_id: offerId, suggested_url: url, seen_at: seenAt })), { onConflict: "offer_id" });
+      if (error) throw error;
+    }
+    for (const group of chunk(confirmed, 200)) {
+      const { error } = await db().from("offer_url_suggestions").delete().in("offer_id", group);
+      if (error) throw error;
+    }
+  } catch (error) {
+    console.error("[harga-harian] usulan URL gagal dicatat:", error);
+  }
+}
+
 type Prepared =
   | { brand: ScrapeBrand; done: RefreshOutcome }
   | { brand: ScrapeBrand; offers: RefreshOffer[]; lineup: LineupItem[]; fetchedAt: string; refreshKey: string };
@@ -190,6 +216,7 @@ export async function runPriceRefresh(now = new Date(), brands: readonly ScrapeB
         }
       }
       if (plan.missing.length > 0) await recordMissing(plan.missing, fetchedAt, batchId);
+      await recordUrlSuggestions(plan.urlSuggestions, plan.urlConfirmed, fetchedAt);
       outcomes.push({
         brand,
         status: batchId ? "queued" : "nothing-to-update",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AdminDataHealth } from "@/components/admin/data-health";
 import { AdminDashboardCharts } from "@/components/admin/dashboard-charts";
 import { ImportQualityPanel } from "@/components/admin/import-quality";
+import { OfferUrlSuggestionsPanel } from "@/components/admin/offer-url-suggestions";
 import { PriceRefreshAlerts } from "@/components/admin/price-refresh-alerts";
 import { Container } from "@/components/layout/container";
 import { Reveal, StaggerItem, StaggerList } from "@/components/motion/reveal";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import {
   getImportQuality,
   listAdminProducts,
+  listOfferUrlSuggestions,
   listRecentAudit,
   getStuckRefreshBatches,
   listRecentRefreshRuns,
@@ -66,6 +68,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
   // Peringatan pemeriksaan harga harian (PB-05); gagal dibaca tidak menjatuhkan dasbor.
   const refreshRunsPromise = listRecentRefreshRuns(now).catch(() => null);
   const stuckBatchesPromise = getStuckRefreshBatches(now).catch(() => null);
+  const urlSuggestionsPromise = listOfferUrlSuggestions().catch(() => null);
   const [health, products, audit, imports] = await Promise.all([
     checkBackendHealth(),
     listAdminProducts(now),
@@ -76,6 +79,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
   const importQuality = await importQualityPromise;
   const refreshRuns = await refreshRunsPromise;
   const stuckBatches = await stuckBatchesPromise;
+  const urlSuggestions = await urlSuggestionsPromise;
   const draftCount = products.filter((product) => product.status === "draft").length;
   const publishedCount = products.filter((product) => product.status === "published").length;
   const productsWithOffers = products.filter((product) => product.offerCount > 0).length;
@@ -158,6 +162,8 @@ export default async function AdminPage(props: PageProps<"/admin">) {
           <ImportQualityPanel quality={importQuality} />
         </Reveal>
       ) : null}
+
+      {urlSuggestions ? <OfferUrlSuggestionsPanel groups={urlSuggestions.groups} total={urlSuggestions.total} /> : null}
 
       <Reveal>
         <AdminDashboardCharts

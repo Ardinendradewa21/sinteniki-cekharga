@@ -11,12 +11,14 @@ import { loadPublishBlockers } from "@/lib/admin/publish-gate";
 import {
   formToNestedObject,
   offerInput,
+  offerUrlDecisionInput,
   priceInput,
   productInput,
   reviewInput,
   variantInput,
 } from "@/lib/admin/schema";
 import { officialBrandName } from "@/lib/catalog/brands";
+import { isPendingUrlSuggestion, sameOfferUrl } from "@/lib/import/price-refresh-rules";
 import { loadStoreResolver } from "@/lib/import/stores";
 import { parseYoutubeVideoId } from "@/lib/reviews/youtube-match";
 
@@ -553,6 +555,93 @@ export async function deleteOfferAction(formData: FormData): Promise<void> {
   revalidatePath(`/admin/products/${productId}`);
   revalidateCatalog();
   redirect(`/admin/products/${productId}`);
+}
+
+/**
+ * Menerima atau menolak URL baru yang tercantum di situs resmi (PB-06).
+ * URL diambil dari tabel usulan di server, bukan dari formulir, dan harus
+ * berada di host yang sama dengan URL penawaran sekarang. Menerima mengganti
+ * URL penawaran (riwayat harganya tetap, karena penawarannya sama). Bila
+ * varian yang sama sudah punya penawaran lain di URL itu, penawaran ini ganda
+ * (DEF-018) dan menerima berarti menghapusnya lunak; riwayat harganya tetap.
+ * Menolak mencatat URL itu supaya tidak diusulkan lagi.
+ */
+export async function resolveOfferUrlAction(formData: FormData): Promise<void> {
+  const admin = await requireStaff([]);
+  const parsed = offerUrlDecisionInput.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) redirect("/admin/products");
+  const { offerId, productId, keputusan } = parsed.data;
+  const back = (key: string) => redirect(`/admin/products/${productId}?${key}#penawaran`);
+  const db = getInsforgeAdminClient().database;
+
+  const [suggestionRes, offerRes] = await Promise.all([
+    db.from("offer_url_suggestions").select("suggested_url, dismissed_url").eq("offer_id", offerId).limit(1),
+    db.from("offers").select("id, url, variant_id").eq("id", offerId).is("deleted_at", null).limit(1),
+  ]);
+  const suggestion = (suggestionRes.data ?? [])[0] as { suggested_url: string; dismissed_url: string | null } | undefined;
+  const offer = (offerRes.data ?? [])[0] as { id: string; url: string; variant_id: string } | undefined;
+  if (suggestionRes.error || offerRes.error) back("galat=url-usulan");
+  if (
+    !suggestion ||
+    !offer ||
+    !isPendingUrlSuggestion({ suggestedUrl: suggestion.suggested_url, dismissedUrl: suggestion.dismissed_url, currentUrl: offer.url })
+  ) {
+    back("galat=url-usulan");
+  }
+  const suggestedUrl = suggestion!.suggested_url;
+  const currentUrl = offer!.url;
+
+  if (keputusan === "tolak") {
+    const { error } = await db.from("offer_url_suggestions").update({ dismissed_url: suggestedUrl }).eq("offer_id", offerId);
+    if (error) back("galat=url-usulan");
+    await recordAudit(admin, "penawaran.url-tolak", "offer", offerId, { productId, url: suggestedUrl });
+    revalidatePath(`/admin/products/${productId}`);
+    revalidatePath("/admin");
+    back("pesan=url-ditolak");
+  }
+
+  if (new URL(suggestedUrl).hostname !== new URL(currentUrl).hostname) back("galat=url-usulan");
+
+  const siblingsRes = await db
+    .from("offers")
+    .select("id, url")
+    .eq("variant_id", offer!.variant_id)
+    .neq("id", offerId)
+    .is("deleted_at", null);
+  if (siblingsRes.error) back("galat=url-usulan");
+  const siblings = (siblingsRes.data ?? []) as { id: string; url: string }[];
+  const kept = siblings.find((other) => sameOfferUrl(other.url, suggestedUrl));
+  if (kept) {
+    const { error } = await db
+      .from("offers")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", offerId)
+      .is("deleted_at", null);
+    if (error) back("galat=url-usulan");
+    const cleared = await db.from("offer_url_suggestions").delete().eq("offer_id", offerId);
+    if (cleared.error) console.error("[usulan-url] usulan yang diterima gagal dihapus:", cleared.error);
+    await recordAudit(admin, "penawaran.hapus-ganda", "offer", offerId, { productId, url: currentUrl, dipertahankan: kept.id, lunak: true });
+    revalidatePath(`/admin/products/${productId}`);
+    revalidateCatalog();
+    back("pesan=ganda-dihapus");
+  }
+  // Syarat `url` lama mencegah menimpa suntingan yang terjadi di antara baca dan tulis.
+  const { data: updated, error } = await db
+    .from("offers")
+    .update({ url: suggestedUrl, last_source: "manual" })
+    .eq("id", offerId)
+    .eq("url", currentUrl)
+    .is("deleted_at", null)
+    .select("id");
+  if (error) back(JSON.stringify(error).includes("23505") ? "galat=url-bentrok" : "galat=url-usulan");
+  if ((updated ?? []).length === 0) back("galat=url-usulan");
+  const cleared = await db.from("offer_url_suggestions").delete().eq("offer_id", offerId);
+  if (cleared.error) console.error("[usulan-url] usulan yang diterima gagal dihapus:", cleared.error);
+
+  await recordAudit(admin, "penawaran.url-ganti", "offer", offerId, { productId, sebelum: currentUrl, sesudah: suggestedUrl });
+  revalidatePath(`/admin/products/${productId}`);
+  revalidateCatalog();
+  back("pesan=url-diganti");
 }
 
 /* ------------------------------------------------------- pencatatan harga */

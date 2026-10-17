@@ -29,14 +29,14 @@ Aturan tim: **setiap defect yang ditutup wajib punya tes regresi otomatis**, kec
 | DEF-015 | Foto bisa muncul setelah undo; foto galeri tidak ikut diurungkan | Sedang | P2 | Ditutup | Audit Fase 4 | `6f67886` | INT-03 |
 | DEF-016 | Tanya AI mengubah nilai syarat yang tidak dikenal menjadi "garansi resmi" | Tinggi | P1 | Ditutup | Unit test Sprint A | `a206430` | unit assistant |
 | DEF-017 | Jalur cadangan Tanya AI kehilangan parameter `tanya=form` | Sedang | P2 | Ditutup | Uji browser Sprint A | `a206430` | TC-AI-03 |
-| DEF-018 | Penawaran Samsung tetap memakai URL SKU lama (bisa membuka halaman warna lain) | Rendah | P3 | **Terbuka** | Inspeksi hasil cron | – | Rencana: PB-06 |
+| DEF-018 | Penawaran Samsung tetap memakai URL SKU lama; tarik otomatis membuat penawaran ganda untuk varian yang sama | Sedang | P2 | Ditutup | Inspeksi hasil cron, audit Sprint 10 | PB-06 (Sprint 10) | unit `findRelocatedOffer`, pemeriksaan harga duplikat; INT-15 |
 | DEF-019 | Seksi contoh perbandingan beranda hilang di data live (slug fixture demo di-hardcode) | Tinggi | P1 | Ditutup | Audit UI/UX tahap 4 | belum di-commit | unit `pickComparisonPair` (`pnpm test:catalog`) |
 | DEF-020 | Contoh perbandingan beranda menandai "beda" untuk nilai yang belum diketahui | Sedang | P2 | Ditutup | Audit UI/UX tahap 4 | belum di-commit | – (verifikasi manual; kandidat E2E) |
 | DEF-021 | Titik status asisten berdenyut tanpa henti dan berwarna peringatan saat AI aktif | Sedang | P2 | Ditutup | Audit UI/UX tahap 4 | belum di-commit | – |
 | DEF-022 | Indikator fokus pola shadcn `ring-ring/50` hanya ±2.15:1 (gagal 3:1) | Sedang | P2 | Ditutup | Audit UI/UX tahap 2 | belum di-commit | TC-A11Y-04 (fokus terlihat) |
 | DEF-023 | Kontras Badge/Pill nada netral 4.4:1 dan hitungan review `accent-warm` + teks putih ±3:1 | Sedang | P2 | Ditutup | axe-core tahap 2–3 | belum di-commit | axe-core (audit browser) |
 
-Total: 23 defect. 22 ditutup, 1 terbuka. Severity: Kritis 2, Tinggi 9, Sedang 10, Rendah 2.
+Total: 23 defect. Semua ditutup. Severity: Kritis 2, Tinggi 9, Sedang 11, Rendah 1.
 
 ## Detail defect penting
 
@@ -91,13 +91,15 @@ Total: 23 defect. 22 ditutup, 1 terbuka. Severity: Kritis 2, Tinggi 9, Sedang 10
 | Perbaikan | Dipecah menjadi dua UPDATE atomik. Pola ini kini dipakai juga di pembatalan antrean foto. |
 | Catatan | Tes integrasinya masih berupa skrip sementara. Tindak lanjut: tambahkan uji integrasi untuk `claimCommit` ke `scripts/tests/integration/` (nomor INT-05 sudah dipakai uji patch impor). |
 
-### DEF-018 — URL penawaran Samsung basi (terbuka)
+### DEF-018 — URL penawaran Samsung basi dan penawaran ganda (ditutup 2026-10-18)
 
 | | |
 | --- | --- |
 | Severity / Prioritas | Rendah / P3 |
 | Dampak | Tombol "Situs resmi" bisa membuka halaman warna lain atau, kelak, halaman yang sudah dihapus. Harga tetap benar. |
-| Rencana | PB-06: tandai penawaran yang dicocokkan lewat nama dan beri admin tombol terima URL baru. |
+| Temuan Sprint 10 | Severity dinaikkan ke Sedang. Selain URL basi, tarik otomatis "harga saja" pada 14 Okt membuat penawaran baru di URL "blueberry" untuk Galaxy S26 FE 8/128 dan 8/256, sementara penawaran lama di URL "graphite" tetap ada. Varian itu punya dua penawaran Samsung, dan yang lama dicatat gagal setiap hari. |
+| Akar masalah | Importer hanya memindahkan penawaran lama ke URL baru untuk Erafone. Penjual resmi dicocokkan lewat varian + URL, jadi URL baru selalu dianggap penawaran baru. |
+| Perbaikan | `findRelocatedOffer` (`src/lib/import/offer-relocation.ts`) memindahkan penawaran penjual resmi (identitas di `src/lib/scrape/official-sellers.ts`) dan Erafone ke URL baru. Pemeriksaan harian mencatat usulan URL dan penawaran ganda di `offer_url_suggestions`; admin memutuskan lewat Dashboard dan halaman produk (`resolveOfferUrlAction`). Dua penawaran ganda S26 FE di produksi sudah ditandai dan menunggu keputusan admin. |
 
 ## Templat laporan defect
 

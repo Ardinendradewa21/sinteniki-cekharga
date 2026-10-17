@@ -44,10 +44,22 @@ type RefreshPlan = {
   matchedOfferIds: string[];
   missing: { offerId: string; reason: string }[];
   ambiguous: string[];
+  /**
+   * Penawaran yang hanya cocok lewat nama model: URL tersimpan tidak tercantum
+   * lagi, dan `url` adalah halaman yang tercantum saat ini. Termasuk penawaran
+   * ganda (variannya sudah diperbarui lewat penawaran lain di `url`); tetap
+   * dicatat gagal dengan DUPLICATE_URL_REASON. Disimpan sebagai usulan untuk
+   * admin (PB-06), tidak pernah menimpa atau menghapus secara otomatis.
+   */
+  urlSuggestions: { offerId: string; url: string }[];
+  /** Penawaran yang URL tersimpannya tercantum lagi; usulan lamanya dihapus. */
+  urlConfirmed: string[];
 };
 
 export const MISSING_MODEL_REASON = "Model ini tidak lagi tercantum di situs resmi saat pemeriksaan harga harian.";
 export const MISSING_VARIANT_REASON = "Varian ini tidak lagi tercantum dengan harga di situs resmi saat pemeriksaan harga harian.";
+export const DUPLICATE_URL_REASON =
+  "URL ini tidak lagi tercantum di situs resmi; varian yang sama sudah diperbarui lewat penawaran lain dari penjual ini.";
 
 /** URL disamakan bentuknya: host huruf kecil, tanpa fragmen, tanpa garis miring di akhir path. */
 function normalizeOfferUrl(value: string): string | null {
@@ -131,9 +143,21 @@ export function planPriceRefresh({
   const matched = new Map<string, CsvRow>();
   const listedOffers = new Set<string>();
   const ambiguousOffers = new Set<string>();
+  const urlSuggestions = new Map<string, string>();
+  /** Penawaran ganda: varian yang sama sudah cocok lewat URL yang tercantum. */
+  const duplicates = new Set<string>();
+  const markDuplicates = (list: readonly RefreshOffer[], url: string) => {
+    for (const offer of list) {
+      if (matched.has(offer.offerId)) continue;
+      duplicates.add(offer.offerId);
+      urlSuggestions.set(offer.offerId, url);
+    }
+  };
 
-  const take = (offer: RefreshOffer, priceIdr: number, inStock: boolean | undefined) => {
+  /** `listedAt` diisi bila penawaran cocok lewat nama: URL yang tercantum hari ini. */
+  const take = (offer: RefreshOffer, priceIdr: number, inStock: boolean | undefined, listedAt?: string) => {
     if (matched.has(offer.offerId)) return;
+    if (listedAt) urlSuggestions.set(offer.offerId, listedAt);
     matched.set(offer.offerId, {
       slug: offer.slug,
       ram_gb: String(offer.ramGb),
@@ -160,7 +184,10 @@ export function planPriceRefresh({
       for (const offer of offersByUrl.get(url) ?? []) listedOffers.add(offer.offerId);
       const sameVariant = (offer: RefreshOffer) => offer.ramGb === price.ramGb && offer.storageGb === price.storageGb;
       const direct = atUrl(url).filter(sameVariant);
-      for (const offer of direct.length > 0 ? direct : spare().filter(sameVariant)) take(offer, price.priceIdr, price.inStock);
+      if (direct.length > 0) {
+        for (const offer of direct) take(offer, price.priceIdr, price.inStock);
+        markDuplicates(spare().filter(sameVariant), url);
+      } else for (const offer of spare().filter(sameVariant)) take(offer, price.priceIdr, price.inStock, url);
     }
 
     // Harga tanpa RAM (Samsung): dipakai hanya bila tepat satu penawaran cocok penyimpanannya.
@@ -170,16 +197,18 @@ export function planPriceRefresh({
       const sameStorage = (offer: RefreshOffer) => offer.storageGb === price.storageGb;
       const direct = atUrl(url).filter(sameStorage);
       const candidates = direct.length > 0 ? direct : spare().filter(sameStorage);
-      if (candidates.length === 1) take(candidates[0], price.priceIdr, price.inStock);
+      if (candidates.length === 1) take(candidates[0], price.priceIdr, price.inStock, direct.length > 0 ? undefined : url);
+      if (direct.length === 1) markDuplicates(spare().filter(sameStorage), url);
       else for (const offer of candidates) ambiguousOffers.add(offer.offerId);
     }
 
     // "Harga mulai" tanpa varian (Infinix): varian dulu dipilih admin. Diulang
     // hanya bila satu harga dan satu penawaran, selain itu terlalu menebak.
     if (item.unassignedPrices.length > 0) {
-      const candidates = [...atUrl(modelUrl), ...spare()];
+      const atModel = atUrl(modelUrl);
+      const candidates = [...atModel, ...spare()];
       if (item.unassignedPrices.length === 1 && candidates.length === 1) {
-        take(candidates[0], item.unassignedPrices[0].priceIdr, undefined);
+        take(candidates[0], item.unassignedPrices[0].priceIdr, undefined, atModel.length > 0 ? undefined : modelUrl);
       } else {
         for (const offer of candidates) ambiguousOffers.add(offer.offerId);
       }
@@ -191,10 +220,46 @@ export function planPriceRefresh({
   for (const offer of offers) {
     if (matched.has(offer.offerId)) continue;
     if (ambiguousOffers.has(offer.offerId)) ambiguous.push(offer.offerId);
+    else if (duplicates.has(offer.offerId)) missing.push({ offerId: offer.offerId, reason: DUPLICATE_URL_REASON });
     else missing.push({ offerId: offer.offerId, reason: listedOffers.has(offer.offerId) ? MISSING_VARIANT_REASON : MISSING_MODEL_REASON });
   }
 
-  return { rows: [...matched.values()], matchedOfferIds: [...matched.keys()], missing, ambiguous };
+  const urlConfirmed = offers.filter((offer) => listedUrls.has(normalizeOfferUrl(offer.url) ?? "")).map((offer) => offer.offerId);
+
+  return {
+    rows: [...matched.values()],
+    matchedOfferIds: [...matched.keys()],
+    missing,
+    ambiguous,
+    urlSuggestions: [...urlSuggestions].map(([offerId, url]) => ({ offerId, url })),
+    urlConfirmed,
+  };
+}
+
+/**
+ * Usulan URL (PB-06) yang masih perlu diputuskan admin: berbeda dari URL
+ * penawaran saat ini dan belum pernah ditolak. Bentuk URL disamakan dulu,
+ * jadi beda garis miring akhir tidak dianggap URL baru.
+ */
+export function isPendingUrlSuggestion({
+  suggestedUrl,
+  dismissedUrl,
+  currentUrl,
+}: {
+  suggestedUrl: string;
+  dismissedUrl: string | null;
+  currentUrl: string;
+}): boolean {
+  const suggested = normalizeOfferUrl(suggestedUrl);
+  if (!suggested) return false;
+  if (suggested === normalizeOfferUrl(currentUrl)) return false;
+  return !dismissedUrl || suggested !== normalizeOfferUrl(dismissedUrl);
+}
+
+/** Dua URL penawaran sama setelah bentuknya disamakan (garis miring akhir, huruf host). */
+export function sameOfferUrl(a: string, b: string): boolean {
+  const left = normalizeOfferUrl(a);
+  return left !== null && left === normalizeOfferUrl(b);
 }
 
 /** Kunci idempoten satu pemeriksaan: satu merek, satu tanggal kalender WIB. */

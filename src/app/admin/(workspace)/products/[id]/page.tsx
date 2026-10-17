@@ -19,6 +19,7 @@ import {
   deleteVariantAction,
   recordFailedCheckAction,
   recordPriceAction,
+  resolveOfferUrlAction,
   setProductStatusAction,
   setReviewStatusAction,
   updateProductAction,
@@ -47,6 +48,15 @@ const GALAT: Record<string, string> = {
   hapus: "Gagal menghapus produk.",
   "varian-terpakai":
     "Varian ini pernah punya penawaran, jadi riwayat harganya harus tetap tersimpan. Hapus penawarannya saja bila tidak dijual lagi.",
+  "url-usulan": "Usulan URL tidak bisa diproses. Mungkin sudah diputuskan di tab lain atau URL penawarannya sudah berubah. Muat ulang halaman.",
+  "url-bentrok": "Varian ini sudah punya penawaran lain dengan URL yang sama. Hapus salah satunya dulu.",
+};
+
+const PESAN: Record<string, string> = {
+  "url-diganti": "URL penawaran diganti ke halaman yang tercantum di situs resmi. Riwayat harganya tetap.",
+  "url-ditolak": "Usulan URL ditolak dan tidak akan diusulkan lagi.",
+  "ganda-dihapus":
+    "Penawaran ganda dihapus lunak. Harganya kini hanya dari penawaran di URL yang tercantum; riwayat harga lamanya tetap tersimpan.",
 };
 
 export default async function AdminProductDetailPage({
@@ -65,6 +75,7 @@ export default async function AdminProductDetailPage({
   const SOURCE_LABEL = { import: "impor CSV", scrape: "tarik otomatis", manual: "suntingan manual" } as const;
 
   const galat = typeof query.galat === "string" ? GALAT[query.galat] : null;
+  const pesan = typeof query.pesan === "string" ? PESAN[query.pesan] : null;
   const published = product.status === "published";
 
   // Aksi yang butuh id produk dibungkus di server, jadi id-nya tidak pernah
@@ -152,6 +163,11 @@ export default async function AdminProductDetailPage({
           {galat}
         </p>
       ) : null}
+      {pesan ? (
+        <p role="status" className="mt-6 rounded-xl border border-border bg-brand-muted p-4 text-sm text-foreground">
+          {pesan}
+        </p>
+      ) : null}
 
       <div className="mt-8 space-y-8">
         <ProductPhotoJobs productId={product.id} jobs={photoJobs} />
@@ -174,6 +190,7 @@ export default async function AdminProductDetailPage({
           deleteAction={deleteOfferAction}
           priceAction={recordPrice}
           failedCheckAction={recordFailedCheckAction}
+          urlAction={resolveOfferUrlAction}
         />
 
         <ReviewPanel

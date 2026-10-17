@@ -594,6 +594,53 @@ test("INT-11 warna penawaran: gabungan baris per warna, diganti saat impor ulang
   assert.deepEqual(await colorsOf(), [["Biru"]], "sel warna kosong tidak menghapus");
 });
 
+test("INT-15 penjual resmi: URL perwakilan berganti memindahkan penawaran lama, bukan membuat penawaran ganda (PB-06)", async () => {
+  const base = await createBatch({ kind: "specs", origin: "scrape", sourceLabel: "QA-UJI pindah produk", options: {}, rows: [spec("Pindah", 1)], malformedLines: [], admin: actor });
+  assert.ok(base.ok);
+  batches.push(base.id);
+  await applyAll(base.id);
+  const slug = String(((await db.from("products").select("slug").eq("brand", "QAUji").eq("model", "Pindah 1")).data ?? [])[0]?.slug);
+
+  const graphite = "https://www.samsung.com/id/smartphones/qauji-pindah-1-graphite-128gb/";
+  const blueberry = "https://www.samsung.com/id/smartphones/qauji-pindah-1-blueberry-128gb/";
+  const official = (url: string, idr: number, hoursAgo: number) => ({
+    slug, ram_gb: "8", storage_gb: "128", marketplace: "Situs resmi Samsung Indonesia", seller_name: "Samsung Indonesia", url,
+    warranty: "", listing_status: "active", seller_verified: "tidak", price_idr: String(idr),
+    observed_at: new Date(Date.now() - hoursAgo * 3_600_000).toISOString(),
+  });
+  const importOfficial = async (label: string, row: ReturnType<typeof official>) => {
+    const created = await createBatch({
+      kind: "offers", origin: "scrape", sourceLabel: label, rows: [row], malformedLines: [], admin: actor,
+      options: { imageRights: null, defaultObservedAt: new Date().toISOString() },
+    });
+    assert.ok(created.ok, JSON.stringify(created));
+    batches.push(created.id);
+    return created.id;
+  };
+
+  await applyAll(await importOfficial("QA-UJI pindah 1", official(graphite, 7_999_000, 48)));
+  const second = await importOfficial("QA-UJI pindah 2", official(blueberry, 7_799_000, 1));
+  const preview = (await getBatch(second))!;
+  assert.equal(preview.items[0]?.action, "update", "pratinjau: penawaran lama diperbarui, bukan dibuat baru");
+  assert.ok(JSON.stringify(preview.items[0]?.changes).includes("URL listing"), "perubahan URL terlihat di pratinjau");
+  await applyAll(second);
+
+  const offers = ((await db.from("offers").select("id, url").like("url", "https://www.samsung.com/id/smartphones/qauji-pindah-1-%").is("deleted_at", null)).data ?? []) as { id: string; url: string }[];
+  assert.deepEqual(offers.map((o) => o.url), [blueberry], "satu penawaran resmi per varian");
+  const prices = ((await db.from("price_observations").select("price_idr").eq("offer_id", offers[0]!.id).is("voided_at", null)).data ?? []) as { price_idr: number }[];
+  assert.deepEqual(prices.map((p) => Number(p.price_idr)).sort(), [7_799_000, 7_999_000], "riwayat harga tetap satu penawaran");
+
+  // Usulan URL: upsert pemeriksaan harian tidak menghapus penolakan admin.
+  const offerId = offers[0]!.id;
+  const seenAt = new Date().toISOString();
+  await db.from("offer_url_suggestions").upsert([{ offer_id: offerId, suggested_url: graphite, seen_at: seenAt, dismissed_url: graphite }], { onConflict: "offer_id" });
+  const again = await db.from("offer_url_suggestions").upsert([{ offer_id: offerId, suggested_url: graphite, seen_at: seenAt }], { onConflict: "offer_id" });
+  assert.equal(again.error, null);
+  const stored = ((await db.from("offer_url_suggestions").select("dismissed_url").eq("offer_id", offerId)).data ?? []) as { dismissed_url: string | null }[];
+  assert.equal(stored[0]?.dismissed_url, graphite);
+  await db.from("offer_url_suggestions").delete().eq("offer_id", offerId);
+});
+
 test("INT-12 galeri foto: batas per warna, sampul dan urutan ke antrean, undo menghapus foto di produk terbit", async () => {
   const base = await createBatch({ kind: "specs", origin: "csv", sourceLabel: "QA-UJI galeri produk", options: {}, rows: [spec("Galeri", 1)], malformedLines: [], admin: actor });
   assert.ok(base.ok);

@@ -4,7 +4,7 @@ import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectWhereIn } from "@/lib/backend/paged-read";
 import { requireStaff } from "@/lib/auth/dal";
 import { isFresh } from "@/lib/catalog/pricing";
-import { STUCK_BATCH_MINUTES, type RefreshRun } from "@/lib/import/price-refresh-rules";
+import { isPendingUrlSuggestion, sameOfferUrl, STUCK_BATCH_MINUTES, type RefreshRun } from "@/lib/import/price-refresh-rules";
 
 /**
  * Pembacaan data untuk antarmuka admin.
@@ -83,6 +83,12 @@ export type AdminProductDetail = {
       sellerVerified: boolean;
       latestPriceIdr: number | null;
       latestObservedAt: string | null;
+      /**
+       * URL baru yang tercantum di situs resmi (PB-06), menunggu keputusan admin.
+       * `duplicate` = varian ini sudah punya penawaran lain di URL itu, jadi
+       * penawaran ini ganda dan cukup dihapus lunak.
+       */
+      urlSuggestion: { url: string; seenAt: string; duplicate: boolean } | null;
       /** Riwayat pemeriksaan terakhir, berhasil maupun gagal. */
       checks: { outcome: string; attemptedAt: string; errorSummary: string | null }[];
     }[];
@@ -584,14 +590,18 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
   // pemeriksaan terakhir dari view offer_recent_checks (keduanya mengabaikan
   // baris yang dibatalkan undo).
   const offerIds = offerRows.map((offer) => String(offer.id));
-  const [latestRows, checkRows] = await Promise.all([
+  const [latestRows, checkRows, suggestionRows] = await Promise.all([
     selectWhereIn("offer_latest_price", "offer_id, price_idr, observed_at", "offer_id", offerIds, {
       uniqueKey: ["offer_id"],
     }),
     selectWhereIn("offer_recent_checks", "offer_id, outcome, attempted_at, error_summary, id", "offer_id", offerIds, {
       order: [{ column: "attempted_at", ascending: false }],
     }),
+    selectWhereIn("offer_url_suggestions", "offer_id, suggested_url, dismissed_url, seen_at", "offer_id", offerIds, {
+      uniqueKey: ["offer_id"],
+    }),
   ]);
+  const suggestionByOffer = new Map(suggestionRows.map((row) => [String(row.offer_id), row]));
   const checksByOffer = new Map<string, { outcome: string; attemptedAt: string; errorSummary: string | null }[]>();
   for (const row of checkRows) {
     const list = checksByOffer.get(String(row.offer_id)) ?? [];
@@ -658,6 +668,10 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
               sellerVerified: o.seller_verified === true,
               latestPriceIdr: latest?.price ?? null,
               latestObservedAt: latest?.at ?? null,
+              urlSuggestion: withDuplicate(
+                pendingSuggestion(suggestionByOffer.get(String(o.id)), String(o.url)),
+                offerRows.filter((other) => String(other.variant_id) === String(v.id) && other.id !== o.id)
+              ),
               checks: (checksByOffer.get(String(o.id)) ?? []).slice(0, 5),
             };
           }),
@@ -665,6 +679,70 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
       .sort((a, b) => a.ramGb - b.ramGb || a.storageGb - b.storageGb),
     reviews,
   };
+}
+
+function pendingSuggestion(row: Record<string, unknown> | undefined, currentUrl: string): { url: string; seenAt: string } | null {
+  if (!row) return null;
+  const suggestion = {
+    suggestedUrl: String(row.suggested_url),
+    dismissedUrl: (row.dismissed_url as string | null) ?? null,
+    currentUrl,
+  };
+  return isPendingUrlSuggestion(suggestion) ? { url: suggestion.suggestedUrl, seenAt: String(row.seen_at) } : null;
+}
+
+function withDuplicate(
+  suggestion: { url: string; seenAt: string } | null,
+  siblings: readonly Record<string, unknown>[]
+): { url: string; seenAt: string; duplicate: boolean } | null {
+  if (!suggestion) return null;
+  return { ...suggestion, duplicate: siblings.some((other) => sameOfferUrl(String(other.url), suggestion.url)) };
+}
+
+export type OfferUrlSuggestionGroup = { productId: string; productName: string; count: number; latestSeenAt: string };
+
+/**
+ * Produk yang punya usulan URL situs resmi menunggu keputusan (PB-06), untuk
+ * dasbor. Empat query tetap (usulan, penawaran, varian, produk), bukan query
+ * per penawaran (aturan system design 4). Usulan yang sudah ditolak atau sama
+ * dengan URL sekarang tidak dihitung.
+ */
+export async function listOfferUrlSuggestions(limit = 10): Promise<{ groups: OfferUrlSuggestionGroup[]; total: number }> {
+  await requireStaff([]);
+  const { data, error } = await getInsforgeAdminClient()
+    .database.from("offer_url_suggestions")
+    .select("offer_id, suggested_url, dismissed_url, seen_at")
+    .order("seen_at", { ascending: false })
+    .limit(500);
+  if (error) throw new Error("Gagal membaca usulan URL penawaran.");
+  const rows = (data ?? []) as Record<string, unknown>[];
+  if (rows.length === 0) return { groups: [], total: 0 };
+
+  const offers = await selectWhereIn("offers", "id, variant_id, url", "id", rows.map((row) => String(row.offer_id)));
+  const variants = await selectWhereIn("variants", "id, product_id", "id", offers.map((row) => String(row.variant_id)));
+  const products = await selectWhereIn("products", "id, brand, model", "id", variants.map((row) => String(row.product_id)));
+  const offerById = new Map(offers.map((row) => [String(row.id), row]));
+  const productByVariant = new Map(variants.map((row) => [String(row.id), String(row.product_id)]));
+  const productById = new Map(products.map((row) => [String(row.id), row]));
+
+  const groups = new Map<string, OfferUrlSuggestionGroup>();
+  for (const row of rows) {
+    const offer = offerById.get(String(row.offer_id));
+    if (!offer || !pendingSuggestion(row, String(offer.url))) continue;
+    const productId = productByVariant.get(String(offer.variant_id));
+    const product = productId ? productById.get(productId) : undefined;
+    if (!productId || !product) continue;
+    const group = groups.get(productId) ?? {
+      productId,
+      productName: `${product.brand} ${product.model}`,
+      count: 0,
+      latestSeenAt: String(row.seen_at),
+    };
+    group.count += 1;
+    groups.set(productId, group);
+  }
+  const all = [...groups.values()];
+  return { groups: all.slice(0, limit), total: all.reduce((sum, group) => sum + group.count, 0) };
 }
 
 export async function listRecentAudit(limit = 20): Promise<AuditRow[]> {

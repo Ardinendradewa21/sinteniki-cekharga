@@ -20,6 +20,7 @@ import { colorInOptions, mergeColors, sameColors } from "@/lib/import/colors";
 import type { ImageRights } from "@/lib/import/image-rights";
 import { offerRowsToCanonical } from "@/lib/import/canonical";
 import type { OfferCatalogProduct, OfferSourceFormat } from "@/lib/import/offers";
+import { findRelocatedOffer } from "@/lib/import/offer-relocation";
 import { enqueuePhotoJobs } from "@/lib/import/photo-jobs";
 import type { OfferImportReport, RowResult } from "@/lib/import/report";
 import { loadSlugRedirects, loadStoreResolver, type StoreResolver } from "@/lib/import/stores";
@@ -57,7 +58,7 @@ export type OfferPayload = {
   listing_status: string;
   seller_verified: boolean;
   store_id: string | null;
-  /** Hanya diisi saat penawaran Erafone lama pindah ke URL warna lain. */
+  /** Hanya diisi saat penawaran lama pindah ke URL baru (findRelocatedOffer). */
   url?: string;
 };
 
@@ -417,20 +418,14 @@ export async function runOfferImport({
     existingOffers.map((row) => [`${row.variant_id}|${row.url}`, row])
   );
 
-  // Warna termurah Erafone bisa berganti antar-impor. Penawaran lama untuk
-  // varian yang sama dipindahkan ke URL baru, bukan diduplikasi, supaya riwayat
-  // harga tetap satu dan halaman produk tidak menampilkan Erafone dua kali.
+  // URL Erafone (warna termurah) dan URL penjual resmi (warna/SKU perwakilan)
+  // bisa berganti antar-impor. Penawaran lama untuk varian yang sama
+  // dipindahkan ke URL baru, bukan diduplikasi, supaya riwayat harga tetap satu
+  // dan halaman produk tidak menampilkan penjual yang sama dua kali (PB-06).
   for (const item of latestItemByOffer.values()) {
-    if (item.format !== "erafone-scrape" || existingByKey.has(item.offerKey)) continue;
-    const previous = existingOffers.find(
-      (row) =>
-        row.variant_id === item.variantId &&
-        row.marketplace === "Erafone" &&
-        row.seller_name === "Erafone"
-    );
-    if (!previous || latestItemByOffer.has(`${item.variantId}|${previous.url}`)) {
-      continue;
-    }
+    if (existingByKey.has(item.offerKey)) continue;
+    const previous = findRelocatedOffer(item, existingOffers, latestItemByOffer);
+    if (!previous) continue;
     existingByKey.set(item.offerKey, previous);
     item.payload = { ...item.payload, url: item.url };
   }

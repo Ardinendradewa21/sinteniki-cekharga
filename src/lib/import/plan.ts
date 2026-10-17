@@ -10,6 +10,7 @@ import {
   prepareOfferRows,
   type PreparedItem,
 } from "@/lib/import/offer-runner";
+import { findRelocatedOffer } from "@/lib/import/offer-relocation";
 import { applyKeepExisting, mergeSpecs, specsPatch } from "@/lib/import/patch-rules";
 import { prepareSpecRows } from "@/lib/import/spec-runner";
 
@@ -400,18 +401,12 @@ export async function planOfferImport(
     };
     const label = product ? `${product.name} ${product.variant}` : item.label;
 
-    // Penawaran Erafone lama untuk varian yang sama dipindah ke URL warna baru
-    // (lihat runOfferImport); di pratinjau diperlakukan sebagai perubahan URL.
+    // Penawaran Erafone atau penjual resmi yang URL-nya berganti dipindah ke
+    // URL baru (findRelocatedOffer); di pratinjau tampil sebagai perubahan URL.
     let current = existingByKey.get(item.offerKey);
     let movedFrom: string | null = null;
-    if (!current && item.format === "erafone-scrape") {
-      current = existingOffers.find(
-        (row) =>
-          row.variant_id === item.variantId &&
-          row.marketplace === "Erafone" &&
-          row.seller_name === "Erafone" &&
-          !latest.has(`${item.variantId}|${row.url}`)
-      );
+    if (!current) {
+      current = findRelocatedOffer(item, existingOffers, latest);
       movedFrom = current ? String(current.url) : null;
     }
 

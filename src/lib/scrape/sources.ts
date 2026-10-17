@@ -26,6 +26,7 @@ import {
   scrapeBackoffMs,
   type ScrapeFailure,
 } from "@/lib/scrape/retry-rules";
+import { OFFICIAL_SELLERS } from "@/lib/scrape/official-sellers";
 import type { LineupItem, ScrapeBrand } from "@/lib/scrape/types";
 
 /**
@@ -330,10 +331,7 @@ const BRANDS: Record<ScrapeBrand, BrandConfig> = {
     gsmarenaListPage: "vivo-phones-98.php",
     brandWords: ["vivo"],
     official: {
-      label: "vivo",
-      productHost: "www.vivo.com",
-      marketplace: "Situs resmi vivo Indonesia",
-      sellerName: "vivo Indonesia",
+      ...OFFICIAL_SELLERS.vivo,
       // ID seri dari tab www.vivo.com/id/products: X, V, T, Y, S, Z.
       fetchProducts: vivoPlatform("www.vivo.com", [182, 2, 271, 3, 78, 88], "vivo"),
     },
@@ -344,10 +342,7 @@ const BRANDS: Record<ScrapeBrand, BrandConfig> = {
     brandWords: ["vivo"],
     namePrefix: "iqoo",
     official: {
-      label: "iQOO",
-      productHost: "www.iqoo.com",
-      marketplace: "Situs resmi iQOO Indonesia",
-      sellerName: "iQOO Indonesia",
+      ...OFFICIAL_SELLERS.iqoo,
       fetchProducts: vivoPlatform("www.iqoo.com", [-1], "iQOO"),
     },
   },
@@ -356,10 +351,7 @@ const BRANDS: Record<ScrapeBrand, BrandConfig> = {
     gsmarenaListPage: "oppo-phones-82.php",
     brandWords: ["oppo"],
     official: {
-      label: "OPPO",
-      productHost: "www.oppo.com",
-      marketplace: "Situs resmi OPPO Indonesia",
-      sellerName: "OPPO Indonesia",
+      ...OFFICIAL_SELLERS.oppo,
       fetchProducts: fetchOppo,
     },
   },
@@ -368,10 +360,7 @@ const BRANDS: Record<ScrapeBrand, BrandConfig> = {
     gsmarenaListPage: "samsung-phones-9.php",
     brandWords: ["samsung"],
     official: {
-      label: "Samsung",
-      productHost: "www.samsung.com",
-      marketplace: "Situs resmi Samsung Indonesia",
-      sellerName: "Samsung Indonesia",
+      ...OFFICIAL_SELLERS.samsung,
       fetchProducts: fetchSamsung,
     },
   },
@@ -380,10 +369,7 @@ const BRANDS: Record<ScrapeBrand, BrandConfig> = {
     gsmarenaListPage: "xiaomi-phones-80.php",
     brandWords: ["xiaomi"],
     official: {
-      label: "Xiaomi",
-      productHost: "www.mi.co.id",
-      marketplace: "Situs resmi Xiaomi Indonesia",
-      sellerName: "Xiaomi Indonesia",
+      ...OFFICIAL_SELLERS.xiaomi,
       fetchProducts: fetchXiaomi,
     },
   },
@@ -392,13 +378,9 @@ const BRANDS: Record<ScrapeBrand, BrandConfig> = {
     gsmarenaListPage: "apple-phones-48.php",
     brandWords: ["apple"],
     nameAliases: { "iPhone SE (3rd generation)": "iPhone SE (2022)" },
-    // Apple tidak punya toko online Indonesia; harga dari Digimap sebagai
-    // penjual, dicatat dengan nama penjualnya, tanpa badge terverifikasi.
+    // Apple: harga dari Digimap sebagai penjual (lihat official-sellers.ts).
     official: {
-      label: "Digimap",
-      productHost: "www.digimap.co.id",
-      marketplace: "Digimap",
-      sellerName: "Digimap",
+      ...OFFICIAL_SELLERS.apple,
       fetchProducts: fetchDigimap,
     },
   },
@@ -407,11 +389,7 @@ const BRANDS: Record<ScrapeBrand, BrandConfig> = {
     gsmarenaListPage: "infinix-phones-119.php",
     brandWords: ["infinix"],
     official: {
-      label: "Infinix",
-      // Tautan produk mengarah ke toko resminya (Magento), bukan ke situs utama.
-      productHost: "id.pro.infinixmobility.com",
-      marketplace: "Situs resmi Infinix Indonesia",
-      sellerName: "Infinix Indonesia",
+      ...OFFICIAL_SELLERS.infinix,
       fetchProducts: fetchInfinix,
     },
   },

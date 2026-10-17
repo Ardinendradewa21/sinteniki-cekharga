@@ -112,12 +112,14 @@ export function OfferPanel({
   deleteAction,
   priceAction,
   failedCheckAction,
+  urlAction,
 }: {
   product: AdminProductDetail;
   addAction: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   deleteAction: (formData: FormData) => Promise<void>;
   priceAction: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   failedCheckAction: (formData: FormData) => Promise<void>;
+  urlAction: (formData: FormData) => Promise<void>;
 }) {
   const [addState, add, adding] = useActionState(addAction, INITIAL);
   const [priceState, recordPrice, recording] = useActionState(priceAction, INITIAL);
@@ -127,7 +129,7 @@ export function OfferPanel({
   );
 
   return (
-    <section className="rounded-xl border border-border bg-card p-6">
+    <section id="penawaran" className="scroll-mt-24 rounded-xl border border-border bg-card p-6">
       <h2 className="text-base font-bold text-foreground">Penawaran dan harga</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Mencatat harga sekaligus menyimpan waktu pemeriksaan yang berhasil.
@@ -152,6 +154,14 @@ export function OfferPanel({
                       ? `Terakhir ${formatIdr(o.latestPriceIdr)} pada ${new Date(o.latestObservedAt!).toLocaleString("id-ID")}`
                       : "Belum ada harga tercatat"}
                   </p>
+                  <a
+                    href={o.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 block break-all text-xs text-brand underline-offset-4 hover:underline"
+                  >
+                    {o.url}
+                  </a>
                 </div>
                 <form action={deleteAction}>
                   <input type="hidden" name="offerId" value={o.id} />
@@ -161,6 +171,37 @@ export function OfferPanel({
                   </Button>
                 </form>
               </div>
+
+              {o.urlSuggestion ? (
+                <div className="mt-3 rounded-lg border border-warning/40 bg-warning-muted p-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    {o.urlSuggestion.duplicate ? "Penawaran ganda" : "URL di situs resmi berganti"}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {o.urlSuggestion.duplicate
+                      ? "URL di atas tidak tercantum lagi, dan varian ini sudah punya penawaran lain dari penjual yang sama di halaman yang tercantum sekarang:"
+                      : `Pemeriksaan harga harian ${new Date(o.urlSuggestion.seenAt).toLocaleDateString("id-ID", { dateStyle: "medium" })} mencocokkan penawaran ini lewat nama model, karena URL di atas tidak tercantum lagi. Halaman yang tercantum sekarang:`}
+                  </p>
+                  <a
+                    href={o.urlSuggestion.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 block break-all text-xs font-medium text-brand underline-offset-4 hover:underline"
+                  >
+                    {o.urlSuggestion.url}
+                  </a>
+                  <form action={urlAction} className="mt-3 flex flex-wrap gap-2">
+                    <input type="hidden" name="offerId" value={o.id} />
+                    <input type="hidden" name="productId" value={product.id} />
+                    <Button type="submit" name="keputusan" value="terima" size="sm">
+                      {o.urlSuggestion.duplicate ? "Hapus penawaran ganda ini" : "Pakai URL baru"}
+                    </Button>
+                    <Button type="submit" name="keputusan" value="tolak" variant="outline" size="sm">
+                      Tetap URL lama
+                    </Button>
+                  </form>
+                </div>
+              ) : null}
 
               <form action={recordPrice} className="mt-3 flex flex-wrap items-end gap-3">
                 <input type="hidden" name="offerId" value={o.id} />

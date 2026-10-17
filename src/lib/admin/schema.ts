@@ -106,6 +106,13 @@ export const offerInput = z.object({
   sellerVerified: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
 });
 
+/** Keputusan admin atas usulan URL situs resmi (PB-06). */
+export const offerUrlDecisionInput = z.object({
+  offerId: z.uuid(),
+  productId: z.uuid(),
+  keputusan: z.enum(["terima", "tolak"]),
+});
+
 export const priceInput = z.object({
   offerId: z.uuid(),
   /**

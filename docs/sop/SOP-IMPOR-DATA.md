@@ -364,6 +364,22 @@ Bila panel peringatan muncul:
 - **Batch pemeriksaan harga antre lama:** tunggu cron worker berikutnya, atau buka batchnya dari Riwayat batch.
 - **Merek lama tidak berhasil diperiksa:** periksa apakah URL produk di situs resmi berubah (penawaran lama perlu diperbarui lewat tarik otomatis).
 
+### 5.3 URL situs resmi berganti dan penawaran ganda (sejak 18 Oktober 2026, PB-06)
+
+Situs resmi, terutama Samsung, mengganti URL perwakilan model (warna/SKU) dari waktu ke waktu, misalnya `galaxy-s26-fe-graphite-128gb` menjadi `galaxy-s26-fe-blueberry-128gb`.
+
+- **Pemeriksaan harian** tetap memperbarui harga lewat nama model, tetapi tidak pernah menimpa URL yang dipilih admin. URL yang tercantum saat ini dicatat sebagai **usulan**.
+- **Tarik otomatis dan CSV** untuk penjual resmi (situs merek, Digimap) dan Erafone memindahkan penawaran lama ke URL baru, bukan membuat penawaran kedua. Pratinjau menampilkannya sebagai perubahan **URL listing**. Syaratnya: varian, marketplace, penjual, dan host sama, dan URL lamanya tidak ikut diunggah di berkas yang sama.
+
+Bila Dashboard menampilkan panel **URL situs resmi berganti**:
+
+1. Klik nama produknya. Kartu penawaran yang bersangkutan diberi kotak kuning.
+2. **URL di situs resmi berganti:** buka tautan usulannya. Bila benar halaman model yang sama, klik **Pakai URL baru**. Riwayat harga tetap, karena penawarannya sama.
+3. **Penawaran ganda:** varian itu sudah punya penawaran lain dari penjual yang sama di URL yang tercantum. Klik **Hapus penawaran ganda ini**. Penawaran dihapus lunak; riwayat harganya tetap tersimpan.
+4. Bila usulan keliru, klik **Tetap URL lama**. URL itu tidak diusulkan lagi; URL lain tetap bisa diusulkan.
+
+Selama belum diputuskan, penawaran ganda tetap dicatat **gagal diperiksa** setiap hari dengan alasan "URL ini tidak lagi tercantum…", jadi harganya tidak tampak segar.
+
 ## 6. Foto
 
 - Foto diproses di antrean terpisah: diunduh, diperkecil maksimal 1200 px, latar putih dihapus, lalu disimpan sebagai WebP.

@@ -1,6 +1,6 @@
 # Product Backlog — CekHarga
 
-Diperbarui 2026-10-16 (Sprint 5: PB-31, PB-36, PB-33 selesai; Sprint 4: PB-28 dan PB-29 selesai; Sprint 3 selesai untuk item kode; PB-37 sampai PB-39 dari rancangan Tanya AI; PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
+Diperbarui 2026-10-18 (Sprint 10: PB-06 dan DEF-018 selesai; Sprint 9: PB-44; Sprint 5: PB-31, PB-36, PB-33 selesai; Sprint 4: PB-28 dan PB-29 selesai; Sprint 3 selesai untuk item kode; PB-37 sampai PB-39 dari rancangan Tanya AI; PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
 
 > WSJF = (Nilai bisnis + Urgensi waktu + Pengurangan risiko) ÷ Ukuran
 
@@ -17,7 +17,7 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 5 | PB-03 | Lengkapi penawaran untuk 29 produk terbit tanpa harga (tarik ulang atau CSV) | SQL-11 | 8 | 5 | 3 | 3 | **5.3** | Siap (tugas data) |
 | 6 | PB-04 | Lengkapi NFC/IP rating untuk 34 produk terbit | US-25 | 5 | 3 | 2 | 3 | **3.3** | Siap |
 | 7 | PB-09 | Lingkungan uji terpisah (InsForge branch) | US-32 | 3 | 3 | 8 | 5 | **2.8** | Perlu refinement |
-| 8 | PB-06 | Tandai dan perbarui URL penawaran resmi yang berganti (Samsung) | US-26, DEF-015 | 3 | 2 | 3 | 3 | **2.7** | Siap |
+| 8 | PB-06 | Tandai dan perbarui URL penawaran resmi yang berganti (Samsung) | US-26, DEF-018 | 3 | 2 | 3 | 3 | **2.7** | ✅ Selesai 2026-10-18 (Sprint 10): usulan URL dari pemeriksaan harian, tarik otomatis memindahkan penawaran resmi ke URL baru, penawaran ganda bisa dihapus satu klik |
 | 9 | PB-07 | Tanya AI Sprint B | Rencana Tanya AI | 8 | 2 | 2 | 8 | **1.5** | Digantikan PB-37 sampai PB-39 (rancangan ulang Tanya AI, selesai) |
 | 10 | PB-02 | Pemeriksaan ulang harga marketplace (69 penawaran > 7 hari) | US-12, SQL-12 | 8 | 5 | 3 | 13 | **1.2** | Perlu refinement (izin sumber) |
 | 11 | PB-12 | Structured data `Product` + `Offer`/`AggregateOffer` di halaman detail (tanpa `aggregateRating`/`review` karangan, AGENTS.md) dan uji Rich Results | UX-22 | 8 | 3 | 3 | 3 | **4.7** | ✅ Selesai 2026-10-14 bersama PB-23; uji Rich Results setelah deploy |

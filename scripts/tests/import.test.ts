@@ -256,6 +256,8 @@ test("undo: hanya produk buatan batch, masih draft, dan belum disentuh yang diha
 /* ---------------------------------------------- pemeriksaan harga harian */
 
 import {
+  DUPLICATE_URL_REASON,
+  isPendingUrlSuggestion,
   MISSING_MODEL_REASON,
   MISSING_VARIANT_REASON,
   planPriceRefresh,
@@ -306,6 +308,8 @@ test("pemeriksaan harga: hanya memperbarui penawaran yang ada, menyalin suntinga
   });
   assert.equal(plan.rows.length, 1);
   assert.equal(plan.rows[0].url, "https://www.vivo.com/id/products/y29/", "URL tersimpan dipakai apa adanya");
+  assert.deepEqual(plan.urlSuggestions, [], "cocok lewat URL: tidak ada usulan");
+  assert.deepEqual(plan.urlConfirmed, ["o1"], "garis miring akhir tidak membuat URL dianggap berbeda");
   assert.equal(plan.rows[0].warranty, "Resmi vivo 1 tahun");
   assert.equal(plan.rows[0].seller_verified, "ya");
   assert.equal(plan.rows[0].listing_status, "out-of-stock");
@@ -406,6 +410,11 @@ test("pemeriksaan harga: URL perwakilan berganti (Samsung) dicocokkan lewat nama
   });
   assert.deepEqual(plan.matchedOfferIds, ["a27-8-256"]);
   assert.equal(plan.rows[0].url, old, "URL tersimpan dipakai, bukan URL baru");
+  // PB-06: URL yang tercantum hari ini menjadi usulan untuk admin, bukan ditimpa.
+  assert.deepEqual(plan.urlSuggestions, [
+    { offerId: "a27-8-256", url: "https://www.samsung.com/id/smartphones/galaxy-a/galaxy-a27-5g-blue-256gb-sm-a276bzbhxid" },
+  ]);
+  assert.deepEqual(plan.urlConfirmed, ["a57"], "URL tersimpan masih tercantum: usulan lamanya dihapus");
   assert.deepEqual(
     plan.missing.sort((a, b) => a.offerId.localeCompare(b.offerId)),
     [
@@ -414,6 +423,75 @@ test("pemeriksaan harga: URL perwakilan berganti (Samsung) dicocokkan lewat nama
     ],
     "model masih tercantum: alasannya varian, bukan model hilang"
   );
+});
+
+test("pemeriksaan harga: penawaran ganda dengan URL lama ditandai duplikat dan diusulkan ke URL penawaran yang aktif (DEF-018)", () => {
+  const keyOf = (name: string) => modelKey(name, { brandWords: ["samsung"] });
+  const graphite = "https://www.samsung.com/id/smartphones/galaxy-s/galaxy-s26-fe-graphite-128gb-sm-s741bzkbxid/";
+  const blueberry = "https://www.samsung.com/id/smartphones/galaxy-s/galaxy-s26-fe-blueberry-128gb-sm-s741bzvbxid/";
+  const offer = (offerId: string, url: string, storage: number) => ({
+    offerId, url, slug: "samsung-galaxy-s26-fe", modelName: "Samsung Galaxy S26 FE", ramGb: 8, storageGb: storage, warranty: null, sellerVerified: false,
+  });
+  const plan = planPriceRefresh({
+    source: { marketplace: "Situs resmi Samsung Indonesia", sellerName: "Samsung Indonesia", host: "www.samsung.com" },
+    observedAt: "2026-10-17T00:00:00.000Z",
+    keyOf,
+    offers: [offer("lama-128", graphite, 128), offer("baru-128", blueberry, 128), offer("lama-512", graphite, 512)],
+    lineup: [
+      lineupItem("s26fe", {
+        brand: "samsung",
+        officialName: "Galaxy S26 FE",
+        officialUrl: blueberry,
+        prices: [
+          { ramGb: 8, storageGb: 128, priceIdr: 7_999_000, isPromotion: false },
+          { ramGb: 8, storageGb: 512, priceIdr: 9_999_000, isPromotion: false },
+        ],
+      }),
+    ],
+  });
+  assert.deepEqual(plan.matchedOfferIds.sort(), ["baru-128", "lama-512"], "varian tanpa penawaran aktif tetap diperbarui lewat nama");
+  assert.deepEqual(plan.missing, [{ offerId: "lama-128", reason: DUPLICATE_URL_REASON }], "yang ganda tetap jujur dicatat gagal");
+  assert.deepEqual(
+    plan.urlSuggestions.sort((a, b) => a.offerId.localeCompare(b.offerId)),
+    [
+      { offerId: "lama-128", url: blueberry.replace(/\/$/, "") },
+      { offerId: "lama-512", url: blueberry.replace(/\/$/, "") },
+    ]
+  );
+});
+
+import { findRelocatedOffer } from "@/lib/import/offer-relocation";
+import { isOfficialOffer } from "@/lib/scrape/official-sellers";
+
+test("pemindahan penawaran: penjual resmi dan Erafone dipindah ke URL baru, marketplace lain tidak", () => {
+  const samsungPayload = { marketplace: "Situs resmi Samsung Indonesia", seller_name: "Samsung Indonesia" };
+  const graphite = "https://www.samsung.com/id/s26-fe-graphite-128gb/";
+  const blueberry = "https://www.samsung.com/id/s26-fe-blueberry-128gb/";
+  const existing = [
+    { id: "hapus", variant_id: "v1", url: "https://www.samsung.com/id/lama-dihapus/", ...samsungPayload, deleted_at: "2026-10-01T00:00:00Z" },
+    { id: "lama", variant_id: "v1", url: graphite, ...samsungPayload, deleted_at: null },
+    { id: "shopee", variant_id: "v1", url: "https://shopee.co.id/a", marketplace: "Shopee", seller_name: "Toko A", deleted_at: null },
+    { id: "era", variant_id: "v1", url: "https://erafone.com/hitam", marketplace: "Erafone", seller_name: "Erafone", deleted_at: null },
+  ];
+  const none = new Set<string>();
+  const item = (url: string, payload = samsungPayload, format: "template" | "erafone-scrape" = "template") => ({ format, variantId: "v1", url, payload });
+  assert.equal(findRelocatedOffer(item(blueberry), existing, none)?.id, "lama", "yang terhapus tidak dihidupkan lagi");
+  assert.equal(findRelocatedOffer(item(blueberry), existing, new Set([`v1|${graphite}`])), undefined, "URL lama ikut diimpor: keduanya dipertahankan");
+  assert.equal(findRelocatedOffer(item("https://shopee.co.id/b", { marketplace: "Shopee", seller_name: "Toko A" }), existing, none), undefined, "listing marketplace bisa lebih dari satu");
+  assert.equal(findRelocatedOffer(item("https://erafone.com/biru", { marketplace: "Erafone", seller_name: "Erafone" }, "erafone-scrape"), existing, none)?.id, "era");
+  assert.equal(findRelocatedOffer({ ...item(blueberry), variantId: "v2" }, existing, none), undefined, "varian lain tidak disentuh");
+  assert.equal(isOfficialOffer({ url: "https://evil.example/s26", marketplace: samsungPayload.marketplace, sellerName: samsungPayload.seller_name }), false, "host asing bukan penjual resmi");
+  assert.equal(isOfficialOffer({ url: "https://www.digimap.co.id/iphone-17", marketplace: "Digimap", sellerName: "Digimap" }), true);
+});
+
+test("usulan URL: hanya yang berbeda dari URL sekarang dan belum ditolak yang menunggu keputusan", () => {
+  const current = "https://www.samsung.com/id/a27-pink-128gb/";
+  const fresh = "https://www.samsung.com/id/a27-blue-256gb";
+  assert.equal(isPendingUrlSuggestion({ suggestedUrl: fresh, dismissedUrl: null, currentUrl: current }), true);
+  assert.equal(isPendingUrlSuggestion({ suggestedUrl: "https://www.samsung.com/id/a27-pink-128gb", dismissedUrl: null, currentUrl: current }), false, "sudah dipakai");
+  assert.equal(isPendingUrlSuggestion({ suggestedUrl: fresh, dismissedUrl: `${fresh}/`, currentUrl: current }), false, "sudah ditolak");
+  assert.equal(isPendingUrlSuggestion({ suggestedUrl: fresh, dismissedUrl: "https://www.samsung.com/id/a27-green", currentUrl: current }), true, "URL lain yang ditolak tidak menahan usulan baru");
+  assert.equal(isPendingUrlSuggestion({ suggestedUrl: "bukan url", dismissedUrl: null, currentUrl: current }), false);
 });
 
 test("pemeriksaan harga: nama model tidak dipakai bila ada dua kandidat (S26 vs S26+)", () => {
