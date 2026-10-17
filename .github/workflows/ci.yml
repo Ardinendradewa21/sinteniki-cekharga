@@ -1,0 +1,61 @@
+# CI CekHarga (PB-08, 17 Oktober 2026).
+#
+# Setiap push ke main dan setiap pull request: typecheck, lint, tes unit,
+# dan pemeriksaan kode tak terpakai (knip). Tes integrasi dan E2E butuh
+# database nyata dan akun QA, jadi tetap dijalankan manual
+# (pnpm test:integration, pnpm test:e2e) sebelum merge.
+#
+# Tidak ada secret yang dipakai: tes unit murni, dan sumber katalog dipaksa
+# ke data demo supaya tidak ada yang menyentuh database produksi.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CEKHARGA_DATA_SOURCE: demo
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v6
+
+      - name: Pasang pnpm (versi dari packageManager)
+        uses: pnpm/action-setup@v6
+        with:
+          cache: true
+
+      - name: Pasang Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Pasang dependensi
+        run: pnpm install --frozen-lockfile
+
+      - name: Tipe rute Next.js
+        run: pnpm exec next typegen
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tes unit
+        run: pnpm test
+
+      - name: Kode tak terpakai (knip)
+        run: pnpm lint:unused
