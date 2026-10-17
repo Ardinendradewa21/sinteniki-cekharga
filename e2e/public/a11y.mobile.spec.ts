@@ -13,9 +13,10 @@ for (const path of ["/", "/products", "/assistant?tanya=form"]) {
 
 test("TC-A11Y-02 tautan kartu katalog setinggi minimal 44 px @regression", async ({ page }) => {
   await page.goto("/products");
-  const heights = await page
-    .locator('main a[href^="/products/"]')
-    .evaluateAll((links) => links.slice(0, 12).map((link) => link.getBoundingClientRect().height));
+  // Kartu katalog di-stream lewat Suspense: tunggu sampai masuk ke <main>.
+  const cards = page.locator('main a[href^="/products/"]');
+  await expect(cards.first()).toBeVisible();
+  const heights = await cards.evaluateAll((links) => links.slice(0, 12).map((link) => link.getBoundingClientRect().height));
   expect(heights.length).toBeGreaterThan(0);
   for (const height of heights) expect(height).toBeGreaterThanOrEqual(44);
 });

@@ -13,9 +13,21 @@ export async function rupiahIn(locator: Locator): Promise<number[]> {
 }
 
 /** Tautan kartu produk di katalog (`/products/<slug>`), unik dan berurutan. */
+/**
+ * Hasil katalog di-stream lewat Suspense: saat event load, kartunya bisa masih
+ * di wadah tersembunyi di luar <main>. Ringkasan jumlah (aria-live) ada di
+ * boundary yang sama, jadi tampilnya menandai hasil sudah terpasang, baik
+ * kosong maupun berisi.
+ */
+export async function waitForCatalog(page: Page): Promise<void> {
+  await page.locator('main [aria-live="polite"]').first().waitFor();
+}
+
 export async function productLinks(page: Page): Promise<string[]> {
-  const hrefs = await page
-    .locator('main a[href^="/products/"]')
+  const links = page.locator('main a[href^="/products/"]');
+  // Halaman selain katalog (beranda) juga memakai helper ini: tunggu kartu pertama.
+  await links.first().waitFor();
+  const hrefs = await links
     .evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
   return [...new Set(hrefs.filter((href) => /^\/products\/[a-z0-9-]+$/.test(href)))];
 }

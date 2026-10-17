@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { catalogTotal, parseRupiah, productCards, productLinks, rupiahIn } from "../support/helpers";
+import { catalogTotal, parseRupiah, productCards, productLinks, rupiahIn, waitForCatalog } from "../support/helpers";
 
 // FR-02 Katalog. Kontrak URL: src/lib/catalog/search-params.ts (q, merek, ram,
 // penyimpanan, harga_min, harga_max, urut, hal).
@@ -32,6 +32,7 @@ test.describe("Katalog (FR-02)", () => {
 
   test("TC-KAT-03 urut harga terendah: harga berlaku dulu lalu harga lama, masing-masing menaik @regression", async ({ page }) => {
     await page.goto("/products?urut=price-asc");
+    await waitForCatalog(page);
     // PRD §7 butir 5: harga lama ("terakhir tercatat") tidak boleh tampil
     // seolah pilihan termurah saat ini, jadi selalu di belakang harga berlaku.
     const cards = await productCards(page).allInnerTexts();
@@ -50,6 +51,7 @@ test.describe("Katalog (FR-02)", () => {
   test("TC-KAT-04 batas budget: harga kosong tidak lolos dan tidak ada harga di atas batas @smoke", async ({ page }) => {
     const max = 4_000_000;
     await page.goto(`/products?harga_max=${max}`);
+    await waitForCatalog(page);
     const cards = productCards(page);
     // Bila semua harga sedang basi (pemeriksaan harian belum jalan), hasil
     // kosong adalah perilaku yang BENAR: harga basi tidak lolos filter budget.

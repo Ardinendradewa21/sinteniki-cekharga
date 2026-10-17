@@ -37,6 +37,10 @@ test.describe("Dasbor admin", () => {
 });
 
 test.describe("Pusat Impor", () => {
+  // Satu worker untuk seluruh grup: dengan fullyParallel, afterAll berjalan di
+  // setiap worker dan menghapus batch "qa-e2e-*" milik tes yang masih jalan
+  // di worker lain (TC-IMP-05 macet "Sedang dianalisis", 2026-10-17).
+  test.describe.configure({ mode: "default" });
   // Batch uji (berkas "qa-e2e-*") dihapus setelah suite, bukan hanya dibatalkan,
   // supaya riwayat impor produksi tidak menumpuk batch uji (PB-24).
   test.afterAll(async ({ request }) => {
@@ -118,6 +122,7 @@ test.describe("Pusat Impor", () => {
   });
 
   test("TC-IMP-05 CSV gabungan: koreksi otomatis tampil, harga ditinjau dulu lalu foto sebagai tahap lanjutan @regression", async ({ page }) => {
+    test.setTimeout(180_000);
     await page.goto("/admin/import?tab=unggah");
     const [download] = await Promise.all([
       page.waitForEvent("download"),
@@ -129,7 +134,8 @@ test.describe("Pusat Impor", () => {
     await page.getByRole("button", { name: "Buat pratinjau" }).click();
     await page.waitForURL(/\/admin\/import\/batch\//, { timeout: 60_000 });
     const panel = page.locator("section[aria-labelledby=koreksi-otomatis]");
-    await expect(panel).toContainText("nilai dirapikan");
+    // Analisis berjalan di worker (after + polling); di bawah beban paralel bisa > 30 detik.
+    await expect(panel).toContainText("nilai dirapikan", { timeout: 90_000 });
     await panel.getByText("Lihat rincian").click();
     await expect(panel).toContainText("1999000");
     await expect(page.locator("main")).toContainText("Penawaran dan harga");
