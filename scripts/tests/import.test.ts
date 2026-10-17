@@ -1212,3 +1212,13 @@ test("templat terpadu: slug salah salin tidak mengalahkan merek + model (vivo Y0
   const empty = toOffer("");
   assert.equal(empty.ok, true, "slug kosong dicari lewat nama");
 });
+
+test("peringatan harga harian: batch pemeriksaan yang antre lama ikut diperingatkan", () => {
+  const now = new Date("2026-10-17T03:00:00Z"); // 10.00 WIB
+  const runs: RefreshRun[] = [{ brand: "xiaomi", runDate: "2026-10-17", status: "queued", message: null }];
+  assert.deepEqual(refreshAlerts(runs, now), [], "pengambilan berhasil dan tidak ada batch macet");
+  assert.deepEqual(refreshAlerts(runs, now, { count: 2, oldestCreatedAt: "2026-10-16T23:39:25Z" }), [
+    { kind: "antre-lama", count: 2, since: "2026-10-16T23:39:25Z" },
+  ]);
+  assert.deepEqual(refreshAlerts(runs, now, null), []);
+});

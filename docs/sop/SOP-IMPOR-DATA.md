@@ -357,6 +357,7 @@ Harga dianggap segar selama **30 jam** sejak terakhir diperiksa. Setelah itu lab
 | Waktu (WIB) | Siapa | Apa |
 | --- | --- | --- |
 | 06.00–06.59 | Sistem (cron Vercel) | Membaca harga situs resmi vivo, iQOO, OPPO, Samsung, Xiaomi, Infinix, dan Digimap (Apple) untuk penawaran yang sudah ada, lalu menerapkannya |
+| 08.00–08.59 dan 10.00–10.59 | Sistem (cron worker Vercel, sejak 17 Oktober 2026) | Menerapkan batch harga yang belum sempat diterapkan cron pagi, lalu memproses antrean foto dan job latar |
 | setelah 07.00 | Admin | Buka Dashboard admin. Bila ada panel **Pemeriksaan harga harian perlu dicek**, tindak lanjuti merek yang gagal (lihat di bawah) |
 | pagi hari | Admin data | Perbarui harga e-commerce (Shopee dan toko lain) di spreadsheet, unduh CSV, lalu unggah di Pusat Impor. `observed_at` diisi waktu harga dilihat |
 | bila ada model baru | Admin | Tarik otomatis lengkap (spesifikasi + harga), atau **Perbarui harga saja** untuk model yang sudah ada |
@@ -366,12 +367,13 @@ Yang dikerjakan otomatis dan yang tidak:
 - **Otomatis:** hanya harga situs resmi merek, dan hanya untuk penawaran yang sudah tercatat. Sistem tidak membuat penawaran atau produk baru tanpa ditinjau admin.
 - **Tidak otomatis:** harga e-commerce. Sistem tidak mengambil data dari Shopee, Tokopedia, Blibli, Lazada, TikTok Shop, atau Erafone, karena halamannya dilindungi dan aturan proyek melarang menembus perlindungan itu. Harga e-commerce hanya masuk lewat CSV, sampai ada jalur resmi (program afiliasi marketplace, PB-17).
 - **Worker per menit** (InsForge Schedules, opsional) tidak mengambil harga. Tugasnya hanya melanjutkan pekerjaan yang sudah antre: menerapkan batch impor, memproses foto, dan menjalankan job tarik otomatis, supaya tetap selesai walau admin menutup tab. Tanpa worker, pekerjaan itu tetap berjalan lewat halaman batch yang terbuka dan cron harian, hanya lebih lambat.
-- **Koreksi 16 Oktober 2026:** cron pertama membuat batch harga tetapi tidak sempat menerapkannya karena batas waktu 60 detik habis untuk membaca situs resmi. Batas cron kini 300 detik sehingga batch harga hari itu ikut diterapkan. Bila di Pusat Impor masih ada batch "Pemeriksaan harga harian" berstatus antre, buka halaman batch itu; halaman melanjutkan penerapannya sendiri.
+- **Koreksi 16–17 Oktober 2026:** cron pagi membuat satu batch harga per merek, tetapi waktunya sering habis untuk membaca situs resmi sehingga sebagian batch tertahan "antre" (17 Oktober: 2 dari 6). Kini ada **cron worker** pukul 08.xx dan 10.xx WIB yang menerapkannya. Dashboard memperingatkan bila batch harga harian antre lebih dari satu jam. Untuk segera, buka halaman batch itu di Pusat Impor; halaman melanjutkan penerapannya sendiri.
 
 Bila panel peringatan muncul:
 
 - **Situs resmi tidak bisa dibaca / meminta verifikasi anti-bot:** jangan diakali. Coba tarik otomatis manual siang hari; bila tetap gagal, perbarui harga merek itu lewat CSV.
 - **Pemeriksaan harian belum berjalan:** cek Vercel → Settings → Cron Jobs dan variabel `CRON_SECRET`.
+- **Batch pemeriksaan harga antre lama:** tunggu cron worker berikutnya, atau buka batchnya dari Riwayat batch.
 - **Merek lama tidak berhasil diperiksa:** periksa apakah URL produk di situs resmi berubah (penawaran lama perlu diperbarui lewat tarik otomatis).
 
 ## 6. Foto

@@ -212,6 +212,7 @@ export type RefreshRun = { brand: string; runDate: string; status: RefreshRunSta
 
 export type RefreshAlert =
   | { kind: "belum-jalan"; runDate: string }
+  | { kind: "antre-lama"; count: number; since: string }
   | { kind: "gagal"; brand: string; status: "source-error" | "blocked" | "error"; message: string | null }
   | { kind: "lama-tidak-berhasil"; brand: string; lastSuccess: string | null };
 
@@ -226,13 +227,23 @@ function wibDate(at: Date, offsetDays = 0): string {
   return new Date(at.getTime() + 7 * 3_600_000 + offsetDays * 86_400_000).toISOString().slice(0, 10);
 }
 
+/** Batch harga harian yang antre selama ini dianggap macet (worker belum jalan). */
+export const STUCK_BATCH_MINUTES = 60;
+
 /**
  * Peringatan untuk dasbor admin (PB-05). Merek tanpa penawaran resmi
  * (`no-offers`) tidak diperingatkan karena memang tidak ada yang diperiksa.
+ * `stuck` = batch pemeriksaan harian yang antre lebih dari STUCK_BATCH_MINUTES:
+ * harganya sudah diambil tetapi belum diterapkan, jadi tetap terlihat basi.
  */
-export function refreshAlerts(runs: readonly RefreshRun[], now: Date): RefreshAlert[] {
+export function refreshAlerts(
+  runs: readonly RefreshRun[],
+  now: Date,
+  stuck: { count: number; oldestCreatedAt: string } | null = null
+): RefreshAlert[] {
   const today = wibDate(now);
   const alerts: RefreshAlert[] = [];
+  if (stuck && stuck.count > 0) alerts.push({ kind: "antre-lama", count: stuck.count, since: stuck.oldestCreatedAt });
   const todayRuns = runs.filter((run) => run.runDate === today);
   const hourWib = new Date(now.getTime() + 7 * 3_600_000).getUTCHours();
   if (todayRuns.length === 0 && hourWib >= LATE_HOUR_WIB) alerts.push({ kind: "belum-jalan", runDate: today });

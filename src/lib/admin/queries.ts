@@ -4,7 +4,7 @@ import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectWhereIn } from "@/lib/backend/paged-read";
 import { requireStaff } from "@/lib/auth/dal";
 import { isFresh } from "@/lib/catalog/pricing";
-import type { RefreshRun } from "@/lib/import/price-refresh-rules";
+import { STUCK_BATCH_MINUTES, type RefreshRun } from "@/lib/import/price-refresh-rules";
 
 /**
  * Pembacaan data untuk antarmuka admin.
@@ -707,6 +707,23 @@ export async function listRecentRefreshRuns(now: Date, days = 14): Promise<Refre
     status: r.status as RefreshRun["status"],
     message: (r.message as string | null) ?? null,
   }));
+}
+
+/** Batch pemeriksaan harga harian yang antre lebih lama dari batasnya (peringatan dasbor). */
+export async function getStuckRefreshBatches(now: Date): Promise<{ count: number; oldestCreatedAt: string } | null> {
+  await requireStaff([]);
+  const cutoff = new Date(now.getTime() - STUCK_BATCH_MINUTES * 60_000).toISOString();
+  const { data, error } = await getInsforgeAdminClient()
+    .database.from("import_batches")
+    .select("created_at")
+    .eq("origin", "schedule")
+    .eq("status", "queued")
+    .lt("created_at", cutoff)
+    .order("created_at", { ascending: true })
+    .limit(50);
+  if (error) throw new Error("Gagal membaca batch harga yang antre.");
+  const rows = (data ?? []) as { created_at: string }[];
+  return rows.length ? { count: rows.length, oldestCreatedAt: rows[0]!.created_at } : null;
 }
 
 export type ImportQuality = {

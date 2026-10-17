@@ -12,6 +12,7 @@ import {
   getImportQuality,
   listAdminProducts,
   listRecentAudit,
+  getStuckRefreshBatches,
   listRecentRefreshRuns,
 } from "@/lib/admin/queries";
 import { requireAdmin } from "@/lib/auth/dal";
@@ -64,6 +65,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
   const importQualityPromise = getImportQuality(now).catch(() => null);
   // Peringatan pemeriksaan harga harian (PB-05); gagal dibaca tidak menjatuhkan dasbor.
   const refreshRunsPromise = listRecentRefreshRuns(now).catch(() => null);
+  const stuckBatchesPromise = getStuckRefreshBatches(now).catch(() => null);
   const [health, products, audit, imports] = await Promise.all([
     checkBackendHealth(),
     listAdminProducts(now),
@@ -73,6 +75,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
   // Panel kualitas impor bersifat pelengkap: gagal dibaca tidak menjatuhkan dasbor.
   const importQuality = await importQualityPromise;
   const refreshRuns = await refreshRunsPromise;
+  const stuckBatches = await stuckBatchesPromise;
   const draftCount = products.filter((product) => product.status === "draft").length;
   const publishedCount = products.filter((product) => product.status === "published").length;
   const productsWithOffers = products.filter((product) => product.offerCount > 0).length;
@@ -140,7 +143,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
         </p>
       ) : null}
 
-      {refreshRuns ? <PriceRefreshAlerts alerts={refreshAlerts(refreshRuns, now)} /> : null}
+      {refreshRuns ? <PriceRefreshAlerts alerts={refreshAlerts(refreshRuns, now, stuckBatches)} /> : null}
 
       <Reveal>
         <AdminDataHealth

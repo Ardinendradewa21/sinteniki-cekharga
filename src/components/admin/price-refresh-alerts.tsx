@@ -24,6 +24,8 @@ function dayLabel(date: string): string {
 
 function alertText(alert: RefreshAlert): string {
   switch (alert.kind) {
+    case "antre-lama":
+      return `${alert.count} batch pemeriksaan harga sudah diambil sejak ${new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(new Date(alert.since))} WIB tetapi belum diterapkan, jadi harganya masih terlihat basi. Cron worker berjalan sekitar 08.00 dan 10.00 WIB; untuk segera, buka batchnya di Pusat Impor → Riwayat batch.`;
     case "belum-jalan":
       return `Pemeriksaan harga harian belum berjalan hari ini (${dayLabel(alert.runDate)}). Cek Vercel → Settings → Cron Jobs dan variabel CRON_SECRET.`;
     case "gagal":
@@ -48,7 +50,7 @@ export function PriceRefreshAlerts({ alerts }: { alerts: readonly RefreshAlert[]
       </h2>
       <ul className="mt-2 list-disc space-y-1 pl-5">
         {alerts.map((alert) => (
-          <li key={`${alert.kind}-${"brand" in alert ? alert.brand : alert.runDate}`}>{alertText(alert)}</li>
+          <li key={`${alert.kind}-${"brand" in alert ? alert.brand : "runDate" in alert ? alert.runDate : alert.since}`}>{alertText(alert)}</li>
         ))}
       </ul>
       <p className="mt-2 text-xs text-muted-foreground">
