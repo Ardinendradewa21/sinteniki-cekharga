@@ -1159,3 +1159,29 @@ test("matte: latar terang seragam di sudut (biru muda vivo) dihapus, bodi pastel
   const busy = canvas(12, 10, [120, 160, 200], lavender);
   assert.equal(removePlainBackground(busy, 12, 10).applied, false, "latar gelap/berwarna tidak disentuh");
 });
+
+import { prepareOfferRow } from "@/lib/import/offers";
+
+test("templat terpadu: slug salah salin tidak mengalahkan merek + model (vivo Y05 ber-slug Samsung)", () => {
+  const products = [
+    { id: "a07", slug: "samsung-galaxy-a07-4g", brand: "Samsung", model: "Galaxy A07 4G", is5G: false, colorOptions: null, variants: [{ id: "va", ramGb: 4, storageGb: 64 }] },
+    { id: "y05", slug: "vivo-y05", brand: "vivo", model: "Y05", is5G: false, colorOptions: null, variants: [{ id: "vy", ramGb: 4, storageGb: 64 }] },
+  ];
+  const sheetRow = (slug: string) => ({
+    brand: "Vivo", model_name: "vivo Y05", slug, ram_gb: "4", storage_gb: "64", color: "Hitam Malam",
+    marketplace: "Shopee", seller_name: "Vivo Official Store", offer_url: "https://shopee.co.id/vivo-y05-i.30843261.45256316103",
+    price_idr: "Rp2.649.000", listing_status: "active",
+  });
+  const toOffer = (slug: string) => {
+    const converted = convertUnifiedRows([sheetRow(slug)]);
+    const row = converted.offerRows[0]!;
+    return prepareOfferRow(row, products, { observedAt: "2026-10-17T00:00:00.000Z" });
+  };
+  const wrong = toOffer("samsung-galaxy-a07-4g");
+  assert.equal(wrong.ok, false);
+  assert.match(!wrong.ok ? wrong.reason : "", /milik Samsung Galaxy A07 4G, tidak cocok dengan "vivo Y05"/);
+  const right = toOffer("vivo-y05");
+  assert.equal(right.ok, true, "slug yang benar tetap diterima");
+  const empty = toOffer("");
+  assert.equal(empty.ok, true, "slug kosong dicari lewat nama");
+});

@@ -322,6 +322,14 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
         followUpOfferRows.push({ ...offer, source_key: sourceKey });
       } else {
         let slug = r.slug ?? "";
+        if (slug && row.group) {
+          // Slug yang diisi tangan dicek terhadap merek + model di baris yang
+          // sama (2026-10-17: baris vivo Y05 ber-slug samsung-galaxy-a07-4g
+          // hampir membuat penawaran vivo di produk Samsung).
+          const { brand, model } = canonicalBrandModel(r.brand ?? "", r.model_name ?? "");
+          offer.product_name = `${brand} ${model}`;
+          offer.slug_check = "1";
+        }
         if (!slug && row.group) {
           slug = row.group;
           // Nama ikut dikirim: pencocokan memakai nama (akhiran 4G/5G, merek

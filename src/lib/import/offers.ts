@@ -630,10 +630,24 @@ export function prepareOfferRow(
     // nama hanya dipakai bila nama tidak cocok dengan katalog.
     let reviewNote: string | null = null;
     const productName = valueFrom(row, ["product_name"]);
+    // Slug diisi tangan di berkas yang juga menyebut merek + model: keduanya
+    // wajib menunjuk produk yang sama. Slug yang salah salin tidak boleh
+    // diam-diam mengalahkan nama produk.
+    const givenSlug = valueFrom(row, ["slug_check"]) === "1" ? valueFrom(row, ["slug"]) : "";
     if (productName) {
       const named = resolveNamedProduct(productName, products);
       if (named && "error" in named) {
         return { ok: false, label: productName, reason: named.error, format };
+      }
+      const slugProduct = givenSlug ? products.find((product) => product.slug === givenSlug) : undefined;
+      const conflict = slugProduct && (named ? named.product.id !== slugProduct.id : !resolveNamedProduct(productName, [slugProduct]));
+      if (conflict) {
+        return {
+          ok: false,
+          label: productName,
+          reason: `Kolom slug "${givenSlug}" milik ${slugProduct.brand} ${slugProduct.model}, tidak cocok dengan "${productName}". Kosongkan kolom slug atau perbaiki.`,
+          format,
+        };
       }
       if (named) {
         withObservedAt.slug = named.product.slug;
