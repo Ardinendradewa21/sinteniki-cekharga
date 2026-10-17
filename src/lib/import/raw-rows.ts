@@ -12,8 +12,9 @@ import { chunk, mapWithConcurrency } from "@/lib/import/batch";
  *   upload    = baris berkas apa adanya (templat terpadu, sebelum dikoreksi)
  *   row       = baris yang dipakai rencana dan penulisan (`row_indexes` item)
  *   follow_up = penawaran yang diterapkan setelah produk batch ini tersimpan
+ *   follow_up_photo = foto CSV gabungan, menjadi batch galeri setelah tahap ini
  */
-type RawRole = "upload" | "row" | "follow_up";
+type RawRole = "upload" | "row" | "follow_up" | "follow_up_photo";
 
 /** Baris per insert; satu baris CSV sekitar 0,2-1,6 KB JSON. */
 const STAGE_CHUNK = 200;

@@ -66,6 +66,10 @@ const HEADER_ALIASES: Record<string, readonly string[]> = {
   image_url: ["url image", "url gambar", "link gambar", "gambar", "url foto", "link foto", "foto"],
   image_usage_basis: ["dasar hak pakai", "dasar hak pakai foto"],
   image_usage_rights: ["hak pakai foto", "bukti hak pakai"],
+  // Kolom foto CSV gabungan (Sprint 8): urutan dalam warna, sampul, halaman asal.
+  urutan: ["urutan foto", "sort order"],
+  is_cover: ["sampul", "cover", "foto sampul"],
+  image_source_url: ["source_url", "sumber foto", "halaman foto"],
 };
 
 function normalizeHeaderName(value: string): string {

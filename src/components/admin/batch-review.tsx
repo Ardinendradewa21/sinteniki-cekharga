@@ -157,8 +157,9 @@ const STATUS_HINT: Partial<Record<ReviewStatus, string>> = {
  * pilihan dikirim sebagai input tersembunyi, jadi baris yang sedang tidak
  * terlihat tetap ikut diterapkan. "Perlu tinjau" tidak dicentang otomatis.
  *
- * Batch spesifikasi yang membawa penawaran punya tiga mode: spesifikasi +
- * harga (bawaan), spesifikasi saja, atau harga saja (produk yang sudah ada).
+ * Batch CSV gabungan yang membawa tahap lanjutan (penawaran dan/atau foto)
+ * punya dua mode: tahap ini + lanjutan (bawaan) atau tahap ini saja. Batch
+ * spesifikasi juga punya mode "harga saja" untuk produk yang sudah ada.
  */
 export function BatchReview({
   items,
@@ -166,6 +167,8 @@ export function BatchReview({
   editable,
   applyAction,
   followUpCount = 0,
+  followUpPhotoCount = 0,
+  stageLabel = "Spesifikasi",
   pricesOnlyAction,
 }: {
   items: ReviewItem[];
@@ -175,6 +178,10 @@ export function BatchReview({
   applyAction: (state: PreviewState, formData: FormData) => Promise<PreviewState>;
   /** Jumlah penawaran lanjutan; >0 menampilkan pilihan mode penerapan. */
   followUpCount?: number;
+  /** Jumlah foto lanjutan (CSV gabungan); >0 juga menampilkan pilihan mode. */
+  followUpPhotoCount?: number;
+  /** Nama tahap batch ini di pilihan mode, mis. "Spesifikasi" atau "Penawaran". */
+  stageLabel?: string;
   pricesOnlyAction?: () => Promise<PreviewState>;
 }) {
   const [filter, setFilter] = useState<ReviewStatus | "all">("all");
@@ -347,7 +354,7 @@ export function BatchReview({
 
         {editable ? (
           <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-            {followUpCount > 0 ? (
+            {followUpCount + followUpPhotoCount > 0 ? (
               <fieldset className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
                 <legend className="sr-only">Yang diterapkan</legend>
                 <label className="inline-flex min-h-11 cursor-pointer items-center gap-2">
@@ -358,7 +365,14 @@ export function BatchReview({
                     onChange={() => setMode("all")}
                     className="size-4 accent-[var(--brand)]"
                   />
-                  Spesifikasi + harga ({followUpCount} penawaran ditinjau setelah produk tersimpan)
+                  {stageLabel} lalu{" "}
+                  {[
+                    followUpCount > 0 ? `${followUpCount} penawaran` : null,
+                    followUpPhotoCount > 0 ? `${followUpPhotoCount} foto` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" dan ")}{" "}
+                  (ditinjau setelah tahap ini tersimpan)
                 </label>
                 <label className="inline-flex min-h-11 cursor-pointer items-center gap-2">
                   <input
@@ -368,7 +382,7 @@ export function BatchReview({
                     onChange={() => setMode("specs-only")}
                     className="size-4 accent-[var(--brand)]"
                   />
-                  Spesifikasi saja
+                  {stageLabel} saja
                 </label>
               </fieldset>
             ) : null}

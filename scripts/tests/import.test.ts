@@ -752,16 +752,38 @@ test("pratinjau per produk: penawaran dikelompokkan per produk dan diurutkan per
 import { imageSourceName, safeHttpsImageUrl } from "@/lib/import/image-hosts";
 import { readTemplateListingImage } from "@/lib/import/offers";
 
-test("foto: templat terpadu punya kolom foto; foto utama ke produk baru, foto produk lama ikut penawaran", () => {
+test("CSV gabungan: templat memuat ketiga jenis baris; semua foto jadi baris galeri, bukan menempel ke produk/penawaran", () => {
   const header = templateTerpadu().split("\n")[0]!.split(",");
-  for (const column of ["image_url", "image_usage_basis", "image_usage_rights"]) assert.ok(header.includes(column), column);
+  for (const column of ["image_url", "urutan", "is_cover", "image_source_url", "image_usage_basis"]) assert.ok(header.includes(column), column);
   const converted = convertUnifiedRows(parseCsv(templateTerpadu()).rows);
-  assert.equal(converted.specRows[0]!.image_url, "https://fdn2.gsmarena.com/vv/bigpic/contoh.jpg", "foto utama Reno16c");
-  assert.ok(converted.followUpOfferRows.every((row) => !row.image_url), "foto utama tidak digandakan ke galeri");
-  assert.equal(converted.offerRows[0]!.image_url, "https://down-id.img.susercontent.com/file/contoh");
+  assert.equal(converted.specRows.length, 1, "Reno16c produk baru");
+  assert.equal(converted.specRows[0]!.image_url, undefined, "foto tidak lagi di baris spesifikasi");
+  assert.equal(converted.followUpOfferRows.length, 2, "dua varian Reno16c");
+  assert.equal(converted.offerRows.length, 1, "A6c produk lama");
+  assert.ok([...converted.followUpOfferRows, ...converted.offerRows].every((row) => !row.image_url), "penawaran tanpa foto");
+  assert.deepEqual(
+    converted.photoRows.map((row) => [row.model_name, row.color, row.urutan, row.is_cover]),
+    [["Reno16c", "Hitam", "1", "ya"], ["Reno16c", "Hitam", "2", ""], ["Reno16c", "Ungu", "1", "ya"], ["A6c", "Biru", "1", "ya"]]
+  );
+  assert.equal(converted.photoRows[3]!.source_url, "https://www.blibli.com/p/contoh");
+  assert.equal(converted.corrections.filter((c) => c.level === "error").length, 0);
 });
 
-test("foto: kolom url_image dikenali dan tidak membuat baris produk palsu untuk produk lama", () => {
+test("CSV gabungan: bagian yang tidak dipilih diabaikan sejak awal", () => {
+  const rows = parseCsv(templateTerpadu()).rows;
+  const photosOnly = convertUnifiedRows(rows, ["photos"]);
+  assert.equal(photosOnly.specRows.length + photosOnly.offerRows.length + photosOnly.followUpOfferRows.length, 0);
+  assert.equal(photosOnly.photoRows.length, 4);
+  const offersOnly = convertUnifiedRows(rows, ["offers"]);
+  assert.equal(offersOnly.specRows.length, 0, "tanpa spesifikasi, Reno16c dicari di katalog");
+  assert.equal(offersOnly.offerRows.length, 3);
+  assert.equal(offersOnly.photoRows.length, 0);
+  const specsOnly = convertUnifiedRows(rows, ["specs"]);
+  assert.equal(specsOnly.specRows.length, 1);
+  assert.equal(specsOnly.offerRows.length + specsOnly.followUpOfferRows.length + specsOnly.photoRows.length, 0);
+});
+
+test("foto: kolom url_image dikenali, baris foto saja sah, dan foto tidak membuat baris produk palsu", () => {
   assert.equal(canonicalHeader("url_image"), "image_url");
   assert.equal(canonicalHeader("Link Gambar"), "image_url");
   const converted = convertUnifiedRows([
@@ -775,21 +797,26 @@ test("foto: kolom url_image dikenali dan tidak membuat baris produk palsu untuk 
   assert.equal(converted.specRows.length, 0, "foto saja bukan alasan membuat atau menimpa produk");
   assert.equal(converted.offerRows.length, 1);
   assert.equal(converted.offerRows[0]!.slug, "xiaomi-redmi-17");
-  assert.equal(converted.offerRows[0]!.image_url, "https://i02.appmifile.com/contoh/redmi-17.png");
-  const photoOnly = converted.corrections.find((c) => c.level === "error");
-  assert.equal(photoOnly?.line, 3);
-  assert.match(photoOnly?.note ?? "", /perlu penawaran di baris yang sama, atau gsmarena_url/);
+  assert.equal(converted.offerRows[0]!.image_url, undefined);
+  // Kedua baris tanpa warna: foto ditolak dengan alasan, harga tetap masuk.
+  assert.equal(converted.photoRows.length, 0);
+  assert.deepEqual(converted.corrections.filter((c) => c.level === "error").map((c) => c.line), [2, 3]);
+  assert.match(converted.corrections.find((c) => c.level === "error")?.note ?? "", /wajib menyebut warnanya/);
+  const withColor = convertUnifiedRows([{ brand: "Xiaomi", model_name: "Redmi 17", warna: "Hitam", url_image: "https://i02.appmifile.com/contoh/lain.png" }]);
+  assert.equal(withColor.photoRows.length, 1, "baris foto saja untuk produk lama kini sah");
 });
 
-test("foto: produk di berkas memakai foto pertama sebagai utama, foto warna lain masuk galeri tanpa peringatan", () => {
+test("foto: foto yang diulang per varian dihitung sekali, foto warna lain jadi baris galeri sendiri", () => {
   const base = { merek: "QAUji", model: "Foto 1", gsmarena_url: "qauji_foto_1-1.php", chipset: "Chip QA" };
   const converted = convertUnifiedRows([
-    { ...base, ram: "8", storage: "128", foto: "https://fdn2.gsmarena.com/vv/bigpic/a.jpg" },
-    { merek: "QAUji", model: "Foto 1", ram: "8", storage: "128", link: "https://www.blibli.com/p/biru", harga: "1000000", foto: "https://down-id.img.susercontent.com/file/biru" },
+    { ...base, ram: "8", storage: "128", warna: "Hitam", foto: "https://fdn2.gsmarena.com/vv/bigpic/a.jpg" },
+    { merek: "QAUji", model: "Foto 1", ram: "8", storage: "256", warna: "Hitam", foto: "https://fdn2.gsmarena.com/vv/bigpic/a.jpg" },
+    { merek: "QAUji", model: "Foto 1", ram: "8", storage: "128", link: "https://www.blibli.com/p/biru", harga: "1000000", warna: "Biru", foto: "https://down-id.img.susercontent.com/file/biru" },
   ]);
-  assert.equal(converted.specRows[0]!.image_url, "https://fdn2.gsmarena.com/vv/bigpic/a.jpg");
-  assert.equal(converted.followUpOfferRows[0]!.image_url, "https://down-id.img.susercontent.com/file/biru");
+  assert.deepEqual(converted.photoRows.map((row) => row.color), ["Hitam", "Biru"]);
+  assert.equal(converted.followUpOfferRows[0]!.image_url, undefined);
   assert.equal(converted.corrections.filter((c) => c.level !== "info").length, 0);
+  assert.match(converted.corrections.find((c) => c.column === "image_url")?.note ?? "", /sama dengan baris 2/);
 });
 
 test("foto listing templat: host diizinkan, hak pakai per baris divalidasi, harga tidak pernah gagal karena foto", () => {
@@ -831,7 +858,7 @@ const unifiedOffer = (overrides: Record<string, string>) =>
   convertUnifiedRows([{ brand: "Xiaomi", ram_gb: "6", storage_gb: "128", marketplace: "Shopee", seller_name: "Xiaomi Official Store", price_idr: "3549000", ...overrides }]);
 const canonicalOf = (rows: Record<string, string>[]) => offerRowsToCanonical(rows, xiaomiCatalog, { observedAt: "2026-10-12T01:00:00.000Z" });
 
-test("warna: kolom url dibaca dari isinya, kolom warna masuk baris penawaran dan foto utama", () => {
+test("warna: kolom url dibaca dari isinya, kolom warna masuk baris penawaran dan baris foto", () => {
   const offer = unifiedOffer({ model_name: "Redmi Note 17", url: "https://shopee.co.id/x-i.1.2", warna: "Lotus Purple" }).offerRows[0]!;
   assert.equal(offer.url, "https://shopee.co.id/x-i.1.2");
   assert.equal(offer.color, "Lotus Purple");
@@ -840,7 +867,7 @@ test("warna: kolom url dibaca dari isinya, kolom warna masuk baris penawaran dan
     { brand: "QAUji", model_name: "Warna 2", url: "https://www.gsmarena.com/qauji_warna_2-92.php", ram_gb: "8", storage_gb: "128", chipset: "Chip", image_url: "https://fdn2.gsmarena.com/vv/bigpic/a.jpg", color: "Hitam" },
   ]);
   assert.equal(product.specRows[0]!.url, "qauji_warna_2-92.php", "tautan GSMArena di kolom url menjadi sumber spesifikasi");
-  assert.equal(product.specRows[0]!.image_color, "Hitam");
+  assert.deepEqual(product.photoRows.map((row) => row.color), ["Hitam"], "warna ikut baris foto");
   assert.equal(canonicalHeader("Warna"), "color");
   assert.equal(canonicalHeader("daftar warna"), "colors");
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FileDrop } from "@/components/admin/file-drop";
@@ -10,44 +10,96 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { previewUploadAction, type PreviewState } from "@/lib/import/batch-actions";
 
+const PARTS = [
+  {
+    value: "specs",
+    title: "Spesifikasi produk",
+    body: "Baris yang mengisi kolom spesifikasi atau gsmarena_url. Produk baru masuk sebagai draft.",
+  },
+  {
+    value: "offers",
+    title: "Penawaran & harga",
+    body: "Baris yang mengisi offer_url, harga, atau toko. Harga hanya menempel ke varian yang ada.",
+  },
+  {
+    value: "photos",
+    title: "Foto per warna",
+    body: "Baris yang mengisi image_url dan color, dengan urutan dan is_cover. Mengikuti aturan galeri.",
+  },
+] as const;
+
 /**
- * Satu formulir unggah untuk semua data impor (2026-10-11).
+ * Formulir unggah CSV gabungan (Sprint 8, 2026-10-17).
  *
- * Jenis berkas dikenali dari isinya (canonical.ts `detectFileKind`), jadi
- * tidak ada lagi formulir terpisah untuk spesifikasi dan penawaran. Berkas
- * tidak langsung ditulis: unggahan disimpan, dianalisis di worker, lalu admin
- * meninjau pratinjaunya per produk sebelum menerapkan.
- *
- * Templat terpadu adalah templat utama; templat format lama tetap bisa
- * diunduh untuk berkas yang sudah ada di tim.
+ * Satu berkas boleh berisi baris spesifikasi, penawaran, dan foto sekaligus,
+ * atau salah satunya saja. Admin memilih bagian yang ingin diimpor; kolom
+ * bagian lain diabaikan saat analisis. Berkas tidak langsung ditulis:
+ * unggahan disimpan, dianalisis di worker, lalu ditinjau per tahap (produk,
+ * harga, foto) sebelum diterapkan.
  */
-export function UploadForm({
-  templates,
-}: {
-  templates: { unified: string; specs: string; offers: string; shopee: string };
-}) {
+export function UploadForm({ template }: { template: string }) {
   const [state, action, pending] = useActionState<PreviewState, FormData>(previewUploadAction, { error: null });
+  const [parts, setParts] = useState<Set<string>>(() => new Set(PARTS.map((part) => part.value)));
+  const toggle = (value: string) =>
+    setParts((current) => {
+      const next = new Set(current);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
 
   return (
     <form action={action} className="rounded-xl border border-border bg-card p-6">
-      <FileDrop
-        id="berkas"
-        name="berkas"
-        required
-        // Tanggal berkas dipakai sebagai waktu pengamatan harga bila kolom observed_at kosong.
-        lastModifiedName="file_last_modified"
-        label="Berkas CSV"
-        hint="Templat terpadu: spesifikasi dan harga dalam satu berkas, kolom boleh kosong. Format lama tetap diterima: ekspor GSMArena, templat penawaran, hasil scraper Shopee, dan ekspor ekstensi erafone.com. Jenis berkas dikenali dari isinya."
-      />
+      <fieldset>
+        <legend className="text-sm font-semibold text-foreground">Bagian yang diimpor dari berkas ini</legend>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Satu berkas boleh berisi ketiganya. Bagian yang tidak dicentang diabaikan walau kolomnya terisi.
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {PARTS.map((part) => (
+            <label
+              key={part.value}
+              className="flex min-h-11 cursor-pointer gap-3 rounded-lg border border-border bg-background p-3 has-[:checked]:border-brand has-[:checked]:bg-brand-muted/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+            >
+              <input
+                type="checkbox"
+                name="bagian"
+                value={part.value}
+                checked={parts.has(part.value)}
+                onChange={() => toggle(part.value)}
+                className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-foreground">{part.title}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{part.body}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
-      <ImageRightsFields
-        idPrefix="upload-image"
-        hint="Berlaku untuk foto di berkas (kolom image_url atau url_image, marketplace_image_url, atau foto listing Erafone) yang tidak membawa kolom image_usage_basis sendiri. Di templat terpadu, foto produk baru menjadi foto utama, dan foto di baris penawaran produk yang sudah ada masuk galeri produk itu. Tanpa dasar hak pakai, data tetap masuk dan foto dilewati. Foto yang valid diperkecil maksimal 1200 px, latar putihnya dihapus, lalu disimpan sebagai WebP."
-      />
+      <div className="mt-5">
+        <FileDrop
+          id="berkas"
+          name="berkas"
+          required
+          // Tanggal berkas dipakai sebagai waktu pengamatan harga bila kolom observed_at kosong.
+          lastModifiedName="file_last_modified"
+          label="Berkas CSV gabungan"
+          hint="Ekspor sheet sebagai CSV. Satu baris boleh membawa spesifikasi, penawaran, dan foto sekaligus; kolom yang tidak dipakai biarkan kosong. Berkas format lama (ekspor GSMArena, hasil scraper Shopee, ekspor erafone.com) tetap dikenali otomatis."
+        />
+      </div>
+
+      {parts.has("photos") ? (
+        <ImageRightsFields
+          idPrefix="upload-image"
+          hint="Berlaku untuk foto yang tidak membawa kolom image_usage_basis sendiri. Tanpa dasar hak pakai, data lain tetap masuk dan fotonya dilewati. Foto diperkecil maksimal 1200 px, tepi dan latar polosnya dirapikan, lalu disimpan sebagai WebP."
+        />
+      ) : null}
 
       <details className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
         <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-foreground">
-          Opsi lanjutan: berkas scraper Shopee
+          Opsi lanjutan: berkas hasil scraper Shopee
         </summary>
         <div className="mt-3 space-y-2">
           <Label htmlFor="seller-name">Nama toko default (opsional)</Label>
@@ -61,26 +113,14 @@ export function UploadForm({
       </details>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || parts.size === 0}>
           {pending ? "Menyimpan berkas..." : "Buat pratinjau"}
         </Button>
-        <TemplateDownloadButton content={templates.unified} filename="templat-terpadu-cekharga.csv">
-          Templat terpadu
+        <TemplateDownloadButton content={template} filename="templat-csv-gabungan-cekharga.csv">
+          Unduh templat CSV gabungan
         </TemplateDownloadButton>
       </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-1 text-sm text-muted-foreground">
-        <span>Format lama:</span>
-        <TemplateDownloadButton variant="link" content={templates.specs} filename="templat-spesifikasi-cekharga.csv">
-          Templat spesifikasi
-        </TemplateDownloadButton>
-        <TemplateDownloadButton variant="link" content={templates.offers} filename="templat-penawaran-cekharga.csv">
-          Templat penawaran
-        </TemplateDownloadButton>
-        <TemplateDownloadButton variant="link" content={templates.shopee} filename="templat-scraper-shopee.csv">
-          Templat scraper Shopee
-        </TemplateDownloadButton>
-      </div>
+      {parts.size === 0 ? <p className="mt-2 text-sm text-warning">Pilih minimal satu bagian.</p> : null}
 
       {state.error ? (
         <p role="alert" className="mt-4 text-sm font-medium text-destructive">

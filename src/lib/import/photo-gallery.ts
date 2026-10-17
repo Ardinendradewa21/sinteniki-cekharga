@@ -5,8 +5,8 @@ import type { CsvRow } from "@/lib/import/csv-parser";
 import { imageSourceName } from "@/lib/import/image-hosts";
 import type { ImageRights } from "@/lib/import/image-rights";
 import { loadOfferContext } from "@/lib/import/offer-runner";
-import { resolveNamedProduct, type OfferCatalogProduct } from "@/lib/import/offers";
-import { planGalleryRows, readGalleryRow, type GalleryPlanItem } from "@/lib/import/photo-gallery-rows";
+import type { OfferCatalogProduct } from "@/lib/import/offers";
+import { planGalleryRows, readGalleryRow, resolveGalleryProduct, type GalleryPlanItem } from "@/lib/import/photo-gallery-rows";
 import { enqueuePhotoJobs } from "@/lib/import/photo-jobs";
 import type { StoredPhoto } from "@/lib/import/photo-rules";
 import type { ImportPlan, PlanItem } from "@/lib/import/plan";
@@ -33,7 +33,7 @@ async function loadGalleryContext(rows: readonly CsvRow[]): Promise<GalleryConte
   for (const raw of rows) {
     const read = readGalleryRow(raw);
     if (!read.ok) continue;
-    const named = resolveNamedProduct(read.row.name, products);
+    const named = resolveGalleryProduct(read.row, products);
     if (named && !("error" in named)) ids.add(named.product.id);
   }
   const productIds = [...ids];

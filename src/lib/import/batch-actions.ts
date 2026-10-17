@@ -8,6 +8,7 @@ import { requireStaff } from "@/lib/auth/dal";
 import {
   stageUpload,
   discardBatch,
+  followUpPhotoRowsOf,
   followUpRowsOf,
   getBatch,
   getBatchSummary,
@@ -23,6 +24,8 @@ import { executeUndo } from "@/lib/import/undo";
 import { photoJobCounts, processPhotoStep, type PhotoJobCounts } from "@/lib/import/photo-jobs";
 import { defaultObservedAtFrom, readCsvFile } from "@/lib/import/upload";
 import { detectFileKind } from "@/lib/import/canonical";
+import { stageRawRows } from "@/lib/import/raw-rows";
+import { UNIFIED_PARTS, type UnifiedPart } from "@/lib/import/unified";
 
 /** Langkah dari polling halaman lebih pendek supaya tiap panggilan cepat kembali. */
 const POLL_STEP_BUDGET_MS = 20_000;
@@ -73,10 +76,14 @@ export async function applyPricesOnlyAction(batchId: string): Promise<PreviewSta
       imageRights: null,
       defaultObservedAt: batch.options.followUpOffers.defaultObservedAt,
       parentBatchId: batch.id,
+      ...(batch.options.followUpPhotos ? { followUpPhotos: batch.options.followUpPhotos, imageRights: batch.options.imageRights ?? null } : {}),
       ...(dropped > 0 ? { droppedNewProductOffers: dropped } : {}),
     },
   });
   if (!staged.ok) return { error: staged.error };
+  // Foto CSV gabungan ikut pindah ke batch harga ini, tetap sebagai tahap terakhir.
+  const photoRows = await followUpPhotoRowsOf(batch.id, batch.options);
+  if (photoRows.length > 0) await stageRawRows(staged.id, "follow_up_photo", photoRows);
   await discardBatch(batch.id, admin);
 
   after(() => kick(staged.id));
@@ -102,6 +109,13 @@ export async function previewUploadAction(_prev: PreviewState, formData: FormDat
   const rights = readImageRights(formData.get("image_usage_basis"), formData.get("image_usage_rights"));
   if (!rights.ok) return { error: rights.error };
 
+  // Bagian CSV gabungan yang dipilih admin (spesifikasi, penawaran, foto).
+  const parts = formData
+    .getAll("bagian")
+    .map(String)
+    .filter((value): value is UnifiedPart => (UNIFIED_PARTS as readonly string[]).includes(value));
+  if (parts.length === 0) return { error: "Pilih minimal satu bagian yang diimpor: spesifikasi, penawaran, atau foto." };
+
   // Hanya header dan 20 baris pertama yang dibaca di sini.
   const detected = detectFileKind(read.parsed.headers, read.parsed.rows);
   if (detected.kind === null) return { error: detected.reason };
@@ -122,6 +136,7 @@ export async function previewUploadAction(_prev: PreviewState, formData: FormDat
       imageRights: rights.rights,
       defaultObservedAt: defaultObservedAtFrom(formData, new Date()),
       defaultSellerName: String(formData.get("seller_name") ?? "").trim().slice(0, 160),
+      ...(unified && parts.length < UNIFIED_PARTS.length ? { parts } : {}),
     },
   });
   if (!staged.ok) return { error: staged.error };

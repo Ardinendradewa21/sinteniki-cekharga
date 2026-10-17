@@ -19,6 +19,7 @@ import {
 } from "@/lib/import/plan";
 import { planPhotoImport } from "@/lib/import/photo-gallery";
 import type { ImportReport, OfferImportReport } from "@/lib/import/report";
+import type { UnifiedPart } from "@/lib/import/unified";
 import {
   DRAFT_TTL_DAYS,
   emptyProgress,
@@ -65,8 +66,14 @@ type FollowUpOffers = {
   count?: number;
 };
 
+/** Foto CSV gabungan yang menunggu tahap sebelumnya (raw_listings role follow_up_photo). */
+type FollowUpPhotos = { sourceLabel: string; count: number };
+
 export type BatchOptions = {
   imageRights?: ImageRights | null;
+  /** Bagian CSV gabungan yang dipilih admin saat mengunggah; kosong = semua. */
+  parts?: UnifiedPart[];
+  followUpPhotos?: FollowUpPhotos;
   defaultObservedAt?: string;
   defaultSellerName?: string;
   followUpOffers?: FollowUpOffers;
@@ -127,6 +134,8 @@ type BatchDetail = BatchSummary & {
   items: BatchItem[];
   /** Batch harga lanjutan yang dibuat setelah batch spesifikasi ini diterapkan. */
   followUpBatchId: string | null;
+  /** Batch galeri foto lanjutan dari CSV gabungan. */
+  followUpPhotoBatchId: string | null;
 };
 
 const SUMMARY_COLUMNS =
@@ -374,6 +383,11 @@ export async function stageUpload({
   return { ok: true, id: batchId };
 }
 
+/** Foto lanjutan satu batch (CSV gabungan). */
+export async function followUpPhotoRowsOf(batchId: string, options: BatchOptions): Promise<CsvRow[]> {
+  return options.followUpPhotos ? loadRawRowList(batchId, "follow_up_photo") : [];
+}
+
 /** Penawaran lanjutan satu batch: dari raw_listings, atau dari opsi untuk batch lama. */
 export async function followUpRowsOf(batchId: string, options: BatchOptions): Promise<CsvRow[]> {
   const followUp = options.followUpOffers;
@@ -464,6 +478,7 @@ export async function getBatch(id: string): Promise<BatchDetail | null> {
   const options = (row.options ?? {}) as BatchOptions;
   const report = (row.report ?? null) as (ImportReport | OfferImportReport | null) & {
     followUpBatchId?: string;
+    followUpPhotoBatchId?: string;
   };
 
   return {
@@ -472,6 +487,7 @@ export async function getBatch(id: string): Promise<BatchDetail | null> {
     malformedLines: (row.malformed_lines ?? []) as number[],
     report,
     followUpBatchId: report?.followUpBatchId ?? null,
+    followUpPhotoBatchId: report?.followUpPhotoBatchId ?? null,
     items: items
       .map((item) => ({
         id: String(item.id),

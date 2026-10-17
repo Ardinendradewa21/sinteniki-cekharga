@@ -25,6 +25,7 @@ import {
   isEditable,
   isRetryable,
 } from "@/lib/import/batch-status";
+import { ImportStages } from "@/components/admin/import-stages";
 import { followUpRowsOf, getBatch, getBatchSummary } from "@/lib/import/batches";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
 import type { ImportReport, OfferImportReport, PhotoGalleryReport } from "@/lib/import/report";
@@ -87,6 +88,7 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
     batch.kind === "specs" ? "Spesifikasi produk" : batch.kind === "photos" ? "Galeri foto" : "Penawaran dan harga";
   const report = batch.report;
   const pendingOffers = batch.options.followUpOffers?.count ?? batch.options.followUpOffers?.rows.length ?? 0;
+  const pendingPhotos = batch.options.followUpPhotos?.count ?? 0;
   const statusView = batchStatusView(batch, new Date());
   // Draft kedaluwarsa hanya bisa dibaca; server juga menolak menerapkannya.
   const editable = isEditable(batch.status) && !statusView.expired;
@@ -136,6 +138,13 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
         </span>
       </header>
 
+      <ImportStages
+        kind={batch.kind}
+        parentBatchId={batch.options.parentBatchId ?? null}
+        offers={{ batchId: batch.followUpBatchId, pending: batch.followUpBatchId ? 0 : pendingOffers }}
+        photos={{ batchId: batch.followUpPhotoBatchId, pending: batch.followUpPhotoBatchId ? 0 : pendingPhotos }}
+      />
+
 
       {(batch.progress || photos) && batch.status !== "draft" && batch.status !== "discarded" ? (
         // key: komponen dipasang ulang saat status dari server berubah (mis. setelah coba ulang).
@@ -180,6 +189,9 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
               ? ` ${pendingOffers} harga resmi dari tarik otomatis tampil di baris produknya dan ikut diterapkan otomatis untuk produk yang dipilih.`
               : ` ${pendingOffers} penawaran dari berkas ini dibuat sebagai batch harga lanjutan setelah produk diterapkan, lalu ditinjau di sana sebelum disimpan.`
             : ""}
+          {pendingPhotos > 0
+            ? ` ${pendingPhotos} foto dari berkas ini menjadi batch foto setelah tahap ini diterapkan, lalu ditinjau per warna.`
+            : ""}
         </p>
       ) : null}
 
@@ -217,12 +229,21 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
           ) : (
             <OfferReportView summary={(report as OfferImportReport).summary!} />
           )}
-          {batch.followUpBatchId ? (
-            <Button asChild>
-              <Link href={`/admin/import/batch/${batch.followUpBatchId}`}>
-                Tinjau pratinjau harga resmi
-              </Link>
-            </Button>
+          {batch.followUpBatchId || batch.followUpPhotoBatchId ? (
+            <div className="flex flex-wrap gap-3">
+              {batch.followUpBatchId ? (
+                <Button asChild>
+                  <Link href={`/admin/import/batch/${batch.followUpBatchId}`}>
+                    {batch.origin === "scrape" ? "Tinjau pratinjau harga resmi" : "Lanjut: tinjau harga"}
+                  </Link>
+                </Button>
+              ) : null}
+              {batch.followUpPhotoBatchId ? (
+                <Button asChild variant={batch.followUpBatchId ? "outline" : "default"}>
+                  <Link href={`/admin/import/batch/${batch.followUpPhotoBatchId}`}>Lanjut: tinjau foto</Link>
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -237,6 +258,8 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
           editable={editable}
           applyAction={applyBatchAction.bind(null, batch.id)}
           followUpCount={batch.status === "draft" ? pendingOffers : 0}
+          followUpPhotoCount={batch.status === "draft" ? pendingPhotos : 0}
+          stageLabel={batch.kind === "offers" ? "Penawaran" : "Spesifikasi"}
           pricesOnlyAction={batch.kind === "specs" && pendingOffers > 0 ? applyPricesOnlyAction.bind(null, batch.id) : undefined}
         />
       </section>

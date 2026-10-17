@@ -20,6 +20,7 @@ import {
 } from "@/lib/import/batch-status";
 import {
   createBatch,
+  followUpPhotoRowsOf,
   followUpRowsOf,
   planBatchRows,
   queuePlannedItems,
@@ -33,7 +34,7 @@ import {
 } from "@/lib/import/batches";
 import { selectStoredCorrections, summarizeCorrections } from "@/lib/import/corrections";
 import { clearRawRows, loadRawRowList, loadRawRows, stageRawRows } from "@/lib/import/raw-rows";
-import { convertUnifiedRows } from "@/lib/import/unified";
+import { convertUnifiedRows, UNIFIED_PARTS } from "@/lib/import/unified";
 import type { CsvRow } from "@/lib/import/csv-parser";
 import { loadOfferContext, runOfferImport, type OfferContext } from "@/lib/import/offer-runner";
 import { runPhotoGalleryImport } from "@/lib/import/photo-gallery";
@@ -281,6 +282,27 @@ async function finalize(batch: LoadedBatch, progress: Progress, summary: AnySumm
     }
   }
 
+  // Foto CSV gabungan: tahap terakhir, ditinjau sebagai batch galeri. Produk
+  // baru di berkas sudah tersimpan di titik ini, jadi pencocokannya berhasil.
+  let followUpPhotoBatchId: string | null = null;
+  const photoFollowUp = batch.options.followUpPhotos;
+  if (photoFollowUp && !batch.options.skipFollowUp) {
+    const photoRows = await followUpPhotoRowsOf(batch.id, batch.options);
+    if (photoRows.length > 0) {
+      const created = await createBatch({
+        kind: "photos",
+        origin: batch.origin,
+        sourceLabel: photoFollowUp.sourceLabel,
+        options: { imageRights: batch.options.imageRights ?? null, parentBatchId: batch.id },
+        rows: photoRows,
+        malformedLines: [],
+        admin: actorOf(batch),
+      });
+      if (created.ok) followUpPhotoBatchId = created.id;
+      else console.error("[impor-worker] batch foto lanjutan gagal dibuat:", created.error);
+    }
+  }
+
   const { error } = await db()
     .from("import_batches")
     .update({
@@ -292,6 +314,7 @@ async function finalize(batch: LoadedBatch, progress: Progress, summary: AnySumm
         error: status === "failed" ? "Semua baris terpilih gagal diterapkan. Lihat alasan per baris di bawah." : null,
         summary,
         ...(followUpBatchId ? { followUpBatchId } : {}),
+        ...(followUpPhotoBatchId ? { followUpPhotoBatchId } : {}),
       },
     })
     .eq("id", batch.id)
@@ -405,15 +428,28 @@ async function analyzeBatch(batchId: string): Promise<StepResult> {
     let rows: CsvRow[];
 
     if (options.sourceFormat === "unified") {
-      const converted = convertUnifiedRows(await loadRawRowList(batchId, "upload"));
+      const parts = options.parts?.length ? options.parts : [...UNIFIED_PARTS];
+      const converted = convertUnifiedRows(await loadRawRowList(batchId, "upload"), parts);
       const offerRows = [...converted.followUpOfferRows, ...converted.offerRows];
+      const photoRows = converted.photoRows;
       const corrections = {
         items: selectStoredCorrections(converted.corrections),
         summary: summarizeCorrections(converted.corrections),
       };
-      if (converted.specRows.length === 0 && offerRows.length === 0) {
-        throw new AnalysisError("Tidak ada baris yang bisa dipakai. Periksa kolom merek, model, varian, dan offer_url.");
+      if (converted.specRows.length === 0 && offerRows.length === 0 && photoRows.length === 0) {
+        throw new AnalysisError(
+          "Tidak ada baris yang bisa dipakai untuk bagian yang dipilih. Periksa kolom merek, model, varian, offer_url, dan image_url."
+        );
       }
+      // Foto selalu tahap terakhir: menunggu produk (bila ada) atau penawaran
+      // tersimpan, lalu menjadi batch galeri. Hanya foto -> batch galeri langsung.
+      const photoFollowUp =
+        photoRows.length > 0 && (converted.specRows.length > 0 || offerRows.length > 0)
+          ? { sourceLabel: `${batch.source_label} (foto)`, count: photoRows.length }
+          : undefined;
+      await clearRawRows(batchId, "follow_up_photo");
+      if (photoFollowUp) await stageRawRows(batchId, "follow_up_photo", photoRows);
+
       // Berkas berisi produk -> batch spesifikasi; penawarannya menjadi batch
       // harga lanjutan setelah produk diterapkan. Hanya penawaran -> batch penawaran.
       if (converted.specRows.length > 0) {
@@ -422,6 +458,7 @@ async function analyzeBatch(batchId: string): Promise<StepResult> {
         options = {
           ...options,
           corrections,
+          followUpPhotos: photoFollowUp,
           followUpOffers:
             offerRows.length > 0
               ? {
@@ -435,9 +472,13 @@ async function analyzeBatch(batchId: string): Promise<StepResult> {
         };
         await clearRawRows(batchId, "follow_up");
         await stageRawRows(batchId, "follow_up", offerRows);
-      } else {
+      } else if (offerRows.length > 0) {
         kind = "offers";
         rows = converted.offerRows;
+        options = { ...options, corrections, followUpPhotos: photoFollowUp };
+      } else {
+        kind = "photos";
+        rows = photoRows;
         options = { ...options, corrections };
       }
       await clearRawRows(batchId, "row");

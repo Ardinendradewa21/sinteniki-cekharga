@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { GalleryUploadForm } from "@/components/admin/gallery-upload-form";
 import { UploadForm } from "@/components/admin/upload-form";
 import { PhotoReprocessForm } from "@/components/admin/photo-reprocess-form";
 import { ScrapeWorkbench } from "@/components/admin/scrape-workbench";
@@ -15,12 +14,9 @@ import {
   DRAFT_TTL_DAYS,
 } from "@/lib/import/batch-status";
 import { listBatches, type BatchSummary } from "@/lib/import/batches";
-import { templateSpesifikasi } from "@/lib/import/gsmarena";
 import { templateTerpadu } from "@/lib/import/unified";
-import { templatePenawaran, templateShopeeScrape } from "@/lib/import/offers";
-import { templateGaleri } from "@/lib/import/photo-gallery-rows";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
-import { MAX_PHOTOS_PER_COLOR, MAX_PHOTOS_PER_PRODUCT, MAX_UNCOLORED_PHOTOS } from "@/lib/import/photo-rules";
+import { MAX_PHOTOS_PER_COLOR, MAX_PHOTOS_PER_PRODUCT } from "@/lib/import/photo-rules";
 import { getSession, listRecentSessions } from "@/lib/scrape/sessions";
 import { SCRAPE_BRAND_LABELS, scrapeBrandOf, type ScrapeBrand } from "@/lib/scrape/types";
 import { cn } from "@/lib/utils";
@@ -37,10 +33,9 @@ export const maxDuration = 60;
 /**
  * Pusat Impor: satu pintu untuk semua sumber data (rencana kerja impor, Fase 3.3).
  *
- *   Unggah CSV     — spesifikasi (dataset GSMArena) dan penawaran (templat,
- *                    Shopee, Erafone).
+ *   Unggah CSV     — CSV gabungan: spesifikasi, penawaran, dan foto per warna
+ *                    dalam satu berkas (Sprint 8); format lama tetap dikenali.
  *   Tarik otomatis — daftar + harga dari situs resmi, spesifikasi dari GSMArena.
- *   Galeri foto    — foto per warna (satu baris per foto), lewat batch pratinjau.
  *   Foto           — antrean foto produk dan proses ulang foto lama.
  *   Riwayat        — semua batch beserta statusnya.
  *
@@ -51,7 +46,6 @@ export const maxDuration = 60;
 const TABS = [
   { id: "unggah", label: "Unggah CSV" },
   { id: "tarik", label: "Tarik otomatis" },
-  { id: "galeri", label: "Galeri foto" },
   { id: "foto", label: "Antrean foto" },
   { id: "riwayat", label: "Riwayat batch" },
 ] as const;
@@ -126,41 +120,93 @@ const ORIGIN_LABEL: Record<BatchSummary["origin"], string> = {
   schedule: "Pemeriksaan harian",
 };
 
+const COLUMN_GROUPS = [
+  {
+    title: "Identitas (setiap baris)",
+    columns: "brand, model_name, ram_gb, storage_gb",
+    note: "Produk dicocokkan lewat merek + model. slug opsional; bila diisi, harus menunjuk produk yang sama.",
+  },
+  {
+    title: "Spesifikasi (cukup satu baris per model)",
+    columns: "gsmarena_url, announced, network_technology, display_size_inches, chipset, battery_capacity_mah, nfc, ip_rating, colors, dan kolom spesifikasi lain",
+    note: "Mengisi kolom ini membuat baris membawa produk. Produk baru masuk sebagai draft.",
+  },
+  {
+    title: "Penawaran (satu baris per varian per toko)",
+    columns: "marketplace, seller_name, offer_url, price_idr, observed_at, warranty, listing_status, seller_verified, color",
+    note: "Harga kosong tetap kosong, bukan nol. observed_at kosong memakai tanggal berkas.",
+  },
+  {
+    title: "Foto (satu baris per foto)",
+    columns: "color, image_url, urutan, is_cover, image_source_url, image_usage_basis, image_usage_rights",
+    note: "Foto yang sama di beberapa baris dihitung sekali. Foto wajib menyebut warnanya.",
+  },
+];
+
 function UploadTab() {
   return (
     <div className="space-y-10">
-      <div className="rounded-xl border border-border bg-warning-muted p-5">
-        <p className="text-sm font-semibold text-warning">Yang tidak ikut diimpor</p>
-        <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-foreground">
-          <li>
-            Harga dari dataset spesifikasi. Kolom harganya berisi harga referensi internasional dengan mata uang campur,
-            termasuk Rupee India yang simbolnya mirip Rupiah. Harga hanya boleh berasal dari penawaran marketplace yang
-            dicatat beserta waktu pemeriksaannya.
-          </li>
-          <li>Perangkat selain smartphone. Tablet dan jam tangan dilewati dengan alasan yang dinyatakan.</li>
-          <li>Ulasan reviewer. Kurasinya manual dari channel pilihan, tidak pernah ditarik otomatis.</li>
-        </ul>
-      </div>
-
       <section>
-        <h2 className="text-xl font-bold tracking-tight text-foreground">Unggah data</h2>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Unggah CSV gabungan</h2>
         <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
-          Satu formulir untuk spesifikasi produk dan harga. Pakai templat terpadu: satu baris per varian, kolom boleh
-          kosong, dan nilai yang dirapikan otomatis ditampilkan di pratinjau. Produk baru masuk sebagai draft, dan harga
-          hanya menempel ke varian yang benar-benar ada; listing yang namanya tidak cocok tepat dilewati beserta
-          alasannya.
+          Satu berkas untuk semua data: spesifikasi produk, penawaran dan harga, serta foto per warna. Berkas boleh berisi
+          ketiganya atau salah satunya saja, dan kamu memilih bagian mana yang diimpor. Setiap bagian ditinjau sebagai
+          tahap tersendiri: produk dulu, lalu harga, lalu foto, karena harga dan foto produk baru baru bisa dicocokkan
+          setelah produknya tersimpan.
         </p>
         <div className="mt-5">
-          <UploadForm
-            templates={{
-              unified: templateTerpadu(),
-              specs: templateSpesifikasi(),
-              offers: templatePenawaran(),
-              shopee: templateShopeeScrape(),
-            }}
-          />
+          <UploadForm template={templateTerpadu()} />
         </div>
       </section>
+
+      <section aria-labelledby="panduan-kolom">
+        <h2 id="panduan-kolom" className="text-lg font-bold text-foreground">
+          Panduan kolom
+        </h2>
+        <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
+          Jenis baris dikenali dari kolom yang terisi, bukan dari urutan atau nama tab. Kolom boleh kosong dan nilai yang
+          dirapikan otomatis (harga, tanggal, kapasitas) ditampilkan di pratinjau.
+        </p>
+        <dl className="mt-4 grid gap-3 md:grid-cols-2">
+          {COLUMN_GROUPS.map((group) => (
+            <div key={group.title} className="rounded-xl border border-border bg-card p-4">
+              <dt className="text-sm font-semibold text-foreground">{group.title}</dt>
+              <dd className="mt-1.5 text-sm text-muted-foreground">
+                <code className="text-xs leading-relaxed break-words text-foreground">{group.columns}</code>
+                <p className="mt-1.5">{group.note}</p>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-border bg-muted/40 p-5 text-sm leading-relaxed text-foreground">
+          <p className="font-semibold">Aturan foto</p>
+          <ul className="mt-2 list-disc space-y-1.5 pl-5">
+            <li>
+              Paling banyak {MAX_PHOTOS_PER_COLOR} foto per warna dan {MAX_PHOTOS_PER_PRODUCT} foto per produk. Saat batas
+              tercapai, sampul dan urutan terkecil didahulukan.
+            </li>
+            <li>Satu sampul per warna (is_cover = ya). Sampul yang sudah dipilih admin tidak ditimpa impor.</li>
+            <li>
+              URL foto yang sama untuk dua warna, atau warna di luar daftar warna spesifikasi, ditandai Perlu tinjau.
+            </li>
+            <li>Foto diproses di antrean terpisah; hasilnya terlihat di tab Antrean foto dan halaman produk.</li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-border bg-warning-muted p-5">
+          <p className="text-sm font-semibold text-warning">Yang tidak ikut diimpor</p>
+          <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-foreground">
+            <li>
+              Harga dari dataset spesifikasi. Kolom harganya berisi harga referensi internasional dengan mata uang campur.
+              Harga hanya boleh berasal dari penawaran yang dicatat beserta waktu pemeriksaannya.
+            </li>
+            <li>Perangkat selain smartphone. Tablet dan jam tangan dilewati dengan alasan yang dinyatakan.</li>
+            <li>Ulasan reviewer. Kurasinya di menu Ulasan YouTube, tidak lewat berkas.</li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }
@@ -229,35 +275,6 @@ async function ScrapeTab({
 
       {/* key: pindah sesi = mulai dari state sesi itu, bukan sisa sesi sebelumnya. */}
       <ScrapeWorkbench key={session?.id ?? "baru"} initialSession={session} initialBrand={brand} initialFilter={search} />
-    </div>
-  );
-}
-
-function GalleryTab() {
-  return (
-    <div className="space-y-6">
-      <section>
-        <h2 className="text-xl font-bold tracking-tight text-foreground">Galeri foto per warna</h2>
-        <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
-          Tambahkan foto produk yang sudah ada di katalog, dikelompokkan per warna. Produk dicocokkan lewat merek dan
-          model dengan aturan yang sama seperti templat terpadu. Pratinjau menandai setiap foto <strong>Baru</strong>,{" "}
-          <strong>Sama</strong> (URL itu sudah tersimpan untuk warna yang sama), atau <strong>Dilewati</strong> beserta
-          alasannya.
-        </p>
-      </section>
-      <div className="rounded-xl border border-border bg-muted/40 p-5 text-sm leading-relaxed text-foreground">
-        <p className="font-semibold">Aturan galeri</p>
-        <ul className="mt-2 list-disc space-y-1.5 pl-5">
-          <li>
-            Paling banyak {MAX_PHOTOS_PER_COLOR} foto per warna, {MAX_UNCOLORED_PHOTOS} foto tanpa warna, dan{" "}
-            {MAX_PHOTOS_PER_PRODUCT} foto per produk. Saat batas tercapai, sampul dan urutan terkecil didahulukan.
-          </li>
-          <li>Satu sampul per warna. Sampul yang sudah dipilih admin tidak ditimpa impor.</li>
-          <li>Warna disimpan apa adanya. Warna di luar daftar warna spesifikasi produk ditandai Perlu tinjau.</li>
-          <li>Foto diproses di antrean terpisah; hasilnya terlihat di tab Antrean foto dan halaman produk.</li>
-        </ul>
-      </div>
-      <GalleryUploadForm template={templateGaleri()} />
     </div>
   );
 }
@@ -347,7 +364,6 @@ export default async function ImportPage(props: PageProps<"/admin/import">) {
           </>
         ) : null}
         {tab === "tarik" ? <ScrapeTab sessionId={sessionId} brand={brand} search={search} /> : null}
-        {tab === "galeri" ? <GalleryTab /> : null}
         {tab === "foto" ? <PhotoTab /> : null}
         {tab === "riwayat" ? (
           <section aria-labelledby="riwayat">

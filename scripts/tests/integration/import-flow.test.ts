@@ -474,8 +474,8 @@ test("INT-09 pratinjau langkah 5: harga lama ditandai, spesifikasi saja, harga s
   assert.ok(resolved.rows.every((row) => row.slug === "qauji-langkah-1" && !row.source_key));
 });
 
-test("INT-10 foto di templat terpadu: produk lama mendapat foto galeri tiap warna, harga dari baris terakhir", async () => {
-  const { convertUnifiedRows } = await import("@/lib/import/unified");
+test("INT-10 CSV gabungan: harga produk lama lalu foto per warna sebagai tahap lanjutan, foto ganda dihitung sekali", async () => {
+  const { stageUpload } = await import("@/lib/import/batches");
   const base = await createBatch({ kind: "specs", origin: "csv", sourceLabel: "QA-UJI foto produk", options: {}, rows: [spec("Foto", 1)], malformedLines: [], admin: actor });
   assert.ok(base.ok);
   batches.push(base.id);
@@ -486,30 +486,87 @@ test("INT-10 foto di templat terpadu: produk lama mendapat foto galeri tiap warn
     link: "https://www.blibli.com/p/qauji-foto-1", harga: price, diperiksa: "10/10/2026 09:00",
     url_image: `https://down-id.img.susercontent.com/file/qa-uji-${color}`, color,
   });
-  const converted = convertUnifiedRows([row("Rp 2.000.000", "biru"), row("Rp 2.100.000", "hijau")]);
-  assert.equal(converted.specRows.length, 0, "foto tidak membuat baris produk untuk produk lama");
-  assert.equal(converted.offerRows.length, 2);
-
-  const created = await createBatch({
-    kind: "offers", origin: "csv", sourceLabel: "QA-UJI foto harga", rows: converted.offerRows, malformedLines: [], admin: actor,
+  const staged = await stageUpload({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI foto harga", role: "upload", malformedLines: [], admin: actor,
     options: { sourceFormat: "unified", imageRights: { basis: "own-work", text: "Aset uji QA" }, defaultObservedAt: new Date().toISOString() },
+    rows: [
+      row("Rp 2.000.000", "biru"),
+      row("Rp 2.100.000", "hijau"),
+      // Foto saja, mengulang foto biru: dihitung sekali.
+      { merek: "QAUji", model: "Foto 1", warna: "biru", url_image: "https://down-id.img.susercontent.com/file/qa-uji-biru", urutan: "1", sampul: "ya" },
+    ],
   });
-  assert.ok(created.ok, JSON.stringify(created));
-  batches.push(created.id);
-  const detail = (await getBatch(created.id))!;
-  const winner = detail.items.find((i) => i.action === "create")!;
-  assert.equal(winner.view.photos, "2 foto", "foto kedua warna dihitung di penawaran pemenang");
-  assert.match(detail.items.find((i) => i.action === "skip")?.reason ?? "", /fotonya tetap ikut/);
+  assert.ok(staged.ok);
+  batches.push(staged.id);
+  await processBatchStep(staged.id);
+  const offersBatch = (await getBatch(staged.id))!;
+  assert.equal(offersBatch.kind, "offers", "tanpa spesifikasi: tahap pertama penawaran");
+  assert.equal(offersBatch.options.followUpPhotos?.count, 2, "dua foto unik menunggu sebagai tahap foto");
+  assert.ok(offersBatch.items.every((item) => !item.view.photos), "penawaran tidak lagi membawa foto");
 
-  await applyAll(created.id);
+  await applyAll(staged.id);
+  const applied = (await getBatch(staged.id))!;
+  const photoBatchId = applied.followUpPhotoBatchId!;
+  assert.ok(photoBatchId, "batch foto lanjutan dibuat setelah penawaran diterapkan");
+  batches.push(photoBatchId);
+  const photoBatch = (await getBatch(photoBatchId))!;
+  assert.equal(photoBatch.kind, "photos");
+  assert.equal(photoBatch.status, "draft", "foto ditinjau dulu");
+  assert.equal(photoBatch.options.parentBatchId, staged.id);
+  assert.deepEqual(photoBatch.items.map((i) => i.action).sort(), ["create", "create"]);
+
   const offers = ((await db.from("offers").select("id").eq("url", "https://www.blibli.com/p/qauji-foto-1")).data ?? []) as { id: string }[];
   assert.equal(offers.length, 1);
   const prices = ((await db.from("price_observations").select("price_idr").eq("offer_id", offers[0]!.id)).data ?? []) as { price_idr: number }[];
   assert.deepEqual(prices.map((p) => Number(p.price_idr)), [2100000], "data baris terakhir yang dipakai");
-  const jobs = ((await db.from("photo_jobs").select("kind, image_url, batch_id").like("image_url", "https://down-id.img.susercontent.com/file/qa-uji-%")).data ?? []) as
-    { kind: string; image_url: string; batch_id: string }[];
+
+  await applyAll(photoBatchId);
+  const jobs = ((await db.from("photo_jobs").select("kind, image_url, batch_id, color, is_cover").like("image_url", "https://down-id.img.susercontent.com/file/qa-uji-%")).data ?? []) as
+    { kind: string; image_url: string; batch_id: string; color: string; is_cover: boolean }[];
   assert.equal(jobs.length, 2);
-  assert.ok(jobs.every((j) => j.kind === "gallery" && j.batch_id === created.id));
+  assert.ok(jobs.every((j) => j.kind === "gallery" && j.batch_id === photoBatchId));
+  assert.ok(jobs.find((j) => j.color === "biru")?.is_cover, "sampul dari baris foto");
+});
+
+test("INT-14 CSV gabungan: produk baru + foto, foto menunggu produk tersimpan; bagian Foto saja langsung batch galeri", async () => {
+  const { stageUpload } = await import("@/lib/import/batches");
+  const rows: Record<string, string>[] = [
+    { merek: "QAUji", model: "Gabung 1", ram: "8", storage: "128", chipset: "Chip QA", warna: "Hitam",
+      url_image: "https://down-id.img.susercontent.com/file/qa-uji-gabung-hitam", sampul: "ya" },
+    { merek: "QAUji", model: "Gabung 1", warna: "Putih", url_image: "https://down-id.img.susercontent.com/file/qa-uji-gabung-putih" },
+  ];
+  const staged = await stageUpload({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI gabung", role: "upload", malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: { basis: "own-work", text: "Aset uji QA" }, defaultObservedAt: new Date().toISOString() },
+    rows,
+  });
+  assert.ok(staged.ok);
+  batches.push(staged.id);
+  await processBatchStep(staged.id);
+  const specsBatch = (await getBatch(staged.id))!;
+  assert.equal(specsBatch.kind, "specs");
+  assert.equal(specsBatch.options.followUpPhotos?.count, 2);
+  assert.equal(specsBatch.options.followUpOffers, undefined, "berkas tanpa harga");
+  await applyAll(staged.id);
+  const photoBatchId = (await getBatch(staged.id))!.followUpPhotoBatchId!;
+  assert.ok(photoBatchId, "foto produk baru menjadi batch galeri setelah produknya tersimpan");
+  batches.push(photoBatchId);
+  const photoBatch = (await getBatch(photoBatchId))!;
+  assert.deepEqual(photoBatch.items.map((i) => i.action).sort(), ["create", "create"], "produk baru ditemukan");
+
+  // Bagian Foto saja dari berkas yang sama: tanpa tahap produk.
+  const photosOnly = await stageUpload({
+    kind: "specs", origin: "csv", sourceLabel: "QA-UJI gabung foto saja", role: "upload", malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: { basis: "own-work", text: "Aset uji QA" }, parts: ["photos"] },
+    rows,
+  });
+  assert.ok(photosOnly.ok);
+  batches.push(photosOnly.id);
+  await processBatchStep(photosOnly.id);
+  const only = (await getBatch(photosOnly.id))!;
+  assert.equal(only.kind, "photos");
+  assert.equal(only.options.followUpPhotos, undefined);
+  assert.equal(only.items.length, 2);
 });
 
 test("INT-11 warna penawaran: gabungan baris per warna, diganti saat impor ulang, sel kosong tidak menghapus", async () => {
@@ -538,10 +595,10 @@ test("INT-11 warna penawaran: gabungan baris per warna, diganti saat impor ulang
   const colorsOf = async () =>
     (((await db.from("offers").select("colors").eq("url", url)).data ?? []) as { colors: string[] }[]).map((o) => o.colors);
 
-  const first = await importRows("QA-UJI warna 1", [row("Hitam"), row("Hijau")]);
+  await importRows("QA-UJI warna 1", [row("Hitam"), row("Hijau")]);
   assert.deepEqual(await colorsOf(), [["Hitam", "Hijau"]], "satu penawaran, URL Shopee dirapikan, warna digabung");
-  const jobs = ((await db.from("photo_jobs").select("color").eq("batch_id", first)).data ?? []) as { color: string }[];
-  assert.deepEqual(jobs.map((j) => j.color).sort(), ["Hijau", "Hitam"], "warna ikut antrean foto");
+  // Sejak CSV gabungan, foto tidak menempel ke penawaran: warnanya ikut baris foto (lihat INT-10).
+  assert.deepEqual(convertUnifiedRows([row("Hitam"), row("Hijau")]).photoRows.map((photo) => photo.color), ["Hitam", "Hijau"], "warna ikut baris foto");
 
   await importRows("QA-UJI warna 2", [row("Biru", "Rp 2.100.000")]);
   assert.deepEqual(await colorsOf(), [["Biru"]], "warna terisi menggantikan daftar lama");

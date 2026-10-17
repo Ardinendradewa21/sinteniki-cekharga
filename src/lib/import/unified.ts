@@ -14,20 +14,19 @@ import {
 } from "@/lib/import/normalize";
 
 /**
- * Templat terpadu: spesifikasi dan penawaran dalam SATU berkas (langkah 3
- * rancangan impor terpadu, 2026-10-10).
+ * CSV gabungan: spesifikasi, penawaran, dan foto dalam SATU berkas (templat
+ * terpadu 2026-10-10, foto digabung Sprint 8 2026-10-17).
  *
- * Satu baris = satu varian, dan opsional satu listing toko untuk varian itu.
- * Setiap baris dibaca menurut kelompok kolom yang terisi:
+ * Setiap baris dibaca menurut kelompok kolom yang terisi, dan satu baris boleh
+ * membawa lebih dari satu jenis:
  *   - kolom spesifikasi (atau gsmarena_url) terisi -> baris membawa produk;
  *   - kolom penawaran (offer_url, harga, toko) terisi -> baris membawa penawaran;
- *   - keduanya boleh terisi sekaligus.
+ *   - image_url terisi -> baris membawa satu foto (warna, urutan, sampul).
  *
- * Kolom foto (image_url) tidak menentukan jenis baris:
- *   - produk di berkas ini -> foto pertama menjadi foto utama produk, foto lain
- *     di baris penawarannya (mis. per warna) masuk galeri;
- *   - produk yang sudah ada di katalog -> foto ikut baris penawarannya dan
- *     masuk galeri produk itu.
+ * Semua foto lewat satu jalur, yaitu aturan galeri (batas per warna, satu
+ * sampul per warna, deteksi foto yang sama). Foto yang sama di beberapa baris
+ * (mis. diulang per varian) dihitung sekali. Admin bisa memilih bagian yang
+ * diimpor (`parts`); kolom bagian yang tidak dipilih diabaikan sejak awal.
  *
  * Baris produk yang sama digabung: varian dikumpulkan, dan spesifikasi cukup
  * diisi di salah satu baris. Bila dua baris memberi nilai berbeda untuk kolom
@@ -71,6 +70,9 @@ export const UNIFIED_COLUMNS = [
   // warna dan foto (opsional; foto dari host yang diizinkan dan wajib dasar hak pakai)
   "color",
   "image_url",
+  "urutan",
+  "is_cover",
+  "image_source_url",
   "image_usage_basis",
   "image_usage_rights",
   // penawaran (opsional)
@@ -110,9 +112,20 @@ const SPEC_DATA_COLUMNS = [
  * mengisinya di setiap baris, dan itu tidak boleh membuat produk lama
  * dianggap produk baru (2026-10-12).
  */
-const SPEC_PASSTHROUGH_COLUMNS = ["device_type", "colors", "image_url", "image_usage_basis", "image_usage_rights", "memory_variants_raw"] as const;
+const SPEC_PASSTHROUGH_COLUMNS = ["device_type", "colors", "memory_variants_raw"] as const;
 
-const IMAGE_COLUMNS = ["image_url", "image_usage_basis", "image_usage_rights"] as const;
+const PHOTO_COLUMNS = ["image_url", "urutan", "is_cover", "image_source_url", "image_usage_basis", "image_usage_rights"] as const;
+
+/** Bagian CSV gabungan yang bisa dipilih admin saat mengunggah. */
+export const UNIFIED_PARTS = ["specs", "offers", "photos"] as const;
+export type UnifiedPart = (typeof UNIFIED_PARTS)[number];
+
+/** Kolom milik tiap bagian; dikosongkan bila bagiannya tidak dipilih. */
+const PART_COLUMNS: Record<UnifiedPart, readonly string[]> = {
+  specs: [...SPEC_DATA_COLUMNS, "gsmarena_url", "memory_variants_summary"],
+  offers: ["offer_url", "price_idr", "marketplace", "seller_name", "observed_at", "warranty", "listing_status", "seller_verified"],
+  photos: PHOTO_COLUMNS,
+};
 
 /** Host GSMArena: kolom `url` berisi tautan ini dibaca sebagai sumber spesifikasi. */
 const GSMARENA_URL = /^(?:https?:\/\/(?:www\.|m\.)?gsmarena\.com\/)?[a-z0-9_]+-\d+\.php$/i;
@@ -137,6 +150,8 @@ type UnifiedConversion = {
   followUpOfferRows: CsvRow[];
   /** Penawaran untuk produk yang sudah ada di katalog: membawa `slug`. */
   offerRows: CsvRow[];
+  /** Foto dalam format galeri (photo-gallery-rows.ts), satu baris per foto unik. */
+  photoRows: CsvRow[];
   corrections: Correction[];
 };
 
@@ -154,10 +169,15 @@ type ParsedRow = {
   hasOffer: boolean;
 };
 
-export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
+export function convertUnifiedRows(
+  rows: readonly CsvRow[],
+  parts: readonly UnifiedPart[] = UNIFIED_PARTS
+): UnifiedConversion {
   const corrections: Correction[] = [];
   const followUpOfferRows: CsvRow[] = [];
   const offerRows: CsvRow[] = [];
+  const photoRows: CsvRow[] = [];
+  const excluded = UNIFIED_PARTS.filter((part) => !parts.includes(part)).flatMap((part) => PART_COLUMNS[part]);
 
   const log = (line: number, column: string, from: string, result: Normalized) => {
     if (result.note) corrections.push({ line, column, from, to: result.value, note: result.note, level: "info" });
@@ -168,6 +188,7 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
   const parsed: ParsedRow[] = rows.map((raw, index) => {
     const line = index + 2;
     const r = canonicalRow(raw, line, corrections);
+    for (const column of excluded) delete r[column];
     // Varian: kolom ram_gb/storage_gb, atau kolom gabungan "variant" (8/256GB).
     let ram = log(line, "ram_gb", r.ram_gb ?? "", normalizeMemoryGb(r.ram_gb ?? ""));
     let storage = log(line, "storage_gb", r.storage_gb ?? "", normalizeMemoryGb(r.storage_gb ?? ""));
@@ -233,20 +254,51 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
 
   // Tahap 2: bentuk baris spesifikasi gabungan dan baris penawaran.
   const products = new Map<string, ProductEntry>();
+  const photoLines = new Map<string, { line: number; row: CsvRow }>();
+  const addPhoto = (row: ParsedRow) => {
+    const { line, r } = row;
+    if (!row.group && !r.slug) {
+      corrections.push({ line, column: "image_url", from: r.image_url ?? "", to: "", note: "Foto butuh merek dan model (atau slug) di baris yang sama; dilewati.", level: "error" });
+      return;
+    }
+    if (!r.color) {
+      corrections.push({ line, column: "color", from: "", to: "", note: "Foto wajib menyebut warnanya di kolom color; foto dilewati.", level: "error" });
+      return;
+    }
+    // Foto yang sama sering diulang per varian atau per toko: dihitung sekali.
+    // Urutan, sampul, dan halaman asal dari baris ulangan mengisi yang kosong.
+    const key = `${row.group ?? r.slug}|${r.color.toLowerCase()}|${r.image_url}`;
+    const first = photoLines.get(key);
+    if (first !== undefined) {
+      for (const [target, source] of [["urutan", "urutan"], ["is_cover", "is_cover"], ["source_url", "image_source_url"]] as const) {
+        if (!first.row[target] && r[source]) first.row[target] = r[source]!;
+      }
+      corrections.push({ line, column: "image_url", from: "", to: "", note: `Foto yang sama dengan baris ${first.line}; dihitung sekali.`, level: "info" });
+      return;
+    }
+    const photo: CsvRow = {
+      brand: r.brand ?? "",
+      model_name: r.model_name ?? "",
+      slug: row.group ? "" : (r.slug ?? ""),
+      color: r.color,
+      urutan: r.urutan ?? "",
+      is_cover: r.is_cover ?? "",
+      image_url: r.image_url ?? "",
+      source_url: r.image_source_url ?? "",
+      image_usage_basis: r.image_usage_basis ?? "",
+      image_usage_rights: r.image_usage_rights ?? "",
+    };
+    photoLines.set(key, { line, row: photo });
+    photoRows.push(photo);
+  };
   for (const row of parsed) {
     const { line, r, ram, storage } = row;
     const productGroup = row.group ? productGroups.get(row.group) : undefined;
-    if (!row.hasSpec && !row.hasOffer && !(productGroup && r.image_url)) {
-      corrections.push({
-        line,
-        column: r.image_url ? "image_url" : "-",
-        from: "",
-        to: "",
-        note: r.image_url
-          ? "Foto untuk produk yang sudah ada perlu penawaran di baris yang sama, atau gsmarena_url produknya; dilewati."
-          : "Baris tidak berisi spesifikasi maupun penawaran; dilewati.",
-        level: "error",
-      });
+    if (r.image_url) addPhoto(row);
+    if (!row.hasSpec && !row.hasOffer) {
+      if (!r.image_url) {
+        corrections.push({ line, column: "-", from: "", to: "", note: "Baris tidak berisi spesifikasi, penawaran, maupun foto; dilewati.", level: "error" });
+      }
       continue;
     }
     if (row.hasSpec && !productGroup) {
@@ -255,8 +307,6 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
     }
 
     let sourceKey: string | null = null;
-    // Foto baris ini yang ikut penawarannya ke galeri produk.
-    let galleryImage = false;
     if (productGroup && row.group) {
       // Kunci yang sama dengan `mapRow`, supaya penawaran lanjutan menemukan produknya.
       sourceKey = productGroup.gsmarena
@@ -272,12 +322,6 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
         const value = r[column];
         if (!value) continue;
         const current = entry.row[column];
-        if (current && current !== value && column === "image_url" && row.hasOffer) {
-          // Foto lain untuk produk yang sama (mis. warna lain) masuk galeri lewat penawarannya.
-          galleryImage = true;
-          continue;
-        }
-        if (current && current !== value && (IMAGE_COLUMNS as readonly string[]).includes(column) && galleryImage) continue;
         if (current && current !== value) {
           corrections.push({
             line,
@@ -292,8 +336,6 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
         if (!current) {
           entry.row[column] = value;
           entry.lines.set(column, line);
-          // Warna foto utama ikut baris yang menyumbang fotonya.
-          if (column === "image_url" && r.color) entry.row.image_color = r.color;
         }
       }
       if (/^\d+$/.test(ram) && /^\d+$/.test(storage)) entry.variants.set(`${ram}|${storage}`, [Number(ram), Number(storage)]);
@@ -314,10 +356,6 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
         observed_at: log(line, "observed_at", r.observed_at ?? "", normalizeObservedAt(r.observed_at ?? "")),
         color: r.color ?? "",
       };
-      // Produk lama: foto selalu ikut penawaran. Produk di berkas: hanya foto tambahan.
-      if (!sourceKey || galleryImage) {
-        for (const column of IMAGE_COLUMNS) if (r[column]) offer[column] = r[column]!;
-      }
       if (sourceKey) {
         followUpOfferRows.push({ ...offer, source_key: sourceKey });
       } else {
@@ -354,7 +392,7 @@ export function convertUnifiedRows(rows: readonly CsvRow[]): UnifiedConversion {
     return { ...entry.row, memory_variants_summary: summary };
   });
 
-  return { specRows, followUpOfferRows, offerRows, corrections };
+  return { specRows, followUpOfferRows, offerRows, photoRows, corrections };
 }
 
 /** Kunci baris diganti nama kanonik (alias header); sel dirapikan spasinya. */
@@ -375,14 +413,19 @@ function canonicalRow(raw: CsvRow, line: number, corrections: Correction[]): Csv
   return row;
 }
 
-/** Isi templat terpadu untuk tombol unduh: produk baru dengan dua varian, harga, dan foto utamanya, serta harga dan foto galeri untuk produk lama. */
+/**
+ * Isi templat CSV gabungan untuk tombol unduh. Contohnya memperlihatkan ketiga
+ * jenis baris: produk baru (spesifikasi + varian + harga), foto per warna
+ * (sampul dan urutan), serta harga dan foto untuk produk yang sudah ada.
+ */
 export function templateTerpadu(): string {
   const empty = Object.fromEntries(UNIFIED_COLUMNS.map((column) => [column, ""])) as Record<(typeof UNIFIED_COLUMNS)[number], string>;
+  const reno = { ...empty, brand: "OPPO", model_name: "Reno16c" };
+  const a6c = { ...empty, brand: "OPPO", model_name: "A6c" };
   const rows = [
+    // Produk baru: spesifikasi cukup di satu baris, harga per varian.
     {
-      ...empty,
-      brand: "OPPO",
-      model_name: "Reno16c",
+      ...reno,
       gsmarena_url: "oppo_reno16c_5g-14768.php",
       ram_gb: "8",
       storage_gb: "128",
@@ -393,8 +436,8 @@ export function templateTerpadu(): string {
       battery_capacity_mah: "7000",
       nfc: "No",
       ip_rating: "IP68",
+      colors: "Hitam, Ungu",
       color: "Hitam",
-      image_url: "https://fdn2.gsmarena.com/vv/bigpic/contoh.jpg",
       marketplace: "Situs resmi OPPO Indonesia",
       seller_name: "OPPO Indonesia",
       offer_url: "https://www.oppo.com/id/smartphones/series-reno/reno16c/",
@@ -402,10 +445,7 @@ export function templateTerpadu(): string {
       observed_at: "10/10/2026 09:00",
     },
     {
-      ...empty,
-      brand: "OPPO",
-      model_name: "Reno16c",
-      gsmarena_url: "oppo_reno16c_5g-14768.php",
+      ...reno,
       ram_gb: "8",
       storage_gb: "256",
       marketplace: "Situs resmi OPPO Indonesia",
@@ -414,22 +454,26 @@ export function templateTerpadu(): string {
       price_idr: "",
       observed_at: "10/10/2026 09:00",
     },
+    // Foto: satu baris per foto, dikelompokkan per warna.
+    { ...reno, color: "Hitam", image_url: "https://fdn2.gsmarena.com/vv/bigpic/contoh-hitam-depan.jpg", urutan: "1", is_cover: "ya" },
+    { ...reno, color: "Hitam", image_url: "https://fdn2.gsmarena.com/vv/bigpic/contoh-hitam-belakang.jpg", urutan: "2" },
+    { ...reno, color: "Ungu", image_url: "https://fdn2.gsmarena.com/vv/bigpic/contoh-ungu.jpg", urutan: "1", is_cover: "ya" },
+    // Produk yang sudah ada di katalog: harga dan foto saja.
     {
-      ...empty,
-      slug: "oppo-a6c",
+      ...a6c,
       ram_gb: "4",
       storage_gb: "128",
+      color: "Biru",
       marketplace: "Blibli",
       seller_name: "Toko Contoh",
       offer_url: "https://www.blibli.com/p/contoh",
-      color: "Biru",
-      image_url: "https://down-id.img.susercontent.com/file/contoh",
       price_idr: "1999000",
       observed_at: "2026-10-10T09:00:00+07:00",
       warranty: "Garansi resmi Indonesia",
       listing_status: "aktif",
       seller_verified: "tidak",
     },
+    { ...a6c, color: "Biru", image_url: "https://down-id.img.susercontent.com/file/contoh", urutan: "1", is_cover: "ya", image_source_url: "https://www.blibli.com/p/contoh" },
   ];
   const cell = (value: string) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
   return [UNIFIED_COLUMNS.join(","), ...rows.map((row) => UNIFIED_COLUMNS.map((column) => cell(row[column])).join(","))].join("\n") + "\n";

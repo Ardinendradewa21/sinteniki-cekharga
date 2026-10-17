@@ -48,12 +48,13 @@ test.describe("Pusat Impor", () => {
     });
   });
 
-  test("TC-IMP-01 lima tab tersedia dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
+  test("TC-IMP-01 empat tab tersedia (galeri melebur ke CSV gabungan) dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
     await page.goto("/admin/import");
     const nav = page.getByRole("navigation", { name: "Sumber impor" });
-    for (const tab of ["Unggah CSV", "Tarik otomatis", "Galeri foto", "Antrean foto", "Riwayat batch"]) {
+    for (const tab of ["Unggah CSV", "Tarik otomatis", "Antrean foto", "Riwayat batch"]) {
       await expect(nav.getByRole("link", { name: tab, exact: true })).toBeVisible();
     }
+    await expect(nav.getByRole("link", { name: "Galeri foto", exact: true })).toHaveCount(0);
     await nav.getByRole("link", { name: /riwayat/i }).click();
     await expect(page.locator("main")).toContainText(/CSV|Tarik otomatis|Pemeriksaan harian/);
   });
@@ -63,12 +64,11 @@ test.describe("Pusat Impor", () => {
     await expect(page).toHaveURL(/\/admin\/import\?tab=tarik/);
   });
 
-  test("TC-IMP-03 templat terpadu dan templat format lama bisa diunduh dengan header importer @regression", async ({ page }) => {
+  test("TC-IMP-03 hanya templat CSV gabungan yang ditawarkan, lengkap dengan kolom foto @regression", async ({ page }) => {
     await page.goto("/admin/import?tab=unggah");
+    await expect(page.getByRole("button", { name: "Templat spesifikasi" })).toHaveCount(0);
     const cases = [
-      { button: "Templat terpadu", file: "templat-terpadu-cekharga.csv", header: /^\uFEFF?brand,model_name,slug,gsmarena_url,ram_gb,storage_gb,/ },
-      { button: "Templat spesifikasi", file: "templat-spesifikasi-cekharga.csv", header: /^\uFEFF?brand,model_name,memory_variants_summary,url,/ },
-      { button: "Templat penawaran", file: "templat-penawaran-cekharga.csv", header: /^\uFEFF?slug,ram_gb,storage_gb,marketplace,/ },
+      { button: "Unduh templat CSV gabungan", file: "templat-csv-gabungan-cekharga.csv", header: /^\uFEFF?brand,model_name,slug,gsmarena_url,ram_gb,storage_gb,.*image_url,urutan,is_cover,image_source_url,/ },
     ];
     for (const { button, file, header } of cases) {
       const [download] = await Promise.all([
@@ -99,15 +99,16 @@ test.describe("Pusat Impor", () => {
     await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
   });
 
-  test("TC-IMP-06 tab Galeri foto: templat galeri dikenali sebagai batch galeri foto @regression", async ({ page }) => {
-    await page.goto("/admin/import?tab=galeri");
+  test("TC-IMP-06 CSV gabungan dengan bagian Foto saja menjadi batch galeri foto @regression", async ({ page }) => {
+    await page.goto("/admin/import?tab=unggah");
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.getByRole("button", { name: "Templat galeri foto" }).click(),
+      page.getByRole("button", { name: "Unduh templat CSV gabungan" }).click(),
     ]);
-    expect(download.suggestedFilename()).toBe("templat-galeri-foto-cekharga.csv");
-    await page.locator("#berkas-galeri").setInputFiles({ name: "qa-e2e-galeri.csv", mimeType: "text/csv", buffer: fs.readFileSync(await download.path()) });
-    await page.getByRole("button", { name: "Buat pratinjau galeri" }).click();
+    await page.getByRole("checkbox", { name: /Spesifikasi produk/ }).uncheck();
+    await page.getByRole("checkbox", { name: /Penawaran & harga/ }).uncheck();
+    await page.locator("#berkas").setInputFiles({ name: "qa-e2e-galeri.csv", mimeType: "text/csv", buffer: fs.readFileSync(await download.path()) });
+    await page.getByRole("button", { name: "Buat pratinjau" }).click();
     await page.waitForURL(/\/admin\/import\/batch\//, { timeout: 60_000 });
     await expect(page.locator("main")).toContainText("Galeri foto");
     // Templat contoh tidak memilih dasar hak pakai: fotonya dilewati dengan alasan, tidak diam-diam disimpan.
@@ -116,13 +117,13 @@ test.describe("Pusat Impor", () => {
     await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
   });
 
-  test("TC-IMP-05 templat terpadu: koreksi otomatis tampil dan harga menjadi batch lanjutan @regression", async ({ page }) => {
+  test("TC-IMP-05 CSV gabungan: koreksi otomatis tampil, harga dan foto menjadi tahap lanjutan @regression", async ({ page }) => {
     await page.goto("/admin/import?tab=unggah");
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.getByRole("button", { name: "Templat terpadu" }).click(),
+      page.getByRole("button", { name: "Unduh templat CSV gabungan" }).click(),
     ]);
-    expect(download.suggestedFilename()).toBe("templat-terpadu-cekharga.csv");
+    expect(download.suggestedFilename()).toBe("templat-csv-gabungan-cekharga.csv");
     const path = await download.path();
     await page.locator("#berkas").setInputFiles({ name: "qa-e2e-terpadu.csv", mimeType: "text/csv", buffer: fs.readFileSync(path) });
     await page.getByRole("button", { name: "Buat pratinjau" }).click();
@@ -132,6 +133,8 @@ test.describe("Pusat Impor", () => {
     await panel.getByText("Lihat rincian").click();
     await expect(panel).toContainText("4999000");
     await expect(page.locator("main")).toContainText("batch harga lanjutan");
+    await expect(page.locator("main")).toContainText("menjadi batch foto");
+    await expect(page.getByRole("navigation", { name: "Tahapan berkas" })).toContainText("Foto");
     // Pratinjau per produk (langkah 5): kartu produk, pilihan mode, dan harga saja.
     await expect(page.getByRole("heading", { name: /OPPO Reno16c/ })).toBeVisible();
     await expect(page.getByRole("radio", { name: "Spesifikasi saja" })).toBeVisible();

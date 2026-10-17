@@ -21,76 +21,93 @@ Dokumen ini adalah prosedur baku tim PT Sinteniki Digital Solusi untuk memasukka
 
 | Kebutuhan | Jalur | Tab di Pusat Impor |
 | --- | --- | --- |
-| Menambah atau memperbarui produk, harga, atau keduanya | Templat terpadu (bagian 2a), lewat formulir **Unggah data** | Unggah CSV |
-| Berkas format lama: ekspor GSMArena, templat penawaran, scraper Shopee, ekspor Erafone | Formulir **Unggah data** yang sama (bagian 3 dan 4) | Unggah CSV |
+| Menambah atau memperbarui produk, harga, foto, atau kombinasinya | **CSV gabungan** (bagian 2a) | Unggah CSV |
+| Berkas format lama: ekspor GSMArena, templat penawaran/galeri lama, scraper Shopee, ekspor Erafone | Formulir yang sama; dikenali otomatis (bagian 3 dan 4) | Unggah CSV |
 | Mengambil lineup dan harga dari situs resmi merek | Tarik otomatis | Tarik otomatis |
-| Menambah banyak foto per warna untuk produk yang sudah ada (satu baris per foto) | Berkas galeri foto (bagian 6a) | Galeri foto |
 | Memproses ulang atau memantau foto | Antrean foto | Antrean foto |
 | Mengurutkan, memilih sampul, memindah warna, atau menghapus foto satu produk | Panel **Foto per warna** di halaman admin produk (bagian 6) | – |
 | Melihat, menerapkan, atau membatalkan batch | Riwayat batch | Riwayat batch |
 
-**Satu formulir untuk semua berkas** (sejak 11 Oktober 2026). Tab **Unggah CSV** hanya berisi formulir **Unggah data**. Jenis berkas dikenali dari isinya, jadi tidak perlu memilih "spesifikasi" atau "penawaran". Berkas yang mencampur kolom spesifikasi format lama dengan kolom penawaran, atau yang formatnya tidak dikenali, ditolak dengan alasan yang jelas.
-
-Harga selalu menempel ke produk yang sudah ada. Dengan templat terpadu, urutan ini diatur sistem: produk baru diterapkan dulu, lalu harganya ditinjau sebagai batch harga lanjutan. Berkas format lama yang hanya berisi harga untuk produk yang belum ada akan dilewati dengan alasan "slug tidak ditemukan".
+**Satu formulir, satu berkas** (sejak 17 Oktober 2026, Sprint 8). Tab **Unggah CSV** hanya berisi formulir CSV gabungan dan satu tombol **Unduh templat CSV gabungan**. Tab **Galeri foto** dan tombol templat format lama sudah dihapus. Berkas format lama tetap diterima dan dikenali dari isinya.
 
 Merek yang didukung tarik otomatis: vivo, iQOO, OPPO, Samsung, Xiaomi, Digimap (Apple), dan Infinix. Merek lain memakai CSV.
 
-## 2a. Templat terpadu (disarankan sejak 10 Oktober 2026)
+## 2a. CSV gabungan (sejak 17 Oktober 2026)
 
-Spesifikasi dan harga cukup diisi dalam **satu berkas**. Unduh lewat tombol **Templat terpadu** di formulir **Unggah data** (`templat-terpadu-cekharga.csv`).
+Spesifikasi, penawaran, dan foto cukup diisi dalam **satu sheet**, lalu diekspor sebagai satu CSV. Berkas boleh berisi ketiganya, atau salah satunya saja. Unduh contohnya lewat **Unduh templat CSV gabungan** (`templat-csv-gabungan-cekharga.csv`).
 
-### Bentuk berkas
+### Memilih bagian yang diimpor
 
-- **Satu baris = satu varian**, dan opsional satu listing toko untuk varian itu.
-- Kolom dibagi empat kelompok. Tidak semua kolom harus diisi.
+Di atas formulir ada tiga pilihan, semuanya tercentang secara bawaan:
+
+- **Spesifikasi produk**
+- **Penawaran & harga**
+- **Foto per warna**
+
+Bagian yang tidak dicentang **diabaikan walau kolomnya terisi**. Contoh pemakaian:
+
+- Hanya memperbarui harga dari sheet lengkap: centang **Penawaran & harga** saja.
+- Hanya menambah foto: centang **Foto per warna** saja.
+- Produk baru beserta harga dan fotonya: biarkan ketiganya tercentang.
+
+Tanpa **Spesifikasi produk**, harga dan foto dicocokkan ke produk yang sudah ada di katalog lewat merek + model.
+
+### Jenis baris dikenali dari kolom yang terisi
 
 | Kelompok | Kolom | Kapan diisi |
 | --- | --- | --- |
-| Identitas | `brand`, `model_name`, `ram_gb`, `storage_gb`; `gsmarena_url` untuk produk baru; `slug` untuk produk yang sudah ada | selalu |
-| Spesifikasi | `chipset`, `battery_capacity_mah`, `nfc`, `ip_rating`, dan seterusnya (lihat 3.2) | hanya untuk produk baru atau yang diperbarui; **cukup di satu baris per produk** |
-| Warna dan foto | `color`, `image_url`, `image_usage_basis`, `image_usage_rights` | bila ada warna listing atau tautan foto produk (lihat "Warna dan foto di templat terpadu") |
-| Penawaran | `marketplace`, `seller_name`, `offer_url`, `price_idr`, `observed_at`, `warranty`, `listing_status`, `seller_verified` | bila ada harga atau listing toko |
+| Identitas | `brand`, `model_name`; `ram_gb`, `storage_gb` untuk baris produk dan harga; `slug` opsional | selalu |
+| Spesifikasi | `gsmarena_url`, `announced`, `network_technology`, `display_size_inches`, `chipset`, `battery_capacity_mah`, `nfc`, `ip_rating`, `colors`, dan seterusnya (lihat 3.2) | hanya untuk produk baru atau yang diperbarui; **cukup di satu baris per model** |
+| Penawaran | `marketplace`, `seller_name`, `offer_url`, `price_idr`, `observed_at`, `warranty`, `listing_status`, `seller_verified`, `color` | satu baris per varian per toko |
+| Foto | `color`, `image_url`, `urutan`, `is_cover`, `image_source_url`, `image_usage_basis`, `image_usage_rights` | **satu baris per foto** |
 
-Sistem membaca baris menurut kelompok yang terisi:
-
-- **Produk di berkas ini.** Merek + model yang punya kolom spesifikasi (atau `gsmarena_url`) di baris mana pun dianggap produk dalam berkas ini. Semua baris dengan merek + model yang sama menjadi variannya, termasuk baris yang hanya berisi varian dan harga.
-- **Harga untuk produk yang sudah ada.** Baris yang hanya berisi identitas dan penawaran dibaca sebagai harga untuk produk di katalog. Isi `slug`, atau merek + model; slug akan dibentuk dari keduanya.
+- Satu baris boleh membawa lebih dari satu jenis, misalnya baris harga yang juga mengisi `image_url`.
 - **Aturan sel kosong** di 3.2 tetap berlaku: kosong berarti tidak diubah, dan `-` berarti kosongkan.
+- **`slug` boleh dikosongkan.** Bila diisi, slug wajib menunjuk produk yang sama dengan merek + model di baris itu; kalau tidak, baris dilewati dengan alasan. Aturan ini ditambahkan setelah sheet vivo berisi slug produk Samsung.
 
-### Warna dan foto di templat terpadu
+Bentuk sheet yang disarankan per model:
 
-Kolom warna dan foto tidak menentukan jenis baris. Mengisi `image_url` atau `color` saja tidak membuat atau menimpa produk.
+1. Satu baris spesifikasi (bersama varian pertama dan harganya bila ada).
+2. Baris harga per varian per toko.
+3. Baris foto per warna: `color`, `image_url`, `urutan` 1, 2, 3…, dan `is_cover` `ya` untuk foto depan.
 
-- **Warna (`color`, atau header `warna`)** adalah warna listing di baris itu, ditulis apa adanya dari toko ("Lotus Purple", "Hitam"). Warna **tidak** membentuk varian dan tidak mengubah harga: harga tetap dicatat per kapasitas RAM/penyimpanan.
-- Satu baris per warna untuk listing yang sama boleh. Warnanya digabung ke penawaran itu (`offers.colors`), dan foto setiap baris dicatat dengan warnanya (`product_assets.color`).
-- Impor ulang dengan kolom warna terisi **menggantikan** daftar warna penawaran itu. Kolom warna kosong tidak menghapus warna yang sudah tercatat.
-- Di halaman produk, warna muncul sebagai pilihan **Pilih warna**. Memilih warna hanya mengganti foto yang tampil, dan setiap penawaran menyebut warna yang tercatat di listing-nya.
-- Kolom spesifikasi `colors` (daftar semua warna menurut GSMArena) tetap ada, dengan header lain `daftar warna`. Header `warna` sekarang berarti warna per baris.
-- Mengisi `colors` di setiap baris harga **tidak** membuat baris itu dianggap produk baru. Daftar warna produk yang sudah ada tidak diubah lewat berkas harga.
-- Foto di baris penawaran berwarna menjadi **sampul** warna itu, hanya bila warna itu belum punya sampul. Sampul pilihan admin tidak ditimpa impor.
-- Warna yang tidak ada di daftar warna spesifikasi produk tetap disimpan apa adanya, tetapi barisnya ditandai **Perlu tinjau** (tidak dicentang otomatis). Contoh: "Celestian Purple" di berkas vs "Celestial Purple" di spesifikasi, atau "Gold" vs "Desert Gold". Nama dalam kurung ikut dihitung: "Deep Blue (Endless Blue)" cocok dengan "Deep Blue" dan "Endless Blue".
+Foto **tidak perlu diulang per varian**. Bila tetap terulang, foto yang sama (model, warna, dan URL sama) dihitung sekali. `urutan`, `is_cover`, dan `image_source_url` dari baris ulangan mengisi yang masih kosong.
 
-- **Host yang diizinkan:** `down-id.img.susercontent.com` (Shopee), `fdn.gsmarena.com` dan `fdn2.gsmarena.com` (GSMArena), `cdnpro.eraspace.com` (Erafone), `i02.appmifile.com` (situs resmi Xiaomi), `images.samsung.com` (situs resmi Samsung; parameter di belakang link dibuang otomatis karena `?imbypass=true` dan `?$LazyLoad…$` tidak mengembalikan foto aslinya), dan `asia-exstatic-vivofs.vivo.com` (situs resmi vivo, sejak 17 Oktober 2026). Wajib HTTPS. Host lain dilewati dengan alasan; harganya tetap masuk.
-- **Produk baru di berkas:** foto pertama untuk produk itu menjadi **foto utama**. Foto berbeda di baris penawaran lain produk yang sama (misalnya per warna) masuk **galeri**, tanpa tanda konflik.
-- **Produk yang sudah ada:** foto harus berada di baris yang sama dengan penawarannya, dan masuk **galeri** produk itu. Galeri dibatasi 8 foto per produk.
-- **Baris foto saja untuk produk yang sudah ada** (tanpa penawaran) dilewati dengan alasan. Untuk mengganti foto utama produk lama, isi `gsmarena_url` produknya di baris itu.
-- **Satu baris per warna:** baris untuk listing yang sama (varian + `offer_url` sama) digabung. Data harga dari baris terakhir yang dipakai, dan foto setiap baris tetap masuk galeri.
-- **Hak pakai:** isi `image_usage_basis` per baris bila sumber fotonya berbeda-beda, misalnya Shopee dan situs resmi brand. Bila kosong, dipakai pilihan dasar hak pakai di formulir. `written-permission` dan `public-license` wajib disertai `image_usage_rights`; tanpa itu fotonya dilewati.
-- Header `url_image`, `url gambar`, `link gambar`, dan `foto` dibaca sebagai `image_url`.
+### Warna dan foto
+
+- **Warna (`color`, atau header `warna`)** adalah warna listing atau foto di baris itu. Warna **tidak** membentuk varian dan tidak mengubah harga.
+- **Foto wajib menyebut warnanya.** Foto tanpa warna dilewati dengan alasan; data lain di baris itu tetap masuk.
+- **Samakan nama warna** antara baris harga dan baris foto. Pemilih warna di halaman produk menggabungkan keduanya, jadi beda ejaan menghasilkan dua tombol warna.
+- Kolom spesifikasi `colors` (daftar semua warna, header lain `daftar warna`) tidak membuat baris dianggap produk baru.
+- Warna yang tidak ada di daftar warna spesifikasi tetap disimpan, tetapi fotonya ditandai **Perlu tinjau** dan tidak tercentang otomatis.
+- **Aturan galeri** berlaku untuk semua foto: maksimal 6 foto per warna dan 60 per produk; satu sampul per warna; sampul pilihan admin tidak ditimpa. URL foto yang sama untuk dua warna ditandai **Perlu tinjau**.
+- **Host yang diizinkan:**
+  - `down-id.img.susercontent.com` (Shopee)
+  - `fdn.gsmarena.com` dan `fdn2.gsmarena.com` (GSMArena)
+  - `cdnpro.eraspace.com` (Erafone)
+  - `i02.appmifile.com` (situs resmi Xiaomi)
+  - `images.samsung.com` (situs resmi Samsung; parameter di belakang link dibuang otomatis)
+  - `asia-exstatic-vivofs.vivo.com` (situs resmi vivo)
+
+  Wajib HTTPS. Foto dari host lain dilewati dengan alasan.
+- Foto kanvas lebar berlatar polos (misalnya galeri vivo 5120×1536) dirapikan otomatis: tepi polos dipotong dan latar terang yang seragam dihapus.
+- **Hak pakai:** isi `image_usage_basis` per baris bila sumber fotonya berbeda-beda. Bila kosong, dipakai pilihan di formulir. `written-permission` dan `public-license` wajib disertai `image_usage_rights`.
+- Header `url_image`, `url gambar`, `link gambar`, dan `foto` dibaca sebagai `image_url`. `sampul` dibaca sebagai `is_cover`, dan `source_url` sebagai `image_source_url`.
 
 ### Mencocokkan produk lewat nama
 
-Baris harga tanpa `slug` dicocokkan lewat merek + model, memakai aturan yang sama dengan judul listing Shopee:
+Baris tanpa `slug` dicocokkan lewat merek + model, memakai aturan yang sama dengan judul listing Shopee:
 
 - **Akhiran jaringan.** "REDMI Note 17 Pro 5G" cocok ke "Redmi Note 17 Pro" bila spesifikasi katalog menyatakan 5G. Akhiran tidak dibuang bila jaringannya berbeda.
-- **Merek induk.** "Xiaomi POCO C81 Pro" dan "POCO C81 Pro" sama-sama dikenali.
-- **Perlu tinjau: model saudara.** Nama tanpa label jaringan ("REDMI Note 17") yang cocok ke satu produk, padahal katalog juga punya "Redmi Note 17 4G", tetap dipasangkan tetapi ditandai **Perlu tinjau** dan tidak dicentang otomatis.
-- **Perlu tinjau: harga ganda.** Dua baris untuk listing dan varian yang sama dengan harga berbeda juga ditandai **Perlu tinjau**. Contohnya satu listing Shopee yang memuat model 4G dan 5G sekaligus. Bila memang dua model berbeda, isi `slug` di masing-masing baris.
+- **Merek induk.** "Xiaomi POCO C81 Pro" dan "POCO C81 Pro" sama-sama dikenali. "vivo iQOO 15R" dikenali sebagai iQOO 15R.
+- **Beda spasi.** "vivo V70FE" dicocokkan ke "V70 FE" bila hasilnya tunggal, dan ditandai **Perlu tinjau**.
+- **Perlu tinjau: model saudara.** Nama tanpa label jaringan ("REDMI Note 17") yang cocok ke satu produk, padahal katalog juga punya "Redmi Note 17 4G", tetap dipasangkan tetapi ditandai **Perlu tinjau**.
+- **Perlu tinjau: harga ganda.** Dua baris untuk listing dan varian yang sama dengan harga berbeda juga ditandai **Perlu tinjau**.
 - Nama yang cocok ke lebih dari satu produk dilewati dengan alasan; isi `slug`.
 
 ### Kolom URL listing
 
-- Header `url` di templat terpadu dibaca dari isinya. Tautan GSMArena (`…-12345.php`) dibaca sebagai `gsmarena_url`; tautan lain dibaca sebagai `offer_url`.
+- Header `url` dibaca dari isinya. Tautan GSMArena (`…-12345.php`) dibaca sebagai `gsmarena_url`; tautan lain dibaca sebagai `offer_url`.
 - Parameter tampilan Shopee (`?extraParams=…`) dibuang, supaya satu listing tidak tercatat dua kali.
 - Tautan gambar di kolom URL listing ditolak dengan alasan. Pindahkan ke `image_url`.
 - Bila marketplace-nya Shopee, Tokopedia, Lazada, Blibli, TikTok Shop, atau Erafone, host URL harus milik marketplace itu. Kalau tidak, baris ditolak.
@@ -108,7 +125,7 @@ Nilai berikut dirapikan otomatis. Setiap koreksi tampil di panel **Koreksi otoma
 | `10/10/2026 09:00`, `2026-10-10 09:00` | `2026-10-10T09:00:00+07:00`; waktu tanpa zona diasumsikan WIB |
 | `2026-10-10` (tanpa jam) | 00.00 WIB, sehingga harga terlihat lebih tua, bukan lebih segar |
 | `https://www.gsmarena.com/oppo_x-123.php` | `oppo_x-123.php` |
-| Header `Merek`, `Harga`, `Link`, `Toko`, `RAM`, `Penyimpanan`, `Garansi`, `Diperiksa`, `url_image`, `Warna` | `brand`, `price_idr`, `offer_url`, `seller_name`, `ram_gb`, `storage_gb`, `warranty`, `observed_at`, `image_url`, `color` |
+| Header `Merek`, `Harga`, `Link`, `Toko`, `RAM`, `Penyimpanan`, `Garansi`, `Diperiksa`, `url_image`, `Warna`, `Sampul` | `brand`, `price_idr`, `offer_url`, `seller_name`, `ram_gb`, `storage_gb`, `warranty`, `observed_at`, `image_url`, `color`, `is_cover` |
 
 Yang **tidak** dikoreksi otomatis:
 
@@ -119,20 +136,31 @@ Yang **tidak** dikoreksi otomatis:
 
 Baris seperti itu dilewati dengan alasan. Bila dua baris memberi nilai berbeda untuk produk yang sama, nilai baris pertama dipakai dan konfliknya ditandai **Konflik**.
 
-### Alur penerapan
+### Alur penerapan: tahap produk, harga, foto
 
-1. Unggah berkas, lalu klik **Buat pratinjau**. Halaman batch langsung terbuka dengan status **Sedang dianalisis**: baris dirapikan, dicocokkan dengan katalog, dan dibandingkan dengan data yang ada di latar belakang. Pratinjau muncul otomatis begitu selesai, biasanya dalam beberapa detik. Halaman boleh ditutup; analisis tetap berjalan.
-2. **Berkas berisi produk:** halaman pratinjau menampilkan produknya. Penawaran untuk produk itu belum bisa dicocokkan, karena produknya belum ada di katalog. Setelah produk diterapkan, sistem membuat **batch harga lanjutan** berstatus draft.
-3. Buka batch harga lanjutan dari halaman batch produk, tinjau pratinjaunya, lalu terapkan.
+Setiap bagian ditinjau sebagai **tahap** tersendiri. Harga dan foto produk baru baru bisa dicocokkan setelah produknya tersimpan. Halaman batch menampilkan penanda **Tahapan berkas** dengan tautan ke tiap tahap.
 
-Di pratinjau batch produk yang membawa harga ada tiga pilihan:
+1. Unggah berkas, lalu klik **Buat pratinjau**. Halaman batch terbuka dengan status **Sedang dianalisis**, dan pratinjau muncul otomatis begitu selesai.
+2. **Tahap pertama** mengikuti isi berkas:
+   - ada spesifikasi: tahap **Produk**;
+   - tanpa spesifikasi tetapi ada harga: tahap **Harga**;
+   - hanya foto: tahap **Foto**.
+3. Setelah tahap pertama diterapkan, sistem membuat tahap berikutnya berstatus draft:
+   - **batch harga lanjutan**, bila berkas berisi harga untuk produk baru;
+   - **batch foto**, bila berkas berisi foto.
 
-- **Spesifikasi + harga** (bawaan): produk diterapkan dulu, lalu batch harga lanjutan dibuat untuk ditinjau.
-- **Spesifikasi saja**: hanya produk yang diterapkan; harga di berkas diabaikan.
-- **Terapkan harga saja**: spesifikasi di berkas diabaikan, dan langsung dibuat batch penawaran untuk produk yang sudah ada di katalog. Penawaran untuk produk yang belum ada tidak ikut, dan jumlahnya disebutkan di batch baru.
-4. **Berkas hanya berisi harga untuk produk yang sudah ada:** langsung menjadi satu batch penawaran biasa.
+   Buka lewat tombol **Lanjut: tinjau harga** / **Lanjut: tinjau foto**, tinjau, lalu terapkan.
+
+Di pratinjau tahap pertama yang punya tahap lanjutan ada dua pilihan:
+
+- **… lalu N penawaran dan M foto** (bawaan): tahap lanjutan dibuat setelah tahap ini diterapkan.
+- **… saja**: hanya tahap ini yang diterapkan; harga dan foto di berkas diabaikan.
+
+Batch produk yang membawa harga juga punya tombol **Terapkan harga saja**: spesifikasi diabaikan, dan langsung dibuat batch penawaran untuk produk yang sudah ada. Foto di berkas ikut pindah sebagai tahap setelah harga itu.
 
 ## 3. Impor spesifikasi format lama (dataset GSMArena)
+
+Templatnya tidak lagi ditawarkan di Pusat Impor sejak 17 Oktober 2026; berkas lama tetap diterima. Untuk data baru, pakai CSV gabungan (bagian 2a).
 
 Bagian ini untuk berkas spesifikasi format lama. Untuk berkas baru, pakai templat terpadu (bagian 2a); kolom spesifikasinya sama.
 
@@ -360,31 +388,9 @@ Bila panel peringatan muncul:
 - Foto gagal dicoba ulang maksimal 3 kali. Kegagalan permanen, misalnya host tidak diizinkan, tidak diulang.
 - Produk tanpa foto tetap boleh terbit. Situs menampilkan ilustrasi generik berlabel "Foto belum tersedia".
 
-## 6a. Galeri foto (tab Galeri foto)
+## 6a. Galeri foto
 
-Untuk menambah banyak foto per warna ke produk yang **sudah ada** di katalog. Unduh **Templat galeri foto** di tab **Galeri foto**.
-
-| Kolom | Isi | Wajib |
-| --- | --- | --- |
-| `brand`, `model_name` | Merek dan model; dicocokkan dengan aturan yang sama seperti templat terpadu (akhiran 5G, merek induk). Model boleh sudah memuat merek ("Samsung Galaxy A57 5G"); merek tidak digandakan | ya |
-| `color` | Warna foto, apa adanya dari toko | ya |
-| `image_url` | Foto HTTPS dari host yang diizinkan (bagian 2a) | ya |
-| `urutan` | Urutan di dalam warna (1 = paling depan setelah sampul) | – |
-| `is_cover` | `ya` untuk sampul warna itu | – |
-| `source_url` | Halaman asal foto (mis. listing toko) | – |
-| `image_usage_basis`, `image_usage_rights` | Hak pakai per baris; kosong = pilihan di formulir | – |
-
-Kolom lain (mis. `image_host`, `host_diizinkan_saat_ini`) diabaikan. Host tetap diperiksa importer, bukan dibaca dari kolom catatan.
-
-Aturan isi yang sering salah (temuan galeri vivo, 17 Oktober 2026):
-
-- **Satu baris = satu foto unik.** Baris yang URL, model, dan warnanya sama persis hanya dihitung sekali (tampil **Sama**). Hapus duplikatnya supaya pratinjau mudah dibaca.
-- **Satu URL untuk satu warna.** URL yang sama untuk dua warna berbeda pada satu produk ditandai **Perlu tinjau**, karena hampir selalu salah salin.
-- **Nama warna konsisten** dengan warna di listing toko dan di sheet spesifikasi, termasuk ejaan. Contoh salah: "Biru Langt", "Ocena Blue". Warna yang tidak ada di daftar warna spesifikasi ditandai **Perlu tinjau** dan tidak dicentang otomatis.
-- **Model harus sudah ada di katalog.** Impor sheet spesifikasinya dulu. Penulisan spasi yang berbeda ("V70FE" untuk "V70 FE") tetap dicocokkan, tetapi ditandai **Perlu tinjau**.
-- Foto kanvas lebar dari situs resmi (misalnya galeri vivo 5120×1536 berlatar biru muda) boleh dipakai. Importer memotong tepi polos dan menghapus latar terang yang seragam.
-
-Alur sama dengan impor lain: unggah, pratinjau per foto (**Baru**, **Sama** bila URL itu sudah tersimpan atau sudah antre untuk warna yang sama, **Dilewati** beserta alasannya), terapkan, lalu foto diantrekan. Batas per warna diperiksa di pratinjau dan sekali lagi saat foto diproses. **Undo** batch galeri membatalkan antrean yang belum jalan dan menghapus foto buatan batch itu beserta berkasnya, termasuk di produk terbit, karena isi batch galeri memang hanya foto.
+Sejak 17 Oktober 2026 galeri foto tidak lagi punya tab dan templat sendiri. Foto per warna diisi sebagai **baris foto di CSV gabungan** (bagian 2a): satu baris per foto dengan `color`, `image_url`, `urutan`, dan `is_cover`. Untuk mengimpor foto saja, centang **Foto per warna** saja di formulir. Berkas galeri format lama (kolom `brand`, `model_name`, `color`, `image_url`) tetap dikenali. Pratinjau tahap foto menandai setiap foto **Baru**, **Sama**, **Perlu tinjau**, atau **Dilewati** beserta alasannya.
 
 ## 7. Daftar periksa sebelum menerbitkan produk
 

@@ -43,7 +43,7 @@ export function ProductPhotoManager({
 
       {total === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          Belum ada foto. Tambahkan lewat tab Galeri foto atau templat terpadu di Pusat Impor.
+          Belum ada foto. Tambahkan lewat CSV gabungan di Pusat Impor (baris foto: color, image_url, urutan, is_cover).
         </p>
       ) : (
         <div className="mt-5 space-y-6">
