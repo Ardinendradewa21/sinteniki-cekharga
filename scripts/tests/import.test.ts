@@ -1273,3 +1273,20 @@ test("peringatan harga harian: batch pemeriksaan yang antre lama ikut diperingat
   ]);
   assert.deepEqual(refreshAlerts(runs, now, null), []);
 });
+
+import { looksLikeAccessory } from "@/lib/scrape/parsers";
+
+test("daftar model situs resmi: aksesori tidak ikut dilaporkan sebagai model (temuan Sprint 11)", () => {
+  for (const name of [
+    "OPPO Hasselblad Teleconverter Find X9 Ultra",
+    "OPPO Pencil 2R",
+    "Xiaomi 67W HyperCharge Combo (Type-A)",
+    "Xiaomi 17 Ultra Photography Kit Pro",
+    "Xiaomi 33W Charging Combo (Type-A)",
+    "Xiaomi Mi Selfie Stick Tripod",
+    "Xiaomi Selfie Stick",
+  ]) assert.equal(looksLikeAccessory(name), true, name);
+  for (const name of ["OPPO A6t Pro 5G [Online Exclusive]", "Xiaomi POCO F9 Ultra 5G", "Samsung Galaxy A07 Power Pack", "Xiaomi 17 Ultra"]) {
+    assert.equal(looksLikeAccessory(name), false, name);
+  }
+});

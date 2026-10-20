@@ -419,6 +419,11 @@ export async function reviewCreativeAction(_prev: AdActionState, formData: FormD
     }
   } else if (decision === "reject") {
     if (!note) return fail("Tulis alasan penolakan supaya advertiser bisa memperbaiki materi.");
+  } else if (decision === "withdraw") {
+    // Materi yang sudah tayang tidak dihapus (event-nya bukti tagihan), tetapi
+    // bisa ditarik dari tayang, mis. diganti materi baru atas permintaan brand.
+    if (creative.review_status !== "approved") return fail("Hanya materi yang sedang disetujui yang bisa ditarik dari tayang.");
+    if (!note) return fail("Tulis alasan menarik materi dari tayang.");
   } else {
     return fail("Pilih setujui atau tolak.");
   }
@@ -427,8 +432,9 @@ export async function reviewCreativeAction(_prev: AdActionState, formData: FormD
     .from("creatives")
     .update({
       review_status: decision === "approve" ? "approved" : "rejected",
-      review_note: note,
-      review_checklist: checklist,
+      review_note: decision === "withdraw" ? `Ditarik dari tayang: ${note}` : note,
+      // Menarik dari tayang tidak menghapus jejak checklist persetujuannya.
+      ...(decision === "withdraw" ? {} : { review_checklist: checklist }),
       reviewed_by: staff.userId,
       reviewed_at: new Date().toISOString(),
     })

@@ -35,8 +35,14 @@ Aturan tim: **setiap defect yang ditutup wajib punya tes regresi otomatis**, kec
 | DEF-021 | Titik status asisten berdenyut tanpa henti dan berwarna peringatan saat AI aktif | Sedang | P2 | Ditutup | Audit UI/UX tahap 4 | belum di-commit | – |
 | DEF-022 | Indikator fokus pola shadcn `ring-ring/50` hanya ±2.15:1 (gagal 3:1) | Sedang | P2 | Ditutup | Audit UI/UX tahap 2 | belum di-commit | TC-A11Y-04 (fokus terlihat) |
 | DEF-023 | Kontras Badge/Pill nada netral 4.4:1 dan hitungan review `accent-warm` + teks putih ±3:1 | Sedang | P2 | Ditutup | axe-core tahap 2–3 | belum di-commit | axe-core (audit browser) |
+| DEF-024 | Katalog produksi gagal dibaca: permintaan ke InsForge macet 30 detik di soket keep-alive basi | Tinggi | P1 | Ditutup | Galat runtime Vercel 15–19 Okt | Sprint 11 | unit `resilientFetch` (`pnpm test:catalog`) |
+| DEF-025 | `SITE_URL` produksi masih domain lama: sitemap, canonical, dan OG menunjuk domain yang kini 404 | Tinggi | P1 | **Terbuka** | Audit Sprint 11 | – | Pemilik produk mengubah env Vercel |
+| DEF-026 | Empat target sentuh admin di bawah 44 px di ponsel | Sedang | P2 | Ditutup | Audit admin ponsel Sprint 11 | Sprint 11 | audit Playwright Pixel 7 |
+| DEF-027 | Aksesori OPPO/Xiaomi (Pencil, Teleconverter, Charging Combo) ikut di daftar model | Rendah | P3 | Ditutup | Tarik harga saja Sprint 11 | Sprint 11 | unit `looksLikeAccessory` |
+| DEF-028 | Materi iklan yang sudah punya data tayang tidak bisa ditarik dari tayang | Sedang | P2 | Ditutup | Uji coba iklan Sprint 11 | Sprint 11 | uji browser produksi |
+| DEF-029 | Usulan URL Samsung menyarankan halaman 128 GB untuk varian 256 GB | Sedang | P2 | Ditutup | Inspeksi usulan URL Sprint 11 | Sprint 11 | unit pemeriksaan harga |
 
-Total: 23 defect. Semua ditutup. Severity: Kritis 2, Tinggi 9, Sedang 11, Rendah 1.
+Total: 29 defect. 28 ditutup, 1 terbuka. Severity: Kritis 2, Tinggi 11, Sedang 14, Rendah 2.
 
 ## Detail defect penting
 
@@ -100,6 +106,21 @@ Total: 23 defect. Semua ditutup. Severity: Kritis 2, Tinggi 9, Sedang 11, Rendah
 | Temuan Sprint 10 | Severity dinaikkan ke Sedang. Selain URL basi, tarik otomatis "harga saja" pada 14 Okt membuat penawaran baru di URL "blueberry" untuk Galaxy S26 FE 8/128 dan 8/256, sementara penawaran lama di URL "graphite" tetap ada. Varian itu punya dua penawaran Samsung, dan yang lama dicatat gagal setiap hari. |
 | Akar masalah | Importer hanya memindahkan penawaran lama ke URL baru untuk Erafone. Penjual resmi dicocokkan lewat varian + URL, jadi URL baru selalu dianggap penawaran baru. |
 | Perbaikan | `findRelocatedOffer` (`src/lib/import/offer-relocation.ts`) memindahkan penawaran penjual resmi (identitas di `src/lib/scrape/official-sellers.ts`) dan Erafone ke URL baru. Pemeriksaan harian mencatat usulan URL dan penawaran ganda di `offer_url_suggestions`; admin memutuskan lewat Dashboard dan halaman produk (`resolveOfferUrlAction`). Dua penawaran ganda S26 FE di produksi sudah ditandai dan menunggu keputusan admin. |
+
+### DEF-024 — Baca InsForge macet 30 detik (ditutup 2026-10-20)
+
+| | |
+| --- | --- |
+| Gejala | Galat runtime produksi `[katalog] gagal membaca "products" ... Request timed out after 30000ms` di beberapa tabel sekaligus (15 dan 19 Okt). |
+| Akar masalah | Backend InsForge menutup koneksi menganggur setelah 65 detik; fungsi Vercel yang hangat memakai ulang soket basi, permintaan pertama macet sampai timeout SDK 30 detik, dan SDK tidak mengulang timeout (dokumentasi InsForge "Schedules: long-interval callers and keep-alive", dibaca lewat Context7). |
+| Perbaikan | `src/lib/backend/resilient-fetch.ts`: GET/HEAD diberi batas 12 detik per percobaan lalu diulang sekali di koneksi baru. Tulis tidak pernah diulang (mencegah data ganda). |
+
+### DEF-025 — `SITE_URL` menunjuk domain lama (terbuka)
+
+| | |
+| --- | --- |
+| Dampak | Sejak domain produksi diganti menjadi `cekharga-id.vercel.app` (19 Okt 2026, 05.55 UTC), `robots.txt` menulis `Sitemap: https://sinteniki-cekharga.vercel.app/sitemap.xml`; canonical dan OG ikut menunjuk domain yang kini 404. Mesin pencari diarahkan ke halaman mati. |
+| Perbaikan | Pemilik produk mengubah env Vercel produksi `SITE_URL` menjadi `https://cekharga-id.vercel.app`, lalu redeploy. Konektor Vercel tidak punya izin membaca/mengubah env. |
 
 ## Templat laporan defect
 

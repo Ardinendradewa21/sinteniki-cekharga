@@ -225,7 +225,7 @@ export default async function ReviewsAdminPage(props: PageProps<"/admin/ulasan">
                   required
                   defaultValue=""
                   aria-label="Produk yang diulas"
-                  className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-base text-foreground"
+                  className="h-11 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base text-foreground sm:w-auto sm:flex-1"
                 >
                   <option value="" disabled>
                     Pilih produk

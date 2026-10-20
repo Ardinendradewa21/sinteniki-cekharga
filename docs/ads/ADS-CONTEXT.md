@@ -341,5 +341,21 @@ Alur status IO dan peran yang boleh mengubahnya ada di `IO_TRANSITIONS` (`src/li
 
 1. ~~Halaman admin lain masih memakai `requireAdmin()`.~~ Selesai (2026-10-06): produk, impor, dan tarik otomatis memakai `requireStaff([])` (hanya `admin`). Form login tidak lagi mengunci satu email, dan akses peran `sales` sudah diuji di browser (iklan terbuka, impor/produk ditolak).
 2. Batas kiriman form prospek disimpan di memori proses. Di hosting serverless dengan banyak instance, batas ini hanya meredam spam, bukan perlindungan penuh.
-3. Job harian `ad_rollup_and_purge` belum dijadwalkan karena aplikasi belum punya URL publik (lihat 12.3 butir 4). Laporan tetap utuh tanpa job ini.
+3. ~~Job harian `ad_rollup_and_purge` belum dijadwalkan.~~ Selesai (2026-10-20): dijalankan cron harian `/api/cron/daily` (`src/lib/ads/maintenance.ts`), tanpa secret tambahan. `/api/ads/maintenance` tetap ada sebagai cadangan.
 4. Materi diunggah oleh Ad Ops. Portal advertiser direncanakan pada Fase 3.
+
+### 14.6 Uji coba penayangan (2026-10-20)
+
+Uji coba ujung ke ujung di produksi (`cekharga-id.vercel.app`) lewat UI admin dengan akun QA berperan `admin`:
+
+1. Advertiser **PT Sinteniki Digital Solusi** (label "CekHarga"), PKS `000/HOUSE-AD/CH/X/2026` berupa memo internal (bukan kontrak pihak ketiga), IO `IO-HOUSE-2026-001` "Uji coba slot iklan (house ad)" bernilai Rp0.
+2. IO melewati setiap status tanpa lompatan: Draft → Negosiasi → Disetujui → Menunggu pembayaran → Siap tayang → Tayang.
+3. Line item di slot `home_top`, skema flat Rp0, prioritas 90 (paling rendah), 20 Okt–3 Nov 2026, supaya iklan berbayar selalu menang.
+4. Materi display 1456×180 (desktop, 2× 728×90) dan 640×200 (ponsel, 2× 320×100), tujuan `/iklan?utm_source=cekharga&utm_medium=house_ad&utm_campaign=uji_coba_slot`.
+5. Hasil: iklan tampil di beranda dengan label "Iklan", `rel="sponsored noopener noreferrer"`, tab baru; tayangan dikirim lewat beacon setelah terlihat; klik tercatat lalu dialihkan 302 ke tujuan. Event uji ditandai `is_bot = true` supaya tidak masuk laporan.
+
+Temuan dan perbaikan dari uji coba:
+
+- Label "Iklan" menempel di kiri atas materi. Materi wajib menyisakan **area kosong ±64×32 px di kiri atas**; petunjuknya kini tampil di formulir unggah materi.
+- Materi yang sudah punya data tayang tidak bisa dihapus (bukti tagihan), tetapi sebelumnya juga tidak bisa ditarik. Kini ada aksi **Tarik dari tayang** di detail IO (peran `adops`/`admin`, alasan wajib, checklist persetujuan lama tetap tersimpan).
+- Standar yang sudah dipenuhi: ukuran IAB, label tidak bisa dimatikan, `rel="sponsored"` (pedoman Google untuk tautan berbayar), viewable impression ≥50% ≥1 detik (MRC), ruang slot dipesan (tanpa CLS), skrip pihak ketiga hanya setelah consent, `ads.txt`.

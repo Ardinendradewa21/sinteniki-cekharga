@@ -98,7 +98,7 @@ function ItemDetail({ item }: { item: ReviewItem }) {
           href={String(v.url)}
           target="_blank"
           rel="noopener noreferrer"
-          className="block truncate text-xs text-brand underline underline-offset-2"
+          className="block min-h-11 truncate py-3 text-xs leading-5 text-brand underline underline-offset-2"
         >
           {String(v.url)}
         </a>

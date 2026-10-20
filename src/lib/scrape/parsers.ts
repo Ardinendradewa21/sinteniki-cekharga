@@ -159,7 +159,7 @@ export function effectiveOfficialPrices(
  * "33W Power Bank", Samsung memuat "Pre-Registration eVoucher".
  */
 export function looksLikeAccessory(name: string): boolean {
-  return /\b(buds?|earbuds|enco|tws|watch|cooler|clip|sleeve|wireless|vision|x?pad|charger|cable|case|band|earphones?|headphones?|power\s?bank|speaker|voucher|e-?voucher|reservation|pre-?registration|router|monitor|scale|vacuum|scooter|tv)\b/i.test(
+  return /\b(buds?|earbuds|enco|tws|watch|cooler|clip|sleeve|wireless|vision|x?pad|charger|charging|combo|kit|pencil|stylus|teleconverter|tripod|stick|cable|case|band|earphones?|headphones?|power\s?bank|speaker|voucher|e-?voucher|reservation|pre-?registration|router|monitor|scale|vacuum|scooter|tv)\b/i.test(
     name
   );
 }

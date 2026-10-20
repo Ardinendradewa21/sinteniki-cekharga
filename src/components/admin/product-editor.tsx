@@ -247,7 +247,7 @@ export function OfferPanel({
 
               {o.checks.length > 0 ? (
                 <details className="mt-3">
-                  <summary className="cursor-pointer text-xs text-muted-foreground">
+                  <summary className="min-h-11 cursor-pointer content-center text-xs text-muted-foreground">
                     Riwayat pemeriksaan ({o.checks.length} terakhir)
                   </summary>
                   <ul className="mt-2 space-y-1 text-xs">

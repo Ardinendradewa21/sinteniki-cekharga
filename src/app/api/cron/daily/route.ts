@@ -1,3 +1,4 @@
+import { rollupAdEvents } from "@/lib/ads/maintenance";
 import { purgeAiUsage } from "@/lib/assistant/ai/quota";
 import { bearerMatches } from "@/lib/backend/bearer";
 import { expireStaleDrafts, purgeScheduledBatches } from "@/lib/import/batches";
@@ -68,6 +69,8 @@ export async function GET(request: Request) {
     purgedYoutubeVideos: await task(() => purgeStaleYoutubeVideos()),
     purgedReviewDigests: await task(() => purgeOldDigests()),
     youtubeQueued: await task(() => enqueueChannelSync("all", null)),
+    // ADS-CONTEXT §12.3: event iklan > 90 hari diringkas lalu dihapus.
+    adEventsRolledUp: await task(() => rollupAdEvents()),
   };
 
   // Sisa waktu dipakai menerapkan antrean (termasuk batch harga barusan).

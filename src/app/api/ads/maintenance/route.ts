@@ -1,12 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { getInsforgeAdminClient } from "@/lib/backend/insforge";
+import { rollupAdEvents } from "@/lib/ads/maintenance";
 
 /**
  * Tugas harian iklan (docs/ads/ADS-CONTEXT.md §12.3): ringkas event mentah
  * yang lebih tua dari masa retensi ke ad_stats_daily, lalu hapus mentahnya.
  *
- * Dipanggil penjadwal (`insforge schedules`, cron `0 1 * * *`) dengan header
+ * Sejak 20 Oktober 2026 tugas ini juga dijalankan cron harian (`/api/cron/daily`),
+ * jadi rute ini cadangan untuk penjadwal lain dengan header
  * `Authorization: Bearer <ADS_CRON_SECRET>`. Tanpa secret yang cocok: 401.
  * Laporan tetap utuh walau tugas ini tidak berjalan, karena view
  * ad_daily_report membaca event mentah dan ringkasan sekaligus.
@@ -24,12 +25,10 @@ export async function POST(request: Request) {
   if (!authorized(request.headers.get("authorization"))) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-  const { data, error } = await getInsforgeAdminClient().database.rpc("ad_rollup_and_purge", {
-    p_retention_days: 90,
-  });
-  if (error) {
+  try {
+    return Response.json({ purged: await rollupAdEvents() });
+  } catch (error) {
     console.error("[iklan] rollup gagal:", error);
     return Response.json({ error: "rollup gagal" }, { status: 500 });
   }
-  return Response.json({ purged: data ?? 0 });
 }

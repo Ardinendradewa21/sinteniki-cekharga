@@ -23,6 +23,7 @@ import {
   createCreativeAction,
   createInvoiceAction,
   deleteCreativeAction,
+  reviewCreativeAction,
   saveLineItemAction,
   setLineItemStatusAction,
   transitionIoAction,
@@ -284,6 +285,24 @@ export default async function IoDetailPage(props: PageProps<"/admin/iklan/io/[id
                       <p className="mt-1 truncate text-xs text-muted-foreground" title={creative.destination_url}>
                         {creative.destination_url}
                       </p>
+                      {creative.review_status === "approved" ? (
+                        <details className="mt-2">
+                          <summary className="min-h-11 cursor-pointer content-center text-sm font-semibold text-foreground">
+                            Tarik dari tayang
+                          </summary>
+                          <ActionForm
+                            action={reviewCreativeAction}
+                            submitLabel="Tarik materi ini"
+                            submitVariant="outline"
+                            confirmMessage="Tarik materi ini dari tayang? Data tayangnya tetap tersimpan."
+                            className="mt-2 space-y-2"
+                          >
+                            <input type="hidden" name="id" value={creative.id} />
+                            <input type="hidden" name="decision" value="withdraw" />
+                            <TextArea scope={`w-${creative.id}`} name="review_note" label="Alasan" required maxLength={1000} />
+                          </ActionForm>
+                        </details>
+                      ) : null}
                       <ActionForm
                         action={deleteCreativeAction}
                         submitLabel="Hapus"
@@ -326,7 +345,7 @@ export default async function IoDetailPage(props: PageProps<"/admin/iklan/io/[id
                           label={`Gambar utama ${slot?.desktop_size ? `(${slot.desktop_size.replace("x", "×")})` : ""}`}
                           type="file"
                           accept="image/png,image/jpeg,image/webp,image/gif"
-                          hint="PNG/JPG/WebP/GIF ≤500 KB. Boleh ukuran 2× untuk retina."
+                          hint="PNG/JPG/WebP/GIF ≤500 KB. Boleh ukuran 2× untuk retina. Sisakan area kosong ±64×32 px di kiri atas untuk label Iklan."
                         />
                         {slot?.mobile_size ? (
                           <Field

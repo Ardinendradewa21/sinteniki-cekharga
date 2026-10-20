@@ -25,9 +25,16 @@ test.describe("Beranda (FR-01)", () => {
     expect(text).not.toMatch(/testimoni|\b\d[\d.]*\s*(ribu|rb|juta)?\s*pengguna|paling populer|terlaris|#1\b/i);
   });
 
-  test("TC-BRD-04 slot iklan tanpa kampanye tidak merender ruang kosong @regression", async ({ page }) => {
+  test("TC-BRD-04 slot iklan tidak merender ruang kosong; yang tampil selalu berlabel Iklan @regression", async ({ page }) => {
     await page.goto("/");
-    // ADS-CONTEXT §14.2: slot tanpa iklan tidak merender apa pun.
-    await expect(page.locator("[data-ad-slot]")).toHaveCount(0);
+    // ADS-CONTEXT §14.2: slot tanpa iklan tidak merender apa pun. Slot yang
+    // tampil (mis. house ad uji coba) wajib berisi materi dan label "Iklan".
+    const slots = page.locator("[data-ad-slot]");
+    for (const slot of await slots.all()) {
+      await expect(slot.getByText(/^(Iklan|Contoh iklan)$/)).toBeVisible();
+      // Slot direct adalah tautan klik itu sendiri; slot programatik membungkus tautannya.
+      const linked = await slot.evaluate((el) => el.matches("a[href]") || el.querySelector("a[href], iframe, ins") !== null);
+      expect(linked).toBe(true);
+    }
   });
 });

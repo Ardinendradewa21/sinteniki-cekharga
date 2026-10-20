@@ -173,7 +173,7 @@ export default async function AdminProductsPage({
             id="filter-merek-admin"
             name="brand"
             defaultValue={brand}
-            className="flex h-10 w-full rounded-lg border border-border-strong bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-11 w-full rounded-lg border border-border-strong bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">Semua merek</option>
             {brands.map((item) => <option key={item} value={item}>{item}</option>)}
