@@ -3,6 +3,8 @@ import "server-only";
 import { createAdminClient, createClient } from "@insforge/sdk";
 import { z } from "zod";
 
+import { resilientFetch } from "@/lib/backend/resilient-fetch";
+
 /**
  * Klien InsForge sisi server (PRD §9 dan §10).
  *
@@ -75,6 +77,8 @@ export function getInsforgeAdminClient(): InsforgeAdminClient {
   cachedClient = createAdminClient({
     baseUrl: parsed.data.INSFORGE_URL,
     apiKey: parsed.data.INSFORGE_API_KEY,
+    // Baca yang macet di soket keep-alive basi dicoba ulang (resilient-fetch.ts).
+    fetch: resilientFetch(),
   });
 
   return cachedClient;
@@ -120,6 +124,7 @@ export function getInsforgePublicClient(): InsforgePublicClient {
   cachedPublicClient = createClient({
     baseUrl: parsed.data.INSFORGE_URL,
     anonKey: parsed.data.INSFORGE_ANON_KEY,
+    fetch: resilientFetch(),
   });
 
   return cachedPublicClient;

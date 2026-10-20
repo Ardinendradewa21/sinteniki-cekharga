@@ -2,7 +2,7 @@
 
 Alat bantu memilih smartphone untuk konsumen Indonesia: spesifikasi, harga per varian dengan waktu pemeriksaannya, penawaran toko, perbandingan, dan asisten Tanya AI. Dikelola PT Sinteniki Digital Solusi.
 
-- Produksi: https://sinteniki-cekharga.vercel.app
+- Produksi: https://cekharga-id.vercel.app (domain sebelum 19 Okt 2026: sinteniki-cekharga.vercel.app)
 - Kebutuhan produk: [docs/CekHarga_PRD_v2.md](docs/CekHarga_PRD_v2.md). Bila ada yang bertentangan, PRD yang menang.
 - Aturan kerja untuk developer dan AI agent: [CLAUDE.md](CLAUDE.md) dan [AGENTS.md](AGENTS.md).
 

@@ -452,12 +452,11 @@ test("pemeriksaan harga: penawaran ganda dengan URL lama ditandai duplikat dan d
   assert.deepEqual(plan.matchedOfferIds.sort(), ["baru-128", "lama-512"], "varian tanpa penawaran aktif tetap diperbarui lewat nama");
   assert.deepEqual(plan.missing, [{ offerId: "lama-128", reason: DUPLICATE_URL_REASON }], "yang ganda tetap jujur dicatat gagal");
   assert.deepEqual(
-    plan.urlSuggestions.sort((a, b) => a.offerId.localeCompare(b.offerId)),
-    [
-      { offerId: "lama-128", url: blueberry.replace(/\/$/, "") },
-      { offerId: "lama-512", url: blueberry.replace(/\/$/, "") },
-    ]
+    plan.urlSuggestions,
+    [{ offerId: "lama-128", url: blueberry.replace(/\/$/, "") }],
+    "halaman perwakilan 128 GB tidak diusulkan untuk varian 512 GB"
   );
+  assert.deepEqual(plan.urlConfirmed.sort(), ["baru-128", "lama-512"], "harga diperbarui tanpa usulan: usulan lama dihapus");
 });
 
 import { findRelocatedOffer } from "@/lib/import/offer-relocation";

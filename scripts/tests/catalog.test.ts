@@ -282,3 +282,65 @@ test("baki bandingkan: isi penyimpanan rusak atau asing disaring", () => {
     { slug: "c", name: "C", image: null },
   ]);
 });
+
+import { resilientFetch } from "@/lib/backend/resilient-fetch";
+
+test("resilientFetch: baca yang macet dicoba ulang sekali di koneksi baru; tulis tidak pernah diulang", async () => {
+  const quiet = console.warn;
+  console.warn = () => {};
+  try {
+    const calls: string[] = [];
+    // Percobaan pertama macet sampai dibatalkan (soket keep-alive basi), kedua berhasil.
+    const flaky: typeof fetch = (input, init) => {
+      calls.push(String(init?.method ?? "GET"));
+      if (calls.length === 1) {
+        return new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted"))));
+      }
+      return Promise.resolve(new Response("ok"));
+    };
+    const read = await resilientFetch(flaky, 20)("https://x.test/api/records/products");
+    assert.equal(await read.text(), "ok");
+    assert.equal(calls.length, 2, "GET diulang sekali");
+
+    // Dua kali macet: menyerah setelah percobaan kedua, tidak berulang tanpa batas.
+    let stuck = 0;
+    const alwaysStuck: typeof fetch = (_input, init) => {
+      stuck += 1;
+      return new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted"))));
+    };
+    await assert.rejects(resilientFetch(alwaysStuck, 20)("https://x.test/a"), /aborted/);
+    assert.equal(stuck, 2);
+  } finally {
+    console.warn = quiet;
+  }
+});
+
+test("resilientFetch: tulis diteruskan sekali, galat jaringan dan pembatalan pemanggil tidak diulang", async () => {
+  let count = 0;
+  const failing: typeof fetch = () => {
+    count += 1;
+    return Promise.reject(new TypeError("fetch failed"));
+  };
+  await assert.rejects(resilientFetch(failing, 1000)("https://x.test/a"), /fetch failed/);
+  assert.equal(count, 1, "galat bukan timeout diserahkan ke retry SDK, bukan diulang di sini");
+
+  count = 0;
+  const writes: typeof fetch = () => {
+    count += 1;
+    return Promise.resolve(new Response("created", { status: 201 }));
+  };
+  const res = await resilientFetch(writes, 1000)("https://x.test/a", { method: "PATCH" });
+  assert.equal(res.status, 201);
+  assert.equal(count, 1);
+
+  count = 0;
+  const caller = new AbortController();
+  const hanging: typeof fetch = (_input, init) => {
+    count += 1;
+    return new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted"))));
+  };
+  const pending = resilientFetch(hanging, 1000)("https://x.test/a", { signal: caller.signal });
+  caller.abort();
+  await assert.rejects(pending, /aborted/);
+  assert.equal(count, 1, "dibatalkan pemanggil (timeout SDK): tidak diulang");
+});

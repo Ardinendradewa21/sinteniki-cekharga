@@ -157,7 +157,7 @@ export function planPriceRefresh({
   /** `listedAt` diisi bila penawaran cocok lewat nama: URL yang tercantum hari ini. */
   const take = (offer: RefreshOffer, priceIdr: number, inStock: boolean | undefined, listedAt?: string) => {
     if (matched.has(offer.offerId)) return;
-    if (listedAt) urlSuggestions.set(offer.offerId, listedAt);
+    if (listedAt && !mentionsOtherStorage(listedAt, offer.storageGb)) urlSuggestions.set(offer.offerId, listedAt);
     matched.set(offer.offerId, {
       slug: offer.slug,
       ram_gb: String(offer.ramGb),
@@ -224,7 +224,12 @@ export function planPriceRefresh({
     else missing.push({ offerId: offer.offerId, reason: listedOffers.has(offer.offerId) ? MISSING_VARIANT_REASON : MISSING_MODEL_REASON });
   }
 
-  const urlConfirmed = offers.filter((offer) => listedUrls.has(normalizeOfferUrl(offer.url) ?? "")).map((offer) => offer.offerId);
+  // Usulan lama dihapus untuk penawaran yang URL-nya tercantum lagi atau yang
+  // harganya diperbarui tanpa usulan (mis. halaman perwakilan berkapasitas lain).
+  const urlConfirmed = offers
+    .filter((offer) => !urlSuggestions.has(offer.offerId))
+    .filter((offer) => listedUrls.has(normalizeOfferUrl(offer.url) ?? "") || matched.has(offer.offerId))
+    .map((offer) => offer.offerId);
 
   return {
     rows: [...matched.values()],
@@ -254,6 +259,23 @@ export function isPendingUrlSuggestion({
   if (!suggested) return false;
   if (suggested === normalizeOfferUrl(currentUrl)) return false;
   return !dismissedUrl || suggested !== normalizeOfferUrl(dismissedUrl);
+}
+
+/**
+ * URL menyebut kapasitas penyimpanan lain dari varian penawaran, mis. halaman
+ * perwakilan Samsung "galaxy-a57-...-128gb-..." untuk varian 256 GB. Situs
+ * seperti Samsung hanya mencantumkan satu URL perwakilan per model, jadi URL
+ * itu bukan pengganti yang tepat dan tidak diusulkan (PB-06).
+ */
+function mentionsOtherStorage(url: string, storageGb: number): boolean {
+  let path: string;
+  try {
+    path = new URL(url).pathname.toLowerCase();
+  } catch {
+    return false;
+  }
+  const sizes = [...path.matchAll(/(?<![a-z0-9])(\d+)\s*(gb|tb)(?![a-z])/g)].map(([, n, unit]) => Number(n) * (unit === "tb" ? 1024 : 1));
+  return sizes.length > 0 && !sizes.includes(storageGb);
 }
 
 /** Dua URL penawaran sama setelah bentuknya disamakan (garis miring akhir, huruf host). */
