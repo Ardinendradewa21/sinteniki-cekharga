@@ -1,6 +1,6 @@
 # Product Backlog — CekHarga
 
-Diperbarui 2026-10-20 (Sprint 11: PB-08, PB-03, PB-04 ditinjau; PB-09 dibatalkan; PB-42 sebagian; Sprint 10: PB-06 dan DEF-018 selesai; Sprint 9: PB-44; Sprint 5: PB-31, PB-36, PB-33 selesai; Sprint 4: PB-28 dan PB-29 selesai; Sprint 3 selesai untuk item kode; PB-37 sampai PB-39 dari rancangan Tanya AI; PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
+Diperbarui 2026-10-21 (Sprint 12: PB-45 sampai PB-47; Sprint 11: PB-08, PB-03, PB-04 ditinjau; PB-09 dibatalkan; PB-42 sebagian; Sprint 10: PB-06 dan DEF-018 selesai; Sprint 9: PB-44; Sprint 5: PB-31, PB-36, PB-33 selesai; Sprint 4: PB-28 dan PB-29 selesai; Sprint 3 selesai untuk item kode; PB-37 sampai PB-39 dari rancangan Tanya AI; PB-23 sampai PB-36 dari audit kode dan analisis pesaing; rinciannya di `docs/RENCANA-PENGEMBANGAN-2026-10.md`). Pemilik: Product Owner. Diurutkan dengan **WSJF** (Weighted Shortest Job First):
 
 > WSJF = (Nilai bisnis + Urgensi waktu + Pengurangan risiko) ÷ Ukuran
 
@@ -53,6 +53,9 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 41 | PB-42 | Jadwalkan worker impor per menit di InsForge Schedules; per 16 Okt 18.00 WIB enam batch harga cron masih `queued` dan 0 produk berharga segar | Analisis pendukung keputusan §5 | 13 | 13 | 8 | 1 | **34.0** | ✅ Sebagian 2026-10-20 (Sprint 11): secret `IMPORT_WORKER_SECRET` di InsForge dan jadwal `worker-impor-per-menit` (`* * * * *`, POST ke cekharga-id.vercel.app) sudah dibuat dalam keadaan NONAKTIF. Sisa: pemilik produk mengisi env Vercel produksi `IMPORT_WORKER_SECRET` (konektor tidak punya izin), redeploy, lalu jadwal diaktifkan. Biaya: ±43 ribu panggilan/bulan, ±4% kuota gratis Hobby |
 | 42 | PB-43 | CSV gabungan: spesifikasi, penawaran, dan foto per warna dalam satu berkas; pilihan bagian di formulir; foto lewat aturan galeri sebagai tahap terakhir; tab Galeri dan templat lama dihapus dari UI | Masukan PO 17 Okt 2026 | 13 | 8 | 5 | 5 | **5.2** | ✅ Selesai 2026-10-17 (Sprint 8) |
 | 43 | PB-44 | CSV gabungan tanpa kolom spesifikasi: produk baru dan spesifikasi hanya lewat Tarik otomatis; kolom spesifikasi sheet lama diabaikan dengan peringatan; berkas spesifikasi format lama ditolak | Masukan PO 17 Okt 2026 | 5 | 5 | 3 | 2 | **6.5** | ✅ Selesai 2026-10-17 (Sprint 9) |
+| 44 | PB-45 | Impor CSV vivo: varian khusus Indonesia diusulkan sebagai varian baru (dicentang admin), warna Indonesia tidak menahan baris dan menjadi daftar warna produk, baris per warna digabung tanpa kartu "Dilewati" | Masukan PO 21 Okt 2026 | 8 | 8 | 3 | 3 | **6.3** | ✅ Selesai 2026-10-21 (Sprint 12) |
+| 45 | PB-46 | Tarik otomatis: varian berharga di situs resmi ditambahkan walau tidak ada di GSMArena; model yang belum ada di GSMArena masuk sebagai draft bersumber situs resmi dan diadopsi saat GSMArena memuatnya | Masukan PO 21 Okt 2026 | 8 | 5 | 3 | 3 | **5.3** | ✅ Selesai 2026-10-21 (Sprint 12) |
+| 46 | PB-47 | Alat bantu salin harga (bookmarklet) untuk pencatatan harga e-commerce manual; pengganti sementara PB-17 | Masukan PO 21 Okt 2026 | 8 | 5 | 2 | 2 | **7.5** | ✅ Selesai 2026-10-21 (Sprint 12) |
 | – | PB-10 | Modul iklan: Fase 3–4 (laporan otomatis, invoice, portal advertiser, sponsored listing) | ADS-CONTEXT §10 | – | – | – | – | – | **Ditahan** oleh pemilik produk |
 
 ### Catatan prioritas

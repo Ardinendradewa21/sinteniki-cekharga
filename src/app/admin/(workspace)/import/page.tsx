@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { UploadForm } from "@/components/admin/upload-form";
 import { PhotoReprocessForm } from "@/components/admin/photo-reprocess-form";
+import { PriceHelperLink } from "@/components/admin/price-helper-link";
 import { ScrapeWorkbench } from "@/components/admin/scrape-workbench";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   DRAFT_TTL_DAYS,
 } from "@/lib/import/batch-status";
 import { listBatches, type BatchSummary } from "@/lib/import/batches";
+import { PRICE_HELPER_BOOKMARKLET } from "@/lib/import/price-helper";
 import { templateTerpadu } from "@/lib/import/unified";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
 import { MAX_PHOTOS_PER_COLOR, MAX_PHOTOS_PER_PRODUCT } from "@/lib/import/photo-rules";
@@ -47,6 +49,7 @@ const TABS = [
   { id: "unggah", label: "Unggah CSV" },
   { id: "tarik", label: "Tarik otomatis" },
   { id: "foto", label: "Antrean foto" },
+  { id: "salin", label: "Salin harga" },
   { id: "riwayat", label: "Riwayat batch" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -277,6 +280,62 @@ async function ScrapeTab({
   );
 }
 
+/**
+ * Alat bantu salin harga (Sprint 12): bookmarklet yang dijalankan admin di
+ * halaman produk marketplace yang ia buka sendiri. Tidak ada scraping server.
+ */
+function PriceHelperTab() {
+  return (
+    <section aria-labelledby="salin-harga" className="space-y-6">
+      <div className="max-w-3xl">
+        <h2 id="salin-harga" className="text-lg font-bold text-foreground">
+          Alat bantu salin harga
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Mempercepat pencatatan harga e-commerce secara manual. Kamu tetap membuka halaman produk seperti biasa (dengan
+          akunmu sendiri); satu klik menyalin satu baris berformat CSV gabungan untuk ditempel ke Google Sheet. Tidak ada
+          yang mengambil data otomatis di latar belakang, jadi tidak melanggar aturan marketplace maupun aturan proyek.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold text-foreground">1. Pasang sekali</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Tampilkan bilah bookmark browser (Ctrl+Shift+B), lalu seret tombol ini ke bilah tersebut.
+        </p>
+        <div className="mt-3">
+          <PriceHelperLink href={PRICE_HELPER_BOOKMARKLET} />
+        </div>
+      </div>
+
+      <ol className="space-y-3 rounded-xl border border-border bg-card p-5 text-sm leading-relaxed text-foreground">
+        <li>
+          <strong>2. Buka halaman produk</strong> di Shopee, Tokopedia, Blibli, Lazada, TikTok Shop, atau Erafone, lalu
+          pilih varian (RAM/penyimpanan) dan warnanya di halaman itu.
+        </li>
+        <li>
+          <strong>3. Klik bookmark &ldquo;Salin ke CekHarga&rdquo;.</strong> Panel kecil muncul di kanan atas berisi judul, harga yang
+          terlihat, marketplace, dan RAM/penyimpanan bila tertulis di judul. Bila harga terdeteksi salah, klik salah satu
+          tombol harga di panel, atau blok teks harga di halaman sebelum mengeklik bookmark.
+        </li>
+        <li>
+          <strong>4. Lengkapi lalu klik &ldquo;Salin baris&rdquo;.</strong> Merek, model, dan nama toko diingat untuk klik berikutnya
+          di situs yang sama. Waktu pemeriksaan diisi otomatis (WIB) dan URL dirapikan tanpa parameter pelacak.
+        </li>
+        <li>
+          <strong>5. Tempel di baris kosong sheet</strong> (Ctrl+V). Kolomnya sudah urut sesuai templat CSV gabungan.
+          Ganti varian di halaman dan ulangi. Setelah selesai, unduh sheet sebagai CSV dan unggah di tab Unggah CSV.
+        </li>
+      </ol>
+
+      <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">
+        Bila marketplace menutup panel atau memblokir bookmark, salin manual seperti biasa. Alat ini hanya membaca
+        halaman yang sedang kamu lihat dan tidak mengirim apa pun ke server CekHarga.
+      </p>
+    </section>
+  );
+}
+
 async function PhotoTab() {
   const counts = await photoJobCounts();
   return (
@@ -363,6 +422,7 @@ export default async function ImportPage(props: PageProps<"/admin/import">) {
         ) : null}
         {tab === "tarik" ? <ScrapeTab sessionId={sessionId} brand={brand} search={search} /> : null}
         {tab === "foto" ? <PhotoTab /> : null}
+        {tab === "salin" ? <PriceHelperTab /> : null}
         {tab === "riwayat" ? (
           <section aria-labelledby="riwayat">
             <h2 id="riwayat" className="text-lg font-bold text-foreground">

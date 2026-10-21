@@ -646,6 +646,9 @@ export const SPEC_COLUMNS = [
   "battery_capacity_mah",
   "charging",
   "colors",
+  // Diisi hanya untuk model tanpa halaman GSMArena (spesifikasi minimal dari situs resmi).
+  "specs_source",
+  "specs_source_url",
   "models_list",
   "price_raw",
 ] as const;
@@ -745,6 +748,8 @@ export function parseSpecPage(
     battery_capacity_mah: battery.match(/(\d{3,5})\s*mAh/i)?.[1] ?? "",
     charging: afterLabel(html, "Charging"),
     colors: dataSpec(html, "colors"),
+    specs_source: "",
+    specs_source_url: "",
     models_list: dataSpec(html, "models"),
     price_raw: dataSpec(html, "price"),
   };

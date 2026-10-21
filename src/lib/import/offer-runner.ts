@@ -16,12 +16,13 @@ import {
   selectWhereIn,
   timeKey,
 } from "@/lib/import/batch";
-import { colorInOptions, mergeColors, sameColors } from "@/lib/import/colors";
+import { mergeColors, sameColors } from "@/lib/import/colors";
 import type { ImageRights } from "@/lib/import/image-rights";
 import { offerRowsToCanonical } from "@/lib/import/canonical";
 import type { OfferCatalogProduct, OfferSourceFormat } from "@/lib/import/offers";
 import { findRelocatedOffer } from "@/lib/import/offer-relocation";
 import { enqueuePhotoJobs } from "@/lib/import/photo-jobs";
+import { implausibleVariant, isNewVariantKey, newVariantKey } from "@/lib/import/variant-rules";
 import type { OfferImportReport, RowResult } from "@/lib/import/report";
 import { loadSlugRedirects, loadStoreResolver, type StoreResolver } from "@/lib/import/stores";
 
@@ -86,6 +87,11 @@ export type PreparedItem = {
   colors: string[];
   /** Alasan baris ini perlu ditinjau walau produknya cocok. */
   reviewNote: string | null;
+  /**
+   * Varian belum tercatat: `variantId` berisi kunci sementara (variant-rules)
+   * dan varian ini dibuat saat barisnya diterapkan.
+   */
+  newVariant?: { productId: string; ramGb: number; storageGb: number };
 };
 
 type ListingImage = {
@@ -169,13 +175,47 @@ type OfferPreparation = {
 };
 
 /**
- * Warna berkas yang tidak ada di daftar warna spesifikasi produk tetap
- * disimpan apa adanya, tetapi barisnya ditandai Perlu tinjau: bisa salah
- * ketik ("Celestian" vs "Celestial") atau nama pemasaran yang berbeda.
+ * Membuat varian yang diusulkan baris penawaran (variant-rules.ts). Upsert
+ * dengan constraint unik (product_id, ram_gb, storage_gb, region) NULLS NOT
+ * DISTINCT, jadi aman bila dijalankan ulang. Konteks katalog ikut diperbarui
+ * supaya potongan berikutnya langsung memakai varian yang sudah ada.
+ * Mengembalikan pesan galat, atau null bila berhasil.
  */
-function colorNote(color: string | null, options: readonly string[] | null | undefined): string | null {
-  if (!color || colorInOptions(color, options)) return null;
-  return `Warna "${color}" tidak ada di daftar warna spesifikasi produk (${options!.join(", ")}). Periksa ejaannya.`;
+async function createProposedVariants(items: PreparedItem[], context: OfferContext): Promise<string | null> {
+  const proposals = [...new Map(items.flatMap((item) => (item.newVariant ? [[item.variantId, item.newVariant] as const] : []))).values()];
+  if (proposals.length === 0) return null;
+  const db = getInsforgeAdminClient().database;
+  const { error } = await db.from("variants").upsert(
+    proposals.map((proposal) => ({ product_id: proposal.productId, ram_gb: proposal.ramGb, storage_gb: proposal.storageGb, region: null })),
+    { onConflict: "product_id,ram_gb,storage_gb,region", ignoreDuplicates: true }
+  );
+  if (error) {
+    console.error("[impor-penawaran] varian baru gagal dibuat:", error);
+    return "Varian baru gagal ditambahkan, jadi impor dibatalkan sebelum menulis penawaran apa pun.";
+  }
+  let rows: Awaited<ReturnType<typeof selectWhereIn>>;
+  try {
+    rows = await selectWhereIn("variants", "id, product_id, ram_gb, storage_gb", "product_id", [...new Set(proposals.map((p) => p.productId))]);
+  } catch {
+    return "Varian baru tersimpan tetapi tidak bisa dibaca kembali. Terapkan ulang batch ini.";
+  }
+  for (const row of rows) {
+    const key = `${row.product_id}|${row.ram_gb}|${row.storage_gb}`;
+    if (context.byVariantKey.has(key)) continue;
+    context.byVariantKey.set(key, String(row.id));
+    context.catalogProducts
+      .find((product) => product.id === String(row.product_id))
+      ?.variants.push({ id: String(row.id), ramGb: Number(row.ram_gb), storageGb: Number(row.storage_gb) });
+  }
+  for (const item of items) {
+    if (!item.newVariant || !isNewVariantKey(item.variantId)) continue;
+    const { productId, ramGb, storageGb } = item.newVariant;
+    const id = context.byVariantKey.get(`${productId}|${ramGb}|${storageGb}`);
+    if (!id) return "Varian baru tidak ditemukan setelah dibuat. Terapkan ulang batch ini.";
+    item.offerKey = `${id}|${item.url}`;
+    item.variantId = id;
+  }
+  return null;
 }
 
 /** Tahap tanpa tulis: validasi, cocokkan, dan gabungkan listing. Dipakai pratinjau dan penulisan. */
@@ -194,7 +234,6 @@ export function prepareOfferRows(
   let mergedListings = 0;
   const listingImages: ListingImage[] = [];
   const imageIssues: OfferPreparation["imageIssues"] = [];
-  const productById = new Map(catalogProducts.map((product) => [product.id, product]));
 
   // Tahap 1, tanpa jaringan: adaptor kanonik (canonical.ts) menerjemahkan
   // setiap format penawaran ke bentuk yang sama, lalu dicocokkan di sini.
@@ -240,14 +279,19 @@ export function prepareOfferRows(
       });
     }
 
-    const variantId = byVariantKey.get(`${productId}|${row.ramGb}|${row.storageGb}`);
+    // Varian yang belum tercatat (sering: varian khusus Indonesia yang tidak
+    // ada di GSMArena) diusulkan sebagai varian baru, menunggu centang admin.
+    // Kombinasi yang tidak lazim tetap ditolak supaya salah ketik tidak menjadi varian.
+    let variantId = byVariantKey.get(`${productId}|${row.ramGb}|${row.storageGb}`);
+    let newVariant: PreparedItem["newVariant"];
     if (!variantId) {
-      skipped.push({
-        label,
-        reason: `Varian ${row.ramGb}/${row.storageGb} GB tidak tercatat untuk produk ini, dan varian tidak boleh dikarang.`,
-        rowIndex,
-      });
-      continue;
+      const implausible = implausibleVariant(row.ramGb, row.storageGb);
+      if (implausible) {
+        skipped.push({ label, reason: `Varian ${row.ramGb}/${row.storageGb} GB belum tercatat. ${implausible}`, rowIndex });
+        continue;
+      }
+      variantId = newVariantKey(productId, row.ramGb, row.storageGb);
+      newVariant = { productId, ramGb: row.ramGb, storageGb: row.storageGb };
     }
 
     items.push({
@@ -273,9 +317,19 @@ export function prepareOfferRows(
       format: outcome.format,
       color: outcome.color,
       colors: [],
-      reviewNote: [outcome.reviewNote, colorNote(outcome.color, productById.get(productId)?.colorOptions)]
-        .filter(Boolean)
-        .join(" ") || null,
+      // Warna listing disimpan apa adanya di penawaran (offers.colors) dan
+      // tidak menahan baris: nama pemasaran Indonesia hampir tidak pernah sama
+      // dengan nama warna GSMArena, padahal keduanya benar.
+      reviewNote:
+        [
+          outcome.reviewNote,
+          newVariant
+            ? `Varian ${row.ramGb}/${row.storageGb} GB belum tercatat untuk produk ini. Centang baris ini untuk menambah varian itu beserta penawarannya; biarkan bila keliru.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || null,
+      ...(newVariant ? { newVariant } : {}),
     });
   }
 
@@ -394,6 +448,11 @@ export async function runOfferImport({
 
   // Tahap 2: penawaran. Baris ganda untuk penawaran yang sama digabung; data
   // baris terakhir yang dipakai, sama seperti hasil akhir impor berurutan.
+  // Varian baru yang dicentang admin dibuat lebih dulu, lalu kunci
+  // sementaranya diganti ID asli sebelum penawaran dicocokkan dan ditulis.
+  const variantError = await createProposedVariants(items, context);
+  if (variantError) return { error: variantError, summary: null, rowResults: [] };
+
   const latestItemByOffer = new Map(items.map((item) => [item.offerKey, item]));
 
   let existingOffers: Awaited<ReturnType<typeof selectWhereIn>>;

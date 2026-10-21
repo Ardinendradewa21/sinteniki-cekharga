@@ -7,7 +7,7 @@ import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { invalidateCatalogCache } from "@/lib/backend/catalog-repository";
 import { recordAudit } from "@/lib/admin/audit";
 import type { CsvRow } from "@/lib/import/csv-parser";
-import type { ImportCandidate } from "@/lib/import/gsmarena";
+import { placeholderSourceKey, type ImportCandidate } from "@/lib/import/gsmarena";
 import type { ProductSpecs } from "@/lib/catalog/schema";
 import { productRowsToCanonical } from "@/lib/import/canonical";
 import {
@@ -81,7 +81,7 @@ function productPayload({ candidate, specs }: ValidCandidate, retrievedAt: strin
     brand: candidate.brand,
     model: candidate.model,
     specs,
-    specs_source: "GSMArena",
+    specs_source: candidate.specsSource,
     specs_source_url: candidate.specsSourceUrl,
     // Impor memang mengambil ulang data dari sumber, jadi di sinilah waktu
     // pengambilan yang benar untuk dimajukan.
@@ -127,6 +127,29 @@ async function insertProductSingly(
 }
 
 /**
+ * sourceKey kandidat -> ID produk berkunci placeholder dengan slug yang sama
+ * (lihat placeholderSourceKey). Satu query untuk semua kandidat.
+ */
+async function adoptPlaceholders(candidates: readonly ValidCandidate[]): Promise<Map<string, string>> {
+  const wanted = candidates.filter((c) => c.candidate.sourceKey !== placeholderSourceKey(c.candidate.slug));
+  if (wanted.length === 0) return new Map();
+  const rows = await selectWhereIn(
+    "products",
+    "id, slug, source_key",
+    "source_key",
+    wanted.map((c) => placeholderSourceKey(c.candidate.slug)),
+    { includeDeleted: true }
+  );
+  const idByPlaceholder = new Map(rows.map((row) => [String(row.source_key), String(row.id)]));
+  return new Map(
+    wanted.flatMap((c) => {
+      const id = idByPlaceholder.get(placeholderSourceKey(c.candidate.slug));
+      return id ? [[c.candidate.sourceKey, id] as const] : [];
+    })
+  );
+}
+
+/**
  * Menyimpan produk dan varian untuk seluruh kandidat valid sekaligus.
  * Mengembalikan hasil per `sourceKey`.
  */
@@ -148,6 +171,10 @@ async function saveCandidates(
   const existingByKey = new Map(
     existingRows.map((row) => [String(row.source_key), String(row.id)])
   );
+  // Produk tanpa halaman GSMArena (kunci placeholder) diadopsi oleh kandidat
+  // GSMArena dengan slug sama: diperbarui dan kuncinya diganti, bukan digandakan.
+  const adopted = await adoptPlaceholders(candidates.filter((c) => !existingByKey.has(c.candidate.sourceKey)));
+  for (const [sourceKey, productId] of adopted) existingByKey.set(sourceKey, productId);
 
   const toUpdate = candidates.filter((c) => existingByKey.has(c.candidate.sourceKey));
   const toInsert = candidates.filter((c) => !existingByKey.has(c.candidate.sourceKey));
@@ -165,8 +192,9 @@ async function saveCandidates(
         brand: valid.candidate.brand,
         model: valid.candidate.model,
         specs_patch: specsPatch(valid.specs, valid.candidate.clearedSpecs),
-        specs_source: "GSMArena",
+        specs_source: valid.candidate.specsSource,
         specs_source_url: valid.candidate.specsSourceUrl,
+        source_key: valid.candidate.sourceKey,
         specs_retrieved_at: retrievedAt,
         updated_by_batch_id: lineage.batchId,
         last_source: lineage.source,

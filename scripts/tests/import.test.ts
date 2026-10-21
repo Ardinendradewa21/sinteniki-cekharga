@@ -1061,7 +1061,9 @@ test("berkas galeri: dikenali dari kolomnya, baris dibaca, rencana mendahulukan 
   const created = plan.filter((item) => item.action === "create" && item.photo?.color === "Black").map((item) => item.photo!.sortOrder);
   assert.deepEqual(created.sort((a, b) => a - b), [2, 3, 4, 5, 9], "5 foto baru + 1 lama = 6");
   assert.match(byRow(0).reason ?? "", /sudah berisi 6 foto/, "urutan terbesar yang terlewat");
-  assert.equal(byRow(8).colorReview, true, "Violet di luar daftar warna: Perlu tinjau");
+  // Sprint 12: warna berkas (toko resmi Indonesia) menjadi acuan daftar warna; tidak lagi Perlu tinjau.
+  assert.equal(byRow(8).colorReview, false, "Violet di luar daftar warna hanya dicatat");
+  assert.match(byRow(8).reason ?? "", /daftar warna produk akan mengikuti warna galeri/);
   assert.match(byRow(9).reason ?? "", /host-nya belum diizinkan/);
   assert.match(byRow(10).reason ?? "", /tidak ditemukan di katalog/);
   const noRights = planGalleryRows([row("Black", 3)], { products, existing: new Map(), defaultRights: null });
@@ -1289,4 +1291,59 @@ test("daftar model situs resmi: aksesori tidak ikut dilaporkan sebagai model (te
   for (const name of ["OPPO A6t Pro 5G [Online Exclusive]", "Xiaomi POCO F9 Ultra 5G", "Samsung Galaxy A07 Power Pack", "Xiaomi 17 Ultra"]) {
     assert.equal(looksLikeAccessory(name), false, name);
   }
+});
+
+import { galleryColorOptions } from "@/lib/import/photo-gallery-rows";
+import { implausibleVariant, isNewVariantKey, newVariantKey } from "@/lib/import/variant-rules";
+
+test("warna produk mengikuti galeri: warna berkas dulu, lalu warna galeri lama, tanpa ganda", () => {
+  assert.deepEqual(galleryColorOptions(["Hitam Malam", "Biru Langit", "hitam malam"], ["Biru Langit", null, "Voyage Black"]), [
+    "Hitam Malam",
+    "Biru Langit",
+    "Voyage Black",
+  ]);
+  assert.deepEqual(galleryColorOptions([], [null]), [], "tanpa warna: produk tidak diubah");
+});
+
+test("varian baru dari berkas: kombinasi lazim diusulkan, salah ketik ditolak", () => {
+  assert.equal(implausibleVariant(6, 128), null);
+  assert.equal(implausibleVariant(16, 1024), null);
+  assert.match(implausibleVariant(16, 516) ?? "", /Penyimpanan 516 GB tidak lazim/);
+  assert.match(implausibleVariant(7, 128) ?? "", /RAM 7 GB tidak lazim/);
+  const key = newVariantKey("p1", 6, 256);
+  assert.equal(isNewVariantKey(key), true);
+  assert.equal(isNewVariantKey("0b6c4c1e-0000-4000-8000-000000000000"), false);
+});
+
+import { PRICE_HELPER_BOOKMARKLET, PRICE_HELPER_SOURCE } from "@/lib/import/price-helper";
+import { UNIFIED_COLUMNS } from "@/lib/import/unified";
+
+test("alat bantu salin harga: harga, memori, marketplace, dan baris sesuai kolom CSV gabungan", () => {
+  const api = new Function(`${PRICE_HELPER_SOURCE}; return { chParsePrice, chAllPrices, chParseMemory, chMarketplace, chCleanUrl, chObservedAt, chBuildRow };`)() as {
+    chParsePrice(t: string): number | null;
+    chAllPrices(t: string): number[];
+    chParseMemory(t: string): { ram: number; storage: number } | null;
+    chMarketplace(h: string): string;
+    chCleanUrl(h: string): string;
+    chObservedAt(d: Date): string;
+    chBuildRow(c: readonly string[], v: Record<string, unknown>): string;
+  };
+  assert.equal(api.chParsePrice("Harga Rp2.649.000 hari ini"), 2649000);
+  assert.equal(api.chParsePrice("Rp 99"), null, "angka kecil bukan harga HP");
+  assert.deepEqual(api.chAllPrices("Rp3.299.000 Rp2.999.000 Rp3.299.000"), [3299000, 2999000]);
+  assert.deepEqual(api.chParseMemory("vivo Y05 4/128GB 6500mAh"), { ram: 4, storage: 128 });
+  assert.deepEqual(api.chParseMemory("Galaxy S26 Ultra 12GB+1TB"), { ram: 12, storage: 1024 });
+  assert.deepEqual(api.chParseMemory("RAM 8GB ROM 256GB"), { ram: 8, storage: 256 });
+  assert.equal(api.chParseMemory("Layar 6.7 inci 120Hz"), null);
+  assert.equal(api.chMarketplace("shopee.co.id"), "Shopee");
+  assert.equal(api.chMarketplace("www.tokopedia.com"), "Tokopedia");
+  assert.equal(api.chMarketplace("evil-shopee.co.id.example.com"), "");
+  assert.equal(api.chCleanUrl("https://shopee.co.id/vivo-y05-i.1.2?sp_atk=abc#x"), "https://shopee.co.id/vivo-y05-i.1.2");
+  assert.equal(api.chObservedAt(new Date("2026-10-21T02:05:00Z")), "21/10/2026 09.05".replace(".", ":"));
+  const row = api.chBuildRow(UNIFIED_COLUMNS, { brand: "vivo", model_name: "Y05", ram_gb: 4, storage_gb: 128, price_idr: 2649000, marketplace: "Shopee", seller_name: "vivo\tOfficial" });
+  const cells = row.split("\t");
+  assert.equal(cells.length, UNIFIED_COLUMNS.length, "satu sel per kolom templat");
+  assert.equal(cells[UNIFIED_COLUMNS.indexOf("seller_name")], "vivo Official", "tab di dalam nilai tidak memecah kolom");
+  assert.ok(PRICE_HELPER_BOOKMARKLET.startsWith("javascript:"));
+  assert.doesNotThrow(() => new Function(decodeURIComponent(PRICE_HELPER_BOOKMARKLET.slice("javascript:".length))), "bookmarklet valid JavaScript");
 });

@@ -230,15 +230,21 @@ export function planGalleryRows(
     const photos = simulated.get(product.id) ?? [...(existing.get(product.id) ?? [])];
     simulated.set(product.id, photos);
 
-    const colorNote = colorInOptions(row.color, product.colorOptions)
+    // Warna dari berkas (toko resmi Indonesia) menjadi acuan daftar warna
+    // produk (galleryColorOptions); beda nama dengan GSMArena hanya dicatat,
+    // tidak menahan baris.
+    const colorInfo = colorInOptions(row.color, product.colorOptions)
       ? null
-      : `Warna "${row.color}" tidak ada di daftar warna spesifikasi produk (${product.colorOptions!.join(", ")}). Periksa ejaannya.`;
+      : `Warna "${row.color}" belum ada di daftar warna produk (${product.colorOptions!.join(", ")}); daftar warna produk akan mengikuti warna galeri.`;
     const sharedColors = [...(colorsByUrl.get(`${product.id} ${row.imageUrl.trim()}`) ?? [])].filter((color) => color !== row.color);
     const sharedNote = sharedColors.length
       ? `URL foto yang sama juga dipakai untuk warna ${sharedColors.join(", ")}. Pastikan fotonya memang warna ${row.color}.`
       : null;
-    const note = [entry.nameNote, colorNote, sharedNote].filter(Boolean).join(" ") || null;
-    const colorReview = note !== null;
+    const reviewNote = [entry.nameNote, sharedNote].filter(Boolean).join(" ") || null;
+    const note = [reviewNote, colorInfo].filter(Boolean).join(" ") || null;
+    // Perlu tinjau hanya untuk risiko nyata: nama produk dicocokkan longgar
+    // atau satu URL foto dipakai beberapa warna.
+    const colorReview = reviewNote !== null;
     const base = { rowIndex, label, product: { id: product.id, name: `${product.brand} ${product.model}` }, colorReview };
     const photo = { ...row, url: url.href, rights };
 
@@ -268,4 +274,20 @@ export function templateGaleri(): string {
     ["Xiaomi", "Redmi 17", "Oak Green", "1", "ya", "https://down-id.img.susercontent.com/file/contoh-hijau", "https://shopee.co.id/contoh", "", ""],
   ];
   return [GALLERY_COLUMNS.join(","), ...rows.map((row) => row.join(","))].join("\n") + "\n";
+}
+
+/**
+ * Daftar warna produk setelah galeri diterapkan (Sprint 12): warna foto yang
+ * baru diantrekan, lalu warna foto yang sudah ada di galeri, tanpa ganda
+ * (tidak peka huruf besar). Warna GSMArena yang tidak punya foto tidak ikut,
+ * karena pemilik produk memutuskan warna toko resmi Indonesia yang menjadi
+ * acuan. Daftar kosong berarti produk tidak diubah.
+ */
+export function galleryColorOptions(queued: readonly (string | null)[], existing: readonly (string | null)[]): string[] {
+  const colors: string[] = [];
+  for (const color of [...queued, ...existing]) {
+    const value = color?.trim();
+    if (value && !colors.some((known) => known.toLowerCase() === value.toLowerCase())) colors.push(value);
+  }
+  return colors;
 }

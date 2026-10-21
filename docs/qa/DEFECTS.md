@@ -41,8 +41,12 @@ Aturan tim: **setiap defect yang ditutup wajib punya tes regresi otomatis**, kec
 | DEF-027 | Aksesori OPPO/Xiaomi (Pencil, Teleconverter, Charging Combo) ikut di daftar model | Rendah | P3 | Ditutup | Tarik harga saja Sprint 11 | Sprint 11 | unit `looksLikeAccessory` |
 | DEF-028 | Materi iklan yang sudah punya data tayang tidak bisa ditarik dari tayang | Sedang | P2 | Ditutup | Uji coba iklan Sprint 11 | Sprint 11 | uji browser produksi |
 | DEF-029 | Usulan URL Samsung menyarankan halaman 128 GB untuk varian 256 GB | Sedang | P2 | Ditutup | Inspeksi usulan URL Sprint 11 | Sprint 11 | unit pemeriksaan harga |
+| DEF-030 | Semua penawaran CSV tidak tercentang ("Terapkan 0 baris") karena nama warna Indonesia berbeda dengan nama warna GSMArena | Tinggi | P1 | Ditutup | Laporan PO (impor vivo) | Sprint 12 | INT-16 |
+| DEF-031 | Baris per warna untuk listing yang sama tampil sebagai kartu "Dilewati" berwarna merah | Rendah | P3 | Ditutup | Laporan PO (impor vivo) | Sprint 12 | INT-16 |
+| DEF-032 | Varian berharga di situs resmi Indonesia dibuang karena tidak tercatat di GSMArena | Sedang | P2 | Ditutup | Laporan PO (impor vivo) | Sprint 12 | unit dan INT-16 |
+| DEF-033 | Model resmi yang belum ada di GSMArena (vivo Y31d Pro) ditolak diam-diam saat tarik otomatis | Sedang | P2 | Ditutup | Laporan PO (impor vivo) | Sprint 12 | – (uji tarik menunggu akses GSMArena) |
 
-Total: 29 defect. 28 ditutup, 1 terbuka. Severity: Kritis 2, Tinggi 11, Sedang 14, Rendah 2.
+Total: 33 defect. 32 ditutup, 1 terbuka. Severity: Kritis 2, Tinggi 12, Sedang 16, Rendah 3.
 
 ## Detail defect penting
 

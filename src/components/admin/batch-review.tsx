@@ -84,6 +84,7 @@ function ItemDetail({ item }: { item: ReviewItem }) {
           text(v.price),
           text(v.status),
           text(v.colors) && `Warna: ${text(v.colors)}`,
+          text(v.merged),
           text(v.photos),
         ];
   const shown = facts.filter((fact): fact is string => Boolean(fact));

@@ -641,6 +641,60 @@ test("INT-15 penjual resmi: URL perwakilan berganti memindahkan penawaran lama, 
   await db.from("offer_url_suggestions").delete().eq("offer_id", offerId);
 });
 
+test("INT-16 CSV gabungan: varian Indonesia dibuat saat dicentang, salah ketik ditolak, baris per warna digabung, warna produk ikut galeri", async () => {
+  const { convertUnifiedRows } = await import("@/lib/import/unified");
+  const base = await createBatch({ kind: "specs", origin: "scrape", sourceLabel: "QA-UJI varian produk", options: {}, rows: [{ ...spec("Varian", 1), colors: "Voyage Black, Haze Blue" }], malformedLines: [], admin: actor });
+  assert.ok(base.ok);
+  batches.push(base.id);
+  await applyAll(base.id);
+  const url = "https://shopee.co.id/qauji-varian-1-i.7.7";
+  const row = (ram: string, storage: string, color: string, harga: string) => ({
+    merek: "QAUji", model: "Varian 1", ram, storage, marketplace: "Shopee", toko: "Toko QA", url, harga, diperiksa: "10/10/2026 09:00",
+    warna: color, url_image: `https://down-id.img.susercontent.com/file/qa-uji-varian-${color.replace(/ /g, "-").toLowerCase()}`,
+  });
+  const rows = [
+    row("8", "128", "Hitam Malam", "Rp 3.000.000"),
+    row("8", "128", "Biru Langit", "Rp 3.000.000"),
+    row("6", "256", "Hitam Malam", "Rp 3.300.000"),
+    row("16", "516", "Hitam Malam", "Rp 9.000.000"),
+  ];
+  const { offerRows, photoRows } = convertUnifiedRows(rows);
+  const created = await createBatch({
+    kind: "offers", origin: "csv", sourceLabel: "QA-UJI varian harga", rows: offerRows, malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: null, defaultObservedAt: new Date().toISOString() },
+  });
+  assert.ok(created.ok, JSON.stringify(created));
+  batches.push(created.id);
+  const plan = (await getBatch(created.id))!;
+  const fresh = plan.items.find((i) => i.changes.some((c) => c.field === "Varian baru"));
+  assert.ok(fresh, "6/256 diusulkan sebagai varian baru");
+  assert.equal(fresh!.action, "create");
+  assert.equal(fresh!.view.productReview, true, "varian baru: Perlu tinjau, tidak dicentang otomatis");
+  assert.match(plan.items.find((i) => i.action === "skip")?.reason ?? "", /516 GB tidak lazim/);
+  assert.equal(plan.items.filter((i) => /Baris ganda/.test(i.reason ?? "")).length, 0, "baris per warna tidak lagi jadi kartu Dilewati");
+  assert.match(String(plan.items.find((i) => i.view.variant === "8/128 GB")?.view.merged ?? ""), /2 baris digabung/);
+  assert.equal(plan.items.find((i) => i.view.variant === "8/128 GB")?.view.productReview ?? null, null, "warna Indonesia tidak menahan penawaran");
+
+  await applyAll(created.id);
+  const variants = ((await db.from("variants").select("ram_gb, storage_gb, product_id, products!inner(model)").eq("products.model", "Varian 1")).data ?? []) as { ram_gb: number; storage_gb: number }[];
+  assert.ok(variants.some((v) => v.ram_gb === 6 && v.storage_gb === 256), "varian 6/256 dibuat");
+  assert.ok(!variants.some((v) => v.storage_gb === 516), "salah ketik tidak menjadi varian");
+  const offers = ((await db.from("offers").select("id").eq("url", url).is("deleted_at", null)).data ?? []) as unknown[];
+  assert.equal(offers.length, 2, "8/128 dan 6/256");
+
+  const photos = await createBatch({
+    kind: "photos", origin: "csv", sourceLabel: "QA-UJI varian foto", rows: photoRows, malformedLines: [], admin: actor,
+    options: { sourceFormat: "unified", imageRights: { basis: "own-work", text: "Aset uji QA" } },
+  });
+  assert.ok(photos.ok, JSON.stringify(photos));
+  batches.push(photos.id);
+  const photoPlan = (await getBatch(photos.id))!;
+  assert.ok(photoPlan.items.filter((i) => i.action === "create").every((i) => !i.view.productReview), "warna baru tidak Perlu tinjau");
+  await applyAll(photos.id);
+  const product = ((await db.from("products").select("specs").eq("brand", "QAUji").eq("model", "Varian 1")).data ?? [])[0] as { specs: { colorOptions: string[] } };
+  assert.deepEqual(product.specs.colorOptions, ["Hitam Malam", "Biru Langit"], "daftar warna mengikuti galeri, bukan GSMArena");
+});
+
 test("INT-12 galeri foto: batas per warna, sampul dan urutan ke antrean, undo menghapus foto di produk terbit", async () => {
   const base = await createBatch({ kind: "specs", origin: "csv", sourceLabel: "QA-UJI galeri produk", options: {}, rows: [spec("Galeri", 1)], malformedLines: [], admin: actor });
   assert.ok(base.ok);

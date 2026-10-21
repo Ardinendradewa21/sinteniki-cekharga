@@ -11,6 +11,8 @@ import {
   type PreparedItem,
 } from "@/lib/import/offer-runner";
 import { findRelocatedOffer } from "@/lib/import/offer-relocation";
+import { isNewVariantKey } from "@/lib/import/variant-rules";
+import { placeholderSourceKey } from "@/lib/import/gsmarena";
 import { applyKeepExisting, mergeSpecs, specsPatch } from "@/lib/import/patch-rules";
 import { prepareSpecRows } from "@/lib/import/spec-runner";
 
@@ -118,6 +120,29 @@ export async function planSpecImport(
   ]);
   const excludedReason = new Map(exclusions.map((row) => [String(row.source_key), String(row.reason)]));
   const existingByKey = new Map(existing.map((row) => [String(row.source_key), row]));
+  // Produk tanpa halaman GSMArena (kunci placeholder) diadopsi kandidat
+  // GSMArena dengan slug sama; spec-runner melakukan hal yang sama saat menulis.
+  const adoptable = valid.filter(
+    (entry) => !existingByKey.has(entry.candidate.sourceKey) && entry.candidate.sourceKey !== placeholderSourceKey(entry.candidate.slug)
+  );
+  const placeholders = adoptable.length
+    ? await selectWhereIn(
+        "products",
+        "id, source_key, slug, brand, model, specs, status, deleted_at",
+        "source_key",
+        adoptable.map((entry) => placeholderSourceKey(entry.candidate.slug)),
+        { includeDeleted: true }
+      )
+    : [];
+  const adoptedKeys = new Set<string>();
+  for (const entry of adoptable) {
+    const row = placeholders.find((p) => p.source_key === placeholderSourceKey(entry.candidate.slug));
+    if (row) {
+      existingByKey.set(entry.candidate.sourceKey, row);
+      adoptedKeys.add(entry.candidate.sourceKey);
+      existing.push(row);
+    }
+  }
   const existingIds = existing.map((row) => String(row.id));
   const [variants, photos] = await Promise.all([
     selectWhereIn("variants", "id, product_id, ram_gb, storage_gb", "product_id", existingIds),
@@ -188,6 +213,9 @@ export async function planSpecImport(
     }
 
     const changes: PlanChange[] = [];
+    if (adoptedKeys.has(candidate.sourceKey)) {
+      changes.push({ field: "Sumber spesifikasi", before: "Situs resmi (belum ada di GSMArena)", after: "GSMArena" });
+    }
     if (current.deleted_at) {
       changes.push({ field: "Status data", before: "Terhapus", after: "Dipulihkan sebagai draft" });
     }
@@ -299,16 +327,9 @@ export async function planOfferImport(
         );
       }
       duplicateNotes.set(item.offerKey, notes);
+      // Tidak dibuat kartu "Dilewati" tersendiri: baris per warna untuk listing
+      // yang sama memang satu penawaran. Jumlahnya ditampilkan di penawaran itu.
       mergedRows.set(item.offerKey, [...(mergedRows.get(item.offerKey) ?? []), earlier.rowIndex]);
-      items.push({
-        entity: "offer",
-        action: "skip",
-        label: earlier.label,
-        reason: "Baris ganda untuk penawaran yang sama; data baris terakhir di berkas yang dipakai, fotonya tetap ikut.",
-        rowIndexes: [],
-        view: {},
-        changes: [],
-      });
     }
     latest.set(item.offerKey, item);
   }
@@ -334,7 +355,8 @@ export async function planOfferImport(
       "offers",
       "id, variant_id, url, marketplace, seller_name, warranty, listing_status, seller_verified, store_id, colors, deleted_at",
       "variant_id",
-      offerItems.map((item) => item.variantId),
+      // Varian yang baru diusulkan belum punya ID, jadi belum punya penawaran.
+      offerItems.map((item) => item.variantId).filter((id) => !isNewVariantKey(id)),
       { includeDeleted: true }
     ),
     selectAll("stores", "id, name"),
@@ -362,6 +384,16 @@ export async function planOfferImport(
       productByVariant.set(variant.id, {
         name: `${product.brand} ${product.model}`,
         variant: variantLabel(variant.ramGb, variant.storageGb),
+      });
+    }
+  }
+
+  const productNameById = new Map(context.catalogProducts.map((product) => [product.id, `${product.brand} ${product.model}`]));
+  for (const item of offerItems) {
+    if (item.newVariant) {
+      productByVariant.set(item.variantId, {
+        name: productNameById.get(item.newVariant.productId) ?? item.label,
+        variant: variantLabel(item.newVariant.ramGb, item.newVariant.storageGb),
       });
     }
   }
@@ -394,6 +426,7 @@ export async function planOfferImport(
       url: item.url,
       photos: photos || null,
       colors: item.colors.length > 0 ? item.colors.join(", ") : null,
+      merged: rowIndexes.length > 1 ? `${rowIndexes.length} baris digabung (satu listing)` : null,
       // Judul toko tanpa memori: varian dasar disimpulkan importer, jadi ditandai "Perlu tinjau".
       inferredVariant: item.inferred ? true : null,
       // Nama cocok tetapi ada model saudara 4G/5G, atau baris ganda berbeda harga: "Perlu tinjau".
@@ -420,7 +453,10 @@ export async function planOfferImport(
         .filter(Boolean)
         .join(" ") || null;
     if (!current) {
-      items.push({ entity: "offer", action: "create", label, reason: inferredNote, rowIndexes, view, changes: [] });
+      const variantChange = item.newVariant
+        ? [{ field: "Varian baru", before: null, after: variantLabel(item.newVariant.ramGb, item.newVariant.storageGb) }]
+        : [];
+      items.push({ entity: "offer", action: "create", label, reason: inferredNote, rowIndexes, view, changes: variantChange });
       continue;
     }
 

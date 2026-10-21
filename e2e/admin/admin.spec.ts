@@ -52,10 +52,10 @@ test.describe("Pusat Impor", () => {
     });
   });
 
-  test("TC-IMP-01 empat tab tersedia (galeri melebur ke CSV gabungan) dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
+  test("TC-IMP-01 lima tab tersedia (termasuk Salin harga) dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
     await page.goto("/admin/import");
     const nav = page.getByRole("navigation", { name: "Sumber impor" });
-    for (const tab of ["Unggah CSV", "Tarik otomatis", "Antrean foto", "Riwayat batch"]) {
+    for (const tab of ["Unggah CSV", "Tarik otomatis", "Antrean foto", "Salin harga", "Riwayat batch"]) {
       await expect(nav.getByRole("link", { name: tab, exact: true })).toBeVisible();
     }
     await expect(nav.getByRole("link", { name: "Galeri foto", exact: true })).toHaveCount(0);
@@ -119,6 +119,41 @@ test.describe("Pusat Impor", () => {
     await expect(page.locator("main")).toContainText(/hak pakai|tidak ditemukan di katalog/);
     await page.getByRole("button", { name: "Batalkan batch ini" }).click();
     await page.waitForURL(/\/admin\/import(\?|$)/, { timeout: 60_000 });
+  });
+
+  test("TC-IMP-07 alat bantu salin harga menyalin satu baris berurutan kolom CSV gabungan dari halaman produk @regression", async ({ page, context }) => {
+    await page.goto("/admin/import?tab=salin");
+    const link = page.getByRole("link", { name: "Salin ke CekHarga" });
+    await expect(link).toHaveAttribute("href", /^javascript:/);
+    const code = decodeURIComponent(((await link.getAttribute("href")) ?? "").slice("javascript:".length));
+
+    // Halaman tiruan di host Shopee (dilayani lokal, tidak menyentuh Shopee).
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "https://shopee.co.id" });
+    await page.route("https://shopee.co.id/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: `<!doctype html><html><head><title>vivo Y05 4/128GB</title>
+          <script type="application/ld+json">{"@type":"Product","name":"vivo Y05 4/128GB 6500mAh","offers":{"price":"2999000","seller":{"name":"Vivo Official Store"}}}</script>
+          </head><body><h1>vivo Y05 4/128GB</h1><p>Rp3.299.000</p><p>Rp2.999.000</p></body></html>`,
+      })
+    );
+    await page.goto("https://shopee.co.id/vivo-y05-i.1.2?sp_atk=abc");
+    await page.evaluate(code);
+    const panel = page.locator("#cekharga-salin");
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('[data-f="ram_gb"]')).toHaveValue("4");
+    await expect(panel.locator('[data-f="storage_gb"]')).toHaveValue("128");
+    await expect(panel.locator('[data-f="price_idr"]')).toHaveValue("2999000");
+    await expect(panel.locator('[data-f="marketplace"]')).toHaveValue("Shopee");
+    await panel.locator('[data-f="brand"]').fill("vivo");
+    await panel.locator('[data-f="model_name"]').fill("Y05");
+    await panel.locator('[data-f="color"]').fill("Hitam Malam");
+    await panel.getByRole("button", { name: "Salin baris" }).click();
+    await expect(panel).toContainText("Tersalin");
+    const cells = (await page.evaluate(() => navigator.clipboard.readText())).split("	");
+    expect(cells).toHaveLength(20);
+    expect(cells.slice(0, 6)).toEqual(["vivo", "Y05", "", "4", "128", "Hitam Malam"]);
+    expect(cells.slice(12, 16)).toEqual(["Shopee", "Vivo Official Store", "https://shopee.co.id/vivo-y05-i.1.2", "2999000"]);
   });
 
   test("TC-IMP-05 CSV gabungan: koreksi otomatis tampil, harga ditinjau dulu lalu foto sebagai tahap lanjutan @regression", async ({ page }) => {

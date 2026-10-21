@@ -133,6 +133,21 @@ Yang **tidak** dikoreksi otomatis:
 
 Baris seperti itu dilewati dengan alasan. Bila dua baris memberi nilai berbeda untuk produk yang sama, nilai baris pertama dipakai dan konfliknya ditandai **Konflik**.
 
+### Varian, warna, dan baris per warna (sejak 21 Oktober 2026, Sprint 12)
+
+- **Varian yang belum tercatat** (sering varian khusus Indonesia yang tidak ada di GSMArena, mis. vivo Y500 6/128 GB) tidak lagi dibuang. Barisnya tampil **Perlu tinjau** dengan perubahan "Varian baru" dan tidak dicentang otomatis. Centang bila variannya memang dijual; varian dibuat sekaligus penawarannya saat diterapkan. Kombinasi yang tidak lazim (mis. 16/516 GB) tetap dilewati dengan alasan "tidak lazim, periksa ketikannya".
+- **Warna:** nama warna dari toko resmi Indonesia ("Hitam Malam", "Vibing Blue") tidak lagi menahan baris penawaran maupun foto. Saat batch foto diterapkan, **daftar warna produk diganti dengan warna di galeri** (keputusan pemilik produk: warna toko resmi Indonesia yang menjadi acuan, bukan nama warna GSMArena).
+- **Satu baris per warna** untuk listing dan varian yang sama tetap satu penawaran. Baris tambahannya tidak lagi tampil sebagai kartu "Dilewati"; penawarannya menulis "N baris digabung (satu listing)", dan foto tiap warna tetap masuk galeri.
+
+### Kolom hak pakai foto
+
+| Kolom | Gunanya | Isi |
+| --- | --- | --- |
+| `image_usage_basis` | Dasar hukum CekHarga boleh menayangkan foto itu (PRD §6). Foto tanpa dasar hak pakai tidak disimpan | `own-work` (foto atau aset milik sendiri), `written-permission` (izin tertulis pemilik foto), `public-license` (lisensi publik, mis. kit media resmi merek), atau `admin-declared` (dinyatakan admin, bukti belum dicatat) |
+| `image_usage_rights` | Keterangan buktinya, supaya bisa ditelusuri bila ada keberatan | Mis. "Kit media resmi vivo Indonesia, diunduh 17 Okt 2026" atau "Email izin dari Toko X, 20 Okt 2026". Wajib untuk `written-permission` dan `public-license` |
+
+Kedua kolom boleh kosong bila sumber fotonya sama untuk seluruh berkas: pilih saja dasar hak pakai di formulir unggah. Untuk foto dari situs resmi merek, pakai `admin-declared` sampai ada bukti izin atau lisensi, lalu lengkapi buktinya (Dashboard menghitung "Foto tanpa bukti hak pakai").
+
 ### Alur penerapan: tahap harga, lalu foto
 
 Halaman batch menampilkan penanda **Tahapan berkas** dengan tautan ke tiap tahap.
@@ -302,6 +317,12 @@ Langkahnya sama dengan 3.3. Laporan memisahkan tiga angka: penawaran baru, penaw
 
 Situs resmi juga diperiksa otomatis setiap hari pukul 06.00 WIB (batch berasal "Pemeriksaan harian"). Jadwal ini baru berjalan setelah situs di-deploy dengan `CRON_SECRET` (backlog PB-01). Sebelum itu, jalankan tarik otomatis secara manual minimal sekali sehari, supaya harga tidak basi lewat 30 jam.
 
+### 5.0a Varian resmi dan model yang belum ada di GSMArena (sejak 21 Oktober 2026)
+
+- Varian yang dijual dengan harga di situs resmi Indonesia tetapi tidak tercatat di GSMArena **ditambahkan ke produk**, dengan catatan kuning di pratinjau. Situs resmi adalah buktinya, jadi ini bukan varian karangan.
+- Model yang dijual resmi tetapi **belum ada di GSMArena** (mis. vivo Y31d Pro) dulu ditolak diam-diam. Kini masuk sebagai draft bersumber situs resmi: nama, varian berharga, dan label 5G dari namanya. Lengkapi chipset, layar, baterai, dan kamera di halaman produk sebelum diterbitkan. Saat GSMArena memuat model itu, tarik berikutnya memperbarui **produk yang sama** (pratinjau: "Sumber spesifikasi: situs resmi → GSMArena").
+- vivo dan iQOO memakai situs resmi terpisah. Model iQOO (mis. iQOO Z10R) ditarik dengan memilih merek **iQOO**, bukan vivo.
+
 ### 5.0 Perbarui harga saja (sejak 16 Oktober 2026, PB-16)
 
 Untuk model yang sudah ada di katalog, harga resmi bisa diperbarui tanpa mengambil spesifikasi GSMArena (yang sering meminta verifikasi anti-bot):
@@ -379,6 +400,10 @@ Bila Dashboard menampilkan panel **URL situs resmi berganti**:
 4. Bila usulan keliru, klik **Tetap URL lama**. URL itu tidak diusulkan lagi; URL lain tetap bisa diusulkan.
 
 Selama belum diputuskan, penawaran ganda tetap dicatat **gagal diperiksa** setiap hari dengan alasan "URL ini tidak lagi tercantum…", jadi harganya tidak tampak segar.
+
+## 5a. Alat bantu salin harga (sejak 21 Oktober 2026)
+
+Untuk harga e-commerce yang masih dicatat manual. Buka **Impor data → Salin harga**, seret tombol **Salin ke CekHarga** ke bilah bookmark sekali saja. Lalu di setiap halaman produk marketplace yang kamu buka sendiri: pilih varian dan warna, klik bookmark, lengkapi panelnya, klik **Salin baris**, dan tempel di baris kosong sheet. Satu baris = urutan kolom CSV gabungan; waktu pemeriksaan (WIB) dan URL tanpa parameter pelacak terisi otomatis. Tidak ada pengambilan data otomatis di latar belakang dan tidak ada yang dikirim ke server.
 
 ## 6. Foto
 

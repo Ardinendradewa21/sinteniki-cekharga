@@ -148,6 +148,14 @@ function parseVariants(
   return variants;
 }
 
+/**
+ * Kunci sumber produk tanpa halaman GSMArena. Saat GSMArena memuat model itu,
+ * impor mengadopsi produk dengan slug yang sama dan mengganti kuncinya.
+ */
+export function placeholderSourceKey(slug: string): string {
+  return `gsmarena:${slug}`;
+}
+
 export type ImportCandidate = {
   sourceKey: string;
   slug: string;
@@ -155,6 +163,8 @@ export type ImportCandidate = {
   model: string;
   specs: ProductSpecs;
   specsSourceUrl: string | null;
+  /** "GSMArena", atau nama situs resmi untuk model yang belum ada di GSMArena. */
+  specsSource: string;
   variants: { ramGb: number; storageGb: number }[];
   image: ProductImageCandidate | null;
   imageIssue: string | null;
@@ -211,10 +221,13 @@ export function mapRow(row: CsvRow): RowOutcome {
   }
 
   const sourcePath = get("url");
-  const specsSourceUrl = sourcePath ? GSMARENA_BASE + sourcePath : null;
+  // Tanpa halaman GSMArena (model resmi yang belum dimuat GSMArena): sumbernya
+  // situs resmi dan kuncinya placeholder, yang diadopsi saat halaman GSMArena muncul.
+  const specsSourceUrl = sourcePath ? GSMARENA_BASE + sourcePath : get("specs_source_url") || null;
+  const specsSource = sourcePath ? "GSMArena" : get("specs_source") || "GSMArena";
   const sourceKey = sourcePath
     ? `gsmarena:${sourcePath.replace(/\.php$/, "")}`
-    : `gsmarena:${toSlug(brand, model)}`;
+    : placeholderSourceKey(toSlug(brand, model));
 
   const camera = get("main_camera_raw");
   const cameraCountWord = get("main_camera_count").toLowerCase();
@@ -258,6 +271,7 @@ export function mapRow(row: CsvRow): RowOutcome {
       model,
       specs,
       specsSourceUrl,
+      specsSource,
       variants,
       image: image.candidate,
       imageIssue: image.issue,

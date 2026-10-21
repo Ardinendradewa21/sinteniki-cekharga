@@ -1,12 +1,13 @@
 import "server-only";
 
+import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectWhereIn } from "@/lib/backend/paged-read";
 import type { CsvRow } from "@/lib/import/csv-parser";
 import { imageSourceName } from "@/lib/import/image-hosts";
 import type { ImageRights } from "@/lib/import/image-rights";
 import { loadOfferContext } from "@/lib/import/offer-runner";
 import type { OfferCatalogProduct } from "@/lib/import/offers";
-import { planGalleryRows, readGalleryRow, resolveGalleryProduct, type GalleryPlanItem } from "@/lib/import/photo-gallery-rows";
+import { galleryColorOptions, planGalleryRows, readGalleryRow, resolveGalleryProduct, type GalleryPlanItem } from "@/lib/import/photo-gallery-rows";
 import { enqueuePhotoJobs } from "@/lib/import/photo-jobs";
 import type { StoredPhoto } from "@/lib/import/photo-rules";
 import type { ImportPlan, PlanItem } from "@/lib/import/plan";
@@ -97,6 +98,30 @@ export async function planPhotoImport(rows: readonly CsvRow[], imageRights: Imag
   return { items, counts };
 }
 
+/**
+ * Daftar warna produk mengikuti galeri (galleryColorOptions), satu RPC untuk
+ * semua produk di potongan ini. Gagal menyelaraskan tidak membatalkan foto
+ * yang sudah diantrekan; dicatat untuk diperiksa.
+ */
+async function syncColorOptions(
+  queued: readonly { product: { id: string } | null; photo: { color: string } | null }[],
+  existing: ReadonlyMap<string, readonly { color: string | null }[]>,
+  batchId: string
+) {
+  const byProduct = new Map<string, string[]>();
+  for (const item of queued) {
+    if (!item.product || !item.photo) continue;
+    byProduct.set(item.product.id, [...(byProduct.get(item.product.id) ?? []), item.photo.color]);
+  }
+  const rows = [...byProduct].flatMap(([id, colors]) => {
+    const list = galleryColorOptions(colors, (existing.get(id) ?? []).map((photo) => photo.color));
+    return list.length > 0 ? [{ id, colors: list, batch_id: batchId }] : [];
+  });
+  if (rows.length === 0) return;
+  const { error } = await getInsforgeAdminClient().database.rpc("import_set_color_options", { p_rows: rows });
+  if (error) console.error("[impor-galeri] daftar warna produk gagal diselaraskan:", error);
+}
+
 /** Menerapkan satu potongan galeri: rencana dihitung ulang, foto Baru/Berubah diantrekan. */
 export async function runPhotoGalleryImport({
   rows,
@@ -130,6 +155,7 @@ export async function runPhotoGalleryImport({
     }))
   );
   const queueFailed = queued.failed > 0;
+  if (!queueFailed && toQueue.length > 0) await syncColorOptions(toQueue, context.existing, batchId);
 
   const rowResults: RowResult[] = plan.map((item) => {
     if (item.action === "skip") return { rowIndex: item.rowIndex, outcome: "skipped", entityId: null, message: item.reason };
