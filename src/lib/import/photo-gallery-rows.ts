@@ -1,6 +1,6 @@
 import { canonicalBrandModel } from "@/lib/catalog/brands";
 import type { CsvRow } from "@/lib/import/csv-parser";
-import { colorInOptions, normalizeColorName } from "@/lib/import/colors";
+import { colorInOptions, normalizeColorName, similarColor } from "@/lib/import/colors";
 import { IMAGE_HOST_ISSUE, safeHttpsImageUrl } from "@/lib/import/image-hosts";
 import { readImageRights, type ImageRights } from "@/lib/import/image-rights";
 import { canonicalHeader } from "@/lib/import/normalize";
@@ -121,10 +121,13 @@ export type GalleryPlanItem = {
   product: { id: string; name: string } | null;
   photo: (GalleryRow & { url: string; rights: ImageRights }) | null;
   /**
-   * Perlu tinjau: warna di luar daftar warna spesifikasi, atau nama yang
-   * cocok padahal ada model saudara 4G/5G. Tetap bisa diterapkan.
+   * Perlu tinjau: warna sangat mirip warna lain produk itu (kemungkinan salah
+   * ketik), satu URL foto dipakai beberapa warna, atau nama produk dicocokkan
+   * longgar. Tetap bisa diterapkan setelah dicentang.
    */
   colorReview: boolean;
+  /** Warna belum ada di daftar warna produk; diterima dan ditandai "Warna baru". */
+  newColor?: boolean;
 };
 
 /**
@@ -193,6 +196,15 @@ export function planGalleryRows(
     colorsByUrl.set(key, colors);
   }
 
+  // Warna per produk di berkas ini, pembanding salah ketik antarbaris.
+  const fileColors = new Map<string, Set<string>>();
+  for (const entry of parsed) {
+    if (!entry.read.ok || !entry.product) continue;
+    const colors = fileColors.get(entry.product.id) ?? new Set<string>();
+    colors.add(entry.read.row.color);
+    fileColors.set(entry.product.id, colors);
+  }
+
   const simulated = new Map<string, StoredPhoto[]>();
   const items: GalleryPlanItem[] = [];
   for (const entry of order) {
@@ -233,19 +245,30 @@ export function planGalleryRows(
     // Warna dari berkas (toko resmi Indonesia) menjadi acuan daftar warna
     // produk (galleryColorOptions); beda nama dengan GSMArena hanya dicatat,
     // tidak menahan baris.
-    const colorInfo = colorInOptions(row.color, product.colorOptions)
-      ? null
-      : `Warna "${row.color}" belum ada di daftar warna produk (${product.colorOptions!.join(", ")}); daftar warna produk akan mengikuti warna galeri.`;
+    // Warna yang sangat mirip warna lain produk itu (spesifikasi, galeri yang
+    // ada, atau baris lain di berkas ini) kemungkinan salah ketik: Perlu tinjau.
+    const typo = similarColor(row.color, [
+      ...(product.colorOptions ?? []),
+      ...(existing.get(product.id) ?? []).flatMap((photo) => (photo.color ? [photo.color] : [])),
+      ...(fileColors.get(product.id) ?? []),
+    ]);
+    const typoNote = typo
+      ? `Warna "${row.color}" sangat mirip "${typo}"; mungkin salah ketik. Centang bila memang warna yang berbeda.`
+      : null;
+    const newColor = !typo && !colorInOptions(row.color, product.colorOptions);
+    const colorInfo = newColor
+      ? `Warna baru: belum ada di daftar warna produk (${product.colorOptions!.join(", ")}); daftar warna produk akan mengikuti warna galeri.`
+      : null;
     const sharedColors = [...(colorsByUrl.get(`${product.id} ${row.imageUrl.trim()}`) ?? [])].filter((color) => color !== row.color);
     const sharedNote = sharedColors.length
       ? `URL foto yang sama juga dipakai untuk warna ${sharedColors.join(", ")}. Pastikan fotonya memang warna ${row.color}.`
       : null;
-    const reviewNote = [entry.nameNote, sharedNote].filter(Boolean).join(" ") || null;
+    const reviewNote = [entry.nameNote, typoNote, sharedNote].filter(Boolean).join(" ") || null;
     const note = [reviewNote, colorInfo].filter(Boolean).join(" ") || null;
-    // Perlu tinjau hanya untuk risiko nyata: nama produk dicocokkan longgar
-    // atau satu URL foto dipakai beberapa warna.
+    // Perlu tinjau hanya untuk risiko nyata: nama produk dicocokkan longgar,
+    // warna kemungkinan salah ketik, atau satu URL foto dipakai beberapa warna.
     const colorReview = reviewNote !== null;
-    const base = { rowIndex, label, product: { id: product.id, name: `${product.brand} ${product.model}` }, colorReview };
+    const base = { rowIndex, label, product: { id: product.id, name: `${product.brand} ${product.model}` }, colorReview, newColor };
     const photo = { ...row, url: url.href, rights };
 
     const same = findSamePhoto(photos, url.href, row.color);

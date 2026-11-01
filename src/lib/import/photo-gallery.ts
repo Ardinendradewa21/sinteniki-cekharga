@@ -84,6 +84,7 @@ function toPlanItem(item: GalleryPlanItem): PlanItem {
       cover: photo?.isCover ? true : null,
       source: photo?.sourceUrl ?? null,
       productReview: item.colorReview ? true : null,
+      newColor: item.newColor ? true : null,
     },
     changes: item.action === "update" ? [{ field: "Warna foto", before: null, after: photo?.color ?? null }] : [],
   };

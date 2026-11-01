@@ -68,6 +68,7 @@ function ItemDetail({ item }: { item: ReviewItem }) {
     item.entity === "photo"
       ? [
           text(v.color) && `Warna ${text(v.color)}`,
+          v.newColor ? "Warna baru (belum di spesifikasi)" : null,
           v.cover ? "Sampul warna ini" : null,
           text(v.source) ? "Ada tautan sumber" : null,
         ]

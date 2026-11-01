@@ -137,6 +137,8 @@ Baris seperti itu dilewati dengan alasan. Bila dua baris memberi nilai berbeda u
 
 - **Varian yang belum tercatat** (sering varian khusus Indonesia yang tidak ada di GSMArena, mis. vivo Y500 6/128 GB) tidak lagi dibuang. Barisnya tampil **Perlu tinjau** dengan perubahan "Varian baru" dan tidak dicentang otomatis. Centang bila variannya memang dijual; varian dibuat sekaligus penawarannya saat diterapkan. Kombinasi yang tidak lazim (mis. 16/516 GB) tetap dilewati dengan alasan "tidak lazim, periksa ketikannya".
 - **Warna:** nama warna dari toko resmi Indonesia ("Hitam Malam", "Vibing Blue") tidak lagi menahan baris penawaran maupun foto. Saat batch foto diterapkan, **daftar warna produk diganti dengan warna di galeri** (keputusan pemilik produk: warna toko resmi Indonesia yang menjadi acuan, bukan nama warna GSMArena).
+  - Warna yang belum ada di spesifikasi diterima otomatis dan ditandai **"Warna baru (belum di spesifikasi)"** di pratinjau.
+  - Warna yang **sangat mirip** warna lain produk itu (beda 1 huruf untuk nama pendek, 2 huruf untuk nama panjang, dibandingkan dengan spesifikasi, galeri yang ada, dan baris lain di berkas) ditandai **Perlu tinjau** dengan catatan "mungkin salah ketik" dan tidak dicentang otomatis. Perbaiki ejaannya di sheet, atau centang bila memang warna yang berbeda (mis. "Grey" dan "Gray" dari dua sumber).
 - **Satu baris per warna** untuk listing dan varian yang sama tetap satu penawaran. Baris tambahannya tidak lagi tampil sebagai kartu "Dilewati"; penawarannya menulis "N baris digabung (satu listing)", dan foto tiap warna tetap masuk galeri.
 
 ### Kolom hak pakai foto

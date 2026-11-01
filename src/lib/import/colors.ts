@@ -62,3 +62,39 @@ export function colorInOptions(color: string, options: readonly string[] | null 
   }
   return names.has(colorKey(color.trim()));
 }
+
+/** Jarak edit Levenshtein dua teks pendek (nama warna). */
+function editDistance(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    let diagonal = prev[0]!;
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const above = prev[j]!;
+      prev[j] = Math.min(above + 1, prev[j - 1]! + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diagonal = above;
+    }
+  }
+  return prev[b.length]!;
+}
+
+/**
+ * Warna lain milik produk yang SANGAT mirip dengan `color`, kemungkinan salah
+ * ketik ("Hitam Malm" untuk "Hitam Malam"). Warna baru yang memang berbeda
+ * ("Vibing Blue" vs "Black") tidak dianggap mirip. Batasnya ketat supaya nama
+ * pendek yang memang berbeda ("Pink" vs "Mint") tidak tertangkap: beda 1 huruf
+ * untuk nama sampai 6 huruf, beda 2 huruf untuk nama lebih panjang.
+ * Mengembalikan warna pembanding pertama yang mirip, atau null.
+ */
+export function similarColor(color: string, known: readonly string[]): string | null {
+  const key = colorKey(color.replace(/\s+/g, " ").trim());
+  if (key.length < 4) return null;
+  const limit = key.length <= 6 ? 1 : 2;
+  for (const other of known) {
+    const otherKey = colorKey(other.replace(/\s+/g, " ").trim());
+    if (!otherKey || otherKey === key) continue;
+    if (Math.abs(otherKey.length - key.length) > limit) continue;
+    if (editDistance(key, otherKey) <= limit) return other;
+  }
+  return null;
+}

@@ -1347,3 +1347,33 @@ test("alat bantu salin harga: harga, memori, marketplace, dan baris sesuai kolom
   assert.ok(PRICE_HELPER_BOOKMARKLET.startsWith("javascript:"));
   assert.doesNotThrow(() => new Function(decodeURIComponent(PRICE_HELPER_BOOKMARKLET.slice("javascript:".length))), "bookmarklet valid JavaScript");
 });
+
+import { similarColor } from "@/lib/import/colors";
+
+test("warna mirip (kemungkinan salah ketik) dikenali, warna yang memang berbeda tidak", () => {
+  assert.equal(similarColor("Hitam Malm", ["Hitam Malam", "Biru Langit"]), "Hitam Malam");
+  assert.equal(similarColor("Titan Blac", ["Titan Black"]), "Titan Black");
+  assert.equal(similarColor("Grey", ["Gray"]), "Gray", "beda 1 huruf pada nama pendek tetap ditanyakan");
+  assert.equal(similarColor("Pink", ["Mint"]), null, "nama pendek yang memang berbeda");
+  assert.equal(similarColor("Vibing Blue", ["Black", "Blue", "Vibing Black"]), null);
+  assert.equal(similarColor("hitam malam", ["Hitam Malam"]), null, "beda huruf besar bukan salah ketik");
+  assert.equal(similarColor("Red", ["Rod"]), null, "terlalu pendek untuk dinilai");
+});
+
+test("galeri: warna baru diterima dan ditandai, warna mirip jadi Perlu tinjau", () => {
+  const products = [{ id: "py05", slug: "vivo-y05", brand: "vivo", model: "Y05", colorOptions: ["Voyage Black", "Haze Blue"], variants: [] }];
+  const row = (color: string, n: number) => ({
+    brand: "vivo", model_name: "Y05", color, urutan: "1", image_url: `https://down-id.img.susercontent.com/file/y05-${n}`,
+  });
+  const plan = planGalleryRows([row("Hitam Malam", 1), row("Hitam Malm", 2), row("Biru Langit", 3)], {
+    products,
+    existing: new Map(),
+    defaultRights: { basis: "admin-declared", text: "uji" },
+  });
+  const byColor = (color: string) => plan.find((item) => item.photo?.color === color)!;
+  assert.equal(byColor("Biru Langit").newColor, true, "warna toko resmi Indonesia: Warna baru");
+  assert.equal(byColor("Biru Langit").colorReview, false, "warna baru tidak menahan baris");
+  assert.equal(byColor("Hitam Malm").colorReview, true, "kemungkinan salah ketik: Perlu tinjau");
+  assert.match(byColor("Hitam Malm").reason ?? "", /sangat mirip "Hitam Malam"/);
+  assert.equal(byColor("Hitam Malm").newColor, false);
+});
