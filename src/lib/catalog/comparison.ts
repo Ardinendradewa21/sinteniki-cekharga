@@ -184,6 +184,8 @@ export type CompareResult = {
    */
   priceSpread: {
     differenceIdr: number;
+    /** Harga terendah; dipakai saat semua harga sama (selisih 0). */
+    lowestPriceIdr: number;
     cheapestName: string;
     mostExpensiveName: string;
     comparedCount: number;
@@ -414,6 +416,7 @@ export async function getComparison(
           const mostExpensive = sorted[sorted.length - 1];
           return {
             differenceIdr: mostExpensive.price.priceIdr - cheapest.price.priceIdr,
+            lowestPriceIdr: cheapest.price.priceIdr,
             cheapestName: cheapest.name,
             mostExpensiveName: mostExpensive.name,
             comparedCount: priced.length,

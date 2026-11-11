@@ -158,7 +158,7 @@ export default async function StyleGuidePage() {
         description="Ukuran default, lg, dan icon sudah memenuhi target sentuh minimal 44px (PRD §8)."
       >
         <div className="flex flex-wrap items-center gap-3">
-          <Button>Cari Produk</Button>
+          <Button>Cari produk</Button>
           <Button variant="outline">Tanya AI</Button>
           <Button variant="secondary">Sekunder</Button>
           <Button variant="ghost">Ghost</Button>

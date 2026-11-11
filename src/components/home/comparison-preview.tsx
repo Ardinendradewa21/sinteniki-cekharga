@@ -83,16 +83,8 @@ export function ComparisonPreview({
             className="rounded-xl border border-border bg-card p-5"
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="heading-card text-foreground">
-                  {item.name}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {item.variantLabel
-                    ? `Varian ${item.variantLabel}`
-                    : "Varian acuan belum ada"}
-                </p>
-              </div>
+              {/* Varian acuan cukup sekali, di baris harga (audit 002 no 5). */}
+              <h3 className="heading-card text-foreground">{item.name}</h3>
               {isDemo ? <DemoBadge /> : null}
             </div>
 
@@ -137,8 +129,17 @@ export function ComparisonPreview({
       <p className="mt-5 rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-muted-foreground">
         {example.differenceIdr === null ? (
           <>
-            Selisih harga belum bisa dihitung karena tidak kedua produk punya
-            penawaran yang memenuhi syarat saat ini. Selisih tidak dikira-kira.
+            Selisih harga belum bisa dihitung karena salah satu produk belum
+            punya penawaran yang memenuhi syarat. Selisih tidak dikira-kira.
+          </>
+        ) : example.differenceIdr === 0 && first.price.status === "available" ? (
+          // Harga sama bukan data rusak; "Selisih Rp0" terbaca begitu (audit 002 no 1).
+          <>
+            Harga varian acuan keduanya sama,{" "}
+            <span className="tabular font-semibold text-foreground">
+              {formatIdr(first.price.priceIdr)}
+            </span>
+            .{differingLabels.size > 0 ? " Perbedaannya ada di spesifikasi yang ditandai beda." : null}
           </>
         ) : (
           <>

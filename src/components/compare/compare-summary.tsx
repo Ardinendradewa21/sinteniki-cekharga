@@ -29,6 +29,16 @@ export function CompareSummary({ result }: { result: CompareResult }) {
             kandidat punya penawaran yang memenuhi syarat, dan harga yang tidak
             diketahui tidak boleh dikira-kira.
           </p>
+        ) : priceSpread.differenceIdr === 0 ? (
+          // "Rp0" terbaca seperti data rusak; harga yang sama dinyatakan sama.
+          <>
+            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-foreground">Harga sama</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+              {priceSpread.comparedCount} kandidat yang harganya layak sama-sama{" "}
+              <span className="tabular font-semibold text-foreground">{formatIdr(priceSpread.lowestPriceIdr)}</span>{" "}
+              untuk varian acuan masing-masing.
+            </p>
+          </>
         ) : (
           <>
             <p className="tabular mt-1.5 text-2xl font-extrabold tracking-tight text-foreground">

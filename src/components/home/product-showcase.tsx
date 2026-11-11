@@ -33,7 +33,7 @@ export function ProductShowcase({
       description={`Cuplikan ${previewProducts.length} dari ${products.length} produk terpublikasi. Urutannya mengikuti katalog, bukan peringkat atau klaim terlaris.`}
       action={
         <Button asChild variant="outline">
-          <Link href="/products">Cari Produk</Link>
+          <Link href="/products">Cari produk</Link>
         </Button>
       }
     >

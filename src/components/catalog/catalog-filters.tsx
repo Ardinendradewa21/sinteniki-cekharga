@@ -104,7 +104,7 @@ function FilterChip({
       >
         {label}
         {count > 0 ? (
-          <span className="tabular inline-flex min-w-5 items-center justify-center rounded-pill bg-brand px-1.5 text-[11px] font-bold text-brand-foreground">
+          <span className="tabular inline-flex min-w-5 items-center justify-center rounded-pill bg-brand px-1.5 text-xs font-bold text-brand-foreground">
             <span className="sr-only">, </span>
             {count}
             <span className="sr-only"> aktif</span>

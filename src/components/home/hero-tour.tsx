@@ -244,7 +244,7 @@ function CompareStage({ compare }: { compare: NonNullable<HeroTourData["compare"
       <dl className="mt-3 flex flex-col gap-2">
         {compare.rows.map((row, i) => (
           <motion.div key={row.label} {...rise(0.6 + i * 0.2)} className="rounded-lg border border-border px-3 py-2">
-            <dt className="text-[11px] font-semibold tracking-wide text-muted-foreground">{row.label}</dt>
+            <dt className="text-xs font-semibold tracking-wide text-muted-foreground">{row.label}</dt>
             <dd className="mt-0.5 grid grid-cols-2 gap-3 text-xs text-foreground">
               <span className="line-clamp-2">{row.values[0]}</span>
               <span className="line-clamp-2">{row.values[1]}</span>

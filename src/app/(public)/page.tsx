@@ -13,6 +13,7 @@ import {
   listProductSummaries,
 } from "@/lib/catalog/queries";
 import { loadOrNull } from "@/lib/catalog/load";
+import { qualifyingNeedPages } from "@/lib/catalog/need-page-data";
 import { pickComparisonPair, pickHeroProduct } from "@/lib/catalog/showcase";
 
 /**
@@ -31,7 +32,7 @@ export const dynamic = "force-dynamic";
 /**
  * Beranda (PRD FR-01 dan §4).
  *
- * Susunannya mengikuti §4: hero dan CTA, contoh cara memilih, produk, contoh
+ * Susunannya mengikuti §4: hero dan CTA, contoh cara memilih (tautan halaman kebutuhan), produk, contoh
  * perbandingan, pengenalan AI, lalu transparansi.
  *
  * Semua angka di halaman ini berasal dari lapisan data yang sama dengan halaman
@@ -50,14 +51,18 @@ export default async function HomePage() {
   // yang ditulis langsung; lihat src/lib/catalog/showcase.ts.
   const heroProduct = pickHeroProduct(products);
   const pair = pickComparisonPair(products);
-  const comparison = pair ? await loadOrNull(() => getComparisonExample(now, pair)) : null;
+  // Keduanya membaca dataset katalog yang sama (sudah di-cache), jadi paralel.
+  const [comparison, needPages] = await Promise.all([
+    pair ? loadOrNull(() => getComparisonExample(now, pair)) : null,
+    loadOrNull(() => qualifyingNeedPages(now)),
+  ]);
   const tour = buildHeroTour(products, comparison, heroProduct, now);
 
   return (
     <>
       <Hero tour={tour} isDemo={isDemo} />
       <AdBand code="home_top" />
-      <Needs />
+      <Needs pages={needPages ?? []} />
       <ProductShowcase products={products} now={now} isDemo={isDemo} />
       <AdBand code="home_mid" />
       {comparison ? (

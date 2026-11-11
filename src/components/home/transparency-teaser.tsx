@@ -36,7 +36,7 @@ function Marker({ n, className }: { n: number; className?: string }) {
     <span
       aria-hidden
       className={cn(
-        "tabular inline-flex size-5 shrink-0 items-center justify-center rounded-pill bg-brand text-[11px] font-bold text-brand-foreground",
+        "tabular inline-flex size-5 shrink-0 items-center justify-center rounded-pill bg-brand text-xs font-bold text-brand-foreground",
         className
       )}
     >

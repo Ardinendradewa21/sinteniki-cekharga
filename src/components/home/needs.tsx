@@ -1,89 +1,49 @@
 import Link from "next/link";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  AiMagicIcon,
-  ArrowDataTransferHorizontalIcon,
-  EyeIcon,
-  Search01Icon,
-} from "@hugeicons/core-free-icons";
 
-import { StaggerItem, StaggerList } from "@/components/motion/reveal";
 import { Section } from "@/components/section";
+import { MIN_FRESH_PRODUCTS, needPagePath, type NeedPage } from "@/lib/catalog/need-pages";
 
 /**
- * "Pilih sesuai kebutuhan": empat pendekatan dari PRD §2.
+ * "Cari HP menurut kebutuhan" (PRD §4: contoh cara memilih; audit 002 no 2).
  *
- * Dua batasan yang harus dijaga:
- * - PRD §2: keempatnya berasal dari pengamatan awal pemilik produk, bukan riset
- *   pengguna formal. Jangan menuliskannya seolah temuan riset.
- * - PRD FR-01: boleh menjelaskan kategori kebutuhan tanpa mengklaim urutan
- *   terbaik. Jadi tidak ada "paling populer", nomor urut, atau rekomendasi.
+ * Dulu empat kartu pendekatan (Tanya AI, katalog, bandingkan, reviewer) yang
+ * mengulang adegan hero. Sekarang tautan ke halaman kebutuhan PB-29, yang
+ * isinya konkret ("HP 5G di bawah Rp3 juta") dan dihitung dari katalog.
+ *
+ * - Hanya halaman yang layak terbit (`qualifyingNeedPages`) yang ditautkan,
+ *   jadi tidak ada tautan ke halaman 404.
+ * - Jumlah produk adalah hasil pencarian, bukan popularitas (PRD FR-01).
+ *   Urutannya mengikuti `NEED_PAGES`, bukan peringkat.
  */
-const APPROACHES = [
-  {
-    icon: AiMagicIcon,
-    approach: "Tahu budget, malas urus spesifikasi",
-    support: "Konsultasi dengan bahasa sederhana.",
-    href: "/assistant",
-    linkLabel: "Tanya AI",
-  },
-  {
-    icon: Search01Icon,
-    approach: "Sudah tahu spesifikasi yang dicari",
-    support: "Pencarian, filter, dan detail varian.",
-    href: "/products",
-    linkLabel: "Buka katalog",
-  },
-  {
-    icon: ArrowDataTransferHorizontalIcon,
-    approach: "Menimbang harga dengan yang didapat",
-    support: "Penawaran sebanding dan komprominya.",
-    href: "/compare",
-    linkLabel: "Bandingkan",
-  },
-  {
-    icon: EyeIcon,
-    approach: "Mengandalkan pengalaman reviewer",
-    support: "Ringkasan kurasi dengan sumber dan konteks pengujian.",
-    href: "/how-it-works",
-    linkLabel: "Cara kurasi review",
-  },
-];
-
-export function Needs() {
+export function Needs({ pages }: { pages: { page: NeedPage; matched: number }[] }) {
   return (
     <Section
-      title="Beberapa cara orang memilih"
-      description="Tidak ada urutan terbaik. Satu orang bisa memakai beberapa cara sekaligus."
+      title="Cari HP menurut kebutuhan"
+      description={`Setiap daftar dihitung dari harga yang diperiksa dalam 30 jam terakhir. Daftar dengan kurang dari ${MIN_FRESH_PRODUCTS} produk tidak ditampilkan.`}
     >
-      <StaggerList className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {APPROACHES.map((item) => (
-          <StaggerItem key={item.approach}>
-            {/* Micro-interaction 150ms (PRD §8): angkat tipis saat disentuh, tanpa bayangan berlebihan. */}
-            <div className="flex h-full flex-col rounded-xl border border-border bg-card p-5 transition-[transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-border-strong">
-              <HugeiconsIcon
-                icon={item.icon}
-                size={22}
-                strokeWidth={1.8}
-                className="text-muted-foreground"
-                aria-hidden
-              />
-              <h3 className="mt-4 heading-label text-foreground">
-                {item.approach}
-              </h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-                {item.support}
-              </p>
+      {pages.length === 0 ? (
+        <p className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-muted-foreground">
+          Belum ada daftar yang memenuhi syarat saat ini, biasanya karena harga sedang menunggu pemeriksaan ulang.{" "}
+          <Link href="/products" className="font-semibold text-brand underline underline-offset-4">
+            Cari di katalog dengan filter sendiri
+          </Link>
+          .
+        </p>
+      ) : (
+        <ul className="flex flex-wrap gap-2 sm:gap-3">
+          {pages.map(({ page, matched }) => (
+            <li key={page.slug}>
               <Link
-                href={item.href}
-                className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+                href={needPagePath(page)}
+                className="inline-flex min-h-11 items-center gap-x-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors duration-150 hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
-                {item.linkLabel}
+                {page.title}
+                <span className="shrink-0 font-normal whitespace-nowrap text-muted-foreground tabular">{matched} produk</span>
               </Link>
-            </div>
-          </StaggerItem>
-        ))}
-      </StaggerList>
+            </li>
+          ))}
+        </ul>
+      )}
     </Section>
   );
 }

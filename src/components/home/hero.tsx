@@ -65,7 +65,7 @@ export function Hero({ tour, isDemo }: { tour: HeroTourData; isDemo: boolean }) 
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg">
-                <Link href="/products">Cari Produk</Link>
+                <Link href="/products">Cari produk</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
                 <Link href="/assistant">Tanya AI</Link>
