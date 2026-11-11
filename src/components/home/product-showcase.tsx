@@ -29,7 +29,7 @@ export function ProductShowcase({
 
   return (
     <Section
-      title="Jelajahi produk di CekHarga"
+      title="Produk di katalog CekHarga"
       description={`Cuplikan ${previewProducts.length} dari ${products.length} produk terpublikasi. Urutannya mengikuti katalog, bukan peringkat atau klaim terlaris.`}
       action={
         <Button asChild variant="outline">

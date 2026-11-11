@@ -1,22 +1,26 @@
 import Form from "next/form";
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Cancel01Icon, FilterHorizontalIcon } from "@hugeicons/core-free-icons";
 
-import { Badge } from "@/components/ui/badge";
+import { FilterPopoverDismiss } from "@/components/catalog/filter-popover-dismiss";
 import { Button } from "@/components/ui/button";
+import { ChevronDownIcon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatIdr } from "@/lib/catalog/pricing";
 import {
   PARAM,
   SORT_LABELS,
   SORT_OPTIONS,
   buildCatalogHref,
-  countActiveFilters,
   type CatalogQuery,
 } from "@/lib/catalog/search-params";
 import type { CatalogFacets, CatalogSearchResult } from "@/lib/catalog/queries";
 
 /**
- * Panel filter katalog (PRD FR-02).
+ * Pencarian dan filter katalog (PRD FR-02; bilah filter Sprint 13 S13-4).
  *
  * Beberapa keputusan yang sengaja diambil:
  *
@@ -24,17 +28,18 @@ import type { CatalogFacets, CatalogSearchResult } from "@/lib/catalog/queries";
  *   `next/form` menambahkan navigasi sisi klien tanpa mengorbankan form HTML
  *   yang tetap berfungsi kalau JavaScript gagal dimuat.
  *
- * - Kontrolnya native (`input`, `select`, `checkbox`), bukan primitive Radix.
- *   Akibatnya seluruh panel ini bisa tetap Server Component tanpa JS klien sama
- *   sekali (PRD §9: Client Component hanya untuk interaksi nyata). Primitive
- *   Select yang berbasis Radix tetap tersedia untuk kasus yang memang butuh
- *   interaksi, misalnya pemilih varian di halaman detail nanti.
+ * - Kontrolnya native (`input`, `select`, `checkbox`, `details`), bukan
+ *   primitive Radix, supaya panel ini tetap Server Component (PRD §9). Satu
+ *   komponen klien kecil (FilterPopoverDismiss) hanya menambah perilaku
+ *   popover: Escape, klik di luar, satu panel terbuka, urutan langsung jalan.
  *
- * - Grup filter dibungkus `<details>`, memenuhi "filter mobile berupa
- *   disclosure" (PRD §8). Isinya berada di dalam form yang sama, jadi filter
- *   yang sedang tertutup TETAP ikut terkirim; menutup panel tidak diam-diam
- *   membatalkan filter. Panel dibuka otomatis ketika ada filter aktif supaya
- *   pengguna melihat apa yang sedang membatasi hasilnya.
+ * - Filter berupa chip tepat di bawah kotak cari, masing-masing `<details>`
+ *   di dalam form yang sama. Panel yang tertutup TETAP ikut terkirim, jadi
+ *   menutup panel tidak diam-diam membatalkan filter. Di ponsel panelnya
+ *   muncul dari bawah layar, di layar lebar sebagai dropdown di bawah chip.
+ *
+ * - Filter aktif tampil sebagai chip yang bisa dihapus satu per satu, supaya
+ *   pengguna melihat apa yang sedang membatasi hasilnya tanpa membuka panel.
  */
 
 function CheckboxGroup({
@@ -78,6 +83,47 @@ function CheckboxGroup({
   );
 }
 
+function FilterChip({
+  label,
+  count,
+  children,
+}: {
+  label: string;
+  count: number;
+  children: ReactNode;
+}) {
+  return (
+    <details data-filter-pop="" className="group relative">
+      <summary
+        className={
+          "inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-pill border px-4 text-sm font-semibold transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden " +
+          (count > 0
+            ? "border-brand/40 bg-brand-muted text-brand hover:bg-brand/15"
+            : "border-border-strong bg-card text-foreground hover:bg-muted group-open:bg-muted")
+        }
+      >
+        {label}
+        {count > 0 ? (
+          <span className="tabular inline-flex min-w-5 items-center justify-center rounded-pill bg-brand px-1.5 text-[11px] font-bold text-brand-foreground">
+            <span className="sr-only">, </span>
+            {count}
+            <span className="sr-only"> aktif</span>
+          </span>
+        ) : null}
+        <ChevronDownIcon size={16} aria-hidden className="transition-transform duration-150 group-open:rotate-180" />
+      </summary>
+      <div className="fixed inset-x-0 bottom-0 z-40 max-h-[75vh] overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 sm:max-h-[60vh] sm:w-80 sm:rounded-xl">
+        {children}
+        <div className="mt-4 border-t border-border pt-4">
+          <Button type="submit" className="w-full sm:w-auto">
+            Tampilkan hasil
+          </Button>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 export function CatalogFilters({
   query,
   facets,
@@ -87,11 +133,6 @@ export function CatalogFilters({
   facets: CatalogFacets;
   interpretation: CatalogSearchResult["interpretation"];
 }) {
-  const activeCount = countActiveFilters(query);
-
-  // Kata kunci terlihat di atas panel disclosure, jadi tidak dihitung di sini.
-  const groupFilterCount = activeCount - (query.query ? 1 : 0);
-
   const hasReading =
     interpretation.appliedLabels.length > 0 || interpretation.keywords.length > 0;
   const notes = [
@@ -112,12 +153,42 @@ export function CatalogFilters({
       : []),
   ];
 
+  const priceCount = (query.minPrice !== null ? 1 : 0) + (query.maxPrice !== null ? 1 : 0);
+  // Menghapus semua filter tetap mempertahankan kata pencarian dan urutan.
+  const clearFilters = buildCatalogHref(query, {
+    brands: [],
+    ram: [],
+    storage: [],
+    minPrice: null,
+    maxPrice: null,
+  });
+  const activeChips = [
+    ...query.brands.map((brand) => ({
+      label: brand,
+      href: buildCatalogHref(query, { brands: query.brands.filter((item) => item !== brand) }),
+    })),
+    ...query.ram.map((ram) => ({
+      label: `RAM ${ram} GB`,
+      href: buildCatalogHref(query, { ram: query.ram.filter((item) => item !== ram) }),
+    })),
+    ...query.storage.map((storage) => ({
+      label: `Penyimpanan ${storage} GB`,
+      href: buildCatalogHref(query, { storage: query.storage.filter((item) => item !== storage) }),
+    })),
+    ...(query.minPrice !== null
+      ? [{ label: `Min ${formatIdr(query.minPrice)}`, href: buildCatalogHref(query, { minPrice: null }) }]
+      : []),
+    ...(query.maxPrice !== null
+      ? [{ label: `Maks ${formatIdr(query.maxPrice)}`, href: buildCatalogHref(query, { maxPrice: null }) }]
+      : []),
+  ];
+
   return (
     <Form action="/products" className="flex flex-col gap-3">
+      <FilterPopoverDismiss />
       <div className="rounded-xl border border-border bg-card p-3 sm:p-5">
-        {/* Ponsel: kolom cari penuh, lalu urutan + tombol Cari sebaris (UX-24). */}
-        <div className="grid grid-cols-[1fr_auto] items-end gap-3 sm:flex sm:flex-row">
-          <div className="col-span-2 sm:flex-1">
+        <div className="flex items-end gap-3">
+          <div className="min-w-0 flex-1">
             <Label htmlFor="katalog-cari">Cari produk atau kebutuhan</Label>
             <Input
               id="katalog-cari"
@@ -130,14 +201,99 @@ export function CatalogFilters({
               className="mt-2"
             />
           </div>
+          <Button type="submit">Cari</Button>
+        </div>
+        <p id="katalog-cari-bantuan" className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          Bisa nama, spesifikasi (AMOLED, IP68), atau kebutuhan seperti “NFC di bawah 5 juta”.
+          Kualitas pemakaian tidak ditebak dari angka spesifikasi.
+        </p>
 
-          <div className="min-w-0 sm:w-56">
-            <Label htmlFor="katalog-urut">Urutkan</Label>
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+          <span className="mr-1 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <HugeiconsIcon icon={FilterHorizontalIcon} size={16} strokeWidth={2} aria-hidden />
+            Filter
+          </span>
+          {facets.brands.length > 0 ? (
+            <FilterChip label="Merek" count={query.brands.length}>
+              <CheckboxGroup legend="Merek" name={PARAM.brand} options={facets.brands} selected={query.brands} />
+            </FilterChip>
+          ) : null}
+          {facets.ram.length > 0 ? (
+            <FilterChip label="RAM" count={query.ram.length}>
+              <CheckboxGroup
+                legend="RAM"
+                name={PARAM.ram}
+                options={facets.ram}
+                selected={query.ram}
+                formatLabel={(option) => `${option} GB`}
+              />
+            </FilterChip>
+          ) : null}
+          {facets.storage.length > 0 ? (
+            <FilterChip label="Penyimpanan" count={query.storage.length}>
+              <CheckboxGroup
+                legend="Penyimpanan"
+                name={PARAM.storage}
+                options={facets.storage}
+                selected={query.storage}
+                formatLabel={(option) => `${option} GB`}
+              />
+            </FilterChip>
+          ) : null}
+          <FilterChip label="Harga" count={priceCount}>
+            <fieldset>
+              <legend className="text-sm font-semibold text-foreground">Rentang harga</legend>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Produk yang harganya belum tersedia tidak ikut disaring ke sini,
+                karena harga yang tidak diketahui bukan berarti murah.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="katalog-harga-min" className="text-xs font-normal text-muted-foreground">
+                    Minimum (Rupiah)
+                  </Label>
+                  <Input
+                    id="katalog-harga-min"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={100000}
+                    name={PARAM.minPrice}
+                    defaultValue={query.minPrice ?? ""}
+                    placeholder="0"
+                    className="mt-1.5"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="katalog-harga-max" className="text-xs font-normal text-muted-foreground">
+                    Maksimum (Rupiah)
+                  </Label>
+                  <Input
+                    id="katalog-harga-max"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={100000}
+                    name={PARAM.maxPrice}
+                    defaultValue={query.maxPrice ?? ""}
+                    placeholder="Tanpa batas"
+                    className="mt-1.5"
+                  />
+                </div>
+              </div>
+            </fieldset>
+          </FilterChip>
+
+          <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+            <Label htmlFor="katalog-urut" className="shrink-0 text-sm font-normal text-muted-foreground">
+              Urutkan
+            </Label>
             <select
               id="katalog-urut"
               name={PARAM.sort}
               defaultValue={query.sort}
-              className="mt-2 h-11 w-full rounded-lg border border-input bg-card px-4 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+              data-auto-submit=""
+              className="h-11 min-w-0 flex-1 cursor-pointer rounded-pill border border-input bg-card px-4 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring sm:flex-none"
             >
               {SORT_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -146,15 +302,32 @@ export function CatalogFilters({
               ))}
             </select>
           </div>
-
-          <Button type="submit" className="sm:mb-0">
-            Cari
-          </Button>
         </div>
-        <p id="katalog-cari-bantuan" className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Bisa nama, spesifikasi (AMOLED, IP68), atau kebutuhan seperti “NFC di bawah 5 juta”.
-          Kualitas pemakaian tidak ditebak dari angka spesifikasi.
-        </p>
+
+        {activeChips.length > 0 ? (
+          <ul aria-label="Filter aktif" className="mt-3 flex flex-wrap items-center gap-2">
+            {activeChips.map((chip) => (
+              <li key={chip.label}>
+                <Link
+                  href={chip.href}
+                  aria-label={`Hapus filter ${chip.label}`}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-brand-muted px-3.5 text-sm font-medium text-brand transition-colors duration-150 hover:bg-brand/15 focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {chip.label}
+                  <HugeiconsIcon icon={Cancel01Icon} size={14} strokeWidth={2} aria-hidden />
+                </Link>
+              </li>
+            ))}
+            <li>
+              <Link
+                href={clearFilters}
+                className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Hapus semua filter
+              </Link>
+            </li>
+          </ul>
+        ) : null}
       </div>
 
       {query.query ? (
@@ -192,96 +365,6 @@ export function CatalogFilters({
           </Link>
         </div>
       ) : null}
-
-      <details
-        open={groupFilterCount > 0}
-        className="rounded-xl border border-border bg-card"
-      >
-        <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-5 py-3 text-sm font-semibold text-foreground">
-          Filter lainnya
-          {groupFilterCount > 0 ? (
-            <Badge variant="brand">{groupFilterCount} aktif</Badge>
-          ) : null}
-        </summary>
-
-        <div className="flex flex-col gap-6 border-t border-border px-5 py-5">
-          <CheckboxGroup
-            legend="Merek"
-            name={PARAM.brand}
-            options={facets.brands}
-            selected={query.brands}
-          />
-
-          <CheckboxGroup
-            legend="RAM"
-            name={PARAM.ram}
-            options={facets.ram}
-            selected={query.ram}
-            formatLabel={(option) => `${option} GB`}
-          />
-
-          <CheckboxGroup
-            legend="Penyimpanan"
-            name={PARAM.storage}
-            options={facets.storage}
-            selected={query.storage}
-            formatLabel={(option) => `${option} GB`}
-          />
-
-          <fieldset>
-            <legend className="text-sm font-semibold text-foreground">
-              Rentang harga
-            </legend>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Produk yang harganya belum tersedia tidak ikut disaring ke sini,
-              karena harga yang tidak diketahui bukan berarti murah.
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="katalog-harga-min" className="text-xs font-normal text-muted-foreground">
-                  Minimum (Rupiah)
-                </Label>
-                <Input
-                  id="katalog-harga-min"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  step={100000}
-                  name={PARAM.minPrice}
-                  defaultValue={query.minPrice ?? ""}
-                  placeholder="0"
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="katalog-harga-max" className="text-xs font-normal text-muted-foreground">
-                  Maksimum (Rupiah)
-                </Label>
-                <Input
-                  id="katalog-harga-max"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  step={100000}
-                  name={PARAM.maxPrice}
-                  defaultValue={query.maxPrice ?? ""}
-                  placeholder="Tanpa batas"
-                  className="mt-1.5"
-                />
-              </div>
-            </div>
-          </fieldset>
-
-          <div className="flex flex-wrap gap-3 border-t border-border pt-5">
-            <Button type="submit">Terapkan filter</Button>
-            {activeCount > 0 ? (
-              <Button asChild variant="ghost">
-                <Link href="/products">Reset semua</Link>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </details>
     </Form>
   );
 }

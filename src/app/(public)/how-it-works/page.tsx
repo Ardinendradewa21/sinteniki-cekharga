@@ -321,9 +321,9 @@ export default async function HowItWorksPage() {
             nama channel-nya disebutkan.
           </p>
           <p>
-            Untuk sekarang asisten menangkap kebutuhan lewat pertanyaan
-            terstruktur, belum lewat kalimat bebas. Lapisan percakapannya sedang
-            dikerjakan.
+            Kamu bisa bercerita dengan kalimat bebas. Kalau model bahasa sedang
+            tidak tersedia, asisten memakai pertanyaan bertahap, dan kandidatnya
+            tetap disaring dengan aturan yang sama.
           </p>
         </Section>
 
@@ -331,9 +331,26 @@ export default async function HowItWorksPage() {
           <p>
             Versi awal ini terbatas pada smartphone kondisi baru, bahasa
             Indonesia, dan Rupiah. Belum ada laptop atau kategori lain, belum ada
-            barang bekas, dan belum ada pelacakan promo, voucher, atau grafik
-            riwayat harga.
+            barang bekas, dan belum ada pelacakan promo atau voucher.
           </p>
+          <ul className="list-disc space-y-2 pl-5">
+            <li>
+              Katalog belum mencakup semua model. Banyak model Infinix, Tecno,
+              itel, dan realme belum masuk.
+            </li>
+            <li>
+              Harga marketplace dimasukkan berkala, belum diambil otomatis dari
+              semua toko. Harga situs resmi diperiksa harian untuk merek yang
+              situsnya mencantumkan harga.
+            </li>
+            <li>
+              Ringkasan reviewer masih sedikit, dan banyak produk belum punya.
+              Kami tidak menguji perangkat sendiri, jadi kualitas kamera dan
+              baterai nyata kami rujuk ke reviewer.
+            </li>
+            <li>Belum bisa memberi tahu saat harga turun.</li>
+            <li>Tidak menilai reputasi penjual.</li>
+          </ul>
           <p>
             Kami juga tidak memberi skor atau peringkat kualitas. Perbandingan
             menunjukkan perbedaan dan komprominya, lalu keputusannya tetap milik

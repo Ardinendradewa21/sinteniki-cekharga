@@ -6,10 +6,10 @@ import {
   Store01Icon,
 } from "@hugeicons/core-free-icons";
 
-import { HeroDevice } from "@/components/home/hero-device";
+import { HeroTour } from "@/components/home/hero-tour";
+import type { HeroTourData } from "@/components/home/hero-tour-data";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
-import type { ProductSummary } from "@/lib/catalog/queries";
 
 /**
  * Hero beranda (PRD FR-01).
@@ -42,15 +42,7 @@ const HERO_FACTS = [
   },
 ];
 
-export function Hero({
-  product,
-  now,
-  isDemo,
-}: {
-  product: ProductSummary | null;
-  now: Date;
-  isDemo: boolean;
-}) {
+export function Hero({ tour, isDemo }: { tour: HeroTourData; isDemo: boolean }) {
   return (
     <section className="relative isolate pt-10 pb-4 md:pt-16">
       {/* Blob gradient statis: kehangatan warna tanpa animasi dan tanpa menyentuh kontras teks. */}
@@ -82,7 +74,7 @@ export function Hero({
           </div>
 
           <div className="animate-in fade-in fill-mode-both delay-100 duration-300">
-            <HeroDevice product={product} now={now} isDemo={isDemo} />
+            <HeroTour data={tour} isDemo={isDemo} />
           </div>
         </div>
 

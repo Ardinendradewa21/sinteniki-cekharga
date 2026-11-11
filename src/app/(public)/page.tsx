@@ -3,6 +3,7 @@ import { DataUnavailable } from "@/components/data-error";
 import { AssistantIntro } from "@/components/home/assistant-intro";
 import { ComparisonPreview } from "@/components/home/comparison-preview";
 import { Hero } from "@/components/home/hero";
+import { buildHeroTour } from "@/components/home/hero-tour-data";
 import { Needs } from "@/components/home/needs";
 import { ProductShowcase } from "@/components/home/product-showcase";
 import { TransparencyTeaser } from "@/components/home/transparency-teaser";
@@ -50,10 +51,11 @@ export default async function HomePage() {
   const heroProduct = pickHeroProduct(products);
   const pair = pickComparisonPair(products);
   const comparison = pair ? await loadOrNull(() => getComparisonExample(now, pair)) : null;
+  const tour = buildHeroTour(products, comparison, heroProduct, now);
 
   return (
     <>
-      <Hero product={heroProduct} now={now} isDemo={isDemo} />
+      <Hero tour={tour} isDemo={isDemo} />
       <AdBand code="home_top" />
       <Needs />
       <ProductShowcase products={products} now={now} isDemo={isDemo} />
@@ -62,7 +64,7 @@ export default async function HomePage() {
         <ComparisonPreview example={comparison} now={now} isDemo={isDemo} />
       ) : null}
       <AssistantIntro />
-      <TransparencyTeaser />
+      <TransparencyTeaser product={heroProduct} now={now} isDemo={isDemo} />
     </>
   );
 }

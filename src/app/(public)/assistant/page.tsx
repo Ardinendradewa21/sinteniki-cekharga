@@ -57,9 +57,11 @@ export default async function AssistantPage({
   const aiReady = hasAiCredentials();
 
   if (aiReady && !pakaiForm) {
+    // Kalimat dari kotak isian beranda; batasnya sama dengan kotak tulis chat.
+    const pesan = typeof params.pesan === "string" ? params.pesan.trim().slice(0, 600) : "";
     return (
       <Container className="py-8 md:py-12">
-        <AssistantChat isDemo={isDemoData()} />
+        <AssistantChat isDemo={isDemoData()} initialMessage={pesan} />
         <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-muted-foreground">
           Lebih suka memilih daripada mengetik?{" "}
           <Link

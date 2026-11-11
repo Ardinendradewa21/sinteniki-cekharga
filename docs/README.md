@@ -9,4 +9,3 @@
 | [ux/](ux/) | Audit UI/UX, analisis grafik harga, [rancangan Tanya AI](ux/RANCANGAN-TANYA-AI-2026-10.md). |
 | [bisnis/](bisnis/) | Analisis bisnis, riset afiliasi, dan analisis alat bantu keputusan (pasar, kebutuhan pembeli, kekurangan situs). |
 | [ads/](ads/ADS-CONTEXT.md) | Konteks dan aturan modul iklan (wajib dibaca sebelum menyentuh iklan). |
-| [konteks-ai/](konteks-ai/) | Dokumen konteks yang diserahkan ke AI lain: perbaikan spreadsheet data, rancangan awal pengambilan harga marketplace (arsip). |

@@ -38,3 +38,5 @@ Skill di `.claude/skills/` (`ui-ux-pro-max`, `design-taste-frontend`, `redesign-
 - Harga kosong bukan nol; harga selalu menyebut varian acuan dan waktu pemeriksaan (PRD §7).
 - Pertahankan token desain di `src/app/globals.css` dan font Plus Jakarta Sans kecuali pemilik produk meminta perubahan; redesign bertahap, bukan tulis ulang.
 - Aksesibilitas PRD §8 tetap wajib: target 44 px, kontras 4.5:1, focus terlihat.
+
+Untuk UI publik, copy, dan animasi, muat `cekharga-antislop` bersama skill `antislop` (filter anti-slop v3.2.28, enam skill `antislop*`). `cekharga-antislop` berisi Design Read, dial, dan padanan aturan antislop dengan PRD; urutannya PRD > `cekharga-antislop` > `antislop*` > skill pihak ketiga lain.

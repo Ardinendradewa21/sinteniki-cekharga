@@ -54,7 +54,7 @@ Target trafik awal (dikalibrasi di Sprint 4): domain baru biasanya butuh 2–3 b
 | Perbaikan di luar rencana | ✅ Galeri foto melewati semua baris bila `model_name` sudah memuat merek; host `images.samsung.com` diizinkan dan parameter linknya dibuang |
 | PB-11 | ⏳ Skrip `scripts/ganti-sandi-admin.mjs` siap (kode 6 digit lewat email); tinggal dijalankan pemilik akun |
 | PB-01 | ⏳ Langkah di `docs/sop/SOP-DEPLOY-VERCEL.md`. Temuan 15 Okt: proyek Vercel yang ada tersambung ke repo lama `cekharga-frontend`, dan `main` belum di-push |
-| PB-26 | ✅ Spreadsheet dirapikan (panduan `docs/konteks-ai/PERBAIKAN-SPREADSHEET.md`) dan diunggah ulang oleh admin, 15 Oktober |
+| PB-26 | ✅ Spreadsheet dirapikan (panduan sekali pakai, dihapus 11 Nov 2026; tersedia di riwayat git) dan diunggah ulang oleh admin, 15 Oktober |
 
 ## Sprint 2 — dimajukan, dimulai 15 Oktober 2026
 

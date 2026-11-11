@@ -37,7 +37,18 @@ import { ACTIVITY_LABELS, PRIORITY_LABELS, REQUIREMENT_LABELS } from "@/lib/assi
 const OPENER =
   "Halo. Ceritakan saja HP seperti apa yang kamu cari, atau langsung sebut budgetmu.";
 
-export function AssistantChat({ isDemo }: { isDemo: boolean }) {
+export function AssistantChat({
+  isDemo,
+  initialMessage = "",
+}: {
+  isDemo: boolean;
+  /**
+   * Kalimat dari kotak isian beranda (`?pesan=`). Hanya mengisi kotak tulis,
+   * tidak dikirim otomatis: model baru dipanggil setelah pengguna sendiri
+   * menekan kirim (aturan System Design 1).
+   */
+  initialMessage?: string;
+}) {
   const [state, action, pending] = useActionState<ChatState, FormData>(
     sendChatMessage,
     CHAT_START
@@ -46,6 +57,16 @@ export function AssistantChat({ isDemo }: { isDemo: boolean }) {
   const formRef = useRef<HTMLFormElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const kosong = state.messages.length === 0;
+
+  // Diisi lewat ref, bukan defaultValue: reset form setelah kirim akan
+  // mengembalikan defaultValue, sehingga kalimat awal muncul lagi.
+  useEffect(() => {
+    if (!initialMessage) return;
+    const input = formRef.current?.elements.namedItem("pesan") as HTMLTextAreaElement | null;
+    if (!input || input.value) return;
+    input.value = initialMessage;
+    input.focus();
+  }, [initialMessage]);
 
   // Menggulir ke pesan terbaru setelah giliran selesai.
   useEffect(() => {

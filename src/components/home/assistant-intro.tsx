@@ -1,138 +1,116 @@
 import Link from "next/link";
 
-import {
-  AskAsNeededGlyph,
-  CompromiseScaleGlyph,
-  HonestEmptyGlyph,
-  RequirementSplitGlyph,
-  StatusDot,
-} from "@/components/illustrations/concept-glyphs";
-import { StaggerItem, StaggerList } from "@/components/motion/reveal";
-import { hasAiCredentials } from "@/lib/assistant/ai/client";
-import { Section } from "@/components/section";
+import { Container } from "@/components/layout/container";
+import { StatusDot } from "@/components/home/status-dot";
 import { Button } from "@/components/ui/button";
+import { hasAiCredentials } from "@/lib/assistant/ai/client";
 
 /**
- * Pengenalan asisten AI di beranda (PRD §4).
+ * Ajakan memakai asisten di beranda (PRD §4, FR-06; Sprint 13 S13-1).
  *
- * Yang dijaga di sini:
- * - Menjelaskan cara kerjanya tanpa menjanjikan hasil (PRD FR-06).
- * - Membedakan syarat wajib dari preferensi, karena itu inti perilakunya.
- * - Menyatakan statusnya secara jujur dan sesuai kenyataan: aktif bila kunci
- *   model tersedia di server, dan terus terang bila tidak (PRD §4: fitur yang
- *   belum tersedia harus dinyatakan jelas, bukan dipalsukan).
+ * Titik fokus section ini adalah kotak isian, karena tindakan yang diharapkan
+ * memang bercerita ke asisten. Cara kerja asisten (bertanya seperlunya, syarat
+ * wajib vs preferensi) diringkas menjadi satu baris jaminan; detailnya ada di
+ * /how-it-works.
  *
- * Tiap perilaku dipasangkan dengan diagram beranimasi yang menggambarkan
- * mekanismenya (lihat concept-glyphs.tsx), bukan ikon dekoratif: pertanyaan
- * yang datang bergiliran, jalur wajib vs preferensi, timbangan yang memang
- * miring, dan pencarian yang berhenti di hasil kosong.
+ * Kotak isian hanya mengisi kolom chat di /assistant (`?pesan=`), tidak
+ * mengirimnya. Model baru dipanggil setelah pengguna menekan kirim di sana
+ * (aturan System Design 1).
+ *
+ * Status mengikuti penentu tampilan /assistant: tanpa kunci model, halaman itu
+ * hanya punya jalur pertanyaan bertahap, jadi kotak isian bebas tidak
+ * ditampilkan (kalimatnya tidak akan terbaca di sana).
  */
 
-const BEHAVIOURS = [
-  {
-    Glyph: AskAsNeededGlyph,
-    term: "Bertanya seperlunya",
-    detail:
-      "Hanya yang belum kamu sebutkan: budget, kegiatan utama, kebutuhan khusus, prioritas. Bukan kuesioner panjang sekaligus.",
-  },
-  {
-    Glyph: RequirementSplitGlyph,
-    term: "Memisahkan wajib dari preferensi",
-    detail:
-      "Budget maksimal yang kamu tegaskan tidak akan dilanggar. Hal yang sekadar lebih disukai boleh dikompromikan.",
-  },
-  {
-    Glyph: CompromiseScaleGlyph,
-    term: "Menyebut komprominya",
-    detail:
-      "Setiap kandidat datang dengan alasan cocok, apa yang dikorbankan, varian, dan sumber pendukungnya.",
-  },
-  {
-    Glyph: HonestEmptyGlyph,
-    term: "Mengaku kalau tidak ada",
-    detail:
-      "Kalau tidak ada yang cocok, kendalanya dijelaskan. Alternatif di luar budget diberi label, tidak diam-diam dianggap memenuhi syarat.",
-  },
-];
-
 const STARTERS = [
-  { label: "Budget 2,5 juta untuk media sosial", href: "/assistant?tanya=form&budget=2500000&budget_wajib=ya&kegiatan=sosial-media" },
-  { label: "Budget 4 juta, utamakan kamera", href: "/assistant?tanya=form&budget=4000000&budget_wajib=ya&kegiatan=foto" },
-  { label: "Budget 7 juta untuk main game", href: "/assistant?tanya=form&budget=7000000&budget_wajib=ya&kegiatan=game" },
+  { label: "Budget 2,5 juta, buat medsos", href: "/assistant?tanya=form&budget=2500000&budget_wajib=ya&kegiatan=sosial-media" },
+  { label: "4 juta, utamakan kamera", href: "/assistant?tanya=form&budget=4000000&budget_wajib=ya&kegiatan=foto" },
+  { label: "7 juta, buat main game", href: "/assistant?tanya=form&budget=7000000&budget_wajib=ya&kegiatan=game" },
 ] as const;
 
 export function AssistantIntro() {
-  // Sama dengan penentu tampilan di /assistant: chat AI bila kunci model
-  // tersedia, konsultasi bertahap bila tidak. Status di beranda wajib cocok
-  // dengan yang benar-benar didapat pengunjung di halaman itu.
   const aiReady = hasAiCredentials();
 
   return (
-    <Section
-      title="Kalau lebih mudah menjelaskan kebutuhan"
-      description="Sebagian orang lebih nyaman bercerita daripada menyaring spesifikasi."
-    >
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <StaggerList
-          as="dl"
-          className="grid gap-x-8 gap-y-7 rounded-xl border border-border bg-card p-6 sm:grid-cols-2"
-        >
-          {BEHAVIOURS.map(({ Glyph, term, detail }) => (
-            <StaggerItem as="div" key={term}>
-              <Glyph />
-              <dt className="mt-3 text-sm font-bold text-foreground">{term}</dt>
-              <dd className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                {detail}
-              </dd>
-            </StaggerItem>
-          ))}
-        </StaggerList>
-
-        <div className="flex flex-col gap-5 rounded-xl border border-border bg-card p-6">
-          <div>
-            <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground">
+    <section aria-labelledby="asisten-judul" className="py-14 md:py-20">
+      <Container>
+        <div className="rounded-2xl border border-brand/20 bg-brand-muted/60 px-5 py-8 sm:px-10 md:py-12">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
               <StatusDot tone={aiReady ? "success" : "warning"} />
               {aiReady ? "Asisten AI aktif" : "Asisten AI sedang tidak tersedia"}
             </p>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {aiReady
-                ? "Ceritakan kebutuhanmu dengan bahasa sehari-hari. Kandidatnya tetap dipilih dari katalog, bukan dikarang AI."
-                : "Kamu tetap bisa menjawab beberapa pertanyaan singkat dan mendapat kandidat dari katalog, tanpa percakapan AI."}
+            <h2 id="asisten-judul" className="heading-section-lg mt-3 text-foreground">
+              Bingung pilih HP? Ceritakan saja.
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+              Sebut budget dan dipakai untuk apa. Asisten mencarikan kandidat
+              dari katalog CekHarga, lengkap dengan alasan dan komprominya.
             </p>
-          </div>
 
-          {/* Titik mulai yang benar-benar berfungsi: konsultasi dengan budget dan
-              kegiatan sudah terisi (kontrak URL src/lib/assistant/needs.ts).
-              Bukan rekomendasi; kandidatnya tetap disaring dari katalog. */}
-          <div>
-            <p className="heading-label text-foreground">Coba mulai dari</p>
-            <ul className="mt-2 flex flex-col gap-1">
+            {aiReady ? (
+              <form
+                action="/assistant"
+                className="mt-7 flex flex-col gap-3 rounded-xl border border-border bg-card p-2 shadow-sm sm:flex-row sm:items-center"
+              >
+                <label htmlFor="asisten-pesan" className="sr-only">
+                  Ceritakan HP yang kamu cari
+                </label>
+                <input
+                  id="asisten-pesan"
+                  name="pesan"
+                  type="text"
+                  required
+                  maxLength={600}
+                  autoComplete="off"
+                  placeholder="Contoh: budget 4 juta, sering foto anak, baterai awet"
+                  className="h-12 min-w-0 flex-1 rounded-lg bg-transparent px-4 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <Button type="submit" size="lg" className="shrink-0">
+                  Carikan HP
+                </Button>
+              </form>
+            ) : (
+              <p className="mt-7 text-sm leading-relaxed text-muted-foreground">
+                Jawab beberapa pertanyaan singkat, hasilnya tetap dari katalog.
+              </p>
+            )}
+
+            <ul aria-label="Contoh kebutuhan" className="mt-4 flex flex-wrap justify-center gap-2">
               {STARTERS.map((starter) => (
                 <li key={starter.href}>
                   <Link
                     href={starter.href}
-                    className="flex min-h-11 items-center justify-between gap-3 rounded-lg px-3 text-sm text-foreground transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex min-h-11 items-center rounded-pill border border-border bg-card px-4 text-sm text-foreground transition-colors duration-150 hover:border-brand/40 hover:bg-brand-muted focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {starter.label}
-                    <span aria-hidden className="text-muted-foreground">
-                      →
-                    </span>
                   </Link>
                 </li>
               ))}
             </ul>
-          </div>
 
-          <div className="mt-auto flex flex-wrap gap-3">
-            <Button asChild>
-              <Link href="/assistant">Tanya AI</Link>
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/products">Cari Produk</Link>
-            </Button>
+            {aiReady ? null : (
+              <Button asChild size="lg" className="mt-6">
+                <Link href="/assistant?tanya=form">Mulai pertanyaan</Link>
+              </Button>
+            )}
+
+            <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
+              Budget yang kamu tegaskan tidak dilanggar. Kalau tidak ada yang
+              cocok, asisten bilang terus terang.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Lebih suka menyaring sendiri?{" "}
+              <Link
+                href="/products"
+                className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Buka katalog
+              </Link>
+            </p>
           </div>
         </div>
-      </div>
-    </Section>
+      </Container>
+    </section>
   );
 }

@@ -1,120 +1,180 @@
 import Link from "next/link";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Clock01Icon } from "@hugeicons/core-free-icons";
 
-import {
-  LowestPriceGlyph,
-  QualifiedOfferGlyph,
-  ReviewSourceGlyph,
-  StalePriceGlyph,
-} from "@/components/illustrations/concept-glyphs";
+import { DemoBadge } from "@/components/demo-marker";
 import { Container } from "@/components/layout/container";
-import { StaggerItem, StaggerList } from "@/components/motion/reveal";
-import { Button } from "@/components/ui/button";
+import { formatCheckedAt, formatIdr } from "@/lib/catalog/pricing";
+import type { ProductSummary } from "@/lib/catalog/queries";
+import { cn } from "@/lib/utils";
 
 /**
- * Transparansi di beranda (PRD FR-08).
+ * "Cara membaca harga" di beranda (PRD FR-08; Sprint 13 S13-2).
  *
- * Tujuannya supaya pengguna bisa membedakan data aktual, data demo, informasi
- * lama, pendapat reviewer, dan inferensi AI tanpa membaca kode. Yang di bawah
- * adalah pernyataan yang benar hari ini, jangan menambahkan klaim kemitraan,
- * afiliasi, atau cakupan marketplace yang belum ada.
+ * Menunjukkan, bukan menjelaskan panjang: satu kartu harga ASLI dari katalog
+ * (produk yang sama dengan hero) diberi empat penanda bernomor, dan daftar di
+ * sebelahnya menjelaskan arti tiap penanda. Kalau katalog tidak punya harga
+ * sama sekali, kartunya tidak ditampilkan dan hanya daftarnya yang tersisa,
+ * supaya tidak ada angka contoh karangan.
  *
- * Tiap poin dipasangkan dengan diagram beranimasi yang menggambarkan aturannya:
- * penunjuk yang jatuh ke penawaran terendah, corong penyaring, jarum jam yang
- * berhenti, dan ringkasan yang membawa penandanya.
- */
-
-const POINTS = [
-  {
-    Glyph: LowestPriceGlyph,
-    term: "Arti “mulai dari”",
-    detail:
-      "Harga terendah dari penawaran tercatat yang memenuhi syarat dalam cakupan CekHarga. Bukan jaminan termurah di seluruh internet.",
-  },
-  {
-    Glyph: QualifiedOfferGlyph,
-    term: "Penawaran yang dihitung",
-    detail:
-      "Hanya kondisi baru, listing aktif, harga yang terlihat tanpa syarat akun. Voucher, cashback, dan kupon tidak ikut dihitung.",
-  },
-  {
-    Glyph: StalePriceGlyph,
-    term: "Kalau harga sudah lama",
-    detail:
-      "Harga kedaluwarsa tidak ditampilkan sebagai harga aktif. Yang muncul “Harga belum tersedia”, dengan harga terakhir tercatat terpisah.",
-  },
-  {
-    Glyph: ReviewSourceGlyph,
-    term: "Ulasan reviewer",
-    detail:
-      "Dikurasi manual dari channel pilihan, diringkas dengan atribusi dan konteks pengujian. Bukan kesimpulan yang ditarik dari angka spesifikasi.",
-  },
-];
-
-/**
- * Keterbatasan yang masih ada (masukan PO 16 Okt 2026). Hanya pernyataan
- * yang benar hari ini, tanpa angka yang cepat basi. Hapus butirnya begitu
- * celahnya tertutup; analisisnya di
+ * Batasan ditulis pendek dan sebagai fakta hari ini. Rinciannya (merek yang
+ * belum masuk, kurasi reviewer) ada di /how-it-works#batasan. Hapus butir
+ * begitu celahnya tertutup; analisisnya di
  * docs/bisnis/ANALISIS-PENDUKUNG-KEPUTUSAN-2026-10.md.
  */
+
 const LIMITS = [
-  "Katalog belum mencakup semua model. Banyak model Infinix, Tecno, itel, dan realme belum masuk.",
-  "Harga marketplace masih dimasukkan berkala, belum diambil otomatis dari semua toko.",
-  "Ringkasan reviewer masih sedikit. Banyak produk belum punya.",
-  "Kami tidak menguji perangkat sendiri. Kualitas kamera dan baterai nyata kami rujuk ke reviewer.",
-  "Belum bisa memberi tahu saat harga turun.",
-  "Tidak menilai reputasi penjual, dan belum mencakup HP bekas.",
+  "Belum semua model HP masuk",
+  "Harga marketplace diperbarui berkala, belum otomatis",
+  "Tidak menguji HP sendiri, kualitas nyata dari reviewer",
+  "Belum ada notifikasi harga turun",
+  "Belum menilai penjual dan HP bekas",
 ];
 
-export function TransparencyTeaser() {
+function Marker({ n, className }: { n: number; className?: string }) {
   return (
-    <section className="relative isolate py-14 md:py-20">
+    <span
+      aria-hidden
+      className={cn(
+        "tabular inline-flex size-5 shrink-0 items-center justify-center rounded-pill bg-brand text-[11px] font-bold text-brand-foreground",
+        className
+      )}
+    >
+      {n}
+    </span>
+  );
+}
+
+export function TransparencyTeaser({
+  product,
+  now,
+  isDemo,
+}: {
+  product: ProductSummary | null;
+  now: Date;
+  isDemo: boolean;
+}) {
+  const price = product && product.price.status !== "unavailable" ? product.price : null;
+  const variant = product?.priceReferenceVariant ?? null;
+
+  const points = [
+    {
+      term: "Mulai dari",
+      detail: "harga terendah yang kami catat, belum tentu termurah se-internet.",
+    },
+    {
+      term: variant ? `Varian ${variant}` : "Varian acuan",
+      detail: "harga berlaku untuk varian ini saja.",
+    },
+    {
+      term:
+        price?.status === "available"
+          ? `Diperiksa ${formatCheckedAt(price.checkedAt, now)}`
+          : "Waktu periksa",
+      detail: "bukan real-time. Harga yang sudah lama disembunyikan.",
+    },
+    {
+      term: "Tanpa potongan",
+      detail: "voucher, cashback, kupon, dan harga yang butuh login tidak dihitung.",
+    },
+  ];
+
+  return (
+    <section aria-labelledby="harga-judul" className="relative isolate py-14 md:py-20">
       {/* Blob gradient statis di belakang kartu putih; tidak menyentuh kontras teks. */}
       <div className="warmth-blob" />
       <Container>
         <div className="rounded-xl border border-border bg-card p-6 md:p-10">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+          <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
             <div>
-              <h2 className="heading-section-lg text-foreground">
-                Supaya kamu tahu angkanya dari mana
+              <h2 id="harga-judul" className="heading-section-lg text-foreground">
+                Cara membaca harga di CekHarga
               </h2>
               <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-                CekHarga alat bantu keputusan, bukan marketplace. Setiap harga
-                membawa varian acuan dan waktu pemeriksaannya, dan setiap
-                keterbatasan dinyatakan.
+                Kami bukan toko. Ini arti setiap angka yang kamu lihat.
               </p>
-              <Button asChild className="mt-6">
-                <Link href="/how-it-works">Baca cara kerjanya</Link>
-              </Button>
+
+              {product && price ? (
+                <figure className="mt-6 max-w-sm rounded-xl border border-border bg-background p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-medium text-muted-foreground">{product.brand}</p>
+                    {isDemo ? <DemoBadge /> : null}
+                  </div>
+                  <p className="mt-0.5 text-base font-bold tracking-tight text-foreground">
+                    {product.model}
+                  </p>
+
+                  <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Marker n={1} />
+                    {price.status === "available" ? "Mulai dari" : "Harga terakhir tercatat"}
+                  </p>
+                  <p className="tabular mt-1 text-2xl font-extrabold tracking-tight text-foreground">
+                    {formatIdr(price.priceIdr)}
+                  </p>
+
+                  {variant ? (
+                    <p className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                      <Marker n={2} />
+                      Varian {variant}
+                    </p>
+                  ) : null}
+
+                  <p
+                    className={cn(
+                      "mt-2 flex items-center gap-2 text-sm",
+                      price.status === "available" ? "text-success" : "text-warning"
+                    )}
+                  >
+                    <Marker n={3} />
+                    <HugeiconsIcon icon={Clock01Icon} size={14} strokeWidth={2} aria-hidden />
+                    {price.status === "available"
+                      ? `Diperiksa ${formatCheckedAt(price.checkedAt, now)}`
+                      : `Tercatat ${formatCheckedAt(price.observedAt, now)}, belum diperiksa ulang`}
+                  </p>
+
+                  <p className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+                    <Marker n={4} />
+                    Tanpa voucher dan cashback
+                  </p>
+                  <figcaption className="sr-only">
+                    Contoh kartu harga {product.name} dari katalog CekHarga
+                  </figcaption>
+                </figure>
+              ) : null}
             </div>
 
-            <StaggerList as="dl" className="grid gap-6 sm:grid-cols-2">
-              {POINTS.map(({ Glyph, term, detail }) => (
-                <StaggerItem as="div" key={term}>
-                  <Glyph />
-                  <dt className="mt-3 text-sm font-bold text-foreground">
-                    {term}
-                  </dt>
-                  <dd className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                    {detail}
-                  </dd>
-                </StaggerItem>
+            <ol className="flex flex-col gap-5">
+              {points.map((point, index) => (
+                <li key={point.term} className="flex gap-3">
+                  <Marker n={index + 1} className="mt-0.5" />
+                  <p className="text-base leading-relaxed text-muted-foreground">
+                    <span className="font-semibold text-foreground">{point.term}</span>:{" "}
+                    {point.detail}
+                  </p>
+                </li>
               ))}
-            </StaggerList>
+            </ol>
           </div>
 
-          <div className="mt-8 border-t border-border pt-6 md:mt-10 md:pt-8">
-            <h3 className="text-base font-bold text-foreground">Yang belum bisa kami bantu</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Supaya kamu tahu kapan perlu mencari informasi di tempat lain.
-            </p>
-            <ul className="mt-4 grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2">
+          <div className="mt-8 border-t border-border pt-6 md:mt-10">
+            <h3 className="text-base font-bold text-foreground">Yang belum bisa</h3>
+            <ul className="mt-3 flex flex-wrap gap-2">
               {LIMITS.map((limit) => (
-                <li key={limit} className="flex gap-2.5 text-sm leading-relaxed text-muted-foreground">
-                  <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-warning" />
+                <li
+                  key={limit}
+                  className="inline-flex items-center gap-2 rounded-pill border border-border bg-background px-3.5 py-2 text-sm text-foreground"
+                >
+                  <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-warning" />
                   {limit}
                 </li>
               ))}
             </ul>
+            <Link
+              href="/how-it-works#batasan"
+              className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-brand underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Baca cara kerja lengkap
+            </Link>
           </div>
         </div>
       </Container>
