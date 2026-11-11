@@ -25,6 +25,17 @@ const IMAGE_HOST_SOURCES = new Map<string, string>([
 ]);
 
 /**
+ * Host bernomor yang tidak bisa didaftar satu per satu. Pola dikunci di awal
+ * dan akhir supaya subdomain lain di domain yang sama tidak ikut lolos.
+ */
+const IMAGE_HOST_PATTERNS: readonly (readonly [RegExp, string])[] = [
+  // CDN situs resmi Motorola Indonesia (motorola.com/id), ditambahkan
+  // 2026-11-11. Galeri per warna memakai p1-, p2-, ... secara bergantian;
+  // PNG 1200-1500 px berlatar transparan.
+  [/^p\d{1,2}-ofp\.static\.pub$/, "Situs resmi Motorola"],
+];
+
+/**
  * Host yang parameter URL-nya mengubah isi berkas, bukan sekadar ukuran.
  * images.samsung.com: `?imbypass=true` dikirim sebagai text/plain dan
  * `?$LazyLoad_Home_JPG$` hanya placeholder 1,7 KB, sedangkan tanpa parameter
@@ -33,7 +44,18 @@ const IMAGE_HOST_SOURCES = new Map<string, string>([
  */
 const STRIP_QUERY_HOSTS = new Set(["images.samsung.com"]);
 
-export const ALLOWED_IMAGE_HOSTS: ReadonlySet<string> = new Set(IMAGE_HOST_SOURCES.keys());
+function hostSource(hostname: string): string | null {
+  const host = hostname.toLowerCase();
+  const listed = IMAGE_HOST_SOURCES.get(host);
+  if (listed) return listed;
+  for (const [pattern, source] of IMAGE_HOST_PATTERNS) if (pattern.test(host)) return source;
+  return null;
+}
+
+/** Host foto yang boleh diunduh importer (daftar tetap atau pola bernomor). */
+export function isAllowedImageHost(hostname: string): boolean {
+  return hostSource(hostname) !== null;
+}
 
 /** URL gambar HTTPS dari host yang diizinkan, tanpa kredensial dan port; selain itu null. */
 export function safeHttpsImageUrl(value: string): URL | null {
@@ -44,7 +66,7 @@ export function safeHttpsImageUrl(value: string): URL | null {
       url.username ||
       url.password ||
       url.port ||
-      !ALLOWED_IMAGE_HOSTS.has(url.hostname.toLowerCase())
+      !isAllowedImageHost(url.hostname)
     ) {
       return null;
     }
@@ -57,7 +79,7 @@ export function safeHttpsImageUrl(value: string): URL | null {
 
 /** Nama sumber foto yang ditampilkan sebagai asal foto. */
 export function imageSourceName(url: URL): string {
-  return IMAGE_HOST_SOURCES.get(url.hostname.toLowerCase()) ?? url.hostname;
+  return hostSource(url.hostname) ?? url.hostname;
 }
 
 export const IMAGE_HOST_ISSUE = "URL gambar tidak memakai HTTPS atau host-nya belum diizinkan.";

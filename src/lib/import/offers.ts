@@ -3,7 +3,7 @@ import { z } from "zod";
 import { normalizeWarranty } from "@/lib/catalog/warranty";
 import type { CsvRow } from "@/lib/import/csv-parser";
 import { normalizeColorName } from "@/lib/import/colors";
-import { ALLOWED_IMAGE_HOSTS, IMAGE_HOST_ISSUE, safeHttpsImageUrl } from "@/lib/import/image-hosts";
+import { IMAGE_HOST_ISSUE, isAllowedImageHost, safeHttpsImageUrl } from "@/lib/import/image-hosts";
 import { readImageRights, type ImageRights } from "@/lib/import/image-rights";
 import { CLEAR_TOKEN, OFFER_KEEPABLE_FIELDS } from "@/lib/import/patch-rules";
 
@@ -192,7 +192,7 @@ function checkTemplateListingUrl(rawUrl: string, marketplace: string): { url: st
     return { url: rawUrl };
   }
   const hostname = url.hostname.toLowerCase();
-  if (ALLOWED_IMAGE_HOSTS.has(hostname) || /\.(?:jpe?g|png|webp|gif|avif)$/i.test(url.pathname)) {
+  if (isAllowedImageHost(hostname) || /\.(?:jpe?g|png|webp|gif|avif)$/i.test(url.pathname)) {
     return { error: "Kolom URL listing berisi tautan gambar, bukan halaman toko. Pindahkan ke kolom image_url." };
   }
   const expected = MARKETPLACE_HOSTS.find(([pattern]) => pattern.test(marketplace));

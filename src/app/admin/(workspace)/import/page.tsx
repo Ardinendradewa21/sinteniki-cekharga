@@ -15,6 +15,7 @@ import {
   DRAFT_TTL_DAYS,
 } from "@/lib/import/batch-status";
 import { listBatches, type BatchSummary } from "@/lib/import/batches";
+import { PHOTO_HELPER_BOOKMARKLET } from "@/lib/import/photo-helper";
 import { PRICE_HELPER_BOOKMARKLET } from "@/lib/import/price-helper";
 import { templateTerpadu } from "@/lib/import/unified";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
@@ -49,7 +50,7 @@ const TABS = [
   { id: "unggah", label: "Unggah CSV" },
   { id: "tarik", label: "Tarik otomatis" },
   { id: "foto", label: "Antrean foto" },
-  { id: "salin", label: "Salin harga" },
+  { id: "salin", label: "Salin harga & foto" },
   { id: "riwayat", label: "Riwayat batch" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -332,7 +333,57 @@ function PriceHelperTab() {
         Bila marketplace menutup panel atau memblokir bookmark, salin manual seperti biasa. Alat ini hanya membaca
         halaman yang sedang kamu lihat dan tidak mengirim apa pun ke server CekHarga.
       </p>
+
+      <PhotoHelperSection />
     </section>
+  );
+}
+
+/**
+ * Alat bantu salin foto galeri resmi (Sprint 14): bookmarklet yang membaca
+ * galeri per warna di halaman produk motorola.com/id yang sedang dibuka admin.
+ */
+function PhotoHelperSection() {
+  return (
+    <div className="space-y-6 border-t border-border pt-6">
+      <div className="max-w-3xl">
+        <h2 id="salin-foto" className="text-lg font-bold text-foreground">
+          Alat bantu salin foto galeri resmi
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Untuk Motorola: satu klik di halaman produk motorola.com/id menyalin semua foto per warna (paling banyak 6 per
+          warna, foto pertama jadi sampul) sebagai baris CSV gabungan. Tidak perlu lagi menyalin URL gambar satu per satu.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold text-foreground">1. Pasang sekali</p>
+        <p className="mt-1 text-sm text-muted-foreground">Seret tombol ini ke bilah bookmark browser.</p>
+        <div className="mt-3">
+          <PriceHelperLink href={PHOTO_HELPER_BOOKMARKLET} label="Salin foto ke CekHarga" />
+        </div>
+      </div>
+
+      <ol className="space-y-3 rounded-xl border border-border bg-card p-5 text-sm leading-relaxed text-foreground">
+        <li>
+          <strong>2. Buka halaman produk HP</strong> di motorola.com/id (mis. dari menu Smartphone) dan tunggu sampai
+          pilihan warna tampil.
+        </li>
+        <li>
+          <strong>3. Klik bookmark &ldquo;Salin foto ke CekHarga&rdquo;.</strong> Panel menampilkan setiap warna, jumlah
+          fotonya, dan model yang ditebak dari alamat halaman. Samakan nama model dengan nama di katalog, rapikan nama
+          warna bila perlu, dan hapus centang warna yang tidak dijual di Indonesia.
+        </li>
+        <li>
+          <strong>4. Klik &ldquo;Salin baris&rdquo;, lalu tempel di sheet</strong> (Ctrl+V). Satu baris per foto, kolomnya urut
+          sesuai templat CSV gabungan. Nama model dan warna yang kamu ubah diingat untuk halaman yang sama.
+        </li>
+        <li>
+          <strong>5. Unggah CSV di tab Unggah CSV</strong> dengan bagian &ldquo;Foto per warna&rdquo; dicentang, lalu pilih dasar hak pakai foto di
+          form. Kolom dasar hak pakai sengaja dibiarkan kosong oleh alat ini.
+        </li>
+      </ol>
+    </div>
   );
 }
 

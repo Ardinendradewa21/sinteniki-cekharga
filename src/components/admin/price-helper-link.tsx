@@ -12,7 +12,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
  * konstanta server (price-helper.ts), bukan masukan pengguna. Klik biasa di
  * halaman admin dicegah karena alat ini hanya berguna di halaman marketplace.
  */
-export function PriceHelperLink({ href }: { href: string }) {
+export function PriceHelperLink({ href, label = "Salin ke CekHarga" }: { href: string; label?: string }) {
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
     ref.current?.setAttribute("href", href);
@@ -25,7 +25,7 @@ export function PriceHelperLink({ href }: { href: string }) {
       className={buttonVariants({ className: "cursor-grab" })}
       title="Seret tombol ini ke bilah bookmark browser"
     >
-      Salin ke CekHarga
+      {label}
     </a>
   );
 }

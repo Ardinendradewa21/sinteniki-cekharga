@@ -1377,3 +1377,62 @@ test("galeri: warna baru diterima dan ditandai, warna mirip jadi Perlu tinjau", 
   assert.match(byColor("Hitam Malm").reason ?? "", /sangat mirip "Hitam Malam"/);
   assert.equal(byColor("Hitam Malm").newColor, false);
 });
+
+import { PHOTO_HELPER_BOOKMARKLET, PHOTO_HELPER_SOURCE } from "@/lib/import/photo-helper";
+
+test("alat bantu salin foto: galeri per warna Motorola jadi baris CSV gabungan", () => {
+  const api = new Function(`${PHOTO_HELPER_SOURCE}; return { chpColorName, chpImageUrl, chpModelFromPath, chpCollectGalleries, chpBuildRows };`)() as {
+    chpColorName(t: string): string;
+    chpImageUrl(t: string): string;
+    chpModelFromPath(p: string): string;
+    chpCollectGalleries(roots: unknown[], max: number): { color: string; urls: string[]; total: number }[];
+    chpBuildRows(c: readonly string[], p: { brand: string; model: string }, g: { color: string; urls: string[] }[], src: string): string;
+  };
+  assert.equal(api.chpColorName("%3Cp%3EPANTONE%20Corsair%3C%2Fp%3E"), "Corsair");
+  assert.equal(api.chpImageUrl("//p1-ofp.static.pub//fes/cms/a.png"), "https://p1-ofp.static.pub//fes/cms/a.png");
+  assert.equal(api.chpImageUrl("javascript:alert(1)//x.png"), "", "hanya https");
+  assert.equal(api.chpImageUrl("//p1-ofp.static.pub/video.mp4"), "", "hanya gambar");
+  assert.equal(api.chpModelFromPath("/id/id/p/phones/moto-g/57-power-5g/pmipmjf43mj"), "Moto G57 Power 5G");
+  assert.equal(api.chpModelFromPath("/id/id/p/phones/moto-g/g06-power/pmipmhy43m4"), "Moto G06 Power");
+  assert.equal(api.chpModelFromPath("/id/id/p/phones/motorola-edge/60-pro/pmipmht41mf"), "Edge 60 Pro");
+  assert.equal(api.chpModelFromPath("/id/id/p/phones/motorola-edge/motorola-edge-70-fusion-7000mah/x"), "Edge 70 Fusion 7000mAh");
+  assert.equal(api.chpModelFromPath("/id/id/p/phones/razr/razr-60/pmipmhv41mm"), "Razr 60");
+  assert.equal(api.chpModelFromPath("/id/id/"), "");
+
+  const img = (n: number) => ({ t_id: { t_id: `//p${(n % 2) + 1}-ofp.static.pub//fes/cms/${n}.png`, language: { id: "" } } });
+  const page = {
+    data: {
+      configData: {
+        design: [
+          { gradientName: { t_id: "%3Cp%3EPANTONE%20Corsair%3C%2Fp%3E" }, images: [1, 2, 3, 4, 5, 6, 7, 8].map(img) },
+          { gradientName: { t_id: "<p>PANTONE Regatta</p>" }, images: [img(9), img(9), img(10)] },
+          { gradientName: { t_id: "" }, images: [img(11)] },
+        ],
+      },
+    },
+  };
+  const galleries = api.chpCollectGalleries([page, page], 6);
+  assert.deepEqual(galleries.map((g) => [g.color, g.urls.length, g.total]), [["Corsair", 6, 8], ["Regatta", 2, 2]], "maks 6 per warna, duplikat dibuang, warna tanpa nama dilewati");
+
+  const text = api.chpBuildRows(UNIFIED_COLUMNS, { brand: "Motorola", model: "Moto G57 Power" }, galleries, "https://www.motorola.com/id/id/p/phones/moto-g/57-power-5g/pmipmjf43mj");
+  const rows = text.split("\n").map((line) => line.split("\t"));
+  assert.equal(rows.length, 8);
+  const col = (name: string) => UNIFIED_COLUMNS.indexOf(name as (typeof UNIFIED_COLUMNS)[number]);
+  assert.ok(rows.every((cells) => cells.length === UNIFIED_COLUMNS.length));
+  assert.deepEqual([rows[0][col("color")], rows[0][col("urutan")], rows[0][col("is_cover")]], ["Corsair", "1", "ya"]);
+  assert.deepEqual([rows[1][col("urutan")], rows[1][col("is_cover")]], ["2", "tidak"]);
+  assert.equal(rows[6][col("is_cover")], "ya", "warna kedua punya sampul sendiri");
+  assert.equal(rows[0][col("image_usage_basis")], "", "dasar hak pakai dipilih di form unggah");
+  assert.ok(safeHttpsImageUrl(rows[0][col("image_url")]), "URL hasil alat diterima importer");
+  assert.ok(PHOTO_HELPER_BOOKMARKLET.startsWith("javascript:"));
+  assert.doesNotThrow(() => new Function(decodeURIComponent(PHOTO_HELPER_BOOKMARKLET.slice("javascript:".length))), "bookmarklet valid JavaScript");
+});
+
+test("host foto Motorola bernomor diizinkan, host lain di domain yang sama tidak", () => {
+  const ok = safeHttpsImageUrl("https://p3-ofp.static.pub//fes/cms/2025/11/04/x.png");
+  assert.ok(ok);
+  assert.equal(imageSourceName(ok), "Situs resmi Motorola");
+  assert.equal(safeHttpsImageUrl("https://evil.static.pub/x.png"), null);
+  assert.equal(safeHttpsImageUrl("https://p1-ofp.static.pub.evil.com/x.png"), null);
+  assert.equal(safeHttpsImageUrl("http://p1-ofp.static.pub/x.png"), null);
+});

@@ -112,7 +112,11 @@ function FilterChip({
         ) : null}
         <ChevronDownIcon size={16} aria-hidden className="transition-transform duration-150 group-open:rotate-180" />
       </summary>
-      <div className="fixed inset-x-0 bottom-0 z-40 max-h-[75vh] overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 sm:max-h-[60vh] sm:w-80 sm:rounded-xl">
+      {/* Latar redup khusus ponsel: panel muncul dari bawah layar seperti
+          lembar, jadi isi di belakangnya diredupkan (audit 001 temuan 8).
+          Ketukan di latar menutup panel lewat FilterPopoverDismiss. */}
+      <div data-filter-backdrop="" aria-hidden className="fixed inset-0 z-60 bg-black/50 sm:hidden" />
+      <div className="fixed inset-x-0 bottom-0 z-60 max-h-[75vh] overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 sm:max-h-[60vh] sm:w-80 sm:rounded-xl">
         {children}
         <div className="mt-4 border-t border-border pt-4">
           <Button type="submit" className="w-full sm:w-auto">

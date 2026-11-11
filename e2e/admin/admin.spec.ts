@@ -156,6 +156,46 @@ test.describe("Pusat Impor", () => {
     expect(cells.slice(12, 16)).toEqual(["Shopee", "Vivo Official Store", "https://shopee.co.id/vivo-y05-i.1.2", "2999000"]);
   });
 
+  test("TC-IMP-08 alat bantu salin foto menyalin galeri per warna dari halaman produk Motorola @regression", async ({ page, context }) => {
+    await page.goto("/admin/import?tab=salin");
+    const link = page.getByRole("link", { name: "Salin foto ke CekHarga" });
+    await expect(link).toHaveAttribute("href", /^javascript:/);
+    const code = decodeURIComponent(((await link.getAttribute("href")) ?? "").slice("javascript:".length));
+
+    // Halaman tiruan di host Motorola (dilayani lokal, tidak menyentuh motorola.com).
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "https://www.motorola.com" });
+    const img = (n: number) => `{"t_id":{"t_id":"//p${(n % 2) + 1}-ofp.static.pub//fes/cms/2025/11/04/${n}.png"}}`;
+    await page.route("https://www.motorola.com/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: `<!doctype html><html><head><title>moto g57 power</title></head><body>
+          <script>window["moto-product-landing-flip-v2_qa"] = {"data":{"configData":{"design":[
+            {"gradientName":{"t_id":"%3Cp%3EPANTONE%20Corsair%3C%2Fp%3E"},"images":[${[1, 2, 3].map(img).join(",")}]},
+            {"gradientName":{"t_id":"%3Cp%3EPANTONE%20Regatta%3C%2Fp%3E"},"images":[${[4, 5].map(img).join(",")}]}
+          ]}}};</script></body></html>`,
+      })
+    );
+    await page.route("https://p1-ofp.static.pub/**", (route) => route.fulfill({ status: 404 }));
+    await page.route("https://p2-ofp.static.pub/**", (route) => route.fulfill({ status: 404 }));
+    await page.goto("https://www.motorola.com/id/id/p/phones/moto-g/57-power-5g/pmipmjf43mj");
+    await page.evaluate(code);
+    const panel = page.locator("#cekharga-salin-foto");
+    await expect(panel).toBeVisible();
+    const inputs = panel.locator("input:not([type=checkbox])");
+    await expect(inputs.nth(0)).toHaveValue("Motorola");
+    await expect(inputs.nth(1)).toHaveValue("Moto G57 Power 5G");
+    await inputs.nth(1).fill("Moto G57 Power");
+    await expect(inputs.nth(2)).toHaveValue("Corsair");
+    await panel.getByRole("checkbox", { name: "Sertakan warna Regatta" }).uncheck();
+    await panel.getByRole("button", { name: "Salin baris" }).click();
+    await expect(panel).toContainText("Tersalin 3 baris");
+    const rows = (await page.evaluate(() => navigator.clipboard.readText())).split("\n").map((line) => line.split("	"));
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveLength(20);
+    expect(rows[0].slice(0, 9)).toEqual(["Motorola", "Moto G57 Power", "", "", "", "Corsair", "https://p2-ofp.static.pub//fes/cms/2025/11/04/1.png", "1", "ya"]);
+    expect(rows[2].slice(7, 9)).toEqual(["3", "tidak"]);
+  });
+
   test("TC-IMP-05 CSV gabungan: koreksi otomatis tampil, harga ditinjau dulu lalu foto sebagai tahap lanjutan @regression", async ({ page }) => {
     test.setTimeout(180_000);
     await page.goto("/admin/import?tab=unggah");
