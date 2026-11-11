@@ -56,6 +56,7 @@ Setiap komponen dinilai dengan skala Fibonacci (1, 2, 3, 5, 8, 13). Angka WSJF d
 | 44 | PB-45 | Impor CSV vivo: varian khusus Indonesia diusulkan sebagai varian baru (dicentang admin), warna Indonesia tidak menahan baris dan menjadi daftar warna produk, baris per warna digabung tanpa kartu "Dilewati" | Masukan PO 21 Okt 2026 | 8 | 8 | 3 | 3 | **6.3** | ✅ Selesai 2026-10-21 (Sprint 12) |
 | 45 | PB-46 | Tarik otomatis: varian berharga di situs resmi ditambahkan walau tidak ada di GSMArena; model yang belum ada di GSMArena masuk sebagai draft bersumber situs resmi dan diadopsi saat GSMArena memuatnya | Masukan PO 21 Okt 2026 | 8 | 5 | 3 | 3 | **5.3** | ✅ Selesai 2026-10-21 (Sprint 12) |
 | 46 | PB-47 | Alat bantu salin harga (bookmarklet) untuk pencatatan harga e-commerce manual; pengganti sementara PB-17 | Masukan PO 21 Okt 2026 | 8 | 5 | 2 | 2 | **7.5** | ✅ Selesai 2026-10-21 (Sprint 12) |
+| 47 | PB-48 | Lupa kata sandi admin lewat browser (`/admin/login/lupa-sandi`): kode 6 digit ke email, lalu kata sandi baru; pesan seragam, rate limit per IP + email | Masukan PO 11 Nov 2026 (admin tidak bisa masuk) | 8 | 8 | 5 | 2 | **10.5** | ✅ Selesai 2026-11-11, branch `pb-48/lupa-sandi-admin` |
 | – | PB-10 | Modul iklan: Fase 3–4 (laporan otomatis, invoice, portal advertiser, sponsored listing) | ADS-CONTEXT §10 | – | – | – | – | – | **Ditahan** oleh pemilik produk |
 
 ### Catatan prioritas

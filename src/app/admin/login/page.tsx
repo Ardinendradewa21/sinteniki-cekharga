@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { LoginForm } from "@/components/admin/login-form";
 import { Container } from "@/components/layout/container";
@@ -54,9 +55,23 @@ export default async function AdminLoginPage({
             </div>
           ) : null}
 
+          {reason === "sandi-diganti" ? (
+            <p role="status" className="mt-6 rounded-xl border border-border bg-brand-muted p-4 text-sm leading-relaxed text-foreground">
+              Kata sandi baru sudah tersimpan. Masuk dengan kata sandi itu.
+            </p>
+          ) : null}
+
           <div className="mt-6">
             <LoginForm />
           </div>
+          <p className="mt-4 text-sm">
+            <Link
+              href="/admin/login/lupa-sandi"
+              className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
+            >
+              Lupa kata sandi?
+            </Link>
+          </p>
         </div>
       </Container>
     </main>
