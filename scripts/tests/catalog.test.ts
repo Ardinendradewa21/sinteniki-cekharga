@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { pickComparisonPair, pickHeroProduct, type ShowcaseCandidate } from "@/lib/catalog/showcase";
+import { pickComparisonPair, pickComparisonPairs, pickHeroProduct, type ShowcaseCandidate } from "@/lib/catalog/showcase";
 
 const available = (priceIdr: number, checkedAt = "2026-10-07T00:00:00Z") =>
   ({ status: "available", priceIdr, checkedAt, offerId: "o", variantId: "v", origin: "manual" }) as const;
@@ -32,6 +32,22 @@ test("pasangan perbandingan: harga basi atau kosong tidak dipakai", () => {
     null,
     "butuh minimal dua merek dengan harga segar"
   );
+});
+
+test("pasangan perbandingan: pasangan kedua tidak berbagi produk dengan yang pertama (audit 002 no 4)", () => {
+  const candidates = [
+    item("oppo-a6s", "OPPO", available(4_499_000)),
+    item("vivo-y29", "vivo", available(4_700_000)),
+    item("samsung-a17", "Samsung", available(5_299_000)),
+    item("xiaomi-15t", "Xiaomi", available(5_399_000)),
+  ];
+  const pairs = pickComparisonPairs(candidates, 2);
+  assert.deepEqual(pairs, [
+    ["samsung-a17", "xiaomi-15t"],
+    ["oppo-a6s", "vivo-y29"],
+  ]);
+  assert.deepEqual(pairs[0], pickComparisonPair(candidates), "pasangan pertama sama dengan pilihan tunggal");
+  assert.equal(pickComparisonPairs(candidates.slice(0, 3), 2).length, 1, "tiga produk hanya cukup untuk satu pasangan terpisah");
 });
 
 test("pasangan perbandingan: deterministik saat selisih seri", () => {

@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { StaggerItem, StaggerList } from "@/components/motion/reveal";
 import { Section } from "@/components/section";
 import { Button } from "@/components/ui/button";
 import { DemoBadge } from "@/components/demo-marker";
@@ -38,10 +37,11 @@ export function ComparisonPreview({
   // "beda" hanya bila KEDUA nilai diketahui dan berbeda. Nilai yang belum
   // diketahui tidak dinilai, sama seperti halaman perbandingan (PRD FR-04:
   // data kosong tidak dianggap lebih buruk atau berbeda).
+  // Dicocokkan menurut label, bukan urutan, sama seperti hero (audit 002 no 9).
   const differingLabels = new Set(
     first.attributes
-      .filter((attribute, index) => {
-        const other = second.attributes[index];
+      .filter((attribute) => {
+        const other = second.attributes.find((item) => item.label === attribute.label);
         return (
           other !== undefined &&
           attribute.value !== null &&
@@ -75,10 +75,14 @@ export function ComparisonPreview({
         </Button>
       }
     >
-      <StaggerList as="div" className="grid gap-5 sm:grid-cols-2">
+      {/*
+        Tanpa animasi masuk (audit 002 no 8): dua kartu data statis tidak butuh
+        reveal, dan pembaca tanpa gulir atau tangkapan halaman penuh tidak
+        melihat area kosong.
+      */}
+      <div className="grid gap-5 sm:grid-cols-2">
         {example.items.map((item) => (
-          <StaggerItem
-            as="div"
+          <div
             key={item.id}
             className="rounded-xl border border-border bg-card p-5"
           >
@@ -122,9 +126,9 @@ export function ComparisonPreview({
                 </div>
               ))}
             </dl>
-          </StaggerItem>
+          </div>
         ))}
-      </StaggerList>
+      </div>
 
       <p className="mt-5 rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-muted-foreground">
         {example.differenceIdr === null ? (

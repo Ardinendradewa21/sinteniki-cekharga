@@ -26,30 +26,50 @@ function freshPrice(candidate: ShowcaseCandidate): number | null {
   return candidate.price.status === "available" ? candidate.price.priceIdr : null;
 }
 
-export function pickComparisonPair(
-  candidates: readonly ShowcaseCandidate[]
-): [string, string] | null {
+/**
+ * Sampai `count` pasangan yang tidak berbagi produk, berurutan dari harga
+ * paling berdekatan. Pasangan pertama dipakai section contoh perbandingan,
+ * pasangan kedua (bila ada) dipakai adegan "Bandingkan" di hero, supaya beranda
+ * tidak menampilkan perbandingan yang sama dua kali (audit 002 no 4).
+ */
+export function pickComparisonPairs(
+  candidates: readonly ShowcaseCandidate[],
+  count: number
+): [string, string][] {
   const priced = candidates
     .map((candidate) => ({ candidate, price: freshPrice(candidate) }))
     .filter((entry): entry is { candidate: ShowcaseCandidate; price: number } => entry.price !== null)
     .sort((a, b) => a.price - b.price || a.candidate.slug.localeCompare(b.candidate.slug));
 
-  let best: { pair: [string, string]; gap: number } | null = null;
+  // Semua pasangan lintas merek; seri diputus urutan daftar harga (i, j), jadi
+  // pasangan pertama sama dengan pilihan lama dan hasilnya deterministik.
+  const options: { i: number; j: number; gap: number }[] = [];
   for (let i = 0; i < priced.length; i += 1) {
     for (let j = i + 1; j < priced.length; j += 1) {
       const a = priced[i]!;
       const b = priced[j]!;
       if (a.candidate.brand.toLowerCase() === b.candidate.brand.toLowerCase()) continue;
-      const gap = b.price - a.price;
-      if (best && gap >= best.gap) {
-        // Daftar terurut harga: selisih hanya membesar untuk j berikutnya.
-        break;
-      }
-      const pair = [a.candidate.slug, b.candidate.slug].sort() as [string, string];
-      best = { pair, gap };
+      options.push({ i, j, gap: b.price - a.price });
     }
   }
-  return best?.pair ?? null;
+  options.sort((x, y) => x.gap - y.gap || x.i - y.i || x.j - y.j);
+
+  const used = new Set<number>();
+  const pairs: [string, string][] = [];
+  for (const option of options) {
+    if (pairs.length >= count) break;
+    if (used.has(option.i) || used.has(option.j)) continue;
+    used.add(option.i);
+    used.add(option.j);
+    pairs.push([priced[option.i]!.candidate.slug, priced[option.j]!.candidate.slug].sort() as [string, string]);
+  }
+  return pairs;
+}
+
+export function pickComparisonPair(
+  candidates: readonly ShowcaseCandidate[]
+): [string, string] | null {
+  return pickComparisonPairs(candidates, 1)[0] ?? null;
 }
 
 /**

@@ -14,7 +14,7 @@ import {
 } from "@/lib/catalog/queries";
 import { loadOrNull } from "@/lib/catalog/load";
 import { qualifyingNeedPages } from "@/lib/catalog/need-page-data";
-import { pickComparisonPair, pickHeroProduct } from "@/lib/catalog/showcase";
+import { pickComparisonPairs, pickHeroProduct } from "@/lib/catalog/showcase";
 
 /**
  * Dirender per permintaan, bukan di-prerender saat build.
@@ -50,13 +50,17 @@ export default async function HomePage() {
   // Dipilih dari katalog yang aktif (demo maupun live), bukan slug fixture
   // yang ditulis langsung; lihat src/lib/catalog/showcase.ts.
   const heroProduct = pickHeroProduct(products);
-  const pair = pickComparisonPair(products);
-  // Keduanya membaca dataset katalog yang sama (sudah di-cache), jadi paralel.
-  const [comparison, needPages] = await Promise.all([
+  // Dua pasangan terpisah: section contoh perbandingan memakai yang pertama,
+  // adegan hero memakai yang kedua, supaya tidak tampil dua kali (audit 002
+  // no 4). Katalog kecil yang hanya punya satu pasangan memakainya di keduanya.
+  const [pair, heroPair] = pickComparisonPairs(products, 2);
+  // Semuanya membaca dataset katalog yang sama (sudah di-cache), jadi paralel.
+  const [comparison, heroComparison, needPages] = await Promise.all([
     pair ? loadOrNull(() => getComparisonExample(now, pair)) : null,
+    heroPair ? loadOrNull(() => getComparisonExample(now, heroPair)) : null,
     loadOrNull(() => qualifyingNeedPages(now)),
   ]);
-  const tour = buildHeroTour(products, comparison, heroProduct, now);
+  const tour = buildHeroTour(products, heroComparison ?? comparison, heroProduct, now);
 
   return (
     <>
