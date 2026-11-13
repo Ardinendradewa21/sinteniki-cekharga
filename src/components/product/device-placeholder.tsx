@@ -35,7 +35,10 @@ export function DevicePlaceholder({
         height={210}
         className={cn(SIZE[size], "opacity-50 grayscale")}
       />
-      <span className="text-xs font-medium text-muted-foreground">Foto belum tersedia</span>
+      {/* Mewarisi warna konteks (bukan muted-foreground): di atas panggung
+          terang ikut stage-foreground, di tempat lain ikut foreground tema.
+          muted-foreground tema gelap di panggung terang hanya 1.83:1 (VD-04). */}
+      <span className="text-xs font-medium opacity-75">Foto belum tersedia</span>
     </span>
   );
 }

@@ -40,19 +40,28 @@ test("TC-A11Y-04 kolom budget Tanya AI punya indikator fokus terlihat (UX-01) @r
   const input = page.getByRole("spinbutton", { name: "Budget dalam Rupiah" });
   await input.focus();
   // Kolom tanpa bingkai: indikatornya ada di kotak composer yang membungkusnya.
-  const indicator = await input.evaluate((el) => {
-    const own = getComputedStyle(el);
-    const box = el.closest(".rounded-xl") as HTMLElement | null;
-    const wrap = box ? getComputedStyle(box) : null;
-    // Ring Tailwind = box-shadow "0 0 0 <spread>": cari spread > 0.
-    const shadows = (wrap?.boxShadow ?? "none").split(/,(?![^(]*\))/);
-    return {
-      ownOutline: own.outlineStyle !== "none" && own.outlineWidth !== "0px",
-      wrapRing: shadows.some((part) => /0px 0px 0px [1-9][\d.]*px\s*$/.test(part.trim())),
-      wrapShadow: wrap?.boxShadow ?? "",
-    };
-  });
-  expect(indicator.ownOutline || indicator.wrapRing, indicator.wrapShadow).toBe(true);
+  // Ring composer memakai transisi 150ms; di build produksi pembacaan pertama
+  // jatuh di frame awal transisi (spread < 1px), jadi tunggu sampai ring
+  // penuh, dengan batas ketat 1 detik (terukur: 2px dalam ±100ms).
+  const readIndicator = () =>
+    input.evaluate((el) => {
+      const own = getComputedStyle(el);
+      const box = el.closest(".rounded-xl") as HTMLElement | null;
+      const wrap = box ? getComputedStyle(box) : null;
+      // Ring Tailwind = box-shadow "0 0 0 <spread>": cari spread > 0.
+      const shadows = (wrap?.boxShadow ?? "none").split(/,(?![^(]*\))/);
+      return {
+        ownOutline: own.outlineStyle !== "none" && own.outlineWidth !== "0px",
+        wrapRing: shadows.some((part) => /0px 0px 0px [1-9][\d.]*px\s*$/.test(part.trim())),
+        wrapShadow: wrap?.boxShadow ?? "",
+      };
+    });
+  await expect
+    .poll(async () => {
+      const indicator = await readIndicator();
+      return indicator.ownOutline || indicator.wrapRing;
+    }, { timeout: 1000, intervals: [50] })
+    .toBe(true);
 });
 
 test("TC-A11Y-05 tautan baris bawah footer setinggi minimal 44 px (UX-06) @regression", async ({ page }) => {

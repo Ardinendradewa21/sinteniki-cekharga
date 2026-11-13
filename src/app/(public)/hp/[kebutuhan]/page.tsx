@@ -65,10 +65,20 @@ export default async function NeedPageView(props: PageProps<"/hp/[kebutuhan]">) 
 
       {isDemo ? <DemoNotice className="mt-6">Data di halaman ini berasal dari fixture demo.</DemoNotice> : null}
 
+      {/* h2 untuk pembaca layar: judul kartu (h3) tidak melompat dari h1. */}
+      <h2 className="sr-only">Daftar produk</h2>
       <ul className="-mx-2 mt-6 grid grid-cols-2 gap-2 sm:mx-0 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
         {result.items.map((product, index) => (
           <li key={product.id}>
-            <ProductCard product={product} now={now} isDemo={isDemo} eager={index < 4} />
+            {/* href wajib: tanpa itu kartu tidak tertaut ke detail dan tidak
+                punya tombol Bandingkan (mode tanpa href khusus style guide). */}
+            <ProductCard
+              product={product}
+              now={now}
+              isDemo={isDemo}
+              eager={index < 4}
+              href={`/products/${product.slug}`}
+            />
           </li>
         ))}
       </ul>

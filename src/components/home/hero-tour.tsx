@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, type HTMLMotionProps } from "motion/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowUpRight01Icon,
-  Clock01Icon,
   PauseIcon,
   PlayIcon,
   RepeatIcon,
@@ -14,38 +13,56 @@ import {
 
 import { DemoBadge } from "@/components/demo-marker";
 import type { HeroTourData } from "@/components/home/hero-tour-data";
-import { cn } from "@/lib/utils";
+import { CountUp } from "@/components/motion/count-up";
+import { SegmentedControl } from "@/components/motion/segmented-control";
+import { StatusPill } from "@/components/status-pill";
+import { easeOutQuint, useMotionPreset } from "@/lib/motion";
 
 /**
- * Cuplikan fitur di hero (Sprint 13 S13-3), pengganti bingkai ponsel berisi
- * balok abstrak.
+ * Cuplikan fitur di Hero Price Panel (Sprint 13 S13-3, tema Verdant VD-04).
  *
  * Setiap adegan memakai potongan UI CekHarga dengan data katalog asli (lihat
  * hero-tour-data.ts), jadi pengunjung melihat fiturnya, bukan ilustrasinya.
  *
+ * Susunan Verdant (DESIGN.md §7): kartu solid berisi adegan dan keterangannya,
+ * lalu SegmentedControl untuk memilih adegan (thumb ikut bergeser saat
+ * autoplay) dan tombol jeda. Tidak ada teks yang langsung di atas kaca.
+ *
  * Aturan motion PRD §8 dan WCAG 2.2.2: diputar SEKALI lalu berhenti di adegan
- * terakhir, ada tombol jeda dan tombol per langkah. `prefers-reduced-motion`
- * tidak diputar otomatis; MotionProvider sudah mematikan gerak transform, dan
- * pengguna memilih langkahnya sendiri. Panggung bertinggi tetap supaya
- * pergantian adegan tidak menggeser tata letak.
+ * terakhir, ada tombol jeda dan pilihan per langkah. `prefers-reduced-motion`
+ * tidak diputar otomatis dan semua animasi adegan selesai seketika. Kartu
+ * bertinggi tetap supaya pergantian adegan tidak menggeser tata letak. Harga
+ * di adegan Harga dirender final (CountUp tidak bergulir saat dimuat).
  */
 
 const SCENE_MS = 3200;
 
 type Scene = { tab: string; title: string; body: string; stage: ReactNode };
 
-const rise = (delay: number) => ({
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.32, delay, ease: "easeOut" as const },
-});
+/**
+ * Entrance kecil untuk potongan adegan: geser 8px saja, TANPA memudar. Teks
+ * selalu beropasitas penuh, jadi kontrasnya tidak pernah turun di tengah
+ * animasi (terukur VD-04: pemeriksa kontras Lighthouse menangkap kartu harga
+ * yang sedang memudar dan mencatat 1.02:1). Seketika saat reduced motion.
+ */
+function useRise() {
+  const { reduce } = useMotionPreset();
+  return (delay: number): HTMLMotionProps<"div"> =>
+    reduce
+      ? {}
+      : {
+          initial: { y: 8 },
+          animate: { y: 0 },
+          transition: { duration: 0.35, delay, ease: easeOutQuint },
+        };
+}
 
 export function HeroTour({ data, isDemo }: { data: HeroTourData; isDemo: boolean }) {
-  const reduceMotion = useReducedMotion();
+  const { reduce, transition } = useMotionPreset();
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [finished, setFinished] = useState(false);
-  const autoplay = playing && !reduceMotion;
+  const autoplay = playing && !reduce;
 
   const candidates: (Scene | null)[] = [
     data.search && {
@@ -107,8 +124,8 @@ export function HeroTour({ data, isDemo }: { data: HeroTourData; isDemo: boolean
   const current = scenes[index];
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col">
-      <div className="relative h-92 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <div className="flex w-full flex-col gap-2.5">
+      <div className="relative flex h-108 flex-col overflow-hidden rounded-lg bg-card p-5 shadow-sm">
         {/* Penanda kemajuan: satu ruas per adegan. */}
         <div aria-hidden className="flex gap-1.5">
           {scenes.map((scene, i) => (
@@ -131,84 +148,82 @@ export function HeroTour({ data, isDemo }: { data: HeroTourData; isDemo: boolean
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={current.tab}
-            className="mt-5"
+            className="mt-5 min-h-0 flex-1"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            animate={{ opacity: 1, transition: transition("micro") }}
+            exit={{ opacity: 0, transition: transition("exit") }}
           >
             {current.stage}
           </motion.div>
         </AnimatePresence>
+
+        <div className="mt-3 border-t border-border pt-3 text-center">
+          <p className="text-sm font-bold text-card-foreground">
+            <span className="sr-only">
+              Langkah {index + 1} dari {scenes.length}:{" "}
+            </span>
+            {current.title}
+          </p>
+          <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{current.body}</p>
+        </div>
       </div>
 
-      <div role="group" aria-label="Langkah cuplikan fitur CekHarga" className="mt-4 flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           onClick={onControl}
           aria-label={control.label}
-          className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-card-foreground transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
         >
           <HugeiconsIcon icon={control.icon} size={16} strokeWidth={2} aria-hidden />
         </button>
-        {scenes.map((scene, i) => (
-          <button
-            key={scene.tab}
-            type="button"
-            aria-current={i === index ? "step" : undefined}
-            onClick={() => {
-              setIndex(i);
-              setPlaying(false);
-              setFinished(false);
-            }}
-            className={cn(
-              "inline-flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full px-2 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-              i === index ? "bg-brand-muted text-brand-text" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {scene.tab}
-          </button>
-        ))}
-      </div>
-      <div className="mt-2 min-h-17 px-2 text-center">
-        <p className="text-sm font-bold text-foreground">
-          <span className="sr-only">
-            Langkah {index + 1} dari {scenes.length}:{" "}
-          </span>
-          {current.title}
-        </p>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{current.body}</p>
+        <SegmentedControl
+          label="Langkah cuplikan fitur CekHarga"
+          fullWidth
+          // Lebar tab mengikuti labelnya (flex-auto), bukan sama rata: di 375px
+          // "Bandingkan" tidak muat di seperempat lebar (terlihat di VD-04).
+          className="min-w-0 flex-nowrap [&_button]:flex-auto [&_button]:px-2 [&_button]:text-xs sm:[&_button]:px-3"
+          value={current.tab}
+          onValueChange={(tab) => {
+            setIndex(scenes.findIndex((scene) => scene.tab === tab));
+            setPlaying(false);
+            setFinished(false);
+          }}
+          options={scenes.map((scene) => ({ value: scene.tab, label: scene.tab }))}
+        />
       </div>
     </div>
   );
 }
 
 function SearchStage({ search }: { search: NonNullable<HeroTourData["search"]> }) {
+  const rise = useRise();
+  const { reduce } = useMotionPreset();
   return (
     <div aria-hidden>
-      <div className="flex h-11 items-center gap-2.5 rounded-lg border border-input bg-background px-3.5">
+      <div className="flex h-11 items-center gap-2.5 rounded-md border border-input bg-background px-3.5">
         <HugeiconsIcon icon={Search01Icon} size={16} strokeWidth={2} className="shrink-0 text-muted-foreground" />
         <motion.span
           className="overflow-hidden text-sm whitespace-nowrap text-foreground"
-          initial={{ clipPath: "inset(0 100% 0 0)" }}
+          initial={reduce ? false : { clipPath: "inset(0 100% 0 0)" }}
           animate={{ clipPath: "inset(0 0% 0 0)" }}
           transition={{ duration: 0.9, delay: 0.2, ease: "linear" }}
         >
           {search.query}
         </motion.span>
       </div>
-      <motion.p
+      <motion.div
         {...rise(1.1)}
         className="mt-3 inline-flex rounded-pill border border-brand/30 bg-brand-muted px-3 py-1 text-xs font-medium text-brand-text"
       >
         {search.filterLabel}
-      </motion.p>
+      </motion.div>
       <ul className="mt-3 flex flex-col gap-2">
         {search.results.map((result, i) => (
           <motion.li
             key={result.name}
-            {...rise(1.4 + i * 0.15)}
-            className="flex items-center justify-between gap-3 rounded-lg border border-border px-3.5 py-2.5"
+            {...(rise(1.4 + i * 0.15) as HTMLMotionProps<"li">)}
+            className="flex items-center justify-between gap-3 rounded-md border border-border px-3.5 py-2.5"
           >
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold text-foreground">{result.name}</span>
@@ -225,16 +240,15 @@ function SearchStage({ search }: { search: NonNullable<HeroTourData["search"]> }
 }
 
 function CompareStage({ compare }: { compare: NonNullable<HeroTourData["compare"]> }) {
+  const rise = useRise();
   return (
     <div aria-hidden>
       <div className="grid grid-cols-2 gap-3">
         {compare.items.map((item, i) => (
           <motion.div
             key={item.name}
-            initial={{ opacity: 0, x: i === 0 ? -12 : 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.35, delay: 0.1, ease: "easeOut" }}
-            className="rounded-lg border border-border bg-background p-3"
+            {...rise(0.1 + i * 0.05)}
+            className="rounded-md border border-border bg-background p-3"
           >
             <p className="line-clamp-2 text-sm font-semibold text-foreground">{item.name}</p>
             <p className="tabular mt-1 text-sm font-bold text-foreground">{item.price}</p>
@@ -242,68 +256,80 @@ function CompareStage({ compare }: { compare: NonNullable<HeroTourData["compare"
         ))}
       </div>
       <dl className="mt-3 flex flex-col gap-2">
-        {compare.rows.map((row, i) => (
-          <motion.div key={row.label} {...rise(0.6 + i * 0.2)} className="rounded-lg border border-border px-3 py-2">
-            <dt className="text-xs font-semibold tracking-wide text-muted-foreground">{row.label}</dt>
-            <dd className="mt-0.5 grid grid-cols-2 gap-3 text-xs text-foreground">
-              <span className="line-clamp-2">{row.values[0]}</span>
-              <span className="line-clamp-2">{row.values[1]}</span>
-            </dd>
-          </motion.div>
-        ))}
+        {compare.rows.map((row, i) => {
+          const differs = row.values[0] !== row.values[1];
+          return (
+            <motion.div
+              key={row.label}
+              {...rise(0.6 + i * 0.2)}
+              className={differs ? "rounded-md bg-brand-muted px-3 py-2" : "rounded-md border border-border px-3 py-2"}
+            >
+              <dt className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                {row.label}
+                {differs ? <span className="font-bold text-brand-text">beda</span> : null}
+              </dt>
+              <dd className="mt-0.5 grid grid-cols-2 gap-3 text-xs text-foreground">
+                <span className="line-clamp-2">{row.values[0]}</span>
+                <span className="line-clamp-2">{row.values[1]}</span>
+              </dd>
+            </motion.div>
+          );
+        })}
       </dl>
     </div>
   );
 }
 
 function PriceStage({ price, isDemo }: { price: NonNullable<HeroTourData["price"]>; isDemo: boolean }) {
+  const rise = useRise();
   return (
     <div>
-      <motion.div {...rise(0)} className="rounded-xl border border-border bg-background p-4">
+      <motion.div {...rise(0)} className="rounded-md border border-border bg-background p-4">
         <div className="flex items-start justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">{price.brand}</p>
           {isDemo ? <DemoBadge /> : null}
         </div>
         <p className="mt-0.5 text-base font-bold tracking-tight text-foreground">{price.model}</p>
         <p className="mt-3 text-xs text-muted-foreground">{price.fresh ? "Mulai dari" : "Harga terakhir tercatat"}</p>
-        <p className="tabular text-2xl font-extrabold tracking-tight text-foreground">{price.price}</p>
+        {/* Angka akhir sejak render pertama; tidak bergulir saat dimuat (DESIGN.md §8.4). */}
+        <p className="flex items-baseline gap-0.5 font-extrabold tracking-tight text-foreground">
+          <span className="text-base text-muted-foreground">Rp</span>
+          <CountUp value={price.priceIdr} format="number" className="text-3xl" />
+        </p>
         {price.variant ? <p className="mt-1 text-sm text-foreground">Varian {price.variant}</p> : null}
-        <motion.p
-          {...rise(0.7)}
-          className={cn("mt-2 inline-flex items-center gap-1.5 text-sm", price.fresh ? "text-success" : "text-warning")}
-        >
-          <HugeiconsIcon icon={Clock01Icon} size={14} strokeWidth={2} aria-hidden />
+        <StatusPill tone={price.fresh ? "fresh" : "stale"} className="mt-2.5">
           {price.checked}
-        </motion.p>
+        </StatusPill>
       </motion.div>
-      <motion.p
-        {...rise(1.4)}
+      <motion.div
+        {...rise(1.2)}
         aria-hidden
-        className="mt-3 flex items-center justify-between rounded-lg border border-brand/30 bg-brand-muted px-3.5 py-2.5 text-sm font-semibold text-brand-text"
+        className="mt-3 flex items-center justify-between rounded-md border border-brand/30 bg-brand-muted px-3.5 py-2.5 text-sm font-semibold text-brand-text"
       >
         Lanjut ke toko pilihanmu
         <HugeiconsIcon icon={ArrowUpRight01Icon} size={16} strokeWidth={2} />
-      </motion.p>
+      </motion.div>
     </div>
   );
 }
 
 function AskStage() {
+  const rise = useRise();
   return (
     <div aria-hidden className="flex flex-col gap-3">
-      <motion.p
+      <motion.div
         {...rise(0.1)}
-        className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground"
+        className="ml-auto max-w-[85%] rounded-lg rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground"
       >
         Budget 4 juta, utamakan kamera
-      </motion.p>
-      <motion.p
+      </motion.div>
+      <motion.div
         {...rise(0.9)}
-        className="mr-auto max-w-[85%] rounded-2xl rounded-bl-md bg-muted px-4 py-2.5 text-sm text-foreground"
+        className="mr-auto max-w-[85%] rounded-lg rounded-bl-sm bg-muted px-4 py-2.5 text-sm text-foreground"
       >
         Budget 4 juta aku jadikan batas wajib. Kandidatnya aku pilih dari
         katalog CekHarga, lengkap dengan alasan dan komprominya.
-      </motion.p>
+      </motion.div>
     </div>
   );
 }

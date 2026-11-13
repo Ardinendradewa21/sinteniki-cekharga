@@ -253,7 +253,9 @@
      canvas hanya 4.38:1. #0d6340 = 4.96:1 di chip, 7.3:1 di card. */
   --brand-text: #0d6340;
 
-  --success: #12764a;
+  /* #106d44 (VD-04): #12764a hanya 4.45:1 di canvas (Lighthouse a11y);
+     kini ≥ 5.02:1 di card, canvas, muted, secondary, accent, dan latar pil. */
+  --success: #106d44;
   --success-muted: #e2f1e8;
   --warning: #85560a;
   --warning-muted: #f7ecd8;
@@ -444,6 +446,28 @@
 }
 
 /*
+  Hero Price Panel pre-blurred (DESIGN.md §6.3, hero-panel-frame.tsx): foto
+  blur yang sama posisinya dengan foto hero, diberi rona --glass di atasnya.
+
+  Latar dipasang sejak paint pertama dengan posisi perkiraan (cover, tengah);
+  ResizeObserver hanya menyempurnakan --blur-size/--blur-pos. Bila latar baru
+  dipasang setelah hydration, panel besar ini terhitung LCP di titik itu
+  (terukur VD-04: render delay ±2.7 detik).
+*/
+.hero-panel {
+  background-image: linear-gradient(var(--glass), var(--glass)), var(--veil), var(--scene-blur);
+  background-size:
+    100% 100%,
+    var(--blur-size, cover),
+    var(--blur-size, cover);
+  background-position:
+    0 0,
+    var(--blur-pos, center),
+    var(--blur-pos, center);
+  background-repeat: no-repeat;
+}
+
+/*
   Halaman dengan scene penuh (beranda) tidak butuh lapisan fade di belakangnya:
   fade tertutup seluruhnya, tetapi tetap terhitung sebagai kandidat LCP
   (terukur VD-03: LCP beranda = div scene-fade, render delay 3 detik).
@@ -457,48 +481,6 @@
 @utility stage {
   background: var(--stage);
   color: var(--stage-foreground);
-}
-
-/*
-  Blob dekoratif statis di belakang kartu solid (hero dan transparansi).
-  Sejak Verdant hanya memakai satu aksen (--brand-muted); terracotta
-  dipensiunkan. Dihapus di VD-04 saat hero memakai Scene Backdrop.
-*/
-.warmth-blob {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  /*
-    Pudar di tepi atas/bawah (padanan utility mask-y-from/mask-y-to Tailwind
-    v4). Tanpa ini, lingkaran blur terpotong overflow tepat di batas seksi dan
-    tampak sebagai garis keras, paling jelas di tema gelap (audit UX-15).
-  */
-  mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
-}
-
-.warmth-blob::before,
-.warmth-blob::after {
-  content: "";
-  position: absolute;
-  width: 26rem;
-  height: 26rem;
-  border-radius: 9999px;
-  filter: blur(72px);
-  opacity: 0.55;
-}
-
-.warmth-blob::before {
-  top: -8rem;
-  right: -6rem;
-  background: var(--brand-muted);
-}
-
-.warmth-blob::after {
-  bottom: -10rem;
-  left: -8rem;
-  background: var(--brand-muted);
 }
 
 /*

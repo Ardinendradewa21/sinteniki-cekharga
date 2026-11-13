@@ -59,7 +59,8 @@ export function VariantPicker({
                 className={cn(
                   "text-xs",
                   option.selected
-                    ? "text-primary-foreground/80"
+                    ? // Penuh, bukan /80: di atas hijau Verdant 80% hanya 4.02:1 (VD-04).
+                      "text-primary-foreground"
                     : option.noteTone === "warning"
                       ? "text-warning"
                       : "text-muted-foreground"

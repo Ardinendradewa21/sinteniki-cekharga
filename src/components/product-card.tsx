@@ -58,7 +58,13 @@ export function ProductCard({
         <DemoBadge className="absolute top-2 right-2 z-10 sm:top-3 sm:right-3" />
       ) : null}
 
-      <div className="flex aspect-square w-full lg:aspect-[5/4] items-center justify-center bg-muted/20 p-2 sm:p-4">
+      {/* Panggung foto terang di kedua tema (DESIGN.md §2.2): foto resmi
+          berlatar putih tidak tampil sebagai kotak di tema gelap. Tanpa teks
+          di atas panggung (DESIGN.md §3.4). */}
+      {/* min-h-0 + overflow-hidden: tanpa ini aspect-ratio ikut membesar
+          mengikuti tinggi minimum foto, sehingga panggung antarkartu tidak
+          sama tinggi (terlihat di VD-04). */}
+      <div className="stage m-1.5 flex aspect-square min-h-0 items-center justify-center overflow-hidden rounded-md p-2 sm:m-2 sm:rounded-lg sm:p-4 lg:aspect-5/4">
         {product.image.isGenericIllustration ? (
           <DevicePlaceholder size="sm" />
         ) : (
@@ -68,14 +74,12 @@ export function ProductCard({
             width={140}
             height={210}
             loading={eager ? "eager" : "lazy"}
-            // dark:rounded-md: foto lama yang latarnya belum bisa dihapus (ponsel
-            // menempel ke tepi) tampil sebagai kartu rapi, bukan kotak bersudut.
-            className="h-[76%] max-h-40 w-auto transition-transform duration-150 group-hover:scale-[1.03] dark:rounded-md sm:h-[68%]"
+            className="h-[86%] max-h-full w-auto object-contain transition-transform duration-150 group-hover:scale-[1.03] sm:h-[82%]"
           />
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-2 sm:p-3.5">
+      <div className="flex flex-1 flex-col px-2 pb-2 sm:px-3.5 sm:pb-3.5">
         <p className="truncate text-xs font-medium text-muted-foreground">
           {product.brand} · {product.variantCount} varian
         </p>
@@ -112,7 +116,8 @@ export function ProductCard({
   );
 
   const shell = cn(
-    "relative flex h-full min-w-0 flex-col overflow-hidden rounded-md border border-border bg-card sm:rounded-lg",
+    // Kartu solid radius 22/28px (DESIGN.md §5: kartu katalog xl), panggung di dalamnya 14/22px.
+    "relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm sm:rounded-xl",
     className
   );
 
@@ -124,13 +129,13 @@ export function ProductCard({
     <article
       className={cn(
         shell,
-        // Micro-interaction 150ms (PRD §8): angkat tipis + bayangan lembut, tanpa glow.
+        // Micro-interaction 150ms (DESIGN.md §8): angkat tipis + bayangan lembut, tanpa glow.
         "group transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-md"
       )}
     >
       <Link
         href={href}
-        className="absolute inset-0 z-0 rounded-md sm:rounded-lg"
+        className="absolute inset-0 z-0 rounded-lg sm:rounded-xl"
         aria-label={`Lihat detail ${product.name}`}
       />
       {content}

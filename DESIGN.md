@@ -47,7 +47,7 @@ Komponen hanya memakai token, tidak pernah hex langsung. Rasio kontras dihitung 
 | `--brand-text` | `#0d6340` | Teks/tautan hijau: 7.3:1 di card, 5.75:1 di background, 4.96:1 di chip `--brand-muted` di atas background (VD-01: semula `#0f6c46`, hanya 4.38:1 di chip) |
 | `--brand-muted` | `rgba(19, 122, 80, .12)` | Latar chip aktif |
 | `--ring` | `#137a50` | Fokus; 4.2:1 di background |
-| `--success` / `--warning` / `--destructive` | `#12764a` / `#85560a` / `#b13b22` | 5.65 / 6.30 / 5.97 :1 di card |
+| `--success` / `--warning` / `--destructive` | `#106d44` / `#85560a` / `#b13b22` | 6.38 / 6.30 / 5.97 :1 di card; di canvas 5.02 / 4.96 / 4.70 :1 (VD-04: `--success` semula `#12764a`, hanya 4.45:1 di canvas) |
 | `--stage` | `#f4f7f5` | Panggung foto produk |
 | `--glass` | `rgba(255,255,255, calc(.42 + var(--frost) * .2))` | Bingkai tanpa teks |
 | `--glass-text` | `rgba(255,255,255,.86)` | Kaca berteks; terburuk (foto hitam): foreground 12.6:1, muted 5.2:1, brand-text 4.7:1 |
@@ -179,10 +179,13 @@ Implementasi VD-03: `src/components/layout/scene-backdrop.tsx` (Server Component
 
 ### 6.3 Hero Price Panel pre-blurred
 
-1. Panel memuat `--scene-blur` sebagai `background-image` dengan `background-size` dan `background-position` yang disamakan dengan scene lewat CSS variable (`--scene-w`, `--scene-h`, `--panel-x`, `--panel-y`) yang diisi `ResizeObserver` kecil di komponen hero.
-2. Sebelum JavaScript jalan, atau bila variabel belum terisi, panel jatuh ke `.glass-text` biasa. Tidak ada layout shift karena ukuran panel tidak bergantung pada gambar.
-3. Panel ini tidak memakai entrance dengan `transform` (boleh opacity saja), supaya latar blurnya tidak bergeser.
-4. Kartu harga di dalam panel tetap solid (`--card`).
+Implementasi VD-04: `src/components/home/hero-panel-frame.tsx` + `.hero-panel` di `globals.css`.
+
+1. Panel memuat `--scene-blur` (di bawah rona `--glass` dan `--veil`) sebagai `background-image`. `ResizeObserver` di `HeroPanelFrame` mengisi `--blur-size` dan `--blur-pos` supaya foto blur sejajar dengan foto hero (`object-cover`, tengah) di wilayah `[data-scene-region]`.
+2. Latar dipasang **sejak paint pertama** dengan posisi perkiraan (`cover`, tengah); JavaScript hanya menyempurnakan posisinya. Bila latar baru dipasang setelah hydration, panel besar ini terhitung LCP pada saat itu (terukur VD-04).
+3. Tidak ada teks yang langsung di atas kaca panel: isinya kartu solid (adegan + keterangan) dan SegmentedControl bertrack solid. Karena itu panel boleh memakai `--glass` (tembus), bukan `--glass-text`.
+4. Panel tidak memakai entrance dengan `transform` (hanya opacity), supaya latar blurnya tidak bergeser.
+5. Potongan adegan di dalam kartu hanya bergeser 8px tanpa memudar: teks yang sedang memudar terbaca sebagai kontras rendah oleh pemeriksa aksesibilitas (terukur 1.02:1 saat Lighthouse memeriksa di tengah animasi).
 
 ### 6.4 Aset
 
@@ -208,9 +211,9 @@ Dibuat dengan `node scripts/build-scene.mjs` dari foto milik sendiri atau berlis
 | Price History | Garis tangga hijau, titik = pemeriksaan nyata, celah putus-putus "tidak diperiksa" | Sesuai PRD PB-31; TANPA garis perkiraan |
 | Recent Checks | Daftar dengan date tile (tanggal besar, bulan kecil) | Dipakai bila pemeriksaan < 5 |
 | Review Carousel | Kartu ringkasan ulasan per channel, indikator halaman, tombol panah | Menyebut channel, tanggal, aspek, label bersponsor. Tanpa autoplay; bisa dioperasikan keyboard |
-| Quick Start (Tanya AI) | Chip budget dan kebutuhan + tombol kirim | Pola "quick send". Chip menyebut angka dan kegiatan nyata (gaya copy `cekharga-antislop` §5) |
+| Quick Start (Tanya AI) | Chip budget dan kebutuhan + tombol kirim | Pola "quick send". Chip menyebut angka dan kegiatan nyata (gaya copy `cekharga-antislop` §5). Beranda (VD-04): formulir GET ke `/assistant?tanya=form` dengan radio `budget` (2/3/5 juta, Lainnya = kosong) dan checkbox `kegiatan`; berfungsi tanpa JavaScript; tanpa pilihan bawaan; tidak mengirim `budget_wajib` sehingga asisten tetap menanyakan apakah budget batas keras (PRD FR-06) |
 | Recommendation Card | Kandidat, alasan cocok, kompromi, varian, harga + waktu periksa | Tanpa skor atau peringkat |
-| Status Pill | Titik + kata | Harga segar: "Diperiksa 7 jam lalu". Lewat batas 30 jam: "Harga terakhir tercatat · 2 hari lalu" (istilah PRD §7), warna `--warning`. Selalu ada kata |
+| Status Pill | Titik + kata | Harga segar: "Diperiksa 7 jam lalu". Lewat batas 30 jam: "Harga terakhir tercatat · 2 hari lalu" (istilah PRD §7), warna `--warning`. Selalu ada kata. Komponen: `src/components/status-pill.tsx` (VD-04) |
 
 ## 8. Motion
 

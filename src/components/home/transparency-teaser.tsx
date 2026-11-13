@@ -80,11 +80,10 @@ export function TransparencyTeaser({
   ];
 
   return (
-    <section aria-labelledby="harga-judul" className="relative isolate py-14 md:py-20">
-      {/* Blob gradient statis di belakang kartu putih; tidak menyentuh kontras teks. */}
-      <div className="warmth-blob" />
+    <section aria-labelledby="harga-judul" className="py-14 md:py-20">
+      {/* Panel solid (DESIGN.md §7): berisi harga dan teks panjang, jadi bukan kaca. */}
       <Container>
-        <div className="rounded-xl border border-border bg-card p-6 md:p-10">
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm md:p-10">
           <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
             <div>
               <h2 id="harga-judul" className="heading-section-lg text-foreground">
