@@ -4,6 +4,23 @@
 Sebelum mengerjakan apa pun terkait iklan, banner, sponsor, slot, kampanye, atau laporan iklan,
 baca @docs/ads/ADS-CONTEXT.md dan ikuti seluruh aturan di dalamnya.
 
+## Redesign UI publik: tema Verdant (mulai 13 November 2026)
+Sebelum mengerjakan apa pun pada UI publik (`src/app/(public)`, `src/components` selain `admin/`),
+baca `DESIGN.md` dan `docs/ux/REDESIGN-VERDANT-2026-11.md`, lalu ikuti aturannya.
+
+1. Urutan prioritas: PRD > DESIGN.md > `cekharga-antislop` > `antislop*` > skill lain.
+2. Data harga, tabel, penawaran, dan grafik selalu di permukaan solid, tidak pernah di atas kaca.
+   Harga dirender final di server; count-up hanya saat varian berubah, tidak pernah dari 0.
+3. Motion memakai `motion/react` dan preset di `src/lib/motion.ts`. Jangan menambah GSAP.
+4. Template Verdelo adalah produk berbayar: jangan menyalin kode, foto, ikon, atau teksnya.
+   Screenshot referensi ada di `design/references/verdelo/` dan foto scene mentah di `design/scene-src/`
+   (keduanya di-ignore git). Aset scene jadi dibuat dengan `node scripts/build-scene.mjs`.
+5. Kerjakan per tiket VD-xx di branch terpisah. Mulai setiap tiket dengan analisis dan rencana,
+   tunggu persetujuan, baru menulis kode. Urutan prompt ada di `docs/ux/verdant/PROMPTS.md`.
+6. Akhiri setiap tiket dengan screenshot 375px dan 1440px (terang dan gelap) di `qa-shots/verdant/<tiket>/`
+   (tidak masuk Git, PRD §12) serta hasil lint, typecheck, test, dan e2e smoke.
+7. Next 16: properti `priority` pada `next/image` sudah deprecated; pakai `fetchPriority="high"` atau `preload`.
+
 ## Aturan System Design (wajib diikuti)
 
 Ditetapkan pemilik produk pada 9 Oktober 2026 dan berlaku selama masa pengembangan. Celah kode lama terhadap aturan ini dicatat di `docs/qa/BACKLOG.md` (PB-18 sampai PB-22); semuanya selesai per 11 Oktober 2026. Pekerjaan baru wajib mengikuti aturan ini sejak awal.
