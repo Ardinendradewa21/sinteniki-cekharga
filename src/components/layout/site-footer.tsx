@@ -13,6 +13,8 @@ import { COMPANY, formatIndonesianPhone, SOCIAL_LINKS, SUPPORT_NAV } from "@/lib
 
 /**
  * Footer situs (PRD §8): panel putih luas, navigasi nyata dan transparansi.
+ * Tema Verdant (DESIGN.md §7): tetap panel solid (`bg-card`), bukan kaca,
+ * karena berisi teks panjang; sudut atas membulat mengikuti kartu.
  *
  * Aturan lama yang tetap berlaku setelah footer diperluas: tanpa newsletter dan
  * tanpa tautan legal palsu. Ketentuan Layanan dan Pertanyaan Umum boleh muncul
@@ -63,7 +65,7 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-16 border-t border-border bg-card">
+    <footer className="mt-16 rounded-t-xl border-t border-border bg-card shadow-sm">
       <Container className="py-12 md:py-14">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1.4fr)]">
           <div>

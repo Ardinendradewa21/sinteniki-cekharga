@@ -166,6 +166,13 @@
 
   --radius: 1.25rem;
 
+  /*
+    Tinggi Glass Header publik yang menempel (VD-03): jarak atas + kapsul +
+    jarak bawah. Dipakai untuk scroll-padding (fokus keyboard dan anchor tidak
+    tertutup header, WCAG 2.4.11) dan untuk `top` elemen sticky lain.
+  */
+  --header-h: 4.75rem;
+
   /* Nilai bawaan Tailwind 4.3 (node_modules/tailwindcss/theme.css). */
   --ch-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --ch-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
@@ -178,6 +185,14 @@
     data reveal maks. 1000ms sekali); preset Motion di src/lib/motion.ts.
     Utility CSS: duration-150 untuk micro.
   */
+}
+
+/* Header lebih tinggi mulai md (kapsul 64px). Tidak di dalam @layer supaya
+   setara dengan :root di atas; aturan tanpa layer mengalahkan yang ber-layer. */
+@media (width >= 48rem) {
+  :root {
+    --header-h: 5.5rem;
+  }
 }
 
 /*
@@ -389,6 +404,55 @@
   backdrop-filter: blur(16px) saturate(1.2);
 }
 
+/*
+  Scene Backdrop (DESIGN.md §6.2, komponen src/components/layout/scene-backdrop.tsx).
+  - scene-fade: foto blur tipis di atas setiap halaman, memudar ke canvas.
+    Memakai --scene-blur (3–4 KB) lewat token, jadi ikut berganti tema tanpa
+    elemen gambar tambahan dan tanpa detail tajam di belakang judul halaman.
+  - scene-veil: lapisan --veil di atas foto tajam varian full.
+  - scene-text-*: --veil-text di zona copy hero (DESIGN.md §2.5, §3).
+  - scene-day/scene-night: hanya foto tema aktif yang tampil; foto tema lain
+    lazy dan tersembunyi sehingga baru diunduh saat tema diganti.
+*/
+@utility scene-fade {
+  background-image: var(--veil), var(--scene-blur);
+  background-size: cover;
+  background-position: center top;
+  /* 0.45 (bukan lebih): diukur VD-03 pada 375px tema terang, teks muted di
+     atas potongan daun gelap 4.04:1 dengan 0.75 dan 4.41:1 dengan 0.55. */
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.45), transparent);
+}
+
+@utility scene-veil {
+  background-image: var(--veil);
+}
+
+@utility scene-text-left {
+  background-image: linear-gradient(to bottom, var(--veil-text) 0 52%, transparent 74%);
+  @media (width >= 64rem) {
+    background-image: linear-gradient(to right, var(--veil-text) 0 54%, transparent 80%);
+  }
+}
+
+@utility scene-text-top {
+  background-image: linear-gradient(to bottom, var(--veil-text) 0 45%, transparent 75%);
+}
+
+.public-theme[data-theme="dark"] .scene-day,
+.public-theme[data-theme="light"] .scene-night {
+  display: none;
+}
+
+/*
+  Halaman dengan scene penuh (beranda) tidak butuh lapisan fade di belakangnya:
+  fade tertutup seluruhnya, tetapi tetap terhitung sebagai kandidat LCP
+  (terukur VD-03: LCP beranda = div scene-fade, render delay 3 detik).
+  display: none mengeluarkannya dari kandidat LCP.
+*/
+.public-theme:has(.scene-full) .scene-fade {
+  display: none;
+}
+
 /* Panggung foto produk: terang di kedua tema, teks di atasnya tetap gelap. */
 @utility stage {
   background: var(--stage);
@@ -517,6 +581,12 @@
     @apply font-sans;
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
+  }
+
+  /* Glass Header publik menempel: anchor dan elemen yang difokus berhenti di
+     bawahnya, bukan di belakangnya. */
+  html:has(.public-theme) {
+    scroll-padding-top: calc(var(--header-h) + 1rem);
   }
 
   body {

@@ -19,6 +19,7 @@ import {
 import { buttonVariants } from "@/components/ui/button-variants";
 import { buildCompareHref, MAX_COMPARE_ITEMS, MIN_COMPARE_ITEMS } from "@/lib/catalog/compare-href";
 import type { TrayItem } from "@/lib/catalog/compare-tray-rules";
+import { useMotionPreset } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /** Halaman yang sudah menjadi tempat membandingkan: baki tidak perlu tampil. */
@@ -29,6 +30,11 @@ const HIDDEN_ON = ["/compare", "/bandingkan"];
  * pola lembar bawah ala aplikasi seluler: ringkas saat tertutup (foto mini,
  * jumlah, tombol Bandingkan), dibuka untuk melihat atau menghapus pilihan.
  * Baki muncul hanya bila ada produk yang dipilih.
+ *
+ * Tema Verdant (DESIGN.md §7): kaca berteks + blur (elemen melayang), muncul
+ * dengan slide-up 450ms dan keluar 200ms; kandidat masuk/keluar dengan layout
+ * animation. Hanya opacity dan transform yang dianimasikan (bukan tinggi);
+ * reduced motion = seketika.
  */
 export function CompareTray() {
   const items = useSyncExternalStore(subscribeTray, readTray, readTrayOnServer);
@@ -36,6 +42,7 @@ export function CompareTray() {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const panelId = useId();
+  const { transition } = useMotionPreset();
 
   useEffect(
     () =>
@@ -67,21 +74,19 @@ export function CompareTray() {
             key="baki"
             aria-label="Pilihan untuk dibandingkan"
             initial={{ y: "110%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "110%" }}
-            transition={{ type: "spring", stiffness: 420, damping: 38 }}
+            animate={{ y: 0, transition: transition("entrance") }}
+            exit={{ y: "110%", transition: transition("exit") }}
             className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] print:hidden"
           >
-            <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+            <div className="glass-text glass-float mx-auto max-w-2xl overflow-hidden rounded-xl">
               <AnimatePresence initial={false}>
                 {open ? (
                   <motion.div
                     id={panelId}
                     key="panel"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1, transition: transition("micro") }}
+                    exit={{ opacity: 0, transition: transition("exit") }}
                     className="border-b border-border"
                   >
                     <ul className="space-y-1 p-2">
@@ -100,7 +105,7 @@ export function CompareTray() {
                             </button>
                           </li>
                         ) : (
-                          <li key={`kosong-${index}`} className="flex min-h-[52px] items-center gap-3 rounded-xl px-2 py-1">
+                          <li key={`kosong-${index}`} className="flex min-h-13 items-center gap-3 rounded-xl px-2 py-1">
                             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-border-strong text-muted-foreground">
                               <HugeiconsIcon icon={SmartPhone01Icon} size={16} strokeWidth={1.8} aria-hidden />
                             </span>
@@ -134,9 +139,21 @@ export function CompareTray() {
                   className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span className="flex shrink-0 -space-x-2">
-                    {items.map((item) => (
-                      <Thumb key={item.slug} item={item} small />
-                    ))}
+                    <AnimatePresence initial={false} mode="popLayout">
+                      {items.map((item) => (
+                        <motion.span
+                          key={item.slug}
+                          layout
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8, transition: transition("exit") }}
+                          transition={transition("layout")}
+                          className="flex"
+                        >
+                          <Thumb item={item} small />
+                        </motion.span>
+                      ))}
+                    </AnimatePresence>
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold text-foreground">{status}</span>
@@ -180,7 +197,8 @@ function Thumb({ item, small = false }: { item: TrayItem; small?: boolean }) {
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-linear-to-br from-muted to-brand-muted",
+        // Panggung terang (DESIGN.md §2.2): foto produk berlatar putih.
+        "stage flex shrink-0 items-center justify-center overflow-hidden rounded-lg",
         small ? "size-9 ring-2 ring-card" : "size-10"
       )}
     >

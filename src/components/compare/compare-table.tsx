@@ -314,7 +314,9 @@ export function CompareTable({
   return (
     <div>
       {/* Bar pemilih menempel saat digulir, seperti lembar perbandingan produsen. */}
-      <div className="sticky top-0 z-20 -mx-4 border-b border-border/60 bg-background/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      {/* Menempel tepat di bawah Glass Header (--header-h), bukan di top-0 yang
+          tertutup header. Kaca berteks + blur: elemen menempel (DESIGN.md §2.3). */}
+      <div className="glass-text glass-float sticky top-(--header-h) z-20 -mx-4 rounded-lg px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className={cn("grid gap-3 sm:gap-8", gridCols)}>
           {items.map((item, index) => (
             <CompareColumnSwitch

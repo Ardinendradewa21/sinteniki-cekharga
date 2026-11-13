@@ -26,23 +26,31 @@ const insforgeStorageHostname = (() => {
 })();
 
 const nextConfig: NextConfig = {
-  images: insforgeStorageHostname
-    ? {
-        remotePatterns: [
-          {
-            protocol: "https",
-            hostname: insforgeStorageHostname,
-            pathname: "/api/storage/buckets/product-images/objects/**",
-          },
-          {
-            // Materi iklan mitra (slot iklan situs publik).
-            protocol: "https",
-            hostname: insforgeStorageHostname,
-            pathname: "/api/storage/buckets/ad-creatives/objects/**",
-          },
-        ],
-      }
-    : undefined,
+  images: {
+    /*
+      AVIF lebih dulu, WebP sebagai cadangan (dokumentasi Next 16: urutan
+      menentukan format yang dipilih dari header Accept). Foto scene tema
+      Verdant dan foto produk ikut lebih ringan di HP (DESIGN.md §6.2).
+    */
+    formats: ["image/avif", "image/webp"],
+    ...(insforgeStorageHostname
+      ? {
+          remotePatterns: [
+            {
+              protocol: "https",
+              hostname: insforgeStorageHostname,
+              pathname: "/api/storage/buckets/product-images/objects/**",
+            },
+            {
+              // Materi iklan mitra (slot iklan situs publik).
+              protocol: "https",
+              hostname: insforgeStorageHostname,
+              pathname: "/api/storage/buckets/ad-creatives/objects/**",
+            },
+          ],
+        }
+      : {}),
+  },
   experimental: {
     ...(Number.isFinite(buildCpus) && buildCpus > 0 ? { cpus: buildCpus } : {}),
     serverActions: {

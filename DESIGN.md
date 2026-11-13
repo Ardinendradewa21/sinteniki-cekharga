@@ -162,14 +162,20 @@ Tidak ada `background-attachment: fixed`. Alasannya: (a) latar fixed digambar ul
 
 ### 6.2 Scene Backdrop
 
-1. Satu komponen Server Component di layout publik. Scene adalah lapisan `position: absolute` di atas halaman yang **ikut bergulir** (bukan `fixed`, supaya tidak menjadi efek parallax dan tidak memicu repaint).
-2. Varian `full` (hero beranda dan `/assistant`): setinggi hero atau sampai composer. Varian `fade` (halaman lain): foto tipis di bagian atas yang memudar ke `--background` lewat `mask-image: linear-gradient(to bottom, #000 0, transparent 480px)`.
-3. Foto dirender dengan `next/image`: `fill`, `sizes="100vw"`, `alt=""` (dekoratif), `style={{ objectFit: "cover" }}`. Next membuat srcset dari master 2400px, jadi HP tidak mengunduh versi 2400px.
-4. Prioritas muat (Next 16: properti `priority` sudah deprecated, diganti `preload`; dokumentasi menyarankan `fetchPriority="high"` atau `loading="eager"` untuk kebanyakan kasus):
-   - Foto tema aktif (dibaca dari cookie tema di server): `fetchPriority="high"`, hanya pada varian `full`. Varian `fade` memakai default (lazy).
-   - Foto tema lain: `loading="lazy"` dan disembunyikan dengan CSS (`[data-theme="dark"] .scene-day { display: none }`). Gambar lazy yang tersembunyi tidak diunduh sampai pengguna mengganti tema.
-5. Di atas foto selalu ada `--veil`. Zona copy hero memakai gradien `--veil-text`: desktop dari kiri (penuh sampai 45% lebar, memudar ke 0 di 75%), mobile dari atas sampai di bawah CTA.
-6. Rekomendasi konfigurasi (dikerjakan di VD-03, bukan VD-00): `images.formats: ["image/avif", "image/webp"]` di `next.config.ts`. `images.qualities` di Next 16 wajib berupa allowlist (bawaan `[75]`); jangan memakai nilai `quality` lain tanpa menambahkannya ke daftar.
+Implementasi VD-03: `src/components/layout/scene-backdrop.tsx` (Server Component) dan utility `scene-*` di `globals.css`.
+
+1. Scene adalah lapisan `position: absolute` yang **ikut bergulir** (bukan `fixed`, supaya tidak menjadi efek parallax dan tidak memicu repaint). Induknya `relative isolate`, scene `-z-10`.
+2. Varian `fade` dipasang di layout publik untuk semua halaman: foto **blur** (`--scene-blur`, 3–4 KB) lewat CSS setinggi 480px, memudar ke `--background` dengan `mask-image` mulai dari 45% (terukur: 0.75 dan 0.55 membuat teks muted di 375px tema terang turun ke 4.04:1 dan 4.41:1). Tanpa elemen gambar, jadi ikut berganti tema lewat token dan tidak menambah beban LCP.
+3. Varian `full` dipasang oleh halaman di dalam section hero-nya (beranda: `src/components/home/hero.tsx`), sehingga tingginya selalu sama dengan hero; ditarik ke atas `-mt-(--header-h)` supaya foto juga tampak di belakang Glass Header. `/assistant` mendapat varian `full` di VD-08 setelah pesan dan kartu rekomendasinya berada di permukaan solid.
+4. Foto `full` dirender dengan `next/image`: `fill`, `sizes="100vw"`, `alt=""`, `object-cover`. Next membuat srcset dari master 2400px (HP 412px mengunduh lebar 750, ±11 KB AVIF).
+5. Prioritas muat (Next 16: properti `priority` sudah deprecated, diganti `preload`; dokumentasi menyarankan `fetchPriority="high"` atau `loading="eager"`):
+   - Foto tema aktif (dibaca dari cookie tema di server): `loading="eager"` + `fetchPriority="high"`.
+   - Foto tema lain: `loading="lazy"` + `fetchPriority="low"` dan disembunyikan CSS (`.scene-day`/`.scene-night`). Terverifikasi: tidak diunduh sampai tema diganti.
+   - Halaman yang punya `full` menyembunyikan lapisan `fade` (`.public-theme:has(.scene-full) .scene-fade { display: none }`). Tanpa ini, `fade` yang tertutup menjadi kandidat LCP beranda (terukur, render delay 3 detik).
+6. Di atas foto `full` selalu ada `--veil`, zona copy `--veil-text` (`scene-text-left`: dari atas di HP sampai 52%, dari kiri mulai `lg` sampai 54% lalu memudar ke 80%; `scene-text-top` untuk judul tengah), dan tepi bawah memudar ke canvas.
+7. Teks yang berada di atas foto tetapi di luar zona `--veil-text` (contoh: tab dan keterangan tur hero) wajib di atas `glass-text`.
+8. `next.config.ts`: `images.formats: ["image/avif", "image/webp"]` (VD-03). `images.qualities` di Next 16 wajib berupa allowlist (bawaan `[75]`); jangan memakai nilai `quality` lain tanpa menambahkannya ke daftar.
+9. Glass Header menempel: tinggi total disimpan di `--header-h` (4.75rem, 5.5rem mulai `md`), dipakai `scroll-padding-top` di `html` (anchor dan fokus keyboard tidak tertutup header) dan `top-(--header-h)` untuk elemen sticky lain (header tabel perbandingan).
 
 ### 6.3 Hero Price Panel pre-blurred
 
@@ -191,7 +197,7 @@ Dibuat dengan `node scripts/build-scene.mjs` dari foto milik sendiri atau berlis
 
 | Komponen | Isi | Aturan |
 |---|---|---|
-| Glass Header | Logo, Floating Pill Nav, cari, toggle tema | Sticky, `.glass-text` + `.glass-float`, menu aktif = latar `--brand-muted` + `aria-current` |
+| Glass Header | Logo, Floating Pill Nav, cari, toggle tema | Sticky, satu kapsul mengambang `.glass-text` + `.glass-float` (elemen `<header>` transparan dan `pointer-events-none`), menu aktif = latar `--brand-muted` + `aria-current`, menu ponsel = panel `glass-text` |
 | Scene Backdrop | Foto latar + veil | Satu komponen di layout publik (6.2) |
 | Hero Price Panel | Panel kaca berisi kartu harga solid, Segmented Control (Cari, Bandingkan, Harga, Tanya AI) | Harga di kartu solid; harga dirender final di server (bagian 8) |
 | Segmented Control | Pilihan berjajar dengan thumb yang bergeser | Thumb pakai `layoutId` Motion; dipakai untuk varian, warna, urutan, periode. Bila pilihan tidak muat di 375px, jatuh ke chip yang membungkus (warna) atau `select` (urutan) |

@@ -112,8 +112,9 @@ export function CatalogResults({
 
   return (
     // Target lompatan pagination: pindah halaman langsung ke awal hasil,
-    // bukan ke atas halaman yang masih berisi panel filter.
-    <div id="hasil" className="scroll-mt-24">
+    // bukan ke atas halaman yang masih berisi panel filter. Jarak dari Glass
+    // Header sudah diatur scroll-padding-top di globals.css.
+    <div id="hasil" className="scroll-mt-2">
       {/*
         Judul wilayah hasil. Sengaja hanya untuk pembaca layar: judul ini tidak
         menambah apa pun secara visual karena halaman sudah punya h1 "Katalog
