@@ -3,6 +3,8 @@ import Image from "next/image";
 
 import { Container } from "@/components/layout/container";
 import { DemoBadge, DemoNotice } from "@/components/demo-marker";
+import { StaggerItem, StaggerList } from "@/components/motion/reveal";
+import { CollapseDemo, CountUpDemo, WrapDemo } from "@/components/style-guide/motion-demo";
 import { PriceDisplay } from "@/components/price-display";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product/product-gallery";
@@ -271,6 +273,31 @@ export default async function StyleGuidePage() {
             </div>
           </div>
         </ThemePanels>
+      </Section>
+
+      <Section
+        title="Motion"
+        description="Preset di src/lib/motion.ts (DESIGN.md bagian 8). CountUp hanya bergulir saat nilai berubah, dari angka lama ke angka baru; render pertama selalu angka akhir. SegmentedControl adalah radio group: Tab masuk ke pilihan aktif, panah memindahkan pilihan. Dengan reduced motion semuanya berganti seketika."
+      >
+        <div className="grid gap-6 lg:grid-cols-2">
+          <CountUpDemo />
+          <div className="grid content-start gap-6">
+            <WrapDemo />
+            <CollapseDemo />
+          </div>
+        </div>
+        <p className="mt-8 text-sm font-semibold text-foreground">Stagger saat masuk layar</p>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          Hanya elemen di bawah lipatan pertama yang dianimasikan; jeda 50ms per item dan item ke-9 dan
+          seterusnya tidak menunggu lebih lama.
+        </p>
+        <StaggerList className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {Array.from({ length: 10 }, (_, index) => (
+            <StaggerItem key={index} className="rounded-lg border border-border bg-card p-4 text-sm text-card-foreground">
+              Item {index + 1}
+            </StaggerItem>
+          ))}
+        </StaggerList>
       </Section>
 
       <Section

@@ -230,6 +230,17 @@ Library: **Motion** (`motion/react`, versi 13.2.0 terpasang). Jangan menambah GS
    - Harga tidak tersedia ("Harga belum tersedia") tidak pernah dianimasikan.
 5. **Reduced motion**: `MotionConfig reducedMotion="user"` (sudah ada di `motion-provider.tsx`) hanya mematikan animasi transform dan layout; animasi opacity tetap berjalan (dokumentasi Motion). Karena itu preset di `src/lib/motion.ts` membaca `useReducedMotion()` dan memakai durasi 0 untuk entrance, stagger, data reveal, dan CountUp. Hasilnya semua konten tampil seketika.
 
+### 8.1 Implementasi (VD-02)
+
+| Bagian | Berkas | Catatan |
+|---|---|---|
+| Preset | `src/lib/motion.ts` | `easeOutQuint`, `easeIn`, `duration`, `transition.{micro,entrance,layout,dataReveal,exit,thumb}`, `staggerDelay(i)` (50ms, maks. 8 item), `instant`, hook `useMotionPreset()` |
+| Reveal | `src/components/motion/use-reveal.ts`, `reveal.tsx` (`Reveal`, `StaggerList`, `StaggerItem`), `reveal-item.tsx` (`RevealItem`) | HTML server selalu terlihat. Hanya elemen di bawah lipatan yang disembunyikan (layout effect, sebelum paint) lalu dimunculkan sekali lewat `inView` + `animate`. Reduced motion: tanpa animasi. Tidak perlu `<noscript>` |
+| CountUp | `src/components/motion/count-up.tsx` | `value`, `format: "idr" \| "number"`. Teks lewat MotionValue (tanpa render ulang React). Untuk "Rp" yang lebih kecil, pakai `format="number"` dan tulis "Rp" di span terpisah |
+| Segmented Control | `src/components/motion/segmented-control.tsx` | `label`, `options` (`value`, `label`, `text?`, `disabled?`), `value`, `onValueChange`, `collapseBelow?: "sm" \| "md"`, `fullWidth?`. Untuk pilihan yang hidup di URL (varian di halaman detail) tetap dipakai tautan; versi tautan diputuskan di VD-06 |
+
+Screenshot halaman penuh tidak menggulir, jadi elemen reveal di bawah lipatan tampak kosong di tangkapan semacam itu. Skrip QA harus menggulir halaman dulu sebelum memotret.
+
 ## 9. Larangan
 
 1. Kaca di bawah harga, tabel, atau teks panjang.

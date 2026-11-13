@@ -47,19 +47,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       */}
       <body className="flex min-h-full flex-col" suppressHydrationWarning>
         {/*
-          Jaring pengaman tanpa JavaScript.
-
-          Motion merender state awalnya ikut ke HTML server (opacity 0,
-          stroke belum tergambar). Kalau bundel JS gagal dimuat atau
-          dimatikan, elemen ber-`data-reveal` akan tetap tak terlihat
-          selamanya. Aturan di bawah mengembalikannya menjadi terlihat penuh:
-          animasi hilang, isinya tetap terbaca. Ini bukan optimasi, melainkan
-          syarat supaya penambahan animasi tidak mengurangi apa yang bisa
-          dibaca orang.
+          Tanpa jaring pengaman <noscript> untuk animasi: sejak VD-02 komponen
+          reveal (src/components/motion/use-reveal.ts) tidak lagi merender
+          state tersembunyi di HTML server. Elemen hanya disembunyikan oleh
+          JavaScript sesaat sebelum dimunculkan, jadi tanpa JavaScript isinya
+          tetap terlihat.
         */}
-        <noscript>
-          <style>{`[data-reveal],[data-reveal] *{opacity:1!important;transform:none!important;stroke-dasharray:none!important;stroke-dashoffset:0!important}`}</style>
-        </noscript>
         <a
           href="#konten-utama"
           /*

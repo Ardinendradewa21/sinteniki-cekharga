@@ -1,7 +1,10 @@
 "use client";
 
-import { motion } from "motion/react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+
+import { STAGGER_STEP } from "@/lib/motion";
+
+import { useRevealOnScroll } from "./use-reveal";
 
 // Modul terpisah dari reveal.tsx dengan sengaja: menambah export baru ke modul
 // "use client" yang sudah dimuat membuat manifest client reference Turbopack
@@ -15,9 +18,10 @@ import type { ReactNode } from "react";
  * "selesai muncul" sebelum pengguna sampai ke sana. Di sini setiap kartu
  * dipicu oleh posisinya sendiri, jadi kartu muncul mengikuti scroll.
  *
- * Jeda kecil per kolom (`index % columns`) membuat satu baris mengalir kiri ke
- * kanan tanpa membuat baris ke-4 menunggu lama. Saat pindah halaman, key
- * produk berganti sehingga kartu baru dipasang ulang dan animasinya berulang.
+ * Jeda kecil per kolom (`index % columns`, 50ms) membuat satu baris mengalir
+ * kiri ke kanan tanpa membuat baris ke-4 menunggu lama. Kartu yang sudah
+ * terlihat saat halaman dibuka tampil langsung (DESIGN.md §8.3). Saat pindah
+ * halaman, key produk berganti sehingga kartu baru dipasang ulang.
  */
 export function RevealItem({
   children,
@@ -30,20 +34,11 @@ export function RevealItem({
   index?: number;
   columns?: number;
 }) {
+  const ref = useRef<HTMLLIElement>(null);
+  useRevealOnScroll(ref, { mode: "self", delay: (index % columns) * STAGGER_STEP });
   return (
-    <motion.li
-      className={className}
-      data-reveal=""
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.15 }}
-      transition={{
-        duration: 0.36,
-        ease: [0.16, 1, 0.3, 1],
-        delay: (index % columns) * 0.05,
-      }}
-    >
+    <li ref={ref} className={className}>
       {children}
-    </motion.li>
+    </li>
   );
 }
