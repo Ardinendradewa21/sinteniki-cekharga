@@ -182,10 +182,10 @@ Tidak ada `background-attachment: fixed`. Alasannya: (a) latar fixed digambar ul
 
 | Berkas | Ukuran | Batas |
 |---|---|---|
-| `public/images/scene/day.avif`, `night.avif` | lebar 2400px (master untuk `next/image`) | ≤ 200 KB |
-| `public/images/scene/day-blur.avif`, `night-blur.avif` | lebar 1200px, Gaussian sigma 18 (setara blur 36px pada 2400px) | ≤ 40 KB |
+| `public/images/scene/day.avif`, `night.avif` | 2400×1500 (16:10, master untuk `next/image`) | ≤ 200 KB (saat ini 101 KB / 31 KB) |
+| `public/images/scene/day-blur.avif`, `night-blur.avif` | 1200×750, Gaussian sigma 18 (setara blur 36px pada 2400px) | ≤ 40 KB (saat ini 4 KB / 3 KB) |
 
-Dibuat dengan `node scripts/build-scene.mjs` dari foto milik sendiri atau berlisensi bebas di `design/scene-src/` (di-ignore git). Sumber dan lisensi tiap foto dicatat di `public/images/scene/SOURCES.md`.
+Dibuat dengan `node scripts/build-scene.mjs` dari foto milik sendiri atau berlisensi bebas di `design/scene-src/` (di-ignore git); foto dipotong 16:10 dengan titik fokus yang bisa diatur (`--position-day`, `--position-night`). Sumber dan lisensi tiap foto dicatat di `public/images/scene/SOURCES.md` (saat ini dua foto Unsplash License).
 
 ## 7. Komponen (nama yang dipakai di prompt)
 

@@ -8,11 +8,16 @@
  * png, webp, avif, tif). Foto harus milik sendiri atau berlisensi bebas;
  * folder sumber di-ignore git.
  *
- * Keluaran di public/images/scene/ (DESIGN.md §6.4):
- *   <nama>.avif       lebar 2400px, master untuk next/image (srcset dibuat
+ * Keluaran di public/images/scene/ (DESIGN.md §6.4), dipotong ke 16:10
+ * (`fit: cover`) karena scene selalu melebar; foto potret pun aman:
+ *   <nama>.avif       2400x1500, master untuk next/image (srcset dibuat
  *                     Next), batas 200 KB
- *   <nama>-blur.avif  lebar 1200px, Gaussian sigma 18 (setara blur 36px pada
+ *   <nama>-blur.avif  1200x750, Gaussian sigma 18 (setara blur 36px pada
  *                     2400px), hanya untuk Hero Price Panel, batas 40 KB
+ *
+ * Titik fokus potongan bisa diatur per foto: --position-day <nilai> dan
+ * --position-night <nilai> (nilai sharp: centre, north, south, east, west,
+ * attention, entropy, dst.). Bawaan: centre.
  *
  * Kualitas AVIF diturunkan bertahap sampai berkas muat batasnya. Bila sampai
  * kualitas terendah masih melebihi batas, skrip berhenti dengan kode 1 supaya
@@ -36,8 +41,8 @@ const SOURCE_EXT = /\.(jpe?g|png|webp|avif|tiff?)$/i;
 
 const KB = 1024;
 const VARIANTS = [
-  { suffix: "", width: 2400, sigma: 0, maxBytes: 200 * KB, qualities: [60, 55, 50, 45, 40, 35, 30] },
-  { suffix: "-blur", width: 1200, sigma: 18, maxBytes: 40 * KB, qualities: [50, 45, 40, 35, 30, 25] },
+  { suffix: "", width: 2400, height: 1500, sigma: 0, maxBytes: 200 * KB, qualities: [60, 55, 50, 45, 40, 35, 30] },
+  { suffix: "-blur", width: 1200, height: 750, sigma: 18, maxBytes: 40 * KB, qualities: [50, 45, 40, 35, 30, 25] },
 ];
 
 async function findSource(name) {
@@ -46,24 +51,31 @@ async function findSource(name) {
   return match ? path.join(SRC_DIR, match) : null;
 }
 
-async function encode(source, variant, quality) {
-  let pipeline = sharp(source).rotate().resize({ width: variant.width, withoutEnlargement: true });
+async function encode(source, variant, quality, position) {
+  let pipeline = sharp(source).rotate().resize({
+    width: variant.width,
+    height: variant.height,
+    fit: "cover",
+    position,
+    withoutEnlargement: true,
+  });
   if (variant.sigma > 0) pipeline = pipeline.blur(variant.sigma);
   return pipeline.avif({ quality, effort: 6, chromaSubsampling: "4:2:0" }).toBuffer();
 }
 
 async function build(name, source) {
-  const meta = await sharp(source).metadata();
+  const meta = await sharp(source).rotate().metadata();
   if ((meta.width ?? 0) < 2400) {
     console.warn(`! ${name}: lebar sumber ${meta.width}px, kurang dari 2400px; hasil tidak diperbesar.`);
   }
+  const position = argValue(`--position-${name}`, "centre");
 
   let failed = false;
   for (const variant of VARIANTS) {
     const outFile = path.join(OUT_DIR, `${name}${variant.suffix}.avif`);
     let result = null;
     for (const quality of variant.qualities) {
-      const buffer = await encode(source, variant, quality);
+      const buffer = await encode(source, variant, quality, position);
       result = { buffer, quality };
       if (buffer.byteLength <= variant.maxBytes) break;
     }
