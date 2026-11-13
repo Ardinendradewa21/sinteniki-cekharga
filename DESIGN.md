@@ -204,8 +204,10 @@ Dibuat dengan `node scripts/build-scene.mjs` dari foto milik sendiri atau berlis
 | Scene Backdrop | Foto latar + veil | Satu komponen di layout publik (6.2) |
 | Hero Price Panel | Panel kaca berisi kartu harga solid, Segmented Control (Cari, Bandingkan, Harga, Tanya AI) | Harga di kartu solid; harga dirender final di server (bagian 8) |
 | Segmented Control | Pilihan berjajar dengan thumb yang bergeser | Thumb pakai `layoutId` Motion; dipakai untuk varian, warna, urutan, periode. Bila pilihan tidak muat di 375px, jatuh ke chip yang membungkus (warna) atau `select` (urutan) |
-| Product Card | Panggung foto terang, nama, varian acuan, harga mulai, waktu periksa, aksi Bandingkan | Kartu solid, hover hanya pada elemen yang bisa diklik |
-| Filter Bar | Cari, chip filter, urutan | Sticky di bawah header, `.glass-text` + `.glass-float` |
+| Product Card | Panggung foto terang, nama, varian acuan, harga mulai, waktu periksa, aksi Bandingkan | Kartu solid, hover hanya pada elemen yang bisa diklik. Waktu periksa sebagai Status Pill lewat `CardPriceMeta` (VD-05), juga di contoh perbandingan, tabel perbandingan, dan kartu rekomendasi |
+| Filter Bar | Cari, chip filter, urutan | Mulai `lg` menempel di `top-(--header-h)`, `.glass-text` + `.glass-float`, `z-[45]` (di atas Compare Tray, di bawah header). Di bawah `lg` kartu solid biasa: `backdrop-filter` membuat lembar bawah filter (`position: fixed`) salah posisi. Teks bantuan, filter aktif, dan tafsiran pencarian di luar bar. Urutan: `SegmentedNav` (tautan, jalan tanpa JavaScript) mulai `lg`, `<select>` di bawahnya (VD-05) |
+| Segmented Nav | Versi tautan Segmented Control | `src/components/motion/segmented-nav.tsx`: `<nav>` + `<a aria-current>`, thumb `layoutId`. Untuk pilihan yang hidup di URL (urutan katalog, varian produk di VD-06) |
+| Catalog Grid | Hasil katalog | `src/components/catalog/catalog-grid.tsx`: saat hasil berubah, kartu tetap bergeser (layout 450ms), kartu baru fade-up, kartu hilang memudar; halaman pertama tanpa animasi di atas lipatan (`useHydrated`) |
 | Compare Tray | Kandidat terpilih + tombol Bandingkan | Melayang di bawah, `.glass-text` + `.glass-float`, muncul dengan slide-up |
 | Offer Row | Ikon marketplace dalam tile, nama toko, varian/warna, pill waktu periksa, harga, tombol Buka | Gaya "transaction list"; solid |
 | Price History | Garis tangga hijau, titik = pemeriksaan nyata, celah putus-putus "tidak diperiksa" | Sesuai PRD PB-31; TANPA garis perkiraan |
@@ -244,7 +246,7 @@ Library: **Motion** (`motion/react`, versi 13.2.0 terpasang). Jangan menambah GS
 | Bagian | Berkas | Catatan |
 |---|---|---|
 | Preset | `src/lib/motion.ts` | `easeOutQuint`, `easeIn`, `duration`, `transition.{micro,entrance,layout,dataReveal,exit,thumb}`, `staggerDelay(i)` (50ms, maks. 8 item), `instant`, hook `useMotionPreset()` |
-| Reveal | `src/components/motion/use-reveal.ts`, `reveal.tsx` (`Reveal`, `StaggerList`, `StaggerItem`), `reveal-item.tsx` (`RevealItem`) | HTML server selalu terlihat. Hanya elemen di bawah lipatan yang disembunyikan (layout effect, sebelum paint) lalu dimunculkan sekali lewat `inView` + `animate`. Reduced motion: tanpa animasi. Tidak perlu `<noscript>` |
+| Reveal | `src/components/motion/use-reveal.ts`, `reveal.tsx` (`Reveal`, `StaggerList`, `StaggerItem`); grid katalog memakai `CatalogGridItem` (VD-05, `RevealItem` dihapus) | HTML server selalu terlihat. Hanya elemen di bawah lipatan yang disembunyikan (layout effect, sebelum paint) lalu dimunculkan sekali lewat `inView` + `animate`. Reduced motion: tanpa animasi. Tidak perlu `<noscript>` |
 | CountUp | `src/components/motion/count-up.tsx` | `value`, `format: "idr" \| "number"`. Teks lewat MotionValue (tanpa render ulang React). Untuk "Rp" yang lebih kecil, pakai `format="number"` dan tulis "Rp" di span terpisah |
 | Segmented Control | `src/components/motion/segmented-control.tsx` | `label`, `options` (`value`, `label`, `text?`, `disabled?`), `value`, `onValueChange`, `collapseBelow?: "sm" \| "md"`, `fullWidth?`. Untuk pilihan yang hidup di URL (varian di halaman detail) tetap dipakai tautan; versi tautan diputuskan di VD-06 |
 

@@ -3,6 +3,7 @@ import { Clock01Icon } from "@hugeicons/core-free-icons";
 
 import type { StartingPriceResolution } from "@/lib/catalog/pricing";
 import { formatCheckedAt, formatIdr } from "@/lib/catalog/pricing";
+import { StatusPill } from "@/components/status-pill";
 import { cn } from "@/lib/utils";
 
 /**
@@ -150,25 +151,19 @@ export function CardPriceMeta({
   now: Date;
   className?: string;
 }) {
-  if (price.status === "available") {
+  // Varian acuan di baris sendiri, waktu periksa sebagai Status Pill
+  // (DESIGN.md §7, VD-05): titik + kata, tidak pernah warna saja.
+  if (price.status === "available" || price.status === "stale") {
+    const fresh = price.status === "available";
     return (
-      <p className={cn("text-xs text-muted-foreground", className)}>
-        {referenceVariant ? <>Varian {referenceVariant} · </> : null}
-        <span className="text-success">
-          diperiksa {formatCheckedAt(price.checkedAt, now)}
-        </span>
-      </p>
-    );
-  }
-
-  if (price.status === "stale") {
-    return (
-      <p className={cn("text-xs text-muted-foreground", className)}>
-        {referenceVariant ? <>Varian {referenceVariant} · </> : null}
-        <span className="text-warning">
-          terakhir tercatat {formatCheckedAt(price.observedAt, now)}
-        </span>
-      </p>
+      <div className={cn("flex flex-col items-start gap-1 text-xs text-muted-foreground", className)}>
+        {referenceVariant ? <p>Varian {referenceVariant}</p> : null}
+        <StatusPill tone={fresh ? "fresh" : "stale"} className="px-2 py-0.5">
+          {fresh
+            ? `Diperiksa ${formatCheckedAt(price.checkedAt, now)}`
+            : `Terakhir tercatat ${formatCheckedAt(price.observedAt, now)}`}
+        </StatusPill>
+      </div>
     );
   }
 

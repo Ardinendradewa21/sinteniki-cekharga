@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -9,7 +8,6 @@ import { DataErrorBoundary, DataUnavailable } from "@/components/data-error";
 import { loadOrNull } from "@/lib/catalog/load";
 import { DemoNotice } from "@/components/demo-marker";
 import { Container } from "@/components/layout/container";
-import { Skeleton } from "@/components/ui/skeleton";
 import { isDemoData, searchCatalog } from "@/lib/catalog/queries";
 import { parseCatalogQuery } from "@/lib/catalog/search-params";
 
@@ -22,31 +20,17 @@ export const metadata: Metadata = {
 /**
  * Katalog (PRD FR-02).
  *
- * Struktur render mengikuti model Next.js 16: judul halaman berada di luar
- * `<Suspense>` sehingga ikut ke shell statis, sedangkan bagian yang bergantung
- * pada `searchParams` (filter dan hasil) berada di dalamnya dan mengalir saat
- * request. `searchParams` sengaja tidak di-await di komponen halaman, melainkan
- * diteruskan sebagai promise ke anak di dalam boundary, supaya halaman ini tidak
- * seluruhnya menjadi dinamis. Pola yang sama tetap benar nanti ketika
- * `cacheComponents` diaktifkan.
+ * Hasil katalog dirender langsung di HTML, TANPA `<Suspense>` + skeleton
+ * (VD-05). Sebelumnya bagian filter dan hasil mengalir di dalam Suspense:
+ * React mengirim skeleton dulu lalu isinya di `<div hidden>` yang baru
+ * ditukar oleh JavaScript. Terukur: tanpa JavaScript halaman hanya berisi 13
+ * skeleton dan 0 kartu, padahal form katalog dirancang tetap jalan tanpa
+ * JavaScript, dan teks utama ikut menunggu JavaScript (antislop R-40).
+ * Keuntungan "shell statis" juga tidak terwujud karena layout publik membaca
+ * cookie tema, sehingga rute ini sudah dinamis seluruhnya. Pindah filter tetap
+ * mulus: navigasi router berjalan sebagai transisi yang mempertahankan hasil
+ * lama sampai hasil baru siap.
  */
-
-function CatalogSkeleton() {
-  return (
-    <div>
-      <Skeleton className="h-11 w-full" />
-      <Skeleton className="mt-4 h-14 w-full" />
-      <Skeleton className="mt-8 h-4 w-48" />
-      <ul className="-mx-2 mt-6 grid grid-cols-2 gap-2 sm:mx-0 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
-        {Array.from({ length: 10 }, (_, index) => (
-          <li key={index}>
-            <Skeleton className="aspect-[3/4.7] w-full rounded-md sm:rounded-lg" />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 async function CatalogView({
   searchParams,
@@ -112,9 +96,7 @@ export default function ProductsPage(props: PageProps<"/products">) {
       </header>
 
       <DataErrorBoundary area="Katalog">
-        <Suspense fallback={<CatalogSkeleton />}>
-          <CatalogView searchParams={props.searchParams} />
-        </Suspense>
+        <CatalogView searchParams={props.searchParams} />
       </DataErrorBoundary>
     </Container>
   );

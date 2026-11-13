@@ -24,12 +24,18 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs leading-4 font-semibold",
+        // rounded-md (bukan pill): satu baris tetap tampak kapsul karena
+        // radiusnya ≥ setengah tinggi; bila terbungkus dua baris di kartu
+        // sempit, bentuknya persegi lembut dan titik sejajar baris pertama.
+        "inline-flex items-start gap-1.5 rounded-md px-2.5 py-1 text-xs leading-4 font-semibold",
         tone === "fresh" ? "bg-success-muted text-success" : "bg-warning-muted text-warning",
         className
       )}
     >
-      <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", tone === "fresh" ? "bg-success" : "bg-warning")} />
+      <span
+        aria-hidden="true"
+        className={cn("mt-[5px] size-1.5 shrink-0 rounded-full", tone === "fresh" ? "bg-success" : "bg-warning")}
+      />
       {children}
     </span>
   );

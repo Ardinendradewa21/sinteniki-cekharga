@@ -36,12 +36,17 @@ export default async function NeedPagesIndex() {
         <ul className="mt-8 grid gap-3 sm:grid-cols-2">
           {pages.map(({ page, matched }) => (
             <li key={page.slug}>
+              {/* Gaya sama dengan chip kebutuhan di beranda (VD-04): titik aksen
+                  sebagai penanda, bukan status; jumlah = hasil pencarian. */}
               <Link
                 href={needPagePath(page)}
-                className="flex min-h-20 flex-col justify-center rounded-xl border border-border bg-card p-4 hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex min-h-20 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors duration-150 hover:border-brand/40 hover:bg-brand-muted focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <span className="font-semibold text-foreground">{page.title}</span>
-                <span className="mt-1 text-xs text-muted-foreground">{matched} produk</span>
+                <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-brand" />
+                <span className="min-w-0">
+                  <span className="block font-semibold text-foreground">{page.title}</span>
+                  <span className="mt-1 block text-xs text-muted-foreground tabular">{matched} produk</span>
+                </span>
               </Link>
             </li>
           ))}

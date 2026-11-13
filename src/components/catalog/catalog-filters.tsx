@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, FilterHorizontalIcon } from "@hugeicons/core-free-icons";
 
 import { FilterPopoverDismiss } from "@/components/catalog/filter-popover-dismiss";
+import { SegmentedNav } from "@/components/motion/segmented-nav";
 import { Button } from "@/components/ui/button";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
@@ -187,13 +188,34 @@ export function CatalogFilters({
       : []),
   ];
 
+  const sortLinks = SORT_OPTIONS.map((option) => ({
+    // #hasil: setelah urutan berganti, mulai membaca dari awal hasil.
+    href: `${buildCatalogHref(query, { sort: option })}#hasil`,
+    label: SORT_LABELS[option],
+    active: query.sort === option,
+  }));
+
   return (
-    <Form action="/products" className="flex flex-col gap-3">
-      <FilterPopoverDismiss />
-      <div className="rounded-xl border border-border bg-card p-3 sm:p-5">
+    <>
+      {/*
+        Filter Bar (DESIGN.md §7, VD-05). Mulai lg menempel di bawah Glass
+        Header sebagai kaca berteks + blur; di bawah lg tetap kartu biasa,
+        karena bar setinggi ini memakan layar ponsel dan backdrop-filter
+        membuat lembar bawah filter (position: fixed) salah posisi.
+        z-[45]: di atas Compare Tray (40), di bawah header (50).
+        Form sengaja hanya berisi kontrol; teks bantuan, filter aktif, dan
+        tafsiran pencarian ada di luarnya supaya bar tetap ringkas.
+      */}
+      <Form
+        action="/products"
+        className="rounded-xl p-3 max-lg:border max-lg:border-border max-lg:bg-card sm:p-5 lg:glass-text lg:glass-float lg:sticky lg:top-(--header-h) lg:z-[45] lg:p-3"
+      >
+        <FilterPopoverDismiss />
         <div className="flex items-end gap-3">
           <div className="min-w-0 flex-1">
-            <Label htmlFor="katalog-cari">Cari produk atau kebutuhan</Label>
+            <Label htmlFor="katalog-cari" className="lg:sr-only">
+              Cari produk atau kebutuhan
+            </Label>
             <Input
               id="katalog-cari"
               type="search"
@@ -202,17 +224,13 @@ export function CatalogFilters({
               maxLength={160}
               placeholder="Contoh: Samsung 5G NFC di bawah 5 juta"
               aria-describedby="katalog-cari-bantuan"
-              className="mt-2"
+              className="mt-2 lg:mt-0"
             />
           </div>
           <Button type="submit">Cari</Button>
         </div>
-        <p id="katalog-cari-bantuan" className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Bisa nama, spesifikasi (AMOLED, IP68), atau kebutuhan seperti “NFC di bawah 5 juta”.
-          Kualitas pemakaian tidak ditebak dari angka spesifikasi.
-        </p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <span className="mr-1 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
             <HugeiconsIcon icon={FilterHorizontalIcon} size={16} strokeWidth={2} aria-hidden />
             Filter
@@ -288,7 +306,11 @@ export function CatalogFilters({
             </fieldset>
           </FilterChip>
 
-          <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+          {/* Urutan: tautan bersegmen mulai lg (tetap jalan tanpa JavaScript),
+              select native di layar lebih kecil. Select tetap ada di form pada
+              lg (tersembunyi) supaya tombol Cari membawa urutan yang aktif. */}
+          <SegmentedNav label="Urutkan produk" items={sortLinks} className="ml-auto hidden lg:inline-flex" />
+          <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto lg:hidden">
             <Label htmlFor="katalog-urut" className="shrink-0 text-sm font-normal text-muted-foreground">
               Urutkan
             </Label>
@@ -307,35 +329,40 @@ export function CatalogFilters({
             </select>
           </div>
         </div>
+      </Form>
 
-        {activeChips.length > 0 ? (
-          <ul aria-label="Filter aktif" className="mt-3 flex flex-wrap items-center gap-2">
-            {activeChips.map((chip) => (
-              <li key={chip.label}>
-                <Link
-                  href={chip.href}
-                  aria-label={`Hapus filter ${chip.label}`}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-brand-muted px-3.5 text-sm font-medium text-brand-text transition-colors duration-150 hover:bg-brand/15 focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {chip.label}
-                  <HugeiconsIcon icon={Cancel01Icon} size={14} strokeWidth={2} aria-hidden />
-                </Link>
-              </li>
-            ))}
-            <li>
+      <p id="katalog-cari-bantuan" className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">
+        Bisa nama, spesifikasi (AMOLED, IP68), atau kebutuhan seperti “NFC di bawah 5 juta”.
+        Kualitas pemakaian tidak ditebak dari angka spesifikasi.
+      </p>
+
+      {activeChips.length > 0 ? (
+        <ul aria-label="Filter aktif" className="mt-3 flex flex-wrap items-center gap-2">
+          {activeChips.map((chip) => (
+            <li key={chip.label}>
               <Link
-                href={clearFilters}
-                className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                href={chip.href}
+                aria-label={`Hapus filter ${chip.label}`}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-brand-muted px-3.5 text-sm font-medium text-brand-text transition-colors duration-150 hover:bg-brand/15 focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Hapus semua filter
+                {chip.label}
+                <HugeiconsIcon icon={Cancel01Icon} size={14} strokeWidth={2} aria-hidden />
               </Link>
             </li>
-          </ul>
-        ) : null}
-      </div>
+          ))}
+          <li>
+            <Link
+              href={clearFilters}
+              className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Hapus semua filter
+            </Link>
+          </li>
+        </ul>
+      ) : null}
 
       {query.query ? (
-        <div role="status" className="rounded-xl border border-brand/20 bg-brand-muted/30 p-4 text-sm">
+        <div role="status" className="mt-3 rounded-xl border border-brand/20 bg-card p-4 text-sm">
           <p className="font-semibold text-foreground">
             {hasReading ? "Pencarian dibaca sebagai:" : "Pencarian ini belum menjadi filter:"}
           </p>
@@ -369,6 +396,6 @@ export function CatalogFilters({
           </Link>
         </div>
       ) : null}
-    </Form>
+    </>
   );
 }
