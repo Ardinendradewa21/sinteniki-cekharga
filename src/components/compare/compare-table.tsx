@@ -266,7 +266,7 @@ function ProductColumn({
       <div className="mt-auto flex flex-wrap gap-x-4 pt-4">
         <Link
           href={item.detailHref}
-          className="inline-flex min-h-11 items-center text-sm font-semibold text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
         >
           Lihat detail
         </Link>

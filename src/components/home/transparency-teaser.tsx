@@ -171,7 +171,7 @@ export function TransparencyTeaser({
             </ul>
             <Link
               href="/how-it-works#batasan"
-              className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-brand underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-brand-text underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
               Baca cara kerja lengkap
             </Link>

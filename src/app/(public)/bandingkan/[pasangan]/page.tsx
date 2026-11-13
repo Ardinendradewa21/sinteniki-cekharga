@@ -74,7 +74,7 @@ export default async function ComparePairPage(props: PageProps<"/bandingkan/[pas
   return (
     <Container className="py-8 md:py-12">
       <header className="mb-8 max-w-3xl">
-        <p className="text-xs font-bold uppercase tracking-widest text-brand">CekHarga / Bandingkan</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-brand-text">CekHarga / Bandingkan</p>
         <h1 className="mt-2 heading-page text-foreground">
           {pair.nameA} vs {pair.nameB}
         </h1>

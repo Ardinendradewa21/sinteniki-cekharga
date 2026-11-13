@@ -9,9 +9,10 @@ export function AdLabel({ preview = false, className }: { preview?: boolean; cla
   return (
     <span
       className={cn(
-        // 12px minimum dan token tema (bukan hitam/putih mentah): tetap kontras
-        // tinggi di atas gambar terang maupun gelap pada kedua tema.
-        "pointer-events-none inline-flex items-center rounded-pill bg-foreground/85 px-2 py-0.5 text-xs leading-4 font-semibold tracking-wide text-background backdrop-blur-sm",
+        // 12px minimum dan pil solid bertoken (bukan hitam/putih mentah, tanpa
+        // backdrop-filter, DESIGN.md §3.4): kontras label tidak bergantung pada
+        // gambar di bawahnya pada kedua tema.
+        "pointer-events-none inline-flex items-center rounded-pill bg-foreground px-2 py-0.5 text-xs leading-4 font-semibold tracking-wide text-background",
         className
       )}
     >

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * Berbasis tautan, bukan state klien: varian hidup di URL (PRD FR-03/FR-04),
  * jadi pilihan bisa dibagikan, Back/Forward bekerja, dan tanpa JavaScript pun
  * tetap berfungsi. Pilihan aktif ditandai `aria-current` + token `primary`
- * (charcoal, sama dengan CTA utama), bukan warna saja.
+ * (sama dengan CTA utama; hijau Verdant di UI publik), bukan warna saja.
  *
  * - `detail`: dua baris (ukuran + status harga varian itu), untuk halaman detail.
  * - `compact`: satu baris, untuk kolom perbandingan yang sempit.

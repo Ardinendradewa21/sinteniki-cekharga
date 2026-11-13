@@ -24,7 +24,7 @@ export function Needs({ pages }: { pages: { page: NeedPage; matched: number }[] 
       {pages.length === 0 ? (
         <p className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-muted-foreground">
           Belum ada daftar yang memenuhi syarat saat ini, biasanya karena harga sedang menunggu pemeriksaan ulang.{" "}
-          <Link href="/products" className="font-semibold text-brand underline underline-offset-4">
+          <Link href="/products" className="font-semibold text-brand-text underline underline-offset-4">
             Cari di katalog dengan filter sendiri
           </Link>
           .

@@ -51,7 +51,7 @@ export function CompareSearch({ candidates }: { candidates: Candidate[] }) {
                 className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm transition-colors hover:border-brand/50 hover:bg-brand-muted/30 focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="min-w-0 font-semibold text-foreground">{candidate.name}</span>
-                <span aria-hidden="true" className="shrink-0 text-xs font-bold text-brand">+ Tambah</span>
+                <span aria-hidden="true" className="shrink-0 text-xs font-bold text-brand-text">+ Tambah</span>
               </Link>
             </li>
           ))}

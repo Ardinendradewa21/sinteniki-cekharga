@@ -105,7 +105,7 @@ export default function ProductsPage(props: PageProps<"/products">) {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
           Cari dengan nama, merek, atau kebutuhan, lalu persempit dengan filter.{" "}
-          <Link href="/hp" className="font-semibold text-brand underline-offset-4 hover:underline">
+          <Link href="/hp" className="font-semibold text-brand-text underline-offset-4 hover:underline">
             Lihat daftar per kebutuhan
           </Link>
         </p>

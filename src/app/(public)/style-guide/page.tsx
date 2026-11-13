@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 
 import { Container } from "@/components/layout/container";
 import { DemoBadge, DemoNotice } from "@/components/demo-marker";
@@ -44,19 +45,80 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const COLOR_TOKENS = [
-  { token: "background", cssVar: "--background", role: "Canvas halaman", light: "#F3F7F6", dark: "#071716" },
-  { token: "card", cssVar: "--card", role: "Permukaan kartu", light: "#FFFFFF", dark: "#0F2422" },
-  { token: "foreground", cssVar: "--foreground", role: "Headline & teks utama", light: "#102A2A", dark: "#E8F5F2" },
-  { token: "muted-foreground", cssVar: "--muted-foreground", role: "Teks sekunder", light: "#536A67", dark: "#A8BFBA" },
-  { token: "border", cssVar: "--border", role: "Garis dekoratif", light: "#D5E3E0", dark: "#294A46" },
-  { token: "border-strong / input", cssVar: "--border-strong", role: "Batas kontrol form", light: "#6D827E", dark: "#728D88" },
-  { token: "brand / ring", cssVar: "--brand", role: "Identitas dan fokus", light: "#0F766E", dark: "#5EEAD4" },
-  { token: "accent-warm", cssVar: "--accent-warm", role: "Aksen hangat terbatas", light: "#D97757", dark: "#FB9C7B" },
-  { token: "success", cssVar: "--success", role: "Status baik", light: "#147A3D", dark: "#6EE7A0" },
-  { token: "warning", cssVar: "--warning", role: "Status perhatian", light: "#A94F08", dark: "#FBBF6A" },
-  { token: "destructive", cssVar: "--destructive", role: "Status gagal", light: "#A9251C", dark: "#FDA29B" },
-];
+/*
+  Nilai warna sengaja tidak ditulis ulang di sini: swatch membaca token CSS
+  langsung di dalam panel tema masing-masing, jadi halaman ini tidak bisa
+  berbeda dari globals.css. Nilai dan rasio kontras ada di DESIGN.md §3.
+*/
+const TOKEN_GROUPS = [
+  {
+    title: "Permukaan",
+    tokens: [
+      { name: "background", role: "Canvas halaman" },
+      { name: "card", role: "Data: harga, tabel, penawaran" },
+      { name: "muted", role: "Isian lembut, hover" },
+      { name: "secondary", role: "Tombol sekunder" },
+      { name: "stage", role: "Panggung foto produk" },
+    ],
+  },
+  {
+    title: "Teks",
+    tokens: [
+      { name: "foreground", role: "Headline dan teks utama" },
+      { name: "muted-foreground", role: "Teks sekunder" },
+      { name: "brand-text", role: "Teks dan tautan hijau" },
+      { name: "stage-foreground", role: "Teks di atas panggung" },
+    ],
+  },
+  {
+    title: "Aksen dan garis",
+    tokens: [
+      { name: "primary", role: "CTA utama" },
+      { name: "brand", role: "Isian, garis, ikon" },
+      { name: "brand-muted", role: "Chip aktif, sorotan beda" },
+      { name: "ring", role: "Fokus keyboard" },
+      { name: "border", role: "Garis dekoratif" },
+      { name: "border-strong", role: "Batas kontrol form" },
+    ],
+  },
+  {
+    title: "Status",
+    tokens: [
+      { name: "success", role: "Harga segar" },
+      { name: "warning", role: "Harga terakhir tercatat" },
+      { name: "destructive", role: "Gagal" },
+      { name: "scrim", role: "Latar redup panel" },
+    ],
+  },
+] as const;
+
+const THEMES = [
+  { value: "light", label: "Verdant Day" },
+  { value: "dark", label: "Verdant Night" },
+] as const;
+
+/**
+ * Satu panel = satu tema. `.public-theme[data-theme]` bersarang menimpa token
+ * untuk isi panel saja, jadi kedua tema tampil berdampingan apa pun tema
+ * halaman. Isi panel tidak memakai varian `dark:` karena varian itu mengikuti
+ * tema halaman, bukan panel.
+ */
+function ThemePanels({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {THEMES.map((theme) => (
+        <div
+          key={theme.value}
+          data-theme={theme.value}
+          className="public-theme rounded-xl border border-border bg-background p-4 text-foreground sm:p-5"
+        >
+          <p className="heading-label">{theme.label}</p>
+          <div className="mt-4">{children}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function Section({
   title,
@@ -92,6 +154,11 @@ export default async function StyleGuidePage() {
   const priceStateExamples = (["available", "stale", "unavailable"] as const)
     .map((status) => products.find((product) => product.price.status === status))
     .filter((product) => product !== undefined);
+  const stagePhoto =
+    products.find((product) => !product.image.isGenericIllustration)?.image ?? {
+      src: "/images/generic-device.svg",
+      alt: "Ilustrasi generik perangkat smartphone",
+    };
 
   return (
     <Container className="py-12">
@@ -100,37 +167,110 @@ export default async function StyleGuidePage() {
           Design system CekHarga
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-          Halaman internal untuk meninjau token, primitive, dan state hasil
-          Sprint FE-0. Tidak ditautkan dari navigasi karena bukan halaman untuk
-          pengguna akhir.
+          Halaman internal untuk meninjau token tema Verdant, primitive, dan
+          state data. Tidak ditautkan dari navigasi karena bukan halaman untuk
+          pengguna akhir. Aturan lengkap ada di DESIGN.md.
         </p>
       </header>
 
       <Section
-        title="Warna"
-        description="Palet teal-navy CekHarga memakai semantic token. Swatch mengikuti tombol tema; nilai terang dan gelap dicatat sebagai referensi."
+        title="Token warna"
+        description="Kedua tema tampil berdampingan dan membaca token langsung dari globals.css. Nilai hex dan rasio kontras dicatat di DESIGN.md bagian 3."
       >
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {COLOR_TOKENS.map((color) => (
-            <li
-              key={color.token}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
-            >
-              <span
-                aria-hidden
-                className="size-12 shrink-0 rounded-lg border border-border"
-                style={{ backgroundColor: `var(${color.cssVar})` }}
-              />
-              <div className="min-w-0 text-sm">
-                <p className="font-semibold text-foreground">{color.token}</p>
-                <p className="text-muted-foreground">{color.role}</p>
-                <p className="tabular text-xs text-muted-foreground">
-                  Terang {color.light} · gelap {color.dark}
-                </p>
+        <ThemePanels>
+          <div className="grid gap-5">
+            {TOKEN_GROUPS.map((group) => (
+              <div key={group.title}>
+                <p className="text-sm font-semibold">{group.title}</p>
+                <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {group.tokens.map((token) => (
+                    <li key={token.name} className="flex min-w-0 items-center gap-2 rounded-md bg-card p-2">
+                      <span
+                        aria-hidden
+                        className="size-9 shrink-0 rounded-sm border border-border-strong/40"
+                        style={{ backgroundColor: `var(--${token.name})` }}
+                      />
+                      <span className="min-w-0 text-xs leading-4">
+                        <span className="block truncate font-semibold text-card-foreground">{token.name}</span>
+                        <span className="block text-muted-foreground">{token.role}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+        </ThemePanels>
+      </Section>
+
+      <Section
+        title="Kaca"
+        description="Kaca hanya untuk bingkai, tidak pernah di bawah harga atau tabel. Papan di belakang panel memakai warna tergelap dan terterang tema sebagai kondisi terburuk, jadi teks di glass-text harus tetap terbaca di atas kedua sisi."
+      >
+        <ThemePanels>
+          <div className="relative overflow-hidden rounded-xl">
+            <div aria-hidden className="grid h-64 grid-cols-3 sm:h-44">
+              <span className="bg-foreground" />
+              <span className="bg-primary" />
+              <span className="bg-card" />
+            </div>
+            <div className="absolute inset-x-3 top-3 grid gap-2 sm:grid-cols-2">
+              <div className="glass grid min-h-20 place-items-start rounded-lg p-3">
+                {/* Teks tidak boleh langsung di atas `glass`; label di pil solid. */}
+                <span className="rounded-pill bg-card px-2 py-0.5 text-xs font-semibold text-card-foreground">
+                  glass: bingkai tanpa teks
+                </span>
+              </div>
+              <div className="glass-text glass-float rounded-lg p-3">
+                <p className="text-xs font-semibold">glass-text + glass-float</p>
+                <p className="mt-1 text-xs text-muted-foreground">Header, filter bar, compare tray</p>
+                <p className="mt-1 text-xs font-semibold text-brand-text">Tautan hijau</p>
+              </div>
+            </div>
+          </div>
+        </ThemePanels>
+      </Section>
+
+      <Section
+        title="Panggung foto, bayangan, dan radius"
+        description="Panggung tetap terang di tema gelap karena foto resmi berlatar putih; label yang menempel ke foto memakai pil solid sendiri, bukan teks tema di atas panggung. Bayangan menandai elevasi: sm untuk kartu, default untuk panel, lg untuk elemen melayang."
+      >
+        <ThemePanels>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="rounded-xl bg-card p-3 shadow-sm">
+              <div className="stage relative aspect-square overflow-hidden rounded-lg">
+                <Image
+                  src={stagePhoto.src}
+                  alt={stagePhoto.alt}
+                  fill
+                  sizes="(min-width: 1024px) 220px, 45vw"
+                  className="object-contain p-4"
+                />
+                <span className="absolute bottom-2 left-2 rounded-pill bg-card px-2 py-0.5 text-xs font-semibold text-card-foreground">
+                  Foto 1 dari 4
+                </span>
+              </div>
+              <p className="mt-3 text-sm font-semibold text-card-foreground">Kartu solid + stage</p>
+            </div>
+            <div className="grid content-start gap-3">
+              {(["shadow-sm", "shadow", "shadow-lg"] as const).map((shadow) => (
+                <div key={shadow} className={`rounded-lg bg-card p-3 text-xs font-semibold text-card-foreground ${shadow}`}>
+                  {shadow}
+                </div>
+              ))}
+              <div className="flex flex-wrap items-end gap-2" aria-label="Skala radius">
+                {(["rounded-sm", "rounded-md", "rounded-lg", "rounded-xl", "rounded-pill"] as const).map((radius) => (
+                  <span
+                    key={radius}
+                    className={`grid size-16 place-items-center border border-border-strong bg-card text-xs text-card-foreground ${radius}`}
+                  >
+                    {radius.replace("rounded-", "")}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </ThemePanels>
       </Section>
 
       <Section

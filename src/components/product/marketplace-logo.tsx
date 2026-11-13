@@ -117,7 +117,8 @@ export function MarketplaceLogo({
     <span
       aria-hidden="true"
       className={cn(
-        "grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-white",
+        // Panggung terang di kedua tema: logo marketplace dibuat untuk latar putih.
+        "stage grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-border",
         className
       )}
     >
@@ -128,9 +129,9 @@ export function MarketplaceLogo({
       ) : file ? (
         <Image src={file} alt="" width={28} height={28} className="size-7 object-contain" />
       ) : key === "official" ? (
-        <HugeiconsIcon icon={Store01Icon} strokeWidth={1.8} className="size-6 text-neutral-800" />
+        <HugeiconsIcon icon={Store01Icon} strokeWidth={1.8} className="size-6 text-stage-foreground" />
       ) : (
-        <span className="text-base font-extrabold text-neutral-800">
+        <span className="text-base font-extrabold text-stage-foreground">
           {name.trim().charAt(0).toUpperCase() || "?"}
         </span>
       )}

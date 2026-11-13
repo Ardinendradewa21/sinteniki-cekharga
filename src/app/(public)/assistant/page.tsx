@@ -66,7 +66,7 @@ export default async function AssistantPage({
           Lebih suka memilih daripada mengetik?{" "}
           <Link
             href="/assistant?tanya=form"
-            className="font-medium text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+            className="font-medium text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
           >
             Jawab pertanyaan saja
           </Link>
@@ -148,7 +148,7 @@ async function FormFallback({
           Lebih suka bercerita?{" "}
           <Link
             href="/assistant"
-            className="font-medium text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+            className="font-medium text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
           >
             Ngobrol dengan asisten
           </Link>

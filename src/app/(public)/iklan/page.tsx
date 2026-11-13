@@ -66,7 +66,7 @@ export default async function AdvertisePage() {
   return (
     <Container className="py-10 md:py-14">
       <header className="max-w-3xl">
-        <p className="text-xs font-bold uppercase tracking-widest text-brand">CekHarga / Beriklan</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-brand-text">CekHarga / Beriklan</p>
         <h1 className="mt-2 heading-page text-foreground">
           Jangkau orang yang sedang membandingkan smartphone
         </h1>
@@ -169,7 +169,7 @@ export default async function AdvertisePage() {
           <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {STEPS.map((step, index) => (
               <li key={step.title} className="rounded-2xl border border-border bg-card p-4">
-                <span className="text-xs font-bold text-brand">Langkah {index + 1}</span>
+                <span className="text-xs font-bold text-brand-text">Langkah {index + 1}</span>
                 <p className="mt-1 font-bold text-foreground">{step.title}</p>
                 <p className="mt-1 text-sm">{step.detail}</p>
               </li>
@@ -182,7 +182,7 @@ export default async function AdvertisePage() {
             <p>
               Atau hubungi langsung:{" "}
               {settings.salesEmail ? (
-                <a href={`mailto:${settings.salesEmail}`} className="font-semibold text-brand underline underline-offset-2">
+                <a href={`mailto:${settings.salesEmail}`} className="font-semibold text-brand-text underline underline-offset-2">
                   {settings.salesEmail}
                 </a>
               ) : null}
@@ -192,7 +192,7 @@ export default async function AdvertisePage() {
                   href={`https://wa.me/${whatsapp}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-semibold text-brand underline underline-offset-2"
+                  className="font-semibold text-brand-text underline underline-offset-2"
                 >
                   WhatsApp
                 </a>

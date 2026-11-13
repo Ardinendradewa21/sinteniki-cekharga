@@ -25,7 +25,7 @@ const badgeVariants = cva(
         ghost: "text-foreground [a&]:hover:bg-muted",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
         // Varian status bertoken (kontras teks-latar diukur di globals.css).
-        brand: "bg-brand-muted text-brand",
+        brand: "bg-brand-muted text-brand-text",
         success: "bg-success-muted text-success",
         warning: "bg-warning-muted text-warning",
         destructive: "bg-destructive-muted text-destructive",

@@ -95,7 +95,7 @@ export function AssistantChat({
     <div className="mx-auto flex w-full max-w-2xl flex-col">
       {/* Sapaan pembuka; bagian dari percakapan, bukan hiasan. */}
       <div className={kosong ? "py-6 text-center" : "hidden"}>
-        <span className="inline-flex size-11 items-center justify-center rounded-pill bg-brand-muted text-brand">
+        <span className="inline-flex size-11 items-center justify-center rounded-pill bg-brand-muted text-brand-text">
           <HugeiconsIcon icon={AiMagicIcon} size={22} strokeWidth={1.8} aria-hidden />
         </span>
         <h1 className="mt-5 heading-page text-foreground">

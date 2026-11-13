@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * di dalam `<nav>` (sama seperti NavigationMenuLink asChild di shadcn).
  *
  * Tampilan mengikuti varian "line" Tabs shadcn: garis bawah pada tab aktif
- * berwarna `primary` (charcoal), selaras dengan pemilih varian dan CTA.
+ * berwarna `primary` (warna CTA tema aktif), selaras dengan pemilih varian dan CTA.
  */
 export type NavTabItem = {
   href: string;

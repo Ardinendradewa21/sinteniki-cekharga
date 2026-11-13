@@ -44,7 +44,7 @@ Komponen hanya memakai token, tidak pernah hex langsung. Rasio kontras dihitung 
 | `--primary` | `#137a50` | CTA utama; teks putih 5.35:1 |
 | `--primary-foreground` | `#ffffff` | |
 | `--brand` | `#137a50` | Aksen data dan status harga; 4.2:1 di background |
-| `--brand-text` | `#0f6c46` | Teks/tautan hijau, 6.45:1 di card |
+| `--brand-text` | `#0d6340` | Teks/tautan hijau: 7.3:1 di card, 5.75:1 di background, 4.96:1 di chip `--brand-muted` di atas background (VD-01: semula `#0f6c46`, hanya 4.38:1 di chip) |
 | `--brand-muted` | `rgba(19, 122, 80, .12)` | Latar chip aktif |
 | `--ring` | `#137a50` | Fokus; 4.2:1 di background |
 | `--success` / `--warning` / `--destructive` | `#12764a` / `#85560a` / `#b13b22` | 5.65 / 6.30 / 5.97 :1 di card |
@@ -84,8 +84,27 @@ Komponen hanya memakai token, tidak pernah hex langsung. Rasio kontras dihitung 
 
 | Token | Nilai |
 |---|---|
-| `--frost` | `.5` (0 = bening, 1 = sangat buram) |
+| `--frost` | `.5` (0 = bening, 1 = sangat buram). `--glass` dihitung di `.public-theme`; untuk mengubah keburaman satu bagian, timpa `--glass`, bukan `--frost` |
 | `--scene-blur` | `url(/images/scene/day-blur.avif)` / `url(/images/scene/night-blur.avif)`; hanya untuk Hero Price Panel |
+| `--stage-foreground` | `#0f1d17` di kedua tema (16.1:1 / 15.5:1 di panggung). Untuk teks yang memang harus di atas panggung, misalnya inisial di tile logo marketplace |
+| `--scrim` | `rgba(15,29,23,.48)` / `rgba(0,0,0,.62)`. Latar redup di belakang lembar filter ponsel dan dialog |
+
+Utility Tailwind yang tersedia (VD-01): `text-brand-text`, `bg-stage`/`text-stage-foreground`, `bg-scrim`, serta `glass`, `glass-text`, `glass-float`, dan `stage` (latar panggung + teks gelap).
+
+### 3.5 Token turunan (tidak diatur di tabel atas)
+
+Ditetapkan VD-01 dari palet yang sama dan diukur:
+
+| Token | Day | Night | Kontras terendah |
+|---|---|---|---|
+| `--muted` | `#e9efeb` | `#17221e` | muted-foreground 6.2:1 / 8.0:1 |
+| `--secondary` | `#e6eee9` | `#1a2621` | foreground 14.7:1 / 14.0:1 |
+| `--accent` | `#dde8e1` | `#1f2e28` | muted-foreground 5.7:1 / 6.9:1 |
+| `--popover` | `#ffffff` | `#16211d` | muted-foreground 8.0:1 (gelap) |
+| `--success-muted` / `--warning-muted` / `--destructive-muted` | `#e2f1e8` / `#f7ecd8` / `#f8e4df` | `#13291f` / `#2d2412` / `#33201b` | teks status di latarnya ≥ 4.84:1 |
+| `--input` | sama dengan `--border-strong` | | |
+
+`--accent-warm*` di `.public-theme` menjadi alias hijau (`--brand`, `--brand-muted`, `--brand-text`) supaya pemakaian yang terlewat tidak memunculkan terracotta; admin tetap memakai nilainya sendiri.
 
 Foto scene tajam TIDAK menjadi token CSS. Foto itu dirender lewat `next/image` (bagian 6.2) agar mendapat srcset, prioritas muat, dan format modern.
 
@@ -114,6 +133,8 @@ Warna terracotta lama (`--accent-warm*`) dipensiunkan dari UI publik.
 | `--shadow` | `0 1px 2px rgba(20,50,34,.06), 0 18px 40px -26px rgba(20,50,34,.38)` |
 | `--shadow-lg` | `0 2px 6px rgba(20,50,34,.10), 0 34px 70px -28px rgba(20,50,34,.48)` |
 | Bayangan gelap | ganti warna bayangan dengan `rgba(0,0,0,…)` dan opasitas lebih tinggi |
+
+Implementasi (VD-01): nama `--shadow-*` dan `--radius-*` adalah namespace tema Tailwind, jadi nilainya disimpan di `--ch-shadow-sm|…|xl` dan `--ch-radius-sm|md|lg|xl` lalu dirujuk lewat `@theme inline`. Tema publik menimpa nilai itu; admin memakai nilai bawaan Tailwind dan radius lamanya. Pemetaan utility di UI publik: `shadow-sm` = `--shadow-sm`, `shadow` dan `shadow-md` = `--shadow`, `shadow-lg` dan `shadow-xl` = `--shadow-lg`; `rounded-sm|md|lg|xl` = 10/14/22/28px.
 
 ## 6. Kaca dan foto scene
 

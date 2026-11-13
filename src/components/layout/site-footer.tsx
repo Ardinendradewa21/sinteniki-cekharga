@@ -81,7 +81,7 @@ export function SiteFooter() {
                   href={COMPANY.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-foreground underline underline-offset-4 transition-colors duration-150 hover:text-brand"
+                  className="font-medium text-foreground underline underline-offset-4 transition-colors duration-150 hover:text-brand-text"
                 >
                   {COMPANY.legalName}
                 </a>
@@ -138,7 +138,7 @@ export function SiteFooter() {
               <li>
                 <Link
                   href="/how-it-works"
-                  className="inline-flex min-h-11 items-center font-medium text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+                  className="inline-flex min-h-11 items-center font-medium text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
                 >
                   Sumber data, metode kurasi, dan keterbatasannya
                 </Link>

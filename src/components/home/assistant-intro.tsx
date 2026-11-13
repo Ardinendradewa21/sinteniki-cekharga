@@ -103,7 +103,7 @@ export function AssistantIntro() {
               Lebih suka menyaring sendiri?{" "}
               <Link
                 href="/products"
-                className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-11 items-center font-semibold text-brand-text underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Buka katalog
               </Link>

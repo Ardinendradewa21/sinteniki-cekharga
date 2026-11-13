@@ -187,7 +187,7 @@ export function CatalogResults({
                       href={review.videoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-2 inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring"
+                      className="mt-2 inline-flex min-h-11 items-center font-semibold text-brand-text underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       Lihat sumber ulasan
                     </a>

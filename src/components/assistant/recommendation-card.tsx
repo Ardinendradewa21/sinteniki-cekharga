@@ -126,7 +126,7 @@ export function RecommendationCard({
 
       <Link
         href={candidate.detailHref}
-        className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+        className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
       >
         Lihat detail dan penawarannya
       </Link>

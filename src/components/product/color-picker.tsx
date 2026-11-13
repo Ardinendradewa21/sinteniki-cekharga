@@ -50,7 +50,7 @@ export function ColorPicker({
               )}
             >
               {color.thumbnail ? (
-                <span className="relative size-8 shrink-0 overflow-hidden rounded-lg bg-white">
+                <span className="stage relative size-8 shrink-0 overflow-hidden rounded-lg">
                   <Image src={color.thumbnail.src} alt="" fill sizes="32px" className="object-contain p-0.5" />
                 </span>
               ) : color.swatch ? (

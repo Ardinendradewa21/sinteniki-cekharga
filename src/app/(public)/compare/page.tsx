@@ -112,7 +112,7 @@ async function CompareView({
       {result.items.length > 0 ? (
         <section aria-labelledby="hasil-bandingkan" className="mt-10">
           <div className="mb-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-brand">Langkah 2</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-brand-text">Langkah 2</p>
             <h2 id="hasil-bandingkan" className="mt-1 heading-section text-foreground">
               {hasEnough ? "Lihat perbedaan" : "Produk yang dipilih"}
             </h2>
@@ -128,7 +128,7 @@ async function CompareView({
 
       {hasEnough ? (
         <section aria-labelledby="konteks-bandingkan" className="mt-10">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand">Langkah 3</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-brand-text">Langkah 3</p>
           <h2 id="konteks-bandingkan" className="mt-1 heading-section text-foreground">
             Baca konteksnya
           </h2>
@@ -152,7 +152,7 @@ export default function ComparePage(props: PageProps<"/compare">) {
     <Container className="py-8 md:py-12">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand">CekHarga / Bandingkan</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-brand-text">CekHarga / Bandingkan</p>
           <h1 className="mt-2 heading-page text-foreground">
             Bandingkan produk
           </h1>

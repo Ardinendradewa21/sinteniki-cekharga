@@ -163,7 +163,7 @@ export function HeroTour({ data, isDemo }: { data: HeroTourData; isDemo: boolean
             }}
             className={cn(
               "inline-flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full px-2 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-              i === index ? "bg-brand-muted text-brand" : "text-muted-foreground hover:text-foreground"
+              i === index ? "bg-brand-muted text-brand-text" : "text-muted-foreground hover:text-foreground"
             )}
           >
             {scene.tab}
@@ -199,7 +199,7 @@ function SearchStage({ search }: { search: NonNullable<HeroTourData["search"]> }
       </div>
       <motion.p
         {...rise(1.1)}
-        className="mt-3 inline-flex rounded-pill border border-brand/30 bg-brand-muted px-3 py-1 text-xs font-medium text-brand"
+        className="mt-3 inline-flex rounded-pill border border-brand/30 bg-brand-muted px-3 py-1 text-xs font-medium text-brand-text"
       >
         {search.filterLabel}
       </motion.p>
@@ -279,7 +279,7 @@ function PriceStage({ price, isDemo }: { price: NonNullable<HeroTourData["price"
       <motion.p
         {...rise(1.4)}
         aria-hidden
-        className="mt-3 flex items-center justify-between rounded-lg border border-brand/30 bg-brand-muted px-3.5 py-2.5 text-sm font-semibold text-brand"
+        className="mt-3 flex items-center justify-between rounded-lg border border-brand/30 bg-brand-muted px-3.5 py-2.5 text-sm font-semibold text-brand-text"
       >
         Lanjut ke toko pilihanmu
         <HugeiconsIcon icon={ArrowUpRight01Icon} size={16} strokeWidth={2} />

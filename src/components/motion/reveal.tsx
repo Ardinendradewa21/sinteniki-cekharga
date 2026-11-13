@@ -13,7 +13,8 @@ import type { ReactNode } from "react";
  * mengalir alih-alih muncul bersamaan — itu yang membedakan "kaya" dari
  * "ramai": urutannya membantu mata memindai, bukan sekadar bergerak.
  *
- * Durasi 360ms masuk rentang entrance PRD §8 (280–420ms). Reduced motion
+ * Durasi 360ms masuk rentang entrance DESIGN.md §8 (350–600ms; preset
+ * bersama menyusul di src/lib/motion.ts, VD-02). Reduced motion
  * ditangani `MotionConfig reducedMotion="user"` di root: transform dimatikan,
  * opacity tetap, jadi konten tidak pernah tersangkut tak terlihat.
  *

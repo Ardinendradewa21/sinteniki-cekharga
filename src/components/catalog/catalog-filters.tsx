@@ -98,7 +98,7 @@ function FilterChip({
         className={
           "inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-pill border px-4 text-sm font-semibold transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden " +
           (count > 0
-            ? "border-brand/40 bg-brand-muted text-brand hover:bg-brand/15"
+            ? "border-brand/40 bg-brand-muted text-brand-text hover:bg-brand/15"
             : "border-border-strong bg-card text-foreground hover:bg-muted group-open:bg-muted")
         }
       >
@@ -115,7 +115,7 @@ function FilterChip({
       {/* Latar redup khusus ponsel: panel muncul dari bawah layar seperti
           lembar, jadi isi di belakangnya diredupkan (audit 001 temuan 8).
           Ketukan di latar menutup panel lewat FilterPopoverDismiss. */}
-      <div data-filter-backdrop="" aria-hidden className="fixed inset-0 z-60 bg-black/50 sm:hidden" />
+      <div data-filter-backdrop="" aria-hidden className="fixed inset-0 z-60 bg-scrim sm:hidden" />
       <div className="fixed inset-x-0 bottom-0 z-60 max-h-[75vh] overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 sm:max-h-[60vh] sm:w-80 sm:rounded-xl">
         {children}
         <div className="mt-4 border-t border-border pt-4">
@@ -315,7 +315,7 @@ export function CatalogFilters({
                 <Link
                   href={chip.href}
                   aria-label={`Hapus filter ${chip.label}`}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-brand-muted px-3.5 text-sm font-medium text-brand transition-colors duration-150 hover:bg-brand/15 focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-brand-muted px-3.5 text-sm font-medium text-brand-text transition-colors duration-150 hover:bg-brand/15 focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {chip.label}
                   <HugeiconsIcon icon={Cancel01Icon} size={14} strokeWidth={2} aria-hidden />
@@ -363,7 +363,7 @@ export function CatalogFilters({
           ) : null}
           <Link
             href={buildCatalogHref(query, { query: "" })}
-            className="mt-3 inline-flex min-h-11 items-center text-xs font-semibold text-brand underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-3 inline-flex min-h-11 items-center text-xs font-semibold text-brand-text underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             Hapus pencarian
           </Link>

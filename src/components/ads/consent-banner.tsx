@@ -24,7 +24,7 @@ export function ConsentBanner() {
       <p className="text-sm leading-relaxed text-foreground">
         Kami bisa menampilkan iklan dari mitra pihak ketiga yang memakai cookie untuk mengukur dan
         menyesuaikan iklan. Iklan langsung dari CekHarga tetap tampil tanpa cookie apa pun pilihan Anda.{" "}
-        <Link href="/terms" className="font-semibold text-brand underline underline-offset-2">
+        <Link href="/terms" className="font-semibold text-brand-text underline underline-offset-2">
           Selengkapnya
         </Link>
       </p>

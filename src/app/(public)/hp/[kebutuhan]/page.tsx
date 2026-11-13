@@ -53,7 +53,7 @@ export default async function NeedPageView(props: PageProps<"/hp/[kebutuhan]">) 
   return (
     <Container className="py-6 md:py-10">
       <header className="max-w-2xl">
-        <p className="text-xs font-bold uppercase tracking-widest text-brand">CekHarga / Kebutuhan</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-brand-text">CekHarga / Kebutuhan</p>
         <h1 className="mt-2 heading-page text-foreground">{page.title}</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">{page.intro}</p>
         <p className="mt-2 text-xs text-muted-foreground">

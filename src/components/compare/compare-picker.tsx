@@ -11,7 +11,7 @@ export function ComparePicker({ result }: { result: CompareResult }) {
     <section aria-labelledby="pilih-kandidat" className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-brand">Langkah 1</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-brand-text">Langkah 1</p>
           <h2 id="pilih-kandidat" className="mt-1 heading-section text-foreground">
             Pilih produk
           </h2>

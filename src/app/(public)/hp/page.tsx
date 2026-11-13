@@ -27,7 +27,7 @@ export default async function NeedPagesIndex() {
       {pages.length === 0 ? (
         <p className="mt-8 rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
           Belum ada daftar yang memenuhi syarat saat ini, biasanya karena harga sedang menunggu pemeriksaan ulang. Gunakan{" "}
-          <Link href="/products" className="font-semibold text-brand underline-offset-4 hover:underline">
+          <Link href="/products" className="font-semibold text-brand-text underline-offset-4 hover:underline">
             katalog
           </Link>{" "}
           untuk mencari dengan filter sendiri.

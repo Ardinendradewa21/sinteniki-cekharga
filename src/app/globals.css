@@ -11,19 +11,25 @@
   Hex di PRD adalah acuan desain, bukan kontrak warna. Semua warna dipakai lewat
   semantic token di bawah; jangan menulis hex langsung di komponen.
 
-  Rasio kontras utama pada tema publik:
-  - light foreground/canvas 14.02:1; muted/card 5.79:1
-  - dark foreground/canvas 16.42:1; muted/card 8.36:1
-  - brand: 5.47:1 di card terang; 12.42:1 di canvas gelap
-  - border-strong: 4.08:1 terang; 4.54:1 gelap (kontrol butuh 3:1)
+  Rasio kontras utama tema publik Verdant (DESIGN.md §3, dihitung ulang VD-01):
+  - terang: foreground/card 17.4:1, foreground/canvas 13.7:1; muted/card 7.2:1,
+    muted/canvas 5.7:1; brand-text/card 7.3:1, brand-text/canvas 5.75:1,
+    brand-text di chip brand-muted 4.96:1; teks putih di primary 5.35:1
+  - gelap: foreground/card 15.7:1; muted/card 8.6:1; brand-text/card 12.1:1;
+    teks gelap di primary mint 9.5:1
+  - border-strong: 4.1:1 terang, 4.9:1 gelap (kontrol butuh 3:1)
+  - --brand terang (#137a50) hanya 4.2:1 di canvas: untuk isian, garis, dan
+    ikon (3:1). Teks hijau selalu memakai --brand-text (`text-brand-text`).
 
   Border dekoratif dan kartu di atas canvas memang sengaja lembut. Batas elemen
   yang HARUS terbaca (kontrol form, focus ring, status) selalu memakai
   border-strong/ring, bukan border dekoratif.
 
   Tema publik dan admin sengaja dipisahkan. `.public-theme` membawa identitas
-  teal/navy CekHarga dan bisa terang/gelap, sedangkan `.admin-theme` tetap punya
-  preferensinya sendiri. Cookie salah satu area tidak mengubah area lainnya.
+  Verdant (hijau, kaca di atas foto latar) dan bisa terang/gelap, sedangkan
+  `.admin-theme` tetap punya preferensinya sendiri. Cookie salah satu area tidak
+  mengubah area lainnya. Token baru selalu punya nilai bawaan di :root supaya
+  admin yang tidak mendefinisikannya tetap tampil seperti sebelumnya.
 */
 
 @theme inline {
@@ -54,25 +60,29 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Brand — aksen terbatas, bukan warna dominan halaman */
+  /* Brand: satu-satunya aksen. --brand untuk isian/garis, --brand-text untuk teks */
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-muted: var(--brand-muted);
+  --color-brand-text: var(--brand-text);
 
   /*
-    Aksen hangat — HANYA untuk ilustrasi SVG dan gradient dekoratif (blob latar
-    belakang), tidak pernah untuk teks atau UI chrome. Karena tidak pernah
-    dipasangkan dengan teks, token ini sengaja tidak diukur terhadap 4.5:1 —
-    yang menahannya adalah pembatasan pemakaian, bukan kontras.
+    Panggung foto produk (DESIGN.md §2.2, §3.4): terang di kedua tema karena
+    foto resmi berlatar putih. stage-foreground tetap gelap di tema gelap
+    supaya label yang menempel ke foto tetap terbaca (16.1 / 15.5 :1).
+  */
+  --color-stage: var(--stage);
+  --color-stage-foreground: var(--stage-foreground);
+  /* Latar redup di belakang lembar/panel (filter ponsel, dialog). */
+  --color-scrim: var(--scrim);
+
+  /*
+    Aksen hangat (terracotta) DIPENSIUNKAN dari UI publik (PRD §8, keputusan
+    13 November 2026). Token tetap ada untuk admin; di .public-theme dialiaskan
+    ke hijau supaya pemakaian yang terlewat tidak memunculkan terracotta.
   */
   --color-accent-warm: var(--accent-warm);
   --color-accent-warm-soft: var(--accent-warm-soft);
-  /*
-    Versi gelap dari terracotta yang BOLEH dipakai untuk teks dan garis UI:
-    diukur 5.1:1 terhadap putih, jadi lolos 4.5:1 untuk teks ukuran normal.
-    Ada karena aturan di atas nyata membatasi: begitu warna hangat perlu
-    menempel pada kata yang harus terbaca, --accent-warm terlalu terang.
-  */
   --color-accent-warm-strong: var(--accent-warm-strong);
 
   /* Status — selalu dipasangkan dengan kata atau ikon, tidak pernah warna saja */
@@ -83,15 +93,32 @@
   --color-destructive: var(--destructive);
   --color-destructive-muted: var(--destructive-muted);
 
-  /* Radius: kartu katalog 24–32px (PRD §8) → radius-xl = 28px */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  /*
+    Radius: kartu katalog 24–32px (PRD §8) → radius-xl = 28px. Tema publik
+    menimpa sm/md/lg/xl lewat --ch-radius-* (DESIGN.md §5: 10/14/22/28px);
+    tanpa itu (admin) nilainya tetap turunan --radius seperti sebelumnya.
+    Ini bekerja karena `@theme inline` mengeluarkan var() apa adanya, jadi
+    nilainya dievaluasi di elemen pemakai (dokumentasi Tailwind v4).
+  */
+  --radius-sm: var(--ch-radius-sm, calc(var(--radius) * 0.6));
+  --radius-md: var(--ch-radius-md, calc(var(--radius) * 0.8));
+  --radius-lg: var(--ch-radius-lg, var(--radius));
+  --radius-xl: var(--ch-radius-xl, calc(var(--radius) * 1.4));
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --radius-pill: 9999px;
+
+  /*
+    Shadow: nilai bawaan Tailwind ada di :root (--ch-shadow-*), tema publik
+    menimpanya dengan Soft Depth Verdant (DESIGN.md §5). shadow-2xs/xs/2xl
+    tetap bawaan Tailwind.
+  */
+  --shadow-sm: var(--ch-shadow-sm);
+  --shadow: var(--ch-shadow);
+  --shadow-md: var(--ch-shadow-md);
+  --shadow-lg: var(--ch-shadow-lg);
+  --shadow-xl: var(--ch-shadow-xl);
 }
 
 :root {
@@ -119,8 +146,9 @@
   --brand: #0f766e;
   --brand-foreground: #ffffff;
   --brand-muted: #eefaf8;
+  --brand-text: #0f766e;
 
-  /* Terracotta hangat — pasangan komplementer teal, dipakai di ilustrasi & blob saja */
+  /* Terracotta hangat (admin saja; dipensiunkan dari UI publik) */
   --accent-warm: #d97757;
   --accent-warm-soft: #fbe9e1;
   --accent-warm-strong: #b3502f;
@@ -132,103 +160,161 @@
   --destructive: #b42318;
   --destructive-muted: #fdf1f0;
 
+  --stage: #ffffff;
+  --stage-foreground: #303030;
+  --scrim: rgba(0, 0, 0, 0.5);
+
   --radius: 1.25rem;
 
+  /* Nilai bawaan Tailwind 4.3 (node_modules/tailwindcss/theme.css). */
+  --ch-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --ch-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --ch-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --ch-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --ch-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
   /*
-    Skala motion (PRD §8): micro-interaction 120–180ms, entrance 280–420ms.
-    Pakai utility duration-150 (micro) dan duration-300 (entrance) di komponen
-    agar konsisten; hindari angka lain tanpa alasan.
+    Skala motion UI publik ada di DESIGN.md §8 (micro 160ms, entrance 350–600ms,
+    data reveal maks. 1000ms sekali); preset Motion di src/lib/motion.ts.
+    Utility CSS: duration-150 untuk micro.
   */
 }
 
 /*
-  Identitas publik CekHarga: charcoal = headline dan CTA utama (PRD §8;
-  keputusan pemilik produk 2026-10-07 mengembalikan CTA dari teal ke
-  charcoal), teal = aksen terbatas untuk data harga/status (--brand) dan ring
-  fokus, navy = struktur, terracotta = aksen hangat terbatas. Semua komponen
-  publik memakai token semantik ini, jadi dark mode tidak membutuhkan warna per
+  Identitas publik CekHarga: tema Verdant (PRD §8 keputusan 13 November 2026,
+  rinci di DESIGN.md). Hijau = satu-satunya aksen sekaligus CTA utama
+  (--primary), data harga selalu di permukaan solid (--card), kaca hanya untuk
+  bingkai, foto produk di panggung terang (--stage). Semua komponen publik
+  memakai token semantik ini, jadi tema gelap tidak membutuhkan warna per
   halaman.
 
-  Kontras --primary: terang #303030 vs putih 13.2:1; gelap #e8f5f2 vs
-  #071716 16.6:1 (dibalik seperti palet netral shadcn: tombol terang di atas
-  latar gelap).
+  Token yang tidak diatur DESIGN.md (secondary, muted, accent, popover, *-muted)
+  diturunkan dari palet yang sama dan diukur: muted-foreground/muted 6.2:1
+  terang, 8.0:1 gelap; status di atas latar *-muted-nya ≥ 4.84:1.
+
+  --glass memakai --frost dari elemen yang sama. Untuk mengubah tingkat buram
+  di satu bagian, timpa --glass (bukan --frost) karena variabel CSS dihitung
+  di elemen tempat ia didefinisikan.
 */
+.public-theme {
+  --frost: 0.5;
+  --ch-radius-sm: 10px;
+  --ch-radius-md: 14px;
+  --ch-radius-lg: 22px;
+  --ch-radius-xl: 28px;
+  --stage-foreground: #0f1d17;
+  /* Terracotta dipensiunkan: alias ke hijau (lihat @theme inline). */
+  --accent-warm: var(--brand);
+  --accent-warm-soft: var(--brand-muted);
+  --accent-warm-strong: var(--brand-text);
+}
+
 .public-theme[data-theme="light"] {
-  --background: #f3f7f6;
-  --foreground: #102a2a;
+  --background: #dfe6e1;
+  --foreground: #0f1d17;
   --card: #ffffff;
-  --card-foreground: #102a2a;
+  --card-foreground: #0f1d17;
   --popover: #ffffff;
-  --popover-foreground: #102a2a;
+  --popover-foreground: #0f1d17;
 
-  --primary: #303030;
+  --primary: #137a50;
   --primary-foreground: #ffffff;
-  --secondary: #e2efed;
-  --secondary-foreground: #173a37;
-  --muted: #e8f1ef;
-  --muted-foreground: #536a67;
-  --accent: #dcecea;
-  --accent-foreground: #173a37;
+  --secondary: #e6eee9;
+  --secondary-foreground: #0f1d17;
+  --muted: #e9efeb;
+  --muted-foreground: #4a5b52;
+  --accent: #dde8e1;
+  --accent-foreground: #0f1d17;
 
-  --border: #d5e3e0;
+  --border: rgba(15, 40, 28, 0.1);
   --border-strong: #6d827e;
   --input: #6d827e;
-  --ring: #0f766e;
+  --ring: #137a50;
 
-  --brand: #0f766e;
+  --brand: #137a50;
   --brand-foreground: #ffffff;
-  --brand-muted: #dff3ef;
+  --brand-muted: rgba(19, 122, 80, 0.12);
+  /* DESIGN.md menulis #0f6c46; digelapkan karena di chip brand-muted di atas
+     canvas hanya 4.38:1. #0d6340 = 4.96:1 di chip, 7.3:1 di card. */
+  --brand-text: #0d6340;
 
-  --accent-warm: #d97757;
-  --accent-warm-soft: #f8e7df;
-  --accent-warm-strong: #a9482a;
+  --success: #12764a;
+  --success-muted: #e2f1e8;
+  --warning: #85560a;
+  --warning-muted: #f7ecd8;
+  --destructive: #b13b22;
+  --destructive-muted: #f8e4df;
 
-  --success: #147a3d;
-  --success-muted: #e5f5e9;
-  --warning: #a94f08;
-  --warning-muted: #fbefdf;
-  --destructive: #a9251c;
-  --destructive-muted: #f9e8e6;
+  --stage: #f4f7f5;
+  --scrim: rgba(15, 29, 23, 0.48);
+
+  --glass: rgba(255, 255, 255, calc(0.42 + var(--frost) * 0.2));
+  --glass-text: rgba(255, 255, 255, 0.86);
+  --glass-rim: rgba(255, 255, 255, 0.62);
+  --glass-top: rgba(255, 255, 255, 0.95);
+  --veil: linear-gradient(180deg, rgba(236, 243, 238, 0.18), rgba(226, 234, 229, 0.32));
+  --veil-text: rgba(223, 230, 225, 0.92);
+  --scene-blur: url(/images/scene/day-blur.avif);
+
+  --ch-shadow-sm: 0 1px 2px rgba(20, 50, 34, 0.07);
+  --ch-shadow: 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.38);
+  --ch-shadow-md: var(--ch-shadow);
+  --ch-shadow-lg: 0 2px 6px rgba(20, 50, 34, 0.1), 0 34px 70px -28px rgba(20, 50, 34, 0.48);
+  --ch-shadow-xl: var(--ch-shadow-lg);
 
   color-scheme: light;
 }
 
 .public-theme[data-theme="dark"] {
-  --background: #071716;
-  --foreground: #e8f5f2;
-  --card: #0f2422;
-  --card-foreground: #e8f5f2;
-  --popover: #102825;
-  --popover-foreground: #e8f5f2;
+  --background: #0c1210;
+  --foreground: #eef4ee;
+  --card: #121b18;
+  --card-foreground: #eef4ee;
+  --popover: #16211d;
+  --popover-foreground: #eef4ee;
 
-  --primary: #e8f5f2;
-  --primary-foreground: #071716;
-  --secondary: #173532;
-  --secondary-foreground: #e8f5f2;
-  --muted: #142e2c;
-  --muted-foreground: #a8bfba;
-  --accent: #1b403c;
-  --accent-foreground: #effbf8;
+  --primary: #6ee0a1;
+  --primary-foreground: #062a16;
+  --secondary: #1a2621;
+  --secondary-foreground: #eef4ee;
+  --muted: #17221e;
+  --muted-foreground: #a8b9af;
+  --accent: #1f2e28;
+  --accent-foreground: #eef4ee;
 
-  --border: #294a46;
+  --border: rgba(220, 255, 236, 0.09);
   --border-strong: #728d88;
   --input: #728d88;
-  --ring: #5eead4;
+  --ring: #8ee9b7;
 
-  --brand: #5eead4;
-  --brand-foreground: #062824;
-  --brand-muted: #143d39;
+  --brand: #6ee0a1;
+  --brand-foreground: #062a16;
+  --brand-muted: rgba(110, 224, 161, 0.14);
+  --brand-text: #8ee9b7;
 
-  --accent-warm: #fb9c7b;
-  --accent-warm-soft: #3b2924;
-  --accent-warm-strong: #ffad90;
+  --success: #8ee9b7;
+  --success-muted: #13291f;
+  --warning: #f2c770;
+  --warning-muted: #2d2412;
+  --destructive: #f6a38e;
+  --destructive-muted: #33201b;
 
-  --success: #6ee7a0;
-  --success-muted: #173829;
-  --warning: #fbbf6a;
-  --warning-muted: #3d2d16;
-  --destructive: #fda29b;
-  --destructive-muted: #442321;
+  --stage: #eef3f0;
+  --scrim: rgba(0, 0, 0, 0.62);
+
+  --glass: rgba(6, 11, 9, calc(0.36 + var(--frost) * 0.16));
+  --glass-text: rgba(10, 16, 14, 0.84);
+  --glass-rim: rgba(225, 255, 238, 0.1);
+  --glass-top: rgba(235, 255, 244, 0.22);
+  --veil: linear-gradient(180deg, rgba(6, 10, 8, 0.1), rgba(4, 8, 6, 0.34));
+  --veil-text: rgba(12, 18, 16, 0.85);
+  --scene-blur: url(/images/scene/night-blur.avif);
+
+  --ch-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --ch-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 18px 40px -26px rgba(0, 0, 0, 0.6);
+  --ch-shadow-md: var(--ch-shadow);
+  --ch-shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.34), 0 34px 70px -28px rgba(0, 0, 0, 0.7);
+  --ch-shadow-xl: var(--ch-shadow-lg);
 
   color-scheme: dark;
 }
@@ -259,6 +345,7 @@
   --brand: #5eead4;
   --brand-foreground: #062c2a;
   --brand-muted: #123b3a;
+  --brand-text: #5eead4;
 
   --accent-warm: #fb9777;
   --accent-warm-soft: #3f2925;
@@ -275,37 +362,43 @@
 }
 
 /*
-  Line-draw sekali jalan untuk garis tepi mockup perangkat di hero
-  (lihat src/components/home/hero-device.tsx).
-
-  Diadaptasi dari pola "SVG line-drawing" yang ditemukan di riset 21st.dev
-  (kategori svg-animation), TAPI ditulis ulang sebagai CSS murni tanpa Framer
-  Motion, dan cuma sekali jalan (forwards, tanpa iterasi ulang) — kebalikan
-  dari kebanyakan contoh di sana yang loop/pulsing. Ini yang membuatnya sesuai
-  PRD §8: "Hero/SVG boleh bergerak halus sekali; hindari loop."
-
-  Elemen pakai pathLength={1} sehingga stroke-dasharray/-dashoffset selalu
-  bernilai 1 apa pun ukuran sebenarnya path-nya.
+  Kaca Verdant (DESIGN.md §6.1). Hanya untuk bingkai; harga, tabel, penawaran,
+  dan grafik tidak pernah di atas kaca.
+  - glass       bidang tanpa teks (atau teksnya di elemen solid di dalamnya)
+  - glass-text  kaca berteks: header, filter bar, compare tray, composer.
+                Opasitasnya dipilih agar teks lolos 4.5:1 di atas foto
+                terburuk (DESIGN.md §3)
+  - glass-float blur hanya untuk elemen menempel/melayang (DESIGN.md §2.3).
+                Tanpa dukungan backdrop-filter, glass-text sudah cukup pekat
+  Tidak ada background-attachment: fixed (DESIGN.md §6.1).
 */
-@keyframes ch-draw-outline {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+@utility glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-rim);
+  box-shadow: inset 0 1px 0 var(--glass-top), var(--ch-shadow);
 }
 
-.draw-outline {
-  /* 420ms = batas atas entrance PRD §8 (280–420ms). */
-  animation: ch-draw-outline 420ms ease-out forwards;
+@utility glass-text {
+  background: var(--glass-text);
+  border: 1px solid var(--glass-rim);
+  box-shadow: inset 0 1px 0 var(--glass-top), var(--ch-shadow);
+}
+
+@utility glass-float {
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+/* Panggung foto produk: terang di kedua tema, teks di atasnya tetap gelap. */
+@utility stage {
+  background: var(--stage);
+  color: var(--stage-foreground);
 }
 
 /*
-  Blob gradient dekoratif — sentuhan "betah" yang diminta di luar sprint FE-1..6.
-  Statis (tidak dianimasikan) supaya tidak menambah beban reduced-motion, warna
-  dari --accent-warm-soft/--brand-muted saja, diblur berat, dan diposisikan di
-  BELAKANG kartu solid supaya kontras teks di atasnya tidak pernah tersentuh.
+  Blob dekoratif statis di belakang kartu solid (hero dan transparansi).
+  Sejak Verdant hanya memakai satu aksen (--brand-muted); terracotta
+  dipensiunkan. Dihapus di VD-04 saat hero memakai Scene Backdrop.
 */
 .warmth-blob {
   pointer-events: none;
@@ -335,7 +428,7 @@
 .warmth-blob::before {
   top: -8rem;
   right: -6rem;
-  background: var(--accent-warm-soft);
+  background: var(--brand-muted);
 }
 
 .warmth-blob::after {
@@ -436,9 +529,10 @@
     jaring pengaman untuk link dan elemen interaktif lain.
 
     Pola fokus komponen satu saja: `focus-visible:ring-2 focus-visible:ring-ring`
-    (pekat). Pola bawaan shadcn `ring-ring/50` sengaja tidak dipakai: teal 50%
-    di atas putih hanya ±2.15:1, gagal syarat 3:1 untuk indikator fokus
-    (PRD §8, WCAG 1.4.11); ring pekat 5.47:1 (audit UX-12).
+    (pekat). Pola bawaan shadcn `ring-ring/50` sengaja tidak dipakai: ring 50%
+    di atas putih gagal syarat 3:1 untuk indikator fokus (PRD §8, WCAG 1.4.11,
+    audit UX-12). Ring pekat Verdant: 5.35:1 di card dan 4.2:1 di canvas
+    terang, ≥ 12:1 di tema gelap.
   */
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;

@@ -139,7 +139,7 @@ function ReviewCard({ review }: { review: ProductReview }) {
         href={review.videoUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+        className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
       >
         Lihat video sumber
         {review.timestampSeconds !== null ? ` (menit ${formatTimestamp(review.timestampSeconds)})` : ""}
