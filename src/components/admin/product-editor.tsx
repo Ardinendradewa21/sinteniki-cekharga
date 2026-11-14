@@ -15,7 +15,31 @@ import type { AdminProductDetail } from "@/lib/admin/queries";
  * Aksi hapus sengaja berupa <form> dengan tombol submit, bukan tautan. Tautan
  * yang menghapus data bisa terpicu prefetch atau crawler; operasi yang mengubah
  * data harus lewat POST.
+ *
+ * Perbaikan 15 November 2026 (penawaran manual Motorola Moto G77 Power):
+ * - Kolom harga berupa teks, bukan `type="number" step=1000`: Chrome menolak
+ *   "2.849.000" dan harga bukan kelipatan Rp1.000 dengan gelembung berbahasa
+ *   Inggris, sehingga harga tidak pernah terkirim. Angkanya diurai di server
+ *   (`rupiah-input.ts`).
+ * - Hapus penawaran meminta konfirmasi, dan penawaran terhapus bisa
+ *   dipulihkan. Pesan hasil catat harga tampil di kartu penawarannya.
+ * - Varian yang punya penawaran (termasuk yang terhapus) tidak menampilkan
+ *   tombol Hapus, karena database memang menolaknya demi riwayat harga.
  */
+
+/** Kolom harga: teks numerik supaya format Indonesia ("2.849.000") diterima. */
+const PRICE_INPUT = {
+  type: "text",
+  inputMode: "numeric",
+  autoComplete: "off",
+  placeholder: "2.849.000",
+} as const;
+
+function confirmSubmit(message: string) {
+  return (event: React.FormEvent<HTMLFormElement>) => {
+    if (!window.confirm(message)) event.preventDefault();
+  };
+}
 
 const INITIAL: ActionState = { error: null };
 
@@ -58,25 +82,40 @@ export function VariantPanel({
 
       {product.variants.length > 0 ? (
         <ul className="mt-4 divide-y divide-border rounded-lg border border-border">
-          {product.variants.map((v) => (
-            <li key={v.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {v.ramGb}/{v.storageGb} GB
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {v.region ?? "Region belum diketahui"} · {v.offers.length} penawaran
-                </p>
-              </div>
-              <form action={deleteAction}>
-                <input type="hidden" name="variantId" value={v.id} />
-                <input type="hidden" name="productId" value={product.id} />
-                <Button type="submit" variant="ghost" size="sm">
-                  Hapus
-                </Button>
-              </form>
-            </li>
-          ))}
+          {product.variants.map((v) => {
+            const hasHistory = v.offers.length + v.deletedOfferCount > 0;
+            return (
+              <li key={v.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {v.ramGb}/{v.storageGb} GB
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {v.region ?? "Region belum diketahui"} · {v.offers.length} penawaran
+                    {v.deletedOfferCount > 0 ? ` · ${v.deletedOfferCount} dihapus` : ""}
+                  </p>
+                </div>
+                {hasHistory ? (
+                  // Database menolak menghapus varian yang punya riwayat
+                  // penawaran; tombol yang pasti gagal tidak ditampilkan.
+                  <p className="max-w-56 text-right text-xs text-muted-foreground">
+                    Punya riwayat penawaran, jadi tidak bisa dihapus.
+                  </p>
+                ) : (
+                  <form
+                    action={deleteAction}
+                    onSubmit={confirmSubmit(`Hapus varian ${v.ramGb}/${v.storageGb} GB? Varian tanpa penawaran dihapus permanen.`)}
+                  >
+                    <input type="hidden" name="variantId" value={v.id} />
+                    <input type="hidden" name="productId" value={product.id} />
+                    <Button type="submit" variant="ghost" size="sm">
+                      Hapus
+                    </Button>
+                  </form>
+                )}
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className="mt-4 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
@@ -113,6 +152,7 @@ export function OfferPanel({
   priceAction,
   failedCheckAction,
   urlAction,
+  restoreAction,
 }: {
   product: AdminProductDetail;
   addAction: (prev: ActionState, formData: FormData) => Promise<ActionState>;
@@ -120,6 +160,7 @@ export function OfferPanel({
   priceAction: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   failedCheckAction: (formData: FormData) => Promise<void>;
   urlAction: (formData: FormData) => Promise<void>;
+  restoreAction: (formData: FormData) => Promise<void>;
 }) {
   const [addState, add, adding] = useActionState(addAction, INITIAL);
   const [priceState, recordPrice, recording] = useActionState(priceAction, INITIAL);
@@ -163,7 +204,12 @@ export function OfferPanel({
                     {o.url}
                   </a>
                 </div>
-                <form action={deleteAction}>
+                <form
+                  action={deleteAction}
+                  onSubmit={confirmSubmit(
+                    `Hapus penawaran ${o.marketplace} (${o.sellerName}) varian ${o.variantLabel}? Penawaran hilang dari situs. Riwayat harganya tetap tersimpan dan penawaran bisa dipulihkan dari bagian Penawaran terhapus.`
+                  )}
+                >
                   <input type="hidden" name="offerId" value={o.id} />
                   <input type="hidden" name="productId" value={product.id} />
                   <Button type="submit" variant="ghost" size="sm">
@@ -207,19 +253,13 @@ export function OfferPanel({
                 <input type="hidden" name="offerId" value={o.id} />
                 <div className="space-y-2">
                   <Label htmlFor={`price-${o.id}`}>Harga hari ini (Rp)</Label>
-                  <Input
-                    id={`price-${o.id}`}
-                    name="priceIdr"
-                    type="number"
-                    min={0}
-                    step={1000}
-                    required
-                  />
+                  <Input id={`price-${o.id}`} name="priceIdr" required {...PRICE_INPUT} />
                 </div>
                 <Button type="submit" variant="outline" disabled={recording}>
                   Catat harga
                 </Button>
               </form>
+              {priceState.offerId === o.id ? <Notice state={priceState} /> : null}
 
               {/*
                 Mencatat pemeriksaan yang GAGAL, mis. listing hilang atau
@@ -277,7 +317,41 @@ export function OfferPanel({
           Belum ada penawaran.
         </p>
       )}
-      <Notice state={priceState} />
+
+      {product.deletedOffers.length > 0 ? (
+        <details className="mt-4 rounded-lg border border-border p-4">
+          <summary className="min-h-11 cursor-pointer content-center text-sm font-semibold text-foreground">
+            Penawaran terhapus ({product.deletedOffers.length})
+          </summary>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Tidak tampil di situs. Memulihkan mengembalikan penawaran beserta riwayat harganya; URL yang sama tidak bisa
+            ditambahkan ulang sebagai penawaran baru untuk varian yang sama.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {product.deletedOffers.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {o.marketplace} · {o.sellerName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Varian {o.variantLabel} · dihapus {new Date(o.deletedAt).toLocaleString("id-ID")} ·{" "}
+                    {o.latestPriceIdr !== null ? `harga terakhir ${formatIdr(o.latestPriceIdr)}` : "belum ada harga tercatat"}
+                  </p>
+                  <p className="break-all text-xs text-muted-foreground">{o.url}</p>
+                </div>
+                <form action={restoreAction}>
+                  <input type="hidden" name="offerId" value={o.id} />
+                  <input type="hidden" name="productId" value={product.id} />
+                  <Button type="submit" variant="outline" size="sm">
+                    Pulihkan
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
       {product.variants.length > 0 ? (
         <form action={add} className="mt-6 space-y-4 border-t border-border pt-5">
@@ -323,6 +397,13 @@ export function OfferPanel({
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="url">URL listing</Label>
               <Input id="url" name="url" type="url" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="offerPrice">Harga sekarang (Rp)</Label>
+              <Input id="offerPrice" name="priceIdr" aria-describedby="offerPrice-hint" {...PRICE_INPUT} />
+              <p id="offerPrice-hint" className="text-xs text-muted-foreground">
+                Boleh kosong. Bila diisi, harga langsung tercatat dengan waktu pemeriksaan sekarang.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="warranty">Garansi</Label>

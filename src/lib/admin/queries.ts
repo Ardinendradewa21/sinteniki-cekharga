@@ -73,6 +73,11 @@ export type AdminProductDetail = {
     ramGb: number;
     storageGb: number;
     region: string | null;
+    /**
+     * Penawaran varian ini yang sudah dihapus lunak. Barisnya masih ada, jadi
+     * variannya tidak bisa dihapus (riwayat harga) walau daftar aktifnya kosong.
+     */
+    deletedOfferCount: number;
     offers: {
       id: string;
       marketplace: string;
@@ -92,6 +97,16 @@ export type AdminProductDetail = {
       /** Riwayat pemeriksaan terakhir, berhasil maupun gagal. */
       checks: { outcome: string; attemptedAt: string; errorSummary: string | null }[];
     }[];
+  }[];
+  /** Penawaran yang dihapus lunak, terbaru dulu, supaya bisa dipulihkan. */
+  deletedOffers: {
+    id: string;
+    variantLabel: string;
+    marketplace: string;
+    sellerName: string;
+    url: string;
+    deletedAt: string;
+    latestPriceIdr: number | null;
   }[];
   reviews: AdminReviewRow[];
 };
@@ -579,7 +594,11 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
   ]);
   const variantIds = variantRows.map((v) => String(v.id));
 
-  const offerRows = await selectWhereIn("offers", "*", "variant_id", variantIds);
+  // Penawaran terhapus ikut dibaca (satu query yang sama) supaya admin bisa
+  // melihat dan memulihkannya; yang aktif dipisah di bawah.
+  const allOfferRows = await selectWhereIn("offers", "*", "variant_id", variantIds, { includeDeleted: true });
+  const offerRows = allOfferRows.filter((offer) => offer.deleted_at === null || offer.deleted_at === undefined);
+  const deletedOfferRows = allOfferRows.filter((offer) => offer.deleted_at !== null && offer.deleted_at !== undefined);
 
   // Riwayat harga dan pemeriksaan terus bertambah. Membaca semuanya lalu
   // memotong dengan `.limit()` tanpa urutan bisa kehilangan baris TERBARU.
@@ -589,7 +608,7 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
   // per penawaran: harga terakhir dari view offer_latest_price dan lima
   // pemeriksaan terakhir dari view offer_recent_checks (keduanya mengabaikan
   // baris yang dibatalkan undo).
-  const offerIds = offerRows.map((offer) => String(offer.id));
+  const offerIds = allOfferRows.map((offer) => String(offer.id));
   const [latestRows, checkRows, suggestionRows] = await Promise.all([
     selectWhereIn("offer_latest_price", "offer_id, price_idr, observed_at", "offer_id", offerIds, {
       uniqueKey: ["offer_id"],
@@ -654,6 +673,7 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
         ramGb: Number(v.ram_gb),
         storageGb: Number(v.storage_gb),
         region: (v.region as string | null) ?? null,
+        deletedOfferCount: deletedOfferRows.filter((o) => String(o.variant_id) === String(v.id)).length,
         offers: offerRows
           .filter((o) => String(o.variant_id) === String(v.id))
           .map((o) => {
@@ -677,6 +697,17 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
           }),
       }))
       .sort((a, b) => a.ramGb - b.ramGb || a.storageGb - b.storageGb),
+    deletedOffers: deletedOfferRows
+      .map((o) => ({
+        id: String(o.id),
+        variantLabel: variantLabelById.get(String(o.variant_id)) ?? "varian tidak dikenal",
+        marketplace: String(o.marketplace),
+        sellerName: String(o.seller_name),
+        url: String(o.url),
+        deletedAt: String(o.deleted_at),
+        latestPriceIdr: latestByOffer.get(String(o.id))?.price ?? null,
+      }))
+      .sort((a, b) => b.deletedAt.localeCompare(a.deletedAt)),
     reviews,
   };
 }

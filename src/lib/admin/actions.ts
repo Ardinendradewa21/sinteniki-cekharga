@@ -18,6 +18,7 @@ import {
   variantInput,
 } from "@/lib/admin/schema";
 import { officialBrandName } from "@/lib/catalog/brands";
+import { formatIdr } from "@/lib/catalog/pricing";
 import { isPendingUrlSuggestion, sameOfferUrl } from "@/lib/import/price-refresh-rules";
 import { loadStoreResolver } from "@/lib/import/stores";
 import { parseYoutubeVideoId } from "@/lib/reviews/youtube-match";
@@ -41,7 +42,11 @@ import { parseYoutubeVideoId } from "@/lib/reviews/youtube-match";
  * mentah, sesuai anjuran "constrain return values".
  */
 
-export type ActionState = { error: string | null; message?: string };
+/**
+ * `offerId` menandai penawaran yang dituju aksi per penawaran (catat harga),
+ * supaya pesannya tampil di kartu penawaran itu, bukan di bawah seluruh daftar.
+ */
+export type ActionState = { error: string | null; message?: string; offerId?: string };
 
 function fail(error: string): ActionState {
   return { error };
@@ -412,6 +417,62 @@ export async function deleteProductsBulkAction(formData: FormData): Promise<void
   );
 }
 
+/* ------------------------------------------------------------- kepemilikan */
+
+type Db = ReturnType<typeof getInsforgeAdminClient>["database"];
+
+/** Varian milik produk ini? Formulir bisa diubah, jadi id varian dari browser tidak dipercaya. */
+async function variantOfProduct(db: Db, variantId: string, productId: string): Promise<boolean | null> {
+  const { data, error } = await db.from("variants").select("id").eq("id", variantId).eq("product_id", productId).limit(1);
+  if (error) return null;
+  return (data ?? []).length > 0;
+}
+
+/** Penawaran milik produk ini (lewat variannya), beserta status hapus lunaknya. */
+async function offerOfProduct(
+  db: Db,
+  offerId: string,
+  productId: string
+): Promise<{ ok: true; offer: { id: string; variantId: string; url: string; deleted: boolean } | null } | { ok: false }> {
+  const offerRes = await db.from("offers").select("id, variant_id, url, deleted_at").eq("id", offerId).limit(1);
+  if (offerRes.error) return { ok: false };
+  const row = (offerRes.data ?? [])[0] as { id: string; variant_id: string; url: string; deleted_at: string | null } | undefined;
+  if (!row) return { ok: true, offer: null };
+  const owned = await variantOfProduct(db, row.variant_id, productId);
+  if (owned === null) return { ok: false };
+  if (!owned) return { ok: true, offer: null };
+  return { ok: true, offer: { id: row.id, variantId: row.variant_id, url: row.url, deleted: row.deleted_at !== null } };
+}
+
+/**
+ * Mencatat harga manual: DUA baris, dan keduanya wajib.
+ *
+ * `price_observations` menyimpan angkanya. `price_checks` menyimpan fakta
+ * bahwa pemeriksaan berhasil pada waktu tersebut, dan itulah yang dibaca UI
+ * sebagai "terakhir diperiksa" (PRD §7 butir 6). Menulis harga tanpa mencatat
+ * pemeriksaannya akan membuat harga baru tampil dengan waktu pemeriksaan lama.
+ */
+async function writeManualPrice(db: Db, offerId: string, priceIdr: number): Promise<boolean> {
+  const now = new Date().toISOString();
+  const observation = await db.from("price_observations").insert([
+    { offer_id: offerId, price_idr: priceIdr, observed_at: now, origin: "manual" },
+  ]);
+  if (observation.error) return false;
+
+  // Penawaran yang harganya dicatat manual ditandai manual, supaya undo batch
+  // impor tidak menghapus penawaran yang sudah dirawat admin.
+  const marked = await db.from("offers").update({ last_source: "manual", updated_by_batch_id: null }).eq("id", offerId);
+  if (marked.error) console.error("[harga] penanda manual gagal disimpan", marked.error);
+
+  const check = await db.from("price_checks").insert([
+    { offer_id: offerId, attempted_at: now, outcome: "success", error_summary: null },
+  ]);
+  if (check.error) {
+    console.error("[harga] observasi tersimpan tetapi pemeriksaan gagal dicatat", check.error);
+  }
+  return true;
+}
+
 /* ------------------------------------------------------------------ varian */
 
 export async function addVariantAction(
@@ -463,19 +524,23 @@ export async function deleteVariantAction(formData: FormData): Promise<void> {
   if (!variantId) return;
 
   const db = getInsforgeAdminClient().database;
+  if (!(await variantOfProduct(db, variantId, productId))) {
+    redirect(`/admin/products/${productId}?galat=varian-gagal`);
+  }
   // Varian yang pernah punya penawaran membawa riwayat harga, dan riwayat
   // harga tidak boleh dihapus (aturan system design 8; database juga
-  // menolaknya). Hanya varian yang belum pernah dipakai yang boleh dihapus.
+  // menolaknya). Penawaran yang sudah dihapus lunak IKUT dihitung: barisnya
+  // masih ada. Hanya varian yang belum pernah dipakai yang boleh dihapus.
+  // Galat baca dibedakan dari "terpakai", supaya admin tidak diberi alasan
+  // yang salah.
   const used = await db.from("offers").select("id").eq("variant_id", variantId).limit(1);
-  if (used.error || (used.data ?? []).length > 0) {
-    redirect(`/admin/products/${productId}?galat=varian-terpakai`);
-  }
+  if (used.error) redirect(`/admin/products/${productId}?galat=varian-gagal`);
+  if ((used.data ?? []).length > 0) redirect(`/admin/products/${productId}?galat=varian-terpakai`);
 
   const { error } = await db.from("variants").delete().eq("id", variantId);
+  if (error) redirect(`/admin/products/${productId}?galat=varian-gagal`);
 
-  if (!error) {
-    await recordAudit(admin, "varian.hapus", "variant", variantId, { productId });
-  }
+  await recordAudit(admin, "varian.hapus", "variant", variantId, { productId });
   revalidatePath(`/admin/products/${productId}`);
   revalidateCatalog();
   redirect(`/admin/products/${productId}`);
@@ -495,6 +560,11 @@ export async function addOfferAction(
     return fail(parsed.error.issues[0]?.message ?? "Masukan penawaran tidak valid.");
   }
   const input = parsed.data;
+  const db = getInsforgeAdminClient().database;
+
+  const owned = await variantOfProduct(db, input.variantId, productId);
+  if (owned === null) return fail("Gagal memeriksa varian. Coba lagi.");
+  if (!owned) return fail("Varian tidak dikenal untuk produk ini. Muat ulang halaman.");
 
   let storeId: string | null = null;
   try {
@@ -503,8 +573,8 @@ export async function addOfferAction(
     // Toko hanya pelengkap (logo, jenis toko); penawaran tetap boleh disimpan.
   }
 
-  const { error } = await getInsforgeAdminClient()
-    .database.from("offers")
+  const { data: inserted, error } = await db
+    .from("offers")
     .insert([
       {
         last_source: "manual",
@@ -517,23 +587,48 @@ export async function addOfferAction(
         listing_status: input.listingStatus,
         seller_verified: input.sellerVerified,
       },
-    ]);
+    ])
+    .select("id");
 
   if (error) {
+    if (!JSON.stringify(error).includes("23505")) return fail("Gagal menambah penawaran.");
+    // Batasan unik (varian, URL) juga mencakup penawaran yang sudah dihapus
+    // lunak. Tanpa penjelasan ini admin melihat daftar kosong tetapi ditolak
+    // dengan "sudah terdaftar" (temuan 15 November 2026).
+    const existing = await db
+      .from("offers")
+      .select("deleted_at")
+      .eq("variant_id", input.variantId)
+      .eq("url", input.url)
+      .limit(1);
+    const deleted = ((existing.data ?? [])[0] as { deleted_at: string | null } | undefined)?.deleted_at;
     return fail(
-      JSON.stringify(error).includes("23505")
-        ? "Penawaran dengan URL listing itu sudah terdaftar untuk varian ini."
-        : "Gagal menambah penawaran."
+      deleted
+        ? "URL ini milik penawaran varian ini yang sudah dihapus. Pulihkan dari bagian Penawaran terhapus di bawah, lalu catat harganya."
+        : "Penawaran dengan URL listing itu sudah terdaftar untuk varian ini."
     );
   }
 
-  await recordAudit(admin, "penawaran.tambah", "offer", null, {
+  const offerId = ((inserted ?? [])[0] as { id: string } | undefined)?.id ?? null;
+  await recordAudit(admin, "penawaran.tambah", "offer", offerId, {
     productId,
     marketplace: input.marketplace,
+    ...(input.priceIdr !== null ? { priceIdr: input.priceIdr } : {}),
   });
+
+  let message = "Penawaran ditambahkan. Catat harganya di kartu penawaran supaya harga tampil.";
+  if (input.priceIdr !== null) {
+    const saved = offerId ? await writeManualPrice(db, offerId, input.priceIdr) : false;
+    if (saved) {
+      await recordAudit(admin, "harga.catat", "offer", offerId, { productId, priceIdr: input.priceIdr });
+      message = `Penawaran ditambahkan dengan harga ${formatIdr(input.priceIdr)}.`;
+    } else {
+      message = "Penawaran ditambahkan, tetapi harganya gagal disimpan. Catat ulang harganya di kartu penawaran.";
+    }
+  }
   revalidatePath(`/admin/products/${productId}`);
   revalidateCatalog();
-  return { error: null, message: "Penawaran ditambahkan." };
+  return { error: null, message };
 }
 
 export async function deleteOfferAction(formData: FormData): Promise<void> {
@@ -541,10 +636,14 @@ export async function deleteOfferAction(formData: FormData): Promise<void> {
   const offerId = String(formData.get("offerId") ?? "");
   const productId = String(formData.get("productId") ?? "");
   if (!offerId) return;
+  const db = getInsforgeAdminClient().database;
+  const owner = await offerOfProduct(db, offerId, productId);
+  if (!owner.ok || !owner.offer) redirect(`/admin/products/${productId}?galat=penawaran-gagal#penawaran`);
 
-  // Hapus lunak: penawaran hilang dari situs, riwayat harganya tetap ada.
-  const { error } = await getInsforgeAdminClient()
-    .database.from("offers")
+  // Hapus lunak: penawaran hilang dari situs, riwayat harganya tetap ada, dan
+  // admin bisa memulihkannya dari bagian "Penawaran terhapus".
+  const { error } = await db
+    .from("offers")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", offerId)
     .is("deleted_at", null);
@@ -554,7 +653,40 @@ export async function deleteOfferAction(formData: FormData): Promise<void> {
   }
   revalidatePath(`/admin/products/${productId}`);
   revalidateCatalog();
-  redirect(`/admin/products/${productId}`);
+  redirect(`/admin/products/${productId}?${error ? "galat=penawaran-gagal" : "pesan=penawaran-dihapus"}#penawaran`);
+}
+
+/**
+ * Memulihkan penawaran yang dihapus lunak (15 November 2026). Penghapusan
+ * satu klik tidak bisa dibatalkan dari UI sebelumnya, dan URL-nya tetap
+ * terkunci batasan unik, jadi penawaran yang terhapus tidak sengaja tidak
+ * bisa ditambahkan ulang. Riwayat harganya utuh, karena barisnya tidak
+ * pernah dihapus.
+ */
+export async function restoreOfferAction(formData: FormData): Promise<void> {
+  const admin = await requireStaff([]);
+  const offerId = String(formData.get("offerId") ?? "");
+  const productId = String(formData.get("productId") ?? "");
+  if (!offerId || !productId) redirect("/admin/products");
+  const db = getInsforgeAdminClient().database;
+
+  const owner = await offerOfProduct(db, offerId, productId);
+  if (!owner.ok || !owner.offer || !owner.offer.deleted) {
+    redirect(`/admin/products/${productId}?galat=pulihkan-gagal#penawaran`);
+  }
+
+  const { data, error } = await db
+    .from("offers")
+    .update({ deleted_at: null, last_source: "manual" })
+    .eq("id", offerId)
+    .not("deleted_at", "is", null)
+    .select("id");
+  if (error || (data ?? []).length === 0) redirect(`/admin/products/${productId}?galat=pulihkan-gagal#penawaran`);
+
+  await recordAudit(admin, "penawaran.pulihkan", "offer", offerId, { productId });
+  revalidatePath(`/admin/products/${productId}`);
+  revalidateCatalog();
+  redirect(`/admin/products/${productId}?pesan=penawaran-dipulihkan#penawaran`);
 }
 
 /**
@@ -653,41 +785,29 @@ export async function recordPriceAction(
 ): Promise<ActionState> {
   const admin = await requireStaff([]);
 
+  const rawOfferId = String(formData.get("offerId") ?? "");
   const parsed = priceInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Harga tidak valid.");
+    return { ...fail(parsed.error.issues[0]?.message ?? "Harga tidak valid."), offerId: rawOfferId };
   }
   const { offerId, priceIdr } = parsed.data;
 
   const db = getInsforgeAdminClient().database;
-  const now = new Date().toISOString();
-
-  // DUA baris ditulis, dan keduanya wajib.
-  //
-  // `price_observations` menyimpan angkanya. `price_checks` menyimpan fakta
-  // bahwa pemeriksaan berhasil pada waktu tersebut, dan itulah yang dibaca UI
-  // sebagai "terakhir diperiksa" (PRD §7 butir 6). Menulis harga tanpa mencatat
-  // pemeriksaannya akan membuat harga baru tampil dengan waktu pemeriksaan lama.
-  const observation = await db.from("price_observations").insert([
-    { offer_id: offerId, price_idr: priceIdr, observed_at: now, origin: "manual" },
-  ]);
-  if (observation.error) return fail("Gagal menyimpan harga.");
-
-  // Penawaran yang harganya dicatat manual ditandai manual, supaya undo batch
-  // impor tidak menghapus penawaran yang sudah dirawat admin.
-  await db.from("offers").update({ last_source: "manual", updated_by_batch_id: null }).eq("id", offerId);
-
-  const check = await db.from("price_checks").insert([
-    { offer_id: offerId, attempted_at: now, outcome: "success", error_summary: null },
-  ]);
-  if (check.error) {
-    console.error("[harga] observasi tersimpan tetapi pemeriksaan gagal dicatat", check.error);
+  // Harga hanya untuk penawaran aktif milik produk ini: harga di penawaran
+  // terhapus tidak tampil di mana pun, jadi admin mengira sudah tersimpan.
+  const owner = await offerOfProduct(db, offerId, productId);
+  if (!owner.ok) return { ...fail("Gagal memeriksa penawaran. Coba lagi."), offerId };
+  if (!owner.offer) return { ...fail("Penawaran tidak dikenal untuk produk ini. Muat ulang halaman."), offerId };
+  if (owner.offer.deleted) {
+    return { ...fail("Penawaran ini sudah dihapus. Pulihkan dulu dari bagian Penawaran terhapus."), offerId };
   }
+
+  if (!(await writeManualPrice(db, offerId, priceIdr))) return { ...fail("Gagal menyimpan harga."), offerId };
 
   await recordAudit(admin, "harga.catat", "offer", offerId, { productId, priceIdr });
   revalidatePath(`/admin/products/${productId}`);
   revalidateCatalog();
-  return { error: null, message: "Harga tercatat." };
+  return { error: null, message: `Harga ${formatIdr(priceIdr)} tercatat.`, offerId };
 }
 
 /* --------------------------------------------------------------- review */

@@ -20,6 +20,7 @@ import {
   recordFailedCheckAction,
   recordPriceAction,
   resolveOfferUrlAction,
+  restoreOfferAction,
   setProductStatusAction,
   setReviewStatusAction,
   updateProductAction,
@@ -47,12 +48,18 @@ const GALAT: Record<string, string> = {
   "alasan-kosong": "Pemeriksaan gagal harus disertai alasan, supaya riwayatnya bisa dibaca ulang.",
   hapus: "Gagal menghapus produk.",
   "varian-terpakai":
-    "Varian ini pernah punya penawaran, jadi riwayat harganya harus tetap tersimpan. Hapus penawarannya saja bila tidak dijual lagi.",
+    "Varian ini punya riwayat penawaran (termasuk penawaran yang sudah dihapus), jadi tidak bisa dihapus supaya riwayat harganya tetap utuh. Penawaran yang terhapus bisa dipulihkan di bagian Penawaran terhapus.",
+  "varian-gagal": "Varian gagal dihapus. Muat ulang halaman lalu coba lagi.",
+  "penawaran-gagal": "Penawaran gagal dihapus. Muat ulang halaman lalu coba lagi.",
+  "pulihkan-gagal": "Penawaran tidak bisa dipulihkan. Mungkin sudah dipulihkan di tab lain; muat ulang halaman.",
   "url-usulan": "Usulan URL tidak bisa diproses. Mungkin sudah diputuskan di tab lain atau URL penawarannya sudah berubah. Muat ulang halaman.",
   "url-bentrok": "Varian ini sudah punya penawaran lain dengan URL yang sama. Hapus salah satunya dulu.",
 };
 
 const PESAN: Record<string, string> = {
+  "penawaran-dihapus":
+    "Penawaran dihapus dari situs. Riwayat harganya tetap tersimpan, dan penawaran bisa dipulihkan di bagian Penawaran terhapus.",
+  "penawaran-dipulihkan": "Penawaran dipulihkan. Catat harga hari ini supaya harganya tampil sebagai harga terbaru.",
   "url-diganti": "URL penawaran diganti ke halaman yang tercantum di situs resmi. Riwayat harganya tetap.",
   "url-ditolak": "Usulan URL ditolak dan tidak akan diusulkan lagi.",
   "ganda-dihapus":
@@ -191,6 +198,7 @@ export default async function AdminProductDetailPage({
           priceAction={recordPrice}
           failedCheckAction={recordFailedCheckAction}
           urlAction={resolveOfferUrlAction}
+          restoreAction={restoreOfferAction}
         />
 
         <ReviewPanel

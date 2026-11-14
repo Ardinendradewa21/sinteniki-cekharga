@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { parseRupiahInput } from "@/lib/admin/rupiah-input";
+
 /**
  * Validasi masukan form admin (PRD §9 dan §10).
  *
@@ -96,6 +98,20 @@ export const variantInput = z.object({
   region: optionalText,
 });
 
+/**
+ * Harga Rupiah dari kolom teks: menerima "2.849.000", "Rp 2.849.000", atau
+ * "2849000" (lihat rupiah-input.ts). Rp0 dan angka tak wajar ditolak: harga
+ * kosong bukan nol (PRD §7).
+ */
+const rupiahField = z.string().transform((raw, ctx) => {
+  const parsed = parseRupiahInput(raw);
+  if (!parsed.ok) {
+    ctx.addIssue({ code: "custom", message: parsed.error });
+    return z.NEVER;
+  }
+  return parsed.value;
+});
+
 export const offerInput = z.object({
   variantId: z.uuid("Varian tidak dikenal"),
   marketplace: z.string().trim().min(1, "Marketplace wajib diisi"),
@@ -104,6 +120,8 @@ export const offerInput = z.object({
   warranty: optionalText,
   listingStatus: z.enum(["active", "out-of-stock", "ambiguous", "inactive"]),
   sellerVerified: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  /** Harga saat penawaran ditambahkan; boleh kosong lalu dicatat belakangan. */
+  priceIdr: z.preprocess((value) => emptyToNull(value) ?? null, rupiahField.nullable()),
 });
 
 /** Keputusan admin atas usulan URL situs resmi (PB-06). */
@@ -119,11 +137,7 @@ export const priceInput = z.object({
    * Rupiah bulat. Batas atas ada supaya salah ketik nol berlebih tertangkap di
    * sini, bukan menjadi harga Rp1 miliar yang tampil ke pengunjung.
    */
-  priceIdr: z.coerce
-    .number()
-    .int("Harga harus bilangan bulat Rupiah")
-    .nonnegative("Harga tidak boleh negatif")
-    .max(500_000_000, "Harga di luar batas wajar, periksa lagi angkanya"),
+  priceIdr: rupiahField,
 });
 
 /** Membaca FormData bernama titik (mis. "specs.chipset") menjadi objek bertingkat. */
