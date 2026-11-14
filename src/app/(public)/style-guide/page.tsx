@@ -8,6 +8,7 @@ import { CollapseDemo, CountUpDemo, WrapDemo } from "@/components/style-guide/mo
 import { PriceDisplay } from "@/components/price-display";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product/product-gallery";
+import { ReviewList } from "@/components/product/review-list";
 import {
   Accordion,
   AccordionContent,
@@ -40,6 +41,66 @@ import { isDemoData, listProductSummaries } from "@/lib/catalog/queries";
  */
 export const dynamic = "force-dynamic";
 
+
+/** Contoh komponen Review Carousel; ditandai DemoNotice di halaman. */
+const REVIEW_EXAMPLES = [
+  {
+    id: "contoh-umum-1",
+    channelName: "Channel contoh A",
+    videoUrl: "https://example.com/ulasan/contoh-a",
+    publishedAt: "2026-10-20T03:00:00.000Z",
+    timestampSeconds: 412,
+    aspect: "umum" as const,
+    summary: "Contoh ringkasan: baterai bertahan sehari untuk pemakaian campuran, layar cukup terang di luar ruangan.",
+    strengths: ["Contoh kelebihan pertama"],
+    limitations: ["Contoh keterbatasan pertama"],
+    testContext: "Contoh konteks: pemakaian 3 hari, kecerahan otomatis",
+    isSponsored: false,
+    variantLabel: "8/256 GB",
+  },
+  {
+    id: "contoh-umum-2",
+    channelName: "Channel contoh B",
+    videoUrl: "https://example.com/ulasan/contoh-b",
+    publishedAt: "2026-10-02T03:00:00.000Z",
+    timestampSeconds: null,
+    aspect: "umum" as const,
+    summary: "Contoh ringkasan kedua dari video bersponsor, supaya label bersponsor terlihat di kartu.",
+    strengths: [],
+    limitations: ["Contoh keterbatasan kedua"],
+    testContext: null,
+    isSponsored: true,
+    variantLabel: null,
+  },
+  {
+    id: "contoh-umum-3",
+    channelName: "Channel contoh C",
+    videoUrl: "https://example.com/ulasan/contoh-c",
+    publishedAt: "2026-09-15T03:00:00.000Z",
+    timestampSeconds: 95,
+    aspect: "umum" as const,
+    summary: "Contoh ringkasan ketiga.",
+    strengths: ["Contoh kelebihan ketiga"],
+    limitations: [],
+    testContext: null,
+    isSponsored: false,
+    variantLabel: null,
+  },
+  {
+    id: "contoh-kamera-1",
+    channelName: "Channel contoh A",
+    videoUrl: "https://example.com/ulasan/contoh-a-kamera",
+    publishedAt: "2026-10-20T03:00:00.000Z",
+    timestampSeconds: 640,
+    aspect: "kamera" as const,
+    summary: "Contoh ringkasan kamera: satu ulasan saja, jadi tampil sebagai kartu biasa tanpa kontrol carousel.",
+    strengths: [],
+    limitations: [],
+    testContext: null,
+    isSponsored: false,
+    variantLabel: null,
+  },
+];
 
 export const metadata: Metadata = {
   title: "Design system",
@@ -404,6 +465,18 @@ export default async function StyleGuidePage() {
               ).values(),
             ]}
           />
+        </div>
+      </Section>
+
+      <Section
+        title="Review Carousel"
+        description="Ulasan per aspek di halaman detail: satu kartu per tampilan, tombol panah dan penanda posisi, tanpa putar otomatis. Tanpa JavaScript daftar tetap bisa digeser."
+      >
+        <DemoNotice className="mb-6">
+          Kartu di bawah adalah contoh komponen. Nama channel, tanggal, dan isi ulasannya bukan ulasan nyata.
+        </DemoNotice>
+        <div className="max-w-xl">
+          <ReviewList reviews={REVIEW_EXAMPLES} />
         </div>
       </Section>
 

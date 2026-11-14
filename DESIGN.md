@@ -206,13 +206,13 @@ Dibuat dengan `node scripts/build-scene.mjs` dari foto milik sendiri atau berlis
 | Segmented Control | Pilihan berjajar dengan thumb yang bergeser | Thumb pakai `layoutId` Motion; dipakai untuk varian, warna, urutan, periode. Bila pilihan tidak muat di 375px, jatuh ke chip yang membungkus (warna) atau `select` (urutan) |
 | Product Card | Panggung foto terang, nama, varian acuan, harga mulai, waktu periksa, aksi Bandingkan | Kartu solid, hover hanya pada elemen yang bisa diklik. Waktu periksa sebagai Status Pill lewat `CardPriceMeta` (VD-05), juga di contoh perbandingan, tabel perbandingan, dan kartu rekomendasi |
 | Filter Bar | Cari, chip filter, urutan | Mulai `lg` menempel di `top-(--header-h)`, `.glass-text` + `.glass-float`, `z-[45]` (di atas Compare Tray, di bawah header). Di bawah `lg` kartu solid biasa: `backdrop-filter` membuat lembar bawah filter (`position: fixed`) salah posisi. Teks bantuan, filter aktif, dan tafsiran pencarian di luar bar. Urutan: `SegmentedNav` (tautan, jalan tanpa JavaScript) mulai `lg`, `<select>` di bawahnya (VD-05) |
-| Segmented Nav | Versi tautan Segmented Control | `src/components/motion/segmented-nav.tsx`: `<nav>` + `<a aria-current>`, thumb `layoutId`. Untuk pilihan yang hidup di URL (urutan katalog, varian produk di VD-06) |
+| Segmented Nav | Versi tautan Segmented Control | `src/components/motion/segmented-nav.tsx`: `<nav>` + `<a aria-current>`, thumb `layoutId`, opsi `replace`/`scroll`. Untuk pilihan yang hidup di URL: urutan katalog, kapasitas (dua baris: kapasitas + harga varian) dan warna (foto kecil di panggung + nama) di detail produk (VD-06). Pilihan membungkus ke baris berikutnya bila tidak muat |
 | Catalog Grid | Hasil katalog | `src/components/catalog/catalog-grid.tsx`: saat hasil berubah, kartu tetap bergeser (layout 450ms), kartu baru fade-up, kartu hilang memudar; halaman pertama tanpa animasi di atas lipatan (`useHydrated`) |
 | Compare Tray | Kandidat terpilih + tombol Bandingkan | Melayang di bawah, `.glass-text` + `.glass-float`, muncul dengan slide-up |
-| Offer Row | Ikon marketplace dalam tile, nama toko, varian/warna, pill waktu periksa, harga, tombol Buka | Gaya "transaction list"; solid |
-| Price History | Garis tangga hijau, titik = pemeriksaan nyata, celah putus-putus "tidak diperiksa" | Sesuai PRD PB-31; TANPA garis perkiraan |
-| Recent Checks | Daftar dengan date tile (tanggal besar, bulan kecil) | Dipakai bila pemeriksaan < 5 |
-| Review Carousel | Kartu ringkasan ulasan per channel, indikator halaman, tombol panah | Menyebut channel, tanggal, aspek, label bersponsor. Tanpa autoplay; bisa dioperasikan keyboard |
+| Offer Row | Ikon marketplace dalam tile, nama toko, varian/warna, pill waktu periksa, harga, tombol Buka | Gaya "transaction list"; solid. Satu kolom berpemisah di satu kartu, dasar harga segar berlatar `--brand-muted`, muncul stagger lewat `StaggerList` (VD-06, `src/components/product/offer-list.tsx`) |
+| Price History | Garis tangga hijau, titik = pemeriksaan nyata, celah putus-putus "tidak diperiksa" | Sesuai PRD PB-31; TANPA garis perkiraan. Seri pertama `--brand`, lainnya `--foreground`/`--muted-foreground` dengan bentuk penanda berbeda. Terbuka sekali 900ms lewat klip `translateX` (VD-06, `price-history-chart.tsx`); HTML server berisi grafik lengkap |
+| Recent Checks | Daftar dengan date tile (tanggal besar, bulan kecil) | Dipakai selama data belum memenuhi ambang grafik (5 pemeriksaan dalam 7 hari), maksimal 5 catatan terbaru (VD-06) |
+| Review Carousel | Kartu ringkasan ulasan per channel, indikator halaman, tombol panah | Menyebut channel, tanggal, aspek, label bersponsor. Tanpa autoplay; bisa dioperasikan keyboard. Scroll-snap CSS (jalan tanpa JavaScript), satu kartu per tampilan; satu ulasan = kartu biasa (VD-06, `review-carousel.tsx`) |
 | Quick Start (Tanya AI) | Chip budget dan kebutuhan + tombol kirim | Pola "quick send". Chip menyebut angka dan kegiatan nyata (gaya copy `cekharga-antislop` §5). Beranda (VD-04): formulir GET ke `/assistant?tanya=form` dengan radio `budget` (2/3/5 juta, Lainnya = kosong) dan checkbox `kegiatan`; berfungsi tanpa JavaScript; tanpa pilihan bawaan; tidak mengirim `budget_wajib` sehingga asisten tetap menanyakan apakah budget batas keras (PRD FR-06) |
 | Recommendation Card | Kandidat, alasan cocok, kompromi, varian, harga + waktu periksa | Tanpa skor atau peringkat |
 | Status Pill | Titik + kata | Harga segar: "Diperiksa 7 jam lalu". Lewat batas 30 jam: "Harga terakhir tercatat · 2 hari lalu" (istilah PRD §7), warna `--warning`. Selalu ada kata. Komponen: `src/components/status-pill.tsx` (VD-04) |
@@ -248,7 +248,7 @@ Library: **Motion** (`motion/react`, versi 13.2.0 terpasang). Jangan menambah GS
 | Preset | `src/lib/motion.ts` | `easeOutQuint`, `easeIn`, `duration`, `transition.{micro,entrance,layout,dataReveal,exit,thumb}`, `staggerDelay(i)` (50ms, maks. 8 item), `instant`, hook `useMotionPreset()` |
 | Reveal | `src/components/motion/use-reveal.ts`, `reveal.tsx` (`Reveal`, `StaggerList`, `StaggerItem`); grid katalog memakai `CatalogGridItem` (VD-05, `RevealItem` dihapus) | HTML server selalu terlihat. Hanya elemen di bawah lipatan yang disembunyikan (layout effect, sebelum paint) lalu dimunculkan sekali lewat `inView` + `animate`. Reduced motion: tanpa animasi. Tidak perlu `<noscript>` |
 | CountUp | `src/components/motion/count-up.tsx` | `value`, `format: "idr" \| "number"`. Teks lewat MotionValue (tanpa render ulang React). Untuk "Rp" yang lebih kecil, pakai `format="number"` dan tulis "Rp" di span terpisah |
-| Segmented Control | `src/components/motion/segmented-control.tsx` | `label`, `options` (`value`, `label`, `text?`, `disabled?`), `value`, `onValueChange`, `collapseBelow?: "sm" \| "md"`, `fullWidth?`. Untuk pilihan yang hidup di URL (varian di halaman detail) tetap dipakai tautan; versi tautan diputuskan di VD-06 |
+| Segmented Control | `src/components/motion/segmented-control.tsx` | `label`, `options` (`value`, `label`, `text?`, `disabled?`), `value`, `onValueChange`, `collapseBelow?: "sm" \| "md"`, `fullWidth?`. Pilihan yang hidup di URL memakai versi tautan `SegmentedNav` (VD-05, VD-06) |
 
 Screenshot halaman penuh tidak menggulir, jadi elemen reveal di bawah lipatan tampak kosong di tangkapan semacam itu. Skrip QA harus menggulir halaman dulu sebelum memotret.
 
@@ -259,7 +259,7 @@ Screenshot halaman penuh tidak menggulir, jadi elemen reveal di bawah lipatan ta
 3. Garis perkiraan harga, skor, peringkat, badge "terbaik", "terlaris", "harga terendah".
 4. Menyalin kode, foto, ikon, atau teks dari Verdelo.
 5. Emoji sebagai ikon (pakai Hugeicons yang sudah terpasang).
-6. Warna hex langsung di komponen.
+6. Warna hex langsung di komponen. Pengecualian: warna merek logo marketplace pihak ketiga di `marketplace-logo.tsx` (bagian dari logonya, bukan warna tema; keputusan VD-06).
 7. `background-attachment: fixed`, scene `position: fixed`, dan `backdrop-filter` di luar elemen menempel/melayang.
 8. CountUp yang dimulai dari 0 atau berjalan saat halaman pertama dimuat.
 

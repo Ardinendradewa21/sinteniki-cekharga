@@ -1,8 +1,7 @@
 import Image from "next/image";
-import Link from "next/link";
 
+import { SegmentedNav } from "@/components/motion/segmented-nav";
 import type { ProductDetailColor } from "@/lib/catalog/queries";
-import { cn } from "@/lib/utils";
 
 /**
  * Pemilih warna di halaman detail (2026-10-12).
@@ -15,6 +14,10 @@ import { cn } from "@/lib/utils";
  * Setiap pilihan selalu menulis nama warnanya. Foto kecil atau titik warna
  * hanya penanda tambahan, jadi pengguna tidak perlu membedakan warna dari
  * tampilan saja (PRD §8).
+ *
+ * Segmented Control versi tautan (DESIGN.md §7, VD-06). Nama warna sering
+ * panjang ("Pantone Arabesque"), jadi pilihan membungkus ke baris berikutnya
+ * dan tampil seperti chip di layar sempit. Foto kecil tetap di panggung terang.
  */
 export function ColorPicker({
   colors,
@@ -32,25 +35,19 @@ export function ColorPicker({
         {selected ? <span className="font-normal text-muted-foreground">: {selected.name}</span> : null}
         <span className="ml-2 text-xs font-normal text-muted-foreground">{colors.length} warna tercatat</span>
       </h2>
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {colors.map((color) => (
-          <li key={color.key}>
-            <Link
-              href={color.href}
-              replace
-              scroll={false}
-              aria-current={color.isSelected ? "true" : undefined}
-              aria-label={`Warna ${color.name}${color.thumbnail ? "" : ", belum ada foto warna ini"}`}
-              className={cn(
-                "flex min-h-11 items-center gap-2 rounded-xl border py-1.5 pl-1.5 pr-4 text-sm transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                color.isSelected
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border-strong bg-card text-foreground hover:bg-muted",
-                !color.thumbnail && !color.swatch && "pl-4"
-              )}
-            >
+      <SegmentedNav
+        label="Pilih warna"
+        replace
+        scroll={false}
+        className="mt-3"
+        itemClassName="gap-2 pl-1.5 pr-4"
+        items={colors.map((color) => ({
+          href: color.href,
+          active: color.isSelected,
+          label: (
+            <span className="flex items-center gap-2">
               {color.thumbnail ? (
-                <span className="stage relative size-8 shrink-0 overflow-hidden rounded-lg">
+                <span className="stage relative size-8 shrink-0 overflow-hidden rounded-md">
                   <Image src={color.thumbnail.src} alt="" fill sizes="32px" className="object-contain p-0.5" />
                 </span>
               ) : color.swatch ? (
@@ -59,12 +56,15 @@ export function ColorPicker({
                   className="ml-1.5 size-5 shrink-0 rounded-full border border-border-strong"
                   style={{ backgroundColor: color.swatch }}
                 />
-              ) : null}
-              <span className="font-semibold">{color.name}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+              ) : (
+                <span aria-hidden="true" className="w-1.5" />
+              )}
+              <span>{color.name}</span>
+              {color.thumbnail ? null : <span className="sr-only">, belum ada foto warna ini</span>}
+            </span>
+          ),
+        }))}
+      />
     </div>
   );
 }

@@ -1,8 +1,6 @@
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Clock01Icon } from "@hugeicons/core-free-icons";
-
 import type { StartingPriceResolution } from "@/lib/catalog/pricing";
 import { formatCheckedAt, formatIdr } from "@/lib/catalog/pricing";
+import { CountUp } from "@/components/motion/count-up";
 import { StatusPill } from "@/components/status-pill";
 import { cn } from "@/lib/utils";
 
@@ -40,49 +38,33 @@ export function PriceDisplay({
   showStartingLabel?: boolean;
   className?: string;
 }) {
-  if (price.status === "available") {
+  if (price.status === "available" || price.status === "stale") {
+    const fresh = price.status === "available";
+    // Satu pohon elemen untuk harga segar maupun lama: CountUp tetap terpasang
+    // saat pengguna berganti kapasitas, jadi angkanya bergulir dari harga lama
+    // ke harga baru (DESIGN.md §8.4). Ganti warna tidak mengubah harga, jadi
+    // tidak memicu apa pun. HTML server selalu berisi angka final.
     return (
-      <div className={cn("flex flex-col gap-1", className)}>
-        {showStartingLabel ? (
-          <span className="text-xs text-muted-foreground">Mulai dari</span>
-        ) : null}
-        <span className="tabular text-2xl font-extrabold tracking-tight text-foreground">
-          {formatIdr(price.priceIdr)}
+      <div className={cn("flex flex-col items-start gap-1", className)}>
+        <span className="text-xs text-muted-foreground">
+          {fresh && showStartingLabel ? "Mulai dari" : "Harga"}
         </span>
+        <CountUp value={price.priceIdr} className="text-2xl font-extrabold tracking-tight text-foreground" />
         {referenceVariant ? (
           <span className="text-xs text-muted-foreground">
             Untuk varian {referenceVariant}
           </span>
         ) : null}
-        <span className="mt-1 inline-flex items-center gap-1.5 text-xs text-success">
-          <HugeiconsIcon icon={Clock01Icon} size={14} strokeWidth={2} aria-hidden />
-          Diperiksa {formatCheckedAt(price.checkedAt, now)}
-        </span>
-      </div>
-    );
-  }
-
-  if (price.status === "stale") {
-    return (
-      <div className={cn("flex flex-col gap-1", className)}>
-        <span className="text-xs text-muted-foreground">
-          Harga terakhir tercatat
-        </span>
-        <span className="tabular text-2xl font-extrabold tracking-tight text-foreground">
-          {formatIdr(price.priceIdr)}
-        </span>
-        {referenceVariant ? (
+        <StatusPill tone={fresh ? "fresh" : "stale"} className="mt-1">
+          {fresh
+            ? `Diperiksa ${formatCheckedAt(price.checkedAt, now)}`
+            : `Harga terakhir tercatat · ${formatCheckedAt(price.observedAt, now)}`}
+        </StatusPill>
+        {fresh ? null : (
           <span className="text-xs text-muted-foreground">
-            Untuk varian {referenceVariant}
+            Belum diperiksa ulang, jadi harganya bisa sudah berubah. Cek harga akhir di marketplace sebelum membeli.
           </span>
-        ) : null}
-        <span className="mt-1 inline-flex items-center gap-1.5 text-xs text-warning">
-          <HugeiconsIcon icon={Clock01Icon} size={14} strokeWidth={2} aria-hidden />
-          Tercatat {formatCheckedAt(price.observedAt, now)} · belum diperiksa ulang
-        </span>
-        <span className="text-xs text-muted-foreground">
-          Harga bisa sudah berubah. Cek harga akhir di marketplace sebelum membeli.
-        </span>
+        )}
       </div>
     );
   }

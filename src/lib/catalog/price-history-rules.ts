@@ -113,7 +113,7 @@ export function buildPriceHistory({ offers, observations, checks, now }: History
 
 /* ------------------------------------------------------------ geometri SVG */
 
-type ChartGeometry = {
+export type ChartGeometry = {
   width: number;
   height: number;
   series: { offerId: string; label: string; solid: string; dashed: string; markers: { x: number; y: number; at: string; priceIdr: number }[] }[];

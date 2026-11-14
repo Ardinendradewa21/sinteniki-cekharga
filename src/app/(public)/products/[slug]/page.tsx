@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -261,14 +260,14 @@ export default async function ProductDetailPage(
       </div>
 
       {detail.selectedVariant ? (
-        // Riwayat dimuat terpisah dan mengalir belakangan supaya tidak menahan bagian atas halaman.
-        <Suspense fallback={<div className="mt-12 h-[320px]" aria-hidden />}>
-          <PriceHistorySection
-            variantId={detail.selectedVariant.id}
-            variantLabel={detail.selectedVariant.label}
-            now={now}
-          />
-        </Suspense>
+        // Tanpa <Suspense> (VD-06): riwayat yang dialirkan belakangan disisipkan
+        // oleh skrip, jadi tanpa JavaScript bagian ini tidak pernah tampil
+        // (temuan VD-05). Biayanya satu query riwayat sebelum HTML dikirim.
+        <PriceHistorySection
+          variantId={detail.selectedVariant.id}
+          variantLabel={detail.selectedVariant.label}
+          now={now}
+        />
       ) : null}
 
       <AdSlot code="product_inline" brand={detail.brand} className="mt-12" />
