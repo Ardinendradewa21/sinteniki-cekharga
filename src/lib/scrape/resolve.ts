@@ -1,12 +1,14 @@
 import "server-only";
 
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
+import { ScrapeCooldownError } from "@/lib/scrape/cooldown";
 import { mapRow } from "@/lib/import/gsmarena";
 import { implausibleVariant } from "@/lib/import/variant-rules";
 import { SPEC_COLUMNS, type SpecRow } from "@/lib/scrape/parsers";
 import {
   fetchGsmarenaSpec,
   findGsmarenaPage,
+  parseGsmarenaSpecHtml,
   officialSourceFor,
   ScrapeBlockedError,
   ScrapeSourceError,
@@ -23,12 +25,24 @@ import { SCRAPE_BRAND_LABELS, type LineupItem, type PreviewIssue, type ResolveRe
 
 export function friendlyError(error: unknown): { error: string; blocked: boolean } {
   if (error instanceof ScrapeBlockedError) return { error: error.message, blocked: true };
+  // Masa tenang bukan blokir baru: tidak dicatat sebagai `blocked`, supaya
+  // menunggu tidak memperpanjang masa tenangnya sendiri.
+  if (error instanceof ScrapeCooldownError) return { error: error.message, blocked: false };
   if (error instanceof ScrapeSourceError) return { error: error.message, blocked: false };
   console.error("[scrape] galat tak terduga:", error);
   return { error: "Terjadi galat saat mengambil data. Coba lagi.", blocked: false };
 }
 
-export async function resolveLineupItem(lineup: LineupItem, pathOverride?: string): Promise<ResolveResult> {
+export async function resolveLineupItem(
+  lineup: LineupItem,
+  pathOverride?: string,
+  /**
+   * HTML halaman model yang disalin admin dari browsernya (Salin spesifikasi).
+   * Bila ada, GSMArena tidak dihubungi sama sekali; `lineup.gsmarenaPath`
+   * wajib berisi path halaman itu.
+   */
+  pasted?: { html: string }
+): Promise<ResolveResult> {
   try {
     // Daftar dari GSMArena sudah membawa halamannya; tidak perlu dicocokkan.
     const found = lineup.gsmarenaPath
@@ -49,7 +63,9 @@ export async function resolveLineupItem(lineup: LineupItem, pathOverride?: strin
 
     if (!target) return await officialOnlyResult(lineup, issues);
 
-    const spec = await fetchGsmarenaSpec(lineup.brand, target.path);
+    const spec = pasted
+      ? parseGsmarenaSpecHtml(lineup.brand, target.path, pasted.html)
+      : await fetchGsmarenaSpec(lineup.brand, target.path);
     for (const message of spec.issues) issues.push({ level: "warning", message });
 
     const outcome = mapRow(spec.row);

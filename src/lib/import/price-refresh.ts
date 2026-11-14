@@ -6,6 +6,7 @@ import { selectWhereIn } from "@/lib/backend/paged-read";
 import { chunk } from "@/lib/import/batch";
 import { createBatch, queuePlannedItems } from "@/lib/import/batches";
 import { planPriceRefresh, refreshKeyFor, type RefreshOffer } from "@/lib/import/price-refresh-rules";
+import { ScrapeCooldownError } from "@/lib/scrape/cooldown";
 import { fetchLineup, modelKeyFor, officialSourceFor, ScrapeBlockedError } from "@/lib/scrape/sources";
 import { SCRAPE_BRANDS, type LineupItem, type ScrapeBrand } from "@/lib/scrape/types";
 
@@ -164,8 +165,11 @@ async function prepare(brand: ScrapeBrand, now: Date): Promise<Prepared> {
     const lineup = await fetchLineup(brand);
     return { brand, offers, lineup, fetchedAt: new Date().toISOString(), refreshKey };
   } catch (error) {
-    // Tantangan anti-bot tidak ditembus; dicatat dan dicoba lagi besok.
-    const blocked = error instanceof ScrapeBlockedError;
+    // Tantangan anti-bot tidak ditembus; dicatat dan dicoba lagi besok. Masa
+    // tenang setelah blokir (cooldown.ts) dilaporkan sebagai blokir juga.
+    // Daftar resmi yang kosong kini melempar error (bukan daftar sah), jadi
+    // penawaran tidak dianggap hilang saat situs resmi sedang bermasalah.
+    const blocked = error instanceof ScrapeBlockedError || error instanceof ScrapeCooldownError;
     console.error(`[harga-harian] ${brand}: sumber gagal dibaca:`, error);
     return {
       brand,

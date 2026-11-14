@@ -52,10 +52,10 @@ test.describe("Pusat Impor", () => {
     });
   });
 
-  test("TC-IMP-01 lima tab tersedia (termasuk Salin harga) dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
+  test("TC-IMP-01 lima tab tersedia (termasuk Salin harga & foto) dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
     await page.goto("/admin/import");
     const nav = page.getByRole("navigation", { name: "Sumber impor" });
-    for (const tab of ["Unggah CSV", "Tarik otomatis", "Antrean foto", "Salin harga", "Riwayat batch"]) {
+    for (const tab of ["Unggah CSV", "Tarik otomatis", "Antrean foto", "Salin harga & foto", "Riwayat batch"]) {
       await expect(nav.getByRole("link", { name: tab, exact: true })).toBeVisible();
     }
     await expect(nav.getByRole("link", { name: "Galeri foto", exact: true })).toHaveCount(0);
@@ -194,6 +194,47 @@ test.describe("Pusat Impor", () => {
     expect(rows[0]).toHaveLength(20);
     expect(rows[0].slice(0, 9)).toEqual(["Motorola", "Moto G57 Power", "", "", "", "Corsair", "https://p2-ofp.static.pub//fes/cms/2025/11/04/1.png", "1", "ya"]);
     expect(rows[2].slice(7, 9)).toEqual(["3", "tidak"]);
+  });
+
+  test("TC-IMP-09 salin spesifikasi: bookmarklet menyalin halaman model GSMArena, tempelan diperiksa sebelum jadi sesi @regression", async ({ page, context }) => {
+    await page.goto("/admin/import?tab=tarik");
+    const section = page.locator("section[aria-labelledby=salin-spek]");
+    await expect(section).toBeVisible();
+    const link = section.getByRole("link", { name: "Salin spesifikasi" });
+    await expect(link).toHaveAttribute("href", /^javascript:/);
+    const code = decodeURIComponent(((await link.getAttribute("href")) ?? "").slice("javascript:".length));
+
+    // Tempelan yang bukan dari bookmarklet ditolak dengan pesan, tanpa sesi baru.
+    await section.getByLabel("Hasil salinan").fill("Motorola Moto G45 spesifikasi");
+    await section.getByRole("button", { name: "Baca spesifikasi" }).click();
+    await expect(section.getByRole("alert")).toContainText("bukan salinan dari bookmarklet");
+
+    // Halaman tiruan di host GSMArena (dilayani lokal, tidak menyentuh gsmarena.com).
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "https://www.gsmarena.com" });
+    await page.route("https://www.gsmarena.com/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: `<!doctype html><html><head><title>Motorola Moto G45</title></head><body><div id="body">
+          <h1 class="specs-phone-name-title" data-spec="modelname">Motorola Moto G45</h1>
+          <div id="specs-list"><table><tr><td class="ttl">Technology</td><td class="nfo" data-spec="nettech">GSM / LTE / 5G</td></tr></table></div>
+        </div></body></html>`,
+      })
+    );
+    await page.route("https://fdn2.gsmarena.com/**", (route) => route.fulfill({ status: 404 }));
+    await page.goto("https://www.gsmarena.com/motorola_moto_g45-13202.php");
+    await page.evaluate(code);
+    await expect(page.locator("#cekharga-salin-spek")).toContainText("Tersalin");
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    // Clipboard Windows menulis CRLF; pengurai server menerimanya.
+    expect(copied.split(/\r?\n/).slice(0, 2)).toEqual(["CEKHARGA-SPEK/1", "motorola_moto_g45-13202.php"]);
+
+    // Merek salah dipilih: ditolak sebelum sesi dibuat, jadi uji ini tidak menulis apa pun.
+    await page.goto("/admin/import?tab=tarik");
+    await section.getByLabel("Merek").selectOption("samsung");
+    await section.getByLabel("Hasil salinan").fill(copied);
+    await section.getByRole("button", { name: "Baca spesifikasi" }).click();
+    await expect(section.getByRole("alert")).toContainText("bukan model Samsung");
+    await expect(page).not.toHaveURL(/sesi=/);
   });
 
   test("TC-IMP-05 CSV gabungan: koreksi otomatis tampil, harga ditinjau dulu lalu foto sebagai tahap lanjutan @regression", async ({ page }) => {
