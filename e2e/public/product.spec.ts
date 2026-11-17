@@ -26,7 +26,8 @@ test.describe("Detail produk (FR-03, FR-05)", () => {
     let index = 0;
     while (index < count && (await variants.nth(index).getAttribute("aria-current")) === "true") index += 1;
     const target = variants.nth(index);
-    const label = (await target.locator("span").first().innerText()).trim();
+    // Baris pertama = kapasitas; baris kedua harga varian (SegmentedNav dua baris, VD-06).
+    const label = (await target.innerText()).split(/\r?\n/)[0]!.trim();
     await target.click();
     await expect(page).toHaveURL(/[?&]varian=/);
     await expect(variants.filter({ hasText: label }).first()).toHaveAttribute("aria-current", "true");

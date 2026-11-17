@@ -1,7 +1,9 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import { LinkSquare01Icon } from "@hugeicons/core-free-icons";
 
+import { ReviewCarousel } from "@/components/product/review-carousel";
 import type { ProductReview } from "@/lib/catalog/queries";
+import { cn } from "@/lib/utils";
 
 /**
  * Ringkasan pengalaman reviewer (PRD FR-03 dan FR-08).
@@ -18,17 +20,22 @@ import type { ProductReview } from "@/lib/catalog/queries";
  *   tanpa konteks tidak bisa dinilai pembaca.
  * - Ulasan keseluruhan dan ulasan kamera dipisah (PB-40), dan video bersponsor
  *   selalu ditandai.
+ * - Lebih dari satu ulasan per aspek tampil sebagai Review Carousel (VD-06):
+ *   satu kartu per tampilan, tanpa autoplay. Urutannya tetap terbaru dulu,
+ *   bukan peringkat.
  */
 
 const GROUPS = [
   {
     aspect: "umum",
+    aspectLabel: "Aspek umum",
     title: "Ulasan keseluruhan",
     hint: "Pemakaian harian, performa, baterai, dan layar.",
     empty: "Belum ada ringkasan ulasan keseluruhan untuk produk ini.",
   },
   {
     aspect: "kamera",
+    aspectLabel: "Aspek kamera",
     title: "Ulasan kamera",
     hint: "Hasil foto dan video menurut reviewer yang mengujinya.",
     empty: "Belum ada ringkasan ulasan kamera untuk produk ini.",
@@ -70,11 +77,17 @@ export function ReviewList({ reviews }: { reviews: ProductReview[] }) {
                 {group.empty}
               </p>
             ) : (
-              <ul className="mt-3 space-y-4">
-                {items.map((review) => (
-                  <ReviewCard key={review.id} review={review} />
-                ))}
-              </ul>
+              items.length === 1 ? (
+                <ul className="mt-3">
+                  <ReviewCard review={items[0]!} aspectLabel={group.aspectLabel} />
+                </ul>
+              ) : (
+                <ReviewCarousel label={group.title}>
+                  {items.map((review) => (
+                    <ReviewCard key={review.id} review={review} aspectLabel={group.aspectLabel} className="w-full shrink-0 snap-start" />
+                  ))}
+                </ReviewCarousel>
+              )
             )}
           </div>
         );
@@ -83,24 +96,31 @@ export function ReviewList({ reviews }: { reviews: ProductReview[] }) {
   );
 }
 
-function ReviewCard({ review }: { review: ProductReview }) {
+function ReviewCard({
+  review,
+  aspectLabel,
+  className,
+}: {
+  review: ProductReview;
+  aspectLabel: string;
+  className?: string;
+}) {
   return (
-    <li className="rounded-xl border border-border bg-card p-5">
+    <li className={cn("rounded-xl border border-border bg-card p-5", className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-sm font-bold text-foreground">{review.channelName}</p>
         <p className="text-xs text-muted-foreground">{formatPublishedAt(review.publishedAt)}</p>
       </div>
 
-      {review.variantLabel || review.isSponsored ? (
-        <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          {review.variantLabel ? <span>Varian {review.variantLabel}</span> : null}
-          {review.isSponsored ? (
-            <span className="rounded-pill border border-warning/50 bg-warning/10 px-2 py-0.5 font-semibold text-foreground">
-              Video bersponsor
-            </span>
-          ) : null}
-        </p>
-      ) : null}
+      {/* Aspek, varian, dan label bersponsor selalu terlihat di tiap kartu (DESIGN.md §7). */}
+      <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>{[aspectLabel, review.variantLabel ? `Varian ${review.variantLabel}` : null].filter(Boolean).join(" · ")}</span>
+        {review.isSponsored ? (
+          <span className="rounded-pill border border-warning/50 bg-warning/10 px-2 py-0.5 font-semibold text-foreground">
+            Video bersponsor
+          </span>
+        ) : null}
+      </p>
 
       <p className="mt-3 text-sm leading-relaxed text-foreground">{review.summary}</p>
 
@@ -139,7 +159,7 @@ function ReviewCard({ review }: { review: ProductReview }) {
         href={review.videoUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+        className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
       >
         Lihat video sumber
         {review.timestampSeconds !== null ? ` (menit ${formatTimestamp(review.timestampSeconds)})` : ""}

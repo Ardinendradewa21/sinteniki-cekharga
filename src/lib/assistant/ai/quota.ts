@@ -41,7 +41,7 @@ export function quotaMessage(reason: Exclude<QuotaDecision, { allowed: true }>["
   }
 }
 
-function quotaSecret(): string | null {
+export function quotaSecret(): string | null {
   return process.env.AI_QUOTA_SECRET?.trim() || process.env.INSFORGE_API_KEY?.trim() || null;
 }
 
@@ -66,6 +66,28 @@ export async function consumeDailyQuota(ip: string): Promise<QuotaDecision> {
   }
   if (row.allowed) return { allowed: true };
   return { allowed: false, reason: row.subject_calls >= AI_LIMITS.dailyPerClient ? "client" : "global" };
+}
+
+/**
+ * Kuota harian untuk fitur AI staf (mis. draf ulasan dari video): subjeknya
+ * HMAC dari kunci fitur + id pengguna, batasnya sendiri, dan tetap ikut
+ * terhitung di total harian semua panggilan AI.
+ */
+export async function consumeStaffQuota(feature: string, userId: string, limit: number): Promise<QuotaDecision> {
+  const secret = quotaSecret();
+  if (!secret) return { allowed: false, reason: "unavailable" };
+  const { data, error } = await getInsforgeAdminClient().database.rpc("ai_consume_quota", {
+    p_subject: quotaSubject(`${feature}:${userId}`, secret),
+    p_subject_limit: limit,
+    p_global_limit: AI_LIMITS.dailyGlobal,
+  });
+  const row = (Array.isArray(data) ? data[0] : data) as { allowed: boolean; subject_calls: number } | undefined;
+  if (error || !row) {
+    console.error("[ai-kuota] kuota staf gagal dibaca:", error);
+    return { allowed: false, reason: "unavailable" };
+  }
+  if (row.allowed) return { allowed: true };
+  return { allowed: false, reason: row.subject_calls >= limit ? "client" : "global" };
 }
 
 /** Retensi hitungan harian; dipanggil cron harian. */

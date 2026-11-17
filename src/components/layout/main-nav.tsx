@@ -11,9 +11,10 @@ import {
   Search01Icon,
   Sun02Icon,
 } from "@hugeicons/core-free-icons"
-import { AnimatePresence, motion, useReducedMotion } from "motion/react"
+import { AnimatePresence, motion } from "motion/react"
 
 import { Button } from "@/components/ui/button"
+import { useMotionPreset } from "@/lib/motion"
 import { isActivePath } from "@/lib/navigation"
 import { setPublicThemeAction } from "@/lib/public/preferences"
 import type { PublicTheme } from "@/lib/public/preferences-config"
@@ -33,12 +34,13 @@ type MainNavBarProps = {
 }
 
 /**
- * Navigasi kapsul publik (PRD §8: "navigasi kapsul, tombol ikon bulat").
+ * Navigasi kapsul publik (PRD §8: "navigasi kapsul, tombol ikon bulat") di
+ * dalam Glass Header (DESIGN.md §7). Kacanya milik kapsul header; navigasi ini
+ * tidak menambah latar, bayangan, atau glow sendiri.
  *
- * Gaya padat bertoken: tanpa blur kaca, bayangan rgba mentah, atau glow pada
- * menu aktif (keputusan pemilik produk 2026-10-07; PRD §8 "hindari glow").
- * Menu aktif ditandai latar `muted` + teks penuh + `aria-current`, jadi tidak
- * bergantung pada warna saja.
+ * Menu aktif ditandai latar `--brand-muted` yang bergeser antarmenu (spring
+ * thumb dari src/lib/motion.ts) + teks penuh + `aria-current`, jadi tidak
+ * bergantung pada warna saja. Reduced motion: pindah seketika.
  *
  * Path aktif berasal dari router, bukan state visual lokal, sehingga tombol
  * Back/Forward dan deep link selalu menunjukkan tab yang benar.
@@ -53,7 +55,7 @@ export function MainNavBar({
   const [isMenuOpen, setIsMenuOpen] = React.useState(false)
   const [theme, setTheme] = React.useState<PublicTheme>(initialTheme)
   const [themePending, startThemeTransition] = React.useTransition()
-  const shouldReduceMotion = useReducedMotion()
+  const { reduce: shouldReduceMotion, transition } = useMotionPreset()
 
   function applyThemeToPage(nextTheme: PublicTheme) {
     document
@@ -102,7 +104,7 @@ export function MainNavBar({
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="hidden items-center rounded-pill border border-border bg-card p-1 shadow-sm md:flex">
+      <div className="hidden items-center md:flex">
         <nav aria-label="Navigasi utama">
           <ul className="flex items-center gap-0.5">
             {items.map((item) => {
@@ -123,16 +125,12 @@ export function MainNavBar({
                   >
                     {isActive ? (
                       // Latar aktif bergeser antarmenu (layoutId); tanpa
-                      // bayangan atau glow. Reduced motion: langsung pindah.
+                      // bayangan atau glow.
                       <motion.span
                         layoutId="header-nav-active"
                         aria-hidden
-                        className="absolute inset-0 -z-10 rounded-pill bg-muted"
-                        transition={
-                          shouldReduceMotion
-                            ? { duration: 0 }
-                            : { type: "spring", stiffness: 420, damping: 38 }
-                        }
+                        className="absolute inset-0 -z-10 rounded-pill bg-brand-muted"
+                        transition={transition("thumb")}
                       />
                     ) : null}
                     <span className="relative z-10">{item.label}</span>
@@ -165,10 +163,10 @@ export function MainNavBar({
         </Button>
       </div>
 
-      <div className="flex items-center gap-2 md:hidden">
+      <div className="flex items-center gap-0.5 md:hidden">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon"
           onClick={() => setIsMenuOpen((open) => !open)}
           aria-expanded={isMenuOpen}
@@ -183,7 +181,7 @@ export function MainNavBar({
           />
         </Button>
 
-        <Button asChild variant="outline" size="icon">
+        <Button asChild variant="ghost" size="icon">
           <Link href={searchHref} aria-label="Cari produk">
             <HugeiconsIcon icon={Search01Icon} size={20} strokeWidth={1.8} aria-hidden />
           </Link>
@@ -191,7 +189,7 @@ export function MainNavBar({
 
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon"
           onClick={toggleTheme}
           disabled={themePending}
@@ -209,12 +207,11 @@ export function MainNavBar({
             id="menu-navigasi-mobile"
             aria-label="Navigasi utama (mobile)"
             initial={{ opacity: 0, y: shouldReduceMotion ? 0 : -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -8 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            className="absolute inset-x-0 top-full z-40 border-b border-border bg-background px-4 pb-4 shadow-md md:hidden"
+            animate={{ opacity: 1, y: 0, transition: transition("micro") }}
+            exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -8, transition: transition("exit") }}
+            className="pointer-events-auto absolute inset-x-0 top-full z-40 px-4 pt-1 md:hidden"
           >
-            <ul className="mx-auto flex max-w-7xl flex-col gap-1 rounded-2xl border border-border bg-card p-2">
+            <ul className="glass-text glass-float mx-auto flex max-w-7xl flex-col gap-1 rounded-xl p-2">
               {items.map((item) => {
                 const isActive = isActivePath(pathname, item.href)
 
@@ -225,8 +222,8 @@ export function MainNavBar({
                       aria-current={isActive ? "page" : undefined}
                       onClick={() => setIsMenuOpen(false)}
                       className={cn(
-                        "flex min-h-12 flex-col justify-center rounded-xl px-4 py-2 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-                        isActive ? "bg-muted" : "hover:bg-muted"
+                        "flex min-h-12 flex-col justify-center rounded-lg px-4 py-2 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                        isActive ? "bg-brand-muted" : "hover:bg-muted"
                       )}
                     >
                       <span

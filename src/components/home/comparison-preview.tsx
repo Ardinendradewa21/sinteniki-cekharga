@@ -8,6 +8,7 @@ import { CardPriceMeta, CardPriceValue } from "@/components/price-display";
 import { formatIdr } from "@/lib/catalog/pricing";
 import type { ComparisonExample } from "@/lib/catalog/queries";
 import { buildCompareHref } from "@/lib/catalog/compare-href";
+import { cn } from "@/lib/utils";
 
 /**
  * Contoh perbandingan di beranda, PRD §4 menyebut beranda memuat "contoh
@@ -102,16 +103,21 @@ export function ComparisonPreview({
               />
             </div>
 
-            <dl className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
+            <dl className="mt-4 space-y-1 border-t border-border pt-4 text-sm">
               {item.attributes.map((attribute) => (
                 <div
                   key={attribute.label}
-                  className="flex items-baseline justify-between gap-3"
+                  // Baris yang berbeda disorot --brand-muted (DESIGN.md, VD-04);
+                  // label "beda" tetap ada, jadi tidak bergantung pada warna.
+                  className={cn(
+                    "-mx-2 flex items-baseline justify-between gap-3 rounded-md px-2 py-1",
+                    differingLabels.has(attribute.label) && "bg-brand-muted"
+                  )}
                 >
                   <dt className="text-muted-foreground">
                     {attribute.label}
                     {differingLabels.has(attribute.label) ? (
-                      <Badge variant="brand" className="ml-1.5">
+                      <Badge variant="brand" className="ml-1.5 bg-card">
                         beda
                       </Badge>
                     ) : null}

@@ -99,12 +99,10 @@ function NativeAd({ creative }: { creative: ServedCreative }) {
         LIFT
       )}
     >
-      {/* Aksen gradasi: penanda visual bahwa ini unit berbeda dari kartu produk. */}
-      <span
-        aria-hidden="true"
-        className="absolute inset-x-0 top-0 z-10 h-1 bg-gradient-to-r from-brand via-accent-warm to-brand"
-      />
-      <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-brand-muted to-muted sm:aspect-auto sm:min-h-48">
+      {/* Garis aksen solid: penanda visual bahwa ini unit berbeda dari kartu
+          produk. Gradien dan terracotta dipensiunkan (DESIGN.md §9). */}
+      <span aria-hidden="true" className="absolute inset-x-0 top-0 z-10 h-1 bg-brand" />
+      <div className="stage relative aspect-video overflow-hidden sm:aspect-auto sm:min-h-48">
         {creative.imageUrl ? (
           <Image
             src={creative.imageUrl}
@@ -119,7 +117,7 @@ function NativeAd({ creative }: { creative: ServedCreative }) {
       <div className="flex flex-col gap-2 p-5 sm:p-6">
         <div className="flex items-center gap-2">
           {creative.logoUrl ? (
-            <span className="relative size-8 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-border">
+            <span className="stage relative size-8 shrink-0 overflow-hidden rounded-lg ring-1 ring-border">
               <Image src={creative.logoUrl} alt="" fill sizes="32px" className="object-contain p-1" />
             </span>
           ) : null}

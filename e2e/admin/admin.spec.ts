@@ -55,6 +55,8 @@ test.describe("Pusat Impor", () => {
   test("TC-IMP-01 lima tab tersedia (termasuk Salin harga & foto) dan tab riwayat menampilkan asal batch @smoke", async ({ page }) => {
     await page.goto("/admin/import");
     const nav = page.getByRole("navigation", { name: "Sumber impor" });
+    // Tab "Salin harga" berganti nama menjadi "Salin harga & foto" di Sprint 14
+    // (alat bantu salin foto galeri Motorola).
     for (const tab of ["Unggah CSV", "Tarik otomatis", "Antrean foto", "Salin harga & foto", "Riwayat batch"]) {
       await expect(nav.getByRole("link", { name: tab, exact: true })).toBeVisible();
     }

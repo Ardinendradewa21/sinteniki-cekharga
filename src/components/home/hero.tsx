@@ -6,9 +6,11 @@ import {
   Store01Icon,
 } from "@hugeicons/core-free-icons";
 
+import { HeroPanelFrame } from "@/components/home/hero-panel-frame";
 import { HeroTour } from "@/components/home/hero-tour";
 import type { HeroTourData } from "@/components/home/hero-tour-data";
 import { Container } from "@/components/layout/container";
+import { SceneBackdrop } from "@/components/layout/scene-backdrop";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -44,65 +46,76 @@ const HERO_FACTS = [
 
 export function Hero({ tour, isDemo }: { tour: HeroTourData; isDemo: boolean }) {
   return (
-    <section className="relative isolate pt-10 pb-4 md:pt-16">
-      {/* Blob gradient statis: kehangatan warna tanpa animasi dan tanpa menyentuh kontras teks. */}
-      <div className="warmth-blob" />
-      <Container>
-        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
-          <div className="animate-in fade-in slide-in-from-bottom-3 duration-300">
-            <p className="inline-flex items-center rounded-pill border border-border bg-card px-4 py-2 text-xs font-medium text-muted-foreground">
-              Versi awal, baru mencakup smartphone kondisi baru
-            </p>
+    <section>
+      {/*
+        Scene penuh (DESIGN.md §6.2) di belakang copy, Hero Price Panel, dan
+        strip fakta; ditarik ke atas setinggi Glass Header supaya foto juga
+        tampak di belakang kapsulnya. `data-scene-region` dipakai
+        HeroPanelFrame untuk menyejajarkan foto blur panel dengan foto ini.
 
-            <h1 className="mt-6 text-4xl leading-[1.08] font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Pilih HP yang cocok, lengkap dengan komprominya.
-            </h1>
+        Copy tampil langsung tanpa animasi masuk: h1 adalah elemen LCP dan
+        DESIGN.md §8.3 meminta elemen di atas lipatan tidak menunggu animasi.
+      */}
+      <div
+        data-scene-region=""
+        className="relative isolate -mt-(--header-h) pt-[calc(var(--header-h)+2.5rem)] pb-10 md:pt-[calc(var(--header-h)+4rem)] md:pb-14"
+      >
+        <SceneBackdrop variant="full" textZone="left" />
+        <Container>
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
+            <div>
+              <p className="inline-flex items-center rounded-pill border border-border bg-card px-4 py-2 text-xs font-medium text-muted-foreground">
+                Versi awal, baru mencakup smartphone kondisi baru
+              </p>
 
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
-              Spesifikasi, pengalaman reviewer, dan harga tercatat dalam satu
-              tempat. Lihat apa yang kamu dapat, dan apa yang dikorbankan.
-            </p>
+              <h1 className="mt-6 text-4xl leading-[1.08] font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                Pilih HP yang cocok, lengkap dengan komprominya.
+              </h1>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild size="lg">
-                <Link href="/products">Cari produk</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/assistant">Tanya AI</Link>
-              </Button>
-            </div>
-          </div>
+              <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
+                Spesifikasi, pengalaman reviewer, dan harga tercatat dalam satu
+                tempat. Lihat apa yang kamu dapat, dan apa yang dikorbankan.
+              </p>
 
-          <div className="animate-in fade-in fill-mode-both delay-100 duration-300">
-            <HeroTour data={tour} isDemo={isDemo} />
-          </div>
-        </div>
-
-        <ul className="mt-10 grid gap-6 border-t border-border pt-8 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-border md:mt-14">
-          {HERO_FACTS.map((fact) => (
-            <li
-              key={fact.title}
-              className="flex gap-3 sm:px-6 sm:first:pl-0 sm:last:pr-0"
-            >
-              <HugeiconsIcon
-                icon={fact.icon}
-                size={20}
-                strokeWidth={1.8}
-                className="mt-0.5 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {fact.title}
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  {fact.body}
-                </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Button asChild size="lg">
+                  <Link href="/products">Cari produk</Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link href="/assistant">Tanya AI</Link>
+                </Button>
               </div>
-            </li>
-          ))}
-        </ul>
-      </Container>
+            </div>
+
+            {/* Hero Price Panel (DESIGN.md §7): kaca pre-blurred berisi kartu
+                solid dan kontrol bertrack solid; tidak ada teks langsung di
+                atas kaca. Muncul dengan opacity saja (tanpa transform). */}
+            <HeroPanelFrame className="animate-in fade-in fill-mode-both mx-auto w-full max-w-md delay-100 duration-300 lg:mx-0 lg:justify-self-end">
+              <HeroTour data={tour} isDemo={isDemo} />
+            </HeroPanelFrame>
+          </div>
+
+          {/* Tiga fakta wajib PRD FR-01 sebagai strip kaca tipis di atas foto;
+              teksnya di atas glass-text, jadi lolos 4.5:1 di foto terburuk. */}
+          <ul className="glass-text mt-10 grid gap-4 rounded-xl p-4 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-border sm:p-5 md:mt-14">
+            {HERO_FACTS.map((fact) => (
+              <li key={fact.title} className="flex gap-3 sm:px-5 sm:first:pl-0 sm:last:pr-0">
+                <HugeiconsIcon
+                  icon={fact.icon}
+                  size={20}
+                  strokeWidth={1.8}
+                  className="mt-0.5 shrink-0 text-brand-text"
+                  aria-hidden
+                />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{fact.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{fact.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Container>
+      </div>
     </section>
   );
 }

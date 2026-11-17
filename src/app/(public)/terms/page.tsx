@@ -154,7 +154,7 @@ export default function TermsPage() {
             acuan membeli. Penjelasan lengkapnya ada di{" "}
             <Link
               href="/how-it-works"
-              className="font-medium text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+              className="font-medium text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
             >
               halaman Cara Kerja
             </Link>
@@ -218,7 +218,7 @@ export default function TermsPage() {
               keliru, bisa dikirim ke{" "}
               <a
                 href={`mailto:${COMPANY.email}`}
-                className="font-medium text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+                className="font-medium text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
               >
                 {COMPANY.email}
               </a>

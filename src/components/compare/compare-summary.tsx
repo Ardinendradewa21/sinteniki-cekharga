@@ -9,8 +9,9 @@ import type { CompareResult } from "@/lib/catalog/queries";
  * - Selisih HANYA dihitung dari kandidat yang harganya layak. Kandidat tanpa
  *   harga layak tidak dianggap Rp0 dan tidak dianggap termurah; namanya
  *   disebutkan terbuka supaya pembaca tahu siapa yang tidak ikut dihitung.
- * - Selisih disajikan sebagai jarak antara termurah dan termahal, bukan sebagai
- *   penilaian mana yang lebih layak dibeli.
+ * - Selisih disajikan sebagai kalimat (VD-07): siapa yang harganya lebih tinggi
+ *   dan seberapa, dari varian acuan masing-masing. Bukan penilaian mana yang
+ *   lebih layak dibeli. Harga yang sama dinyatakan sama, bukan "Rp0".
  * - Konteks pengalaman reviewer ikut ditampilkan karena angka spesifikasi saja
  *   tidak menjelaskan rasa pemakaian.
  */
@@ -30,28 +31,28 @@ export function CompareSummary({ result }: { result: CompareResult }) {
             diketahui tidak boleh dikira-kira.
           </p>
         ) : priceSpread.differenceIdr === 0 ? (
-          // "Rp0" terbaca seperti data rusak; harga yang sama dinyatakan sama.
-          <>
-            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-foreground">Harga sama</p>
-            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-              {priceSpread.comparedCount} kandidat yang harganya layak sama-sama{" "}
-              <span className="tabular font-semibold text-foreground">{formatIdr(priceSpread.lowestPriceIdr)}</span>{" "}
-              untuk varian acuan masing-masing.
-            </p>
-          </>
+          <p className="mt-1.5 text-base leading-relaxed text-foreground">
+            Harga varian acuan {priceSpread.comparedCount === 2 ? "keduanya" : `${priceSpread.comparedCount} kandidat`} sama:{" "}
+            <span className="tabular font-bold">{formatIdr(priceSpread.lowestPriceIdr)}</span>.
+          </p>
+        ) : priceSpread.comparedCount === 2 ? (
+          <p className="mt-1.5 text-base leading-relaxed text-foreground">
+            Harga varian acuan {priceSpread.mostExpensiveName}{" "}
+            <span className="tabular font-bold">{formatIdr(priceSpread.differenceIdr)}</span> lebih tinggi daripada{" "}
+            {priceSpread.cheapestName}.
+          </p>
         ) : (
-          <>
-            <p className="tabular mt-1.5 text-2xl font-extrabold tracking-tight text-foreground">
-              {formatIdr(priceSpread.differenceIdr)}
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-              Jarak antara {priceSpread.cheapestName} yang terendah dan{" "}
-              {priceSpread.mostExpensiveName} yang tertinggi, dihitung dari{" "}
-              {priceSpread.comparedCount} kandidat yang harganya layak dan dari
-              varian acuan masing-masing.
-            </p>
-          </>
+          <p className="mt-1.5 text-base leading-relaxed text-foreground">
+            Dari {priceSpread.comparedCount} kandidat, harga varian acuan {priceSpread.mostExpensiveName} paling tinggi,{" "}
+            <span className="tabular font-bold">{formatIdr(priceSpread.differenceIdr)}</span> di atas{" "}
+            {priceSpread.cheapestName} yang paling rendah.
+          </p>
         )}
+        {priceSpread !== null ? (
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Dihitung dari varian acuan yang tertulis di kartu tiap produk.
+          </p>
+        ) : null}
 
         {itemsWithoutPrice.length > 0 ? (
           <p className="mt-3 border-t border-border pt-3 text-sm leading-relaxed text-warning">

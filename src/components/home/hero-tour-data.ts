@@ -24,6 +24,7 @@ export type HeroTourData = {
     brand: string;
     model: string;
     price: string;
+    priceIdr: number;
     variant: string | null;
     checked: string;
     fresh: boolean;
@@ -91,6 +92,8 @@ export function buildHeroTour(
           brand: heroProduct.brand,
           model: heroProduct.model,
           price: formatIdr(heroPrice.priceIdr),
+          // Angka mentah untuk CountUp (render pertama tetap angka akhir).
+          priceIdr: heroPrice.priceIdr,
           variant: heroProduct.priceReferenceVariant,
           checked:
             heroPrice.status === "available"

@@ -1,6 +1,7 @@
+import { SegmentedNav } from "@/components/motion/segmented-nav";
 import { variantPriceNote } from "@/lib/catalog/pricing";
 import type { ProductDetailVariant } from "@/lib/catalog/queries";
-import { VariantPicker } from "@/components/product/variant-picker";
+import { cn } from "@/lib/utils";
 
 /**
  * Pemilih varian (PRD FR-03: "pilihan varian yang benar-benar tercatat").
@@ -13,6 +14,11 @@ import { VariantPicker } from "@/components/product/variant-picker";
  * Setiap varian menampilkan harganya sendiri (segar, "Terakhir …", atau
  * "Belum ada harga"), jadi pengguna tahu harga tiap kapasitas sebelum
  * mengkliknya, bukan setelahnya.
+ *
+ * Tampil sebagai Segmented Control versi tautan (DESIGN.md §7, VD-06): thumb
+ * bergeser ke kapasitas terpilih, dan pilihan membungkus ke baris berikutnya
+ * bila tidak muat di 375 px. Pemilih ringkas di halaman perbandingan tetap
+ * memakai VariantPicker.
  */
 export function VariantSelector({
   variants,
@@ -33,17 +39,30 @@ export function VariantSelector({
         Pilih kapasitas
         <span className="ml-2 text-xs font-normal text-muted-foreground">{variants.length} varian tercatat</span>
       </h2>
-      <VariantPicker
+      <SegmentedNav
+        label="Pilih kapasitas"
+        replace
         className="mt-3"
-        options={variants.map((variant) => {
+        itemClassName="min-h-14 py-1.5"
+        items={variants.map((variant) => {
           const note = variantPriceNote(variant.price);
           return {
-            key: variant.id,
-            label: variant.label,
             href: variant.href,
-            selected: variant.isSelected,
-            note: note.text,
-            noteTone: note.tone,
+            active: variant.isSelected,
+            label: (
+              <span className="flex flex-col items-start text-left">
+                <span>{variant.label}</span>
+                <span
+                  className={cn(
+                    "text-xs font-medium",
+                    // "Terakhir …" tetap memakai kata, bukan warna saja.
+                    note.tone === "warning" ? "text-warning" : variant.isSelected ? "text-foreground" : "text-muted-foreground"
+                  )}
+                >
+                  {note.text}
+                </span>
+              </span>
+            ),
           };
         })}
       />

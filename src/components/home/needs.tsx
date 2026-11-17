@@ -24,7 +24,7 @@ export function Needs({ pages }: { pages: { page: NeedPage; matched: number }[] 
       {pages.length === 0 ? (
         <p className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-muted-foreground">
           Belum ada daftar yang memenuhi syarat saat ini, biasanya karena harga sedang menunggu pemeriksaan ulang.{" "}
-          <Link href="/products" className="font-semibold text-brand underline underline-offset-4">
+          <Link href="/products" className="font-semibold text-brand-text underline underline-offset-4">
             Cari di katalog dengan filter sendiri
           </Link>
           .
@@ -35,8 +35,10 @@ export function Needs({ pages }: { pages: { page: NeedPage; matched: number }[] 
             <li key={page.slug}>
               <Link
                 href={needPagePath(page)}
-                className="inline-flex min-h-11 items-center gap-x-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors duration-150 hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="inline-flex min-h-11 items-center gap-x-2 rounded-pill border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition-colors duration-150 hover:border-brand/40 hover:bg-brand-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
+                {/* Titik satu warna aksen (DESIGN.md §2.6), penanda chip, bukan status. */}
+                <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-brand" />
                 {page.title}
                 <span className="shrink-0 font-normal whitespace-nowrap text-muted-foreground tabular">{matched} produk</span>
               </Link>

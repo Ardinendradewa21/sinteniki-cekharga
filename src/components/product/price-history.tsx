@@ -1,3 +1,5 @@
+import { Marker, seriesStyle } from "@/components/product/price-history-marks";
+import { PriceHistoryChart } from "@/components/product/price-history-chart";
 import { formatIdr } from "@/lib/catalog/pricing";
 import { loadPriceHistory } from "@/lib/catalog/price-history";
 import {
@@ -10,84 +12,59 @@ import {
 } from "@/lib/catalog/price-history-rules";
 
 /**
- * Riwayat harga varian terpilih (PB-36). Grafik berupa SVG yang dirender
- * server: tanpa JavaScript tambahan dan tanpa pergeseran tata letak. Bila
- * data belum memenuhi ambang PRD §3, yang tampil daftar catatan, bukan garis
- * tren. Tidak ada klaim "harga terendah" atau prediksi.
+ * Riwayat harga varian terpilih (PB-36). Grafik SVG lengkap sudah ada di
+ * HTML server (tanpa pergeseran tata letak); komponen klien hanya membukanya
+ * sekali saat terlihat (VD-06). Bila data belum memenuhi ambang PRD §3, yang
+ * tampil Recent Checks, bukan garis tren. Tidak ada klaim "harga terendah"
+ * atau prediksi.
  */
-
-// Warna dari token desain yang ada; bentuk penanda berbeda supaya tidak bergantung warna (PRD §8).
-const STYLES = [
-  { stroke: "var(--brand)", shape: "circle" },
-  { stroke: "var(--primary)", shape: "square" },
-  { stroke: "var(--muted-foreground)", shape: "diamond" },
-] as const;
-
-/** Label sumbu dibulatkan ke terdekat (Rp20 jt untuk Rp19.999.000), bukan dipotong ke bawah. */
-function axisIdr(priceIdr: number): string {
-  if (priceIdr >= 1_000_000) return `Rp${(Math.round(priceIdr / 100_000) / 10).toLocaleString("id-ID", { maximumFractionDigits: 1 })} jt`;
-  return `Rp${Math.round(priceIdr / 1000)} rb`;
-}
-
-function wibDate(iso: string): string {
-  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", timeZone: "Asia/Jakarta" }).format(new Date(iso));
-}
 
 function wibDateTime(iso: string): string {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(iso));
 }
 
-function Marker({ x, y, shape, color }: { x: number; y: number; shape: (typeof STYLES)[number]["shape"]; color: string }) {
-  if (shape === "square") return <rect x={x - 3.5} y={y - 3.5} width={7} height={7} fill={color} />;
-  if (shape === "diamond") return <path d={`M${x} ${y - 4.5} L${x + 4.5} ${y} L${x} ${y + 4.5} L${x - 4.5} ${y} Z`} fill={color} />;
-  return <circle cx={x} cy={y} r={3.5} fill={color} />;
+function wibParts(iso: string): { day: string; month: string; time: string } {
+  const date = new Date(iso);
+  const part = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("id-ID", { ...options, timeZone: "Asia/Jakarta" }).format(date);
+  return {
+    day: part({ day: "numeric" }),
+    month: part({ month: "short" }).replace(".", ""),
+    time: part({ hour: "2-digit", minute: "2-digit", hour12: false }).replace(":", "."),
+  };
 }
 
-function ChartSvg({ history, size, className }: { history: PriceHistory; size: { width: number; height: number }; className: string }) {
-  const geometry = chartGeometry(history, size);
+/** Jumlah catatan di Recent Checks; sama dengan ambang grafik (PRD §3). */
+const RECENT_LIMIT = MIN_CHART_POINTS;
+
+/**
+ * Recent Checks (DESIGN.md §7): dipakai selama data belum cukup untuk grafik.
+ * Date tile berisi tanggal besar dan bulan kecil (WIB), lalu toko, jam, dan
+ * harga. Ini catatan pemeriksaan nyata, bukan tren.
+ */
+function RecentChecks({ history }: { history: PriceHistory }) {
   return (
-    <svg
-      viewBox={`0 0 ${geometry.width} ${geometry.height}`}
-      className={className}
-      role="img"
-      aria-label="Grafik riwayat harga; data lengkapnya ada di tabel di bawah grafik."
-    >
-      {geometry.yTicks.map((tick) => (
-        <g key={tick.y}>
-          <line x1={76} x2={geometry.width - 16} y1={tick.y} y2={tick.y} className="stroke-border" strokeWidth={1} />
-          <text x={66} y={tick.y + 4} textAnchor="end" className="fill-muted-foreground text-[11px]">
-            {axisIdr(tick.priceIdr)}
-          </text>
-        </g>
-      ))}
-      {geometry.xTicks.map((tick) => (
-        <text key={tick.x} x={tick.x} y={geometry.height - 8} textAnchor="middle" className="fill-muted-foreground text-[11px]">
-          {wibDate(tick.at)}
-        </text>
-      ))}
-      {geometry.series.map((series, index) => {
-        const style = STYLES[index % STYLES.length]!;
+    <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+      {history.records.slice(0, RECENT_LIMIT).map((record) => {
+        const parts = wibParts(record.at);
         return (
-          <g key={series.offerId}>
-            {series.solid ? <path d={series.solid} fill="none" stroke={style.stroke} strokeWidth={2} /> : null}
-            {series.dashed ? <path d={series.dashed} fill="none" stroke={style.stroke} strokeWidth={2} strokeDasharray="4 4" /> : null}
-            {series.markers.map((marker) => (
-              <Marker key={marker.at} x={marker.x} y={marker.y} shape={style.shape} color={style.stroke} />
-            ))}
-          </g>
+          <li key={`${record.label}-${record.at}`} className="flex items-center gap-3 px-3 py-3 sm:gap-4 sm:px-5">
+            <time
+              dateTime={record.at}
+              className="flex size-12 shrink-0 flex-col items-center justify-center rounded-xl bg-muted text-foreground"
+            >
+              <span className="text-lg leading-none font-extrabold tabular-nums">{parts.day}</span>
+              <span className="mt-0.5 text-xs leading-none text-muted-foreground">{parts.month}</span>
+            </time>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">{record.label}</p>
+              <p className="text-xs text-muted-foreground">Diperiksa pukul {parts.time} WIB</p>
+            </div>
+            <p className="tabular shrink-0 text-base font-extrabold tracking-tight text-foreground">{formatIdr(record.priceIdr)}</p>
+          </li>
         );
       })}
-    </svg>
-  );
-}
-
-/** Dua ukuran geometri supaya teks dan penanda tidak gepeng: ponsel dan layar lebar. */
-function Chart({ history }: { history: PriceHistory }) {
-  return (
-    <>
-      <ChartSvg history={history} size={{ width: 360, height: 220 }} className="h-auto w-full sm:hidden" />
-      <ChartSvg history={history} size={{ width: 960, height: 260 }} className="hidden h-auto w-full sm:block" />
-    </>
+    </ul>
   );
 }
 
@@ -143,10 +120,14 @@ export async function PriceHistorySection({
             harga.
           </p>
           <div className="mt-4 rounded-2xl border border-border bg-card p-4">
-            <Chart history={history} />
+            {/* Dua ukuran geometri supaya teks dan penanda tidak gepeng: ponsel dan layar lebar. */}
+            <PriceHistoryChart
+              mobile={chartGeometry(history, { width: 360, height: 220 })}
+              desktop={chartGeometry(history, { width: 960, height: 260 })}
+            />
             <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
               {history.series.map((series, index) => {
-                const style = STYLES[index % STYLES.length]!;
+                const style = seriesStyle(index);
                 return (
                   <li key={series.offerId} className="flex items-center gap-1.5">
                     <svg viewBox="0 0 10 10" className="size-2.5" aria-hidden>
@@ -156,23 +137,31 @@ export async function PriceHistorySection({
                   </li>
                 );
               })}
-              <li>Garis putus-putus = tidak diperiksa lebih dari {GAP_HOURS} jam</li>
+              <li className="flex items-center gap-1.5">
+                <svg viewBox="0 0 16 4" className="h-1 w-4" aria-hidden>
+                  <line x1={0} x2={16} y1={2} y2={2} stroke="currentColor" strokeWidth={2} strokeDasharray="4 4" />
+                </svg>
+                Putus-putus: tidak diperiksa lebih dari {GAP_HOURS} jam
+              </li>
             </ul>
           </div>
+          <details className="mt-4 rounded-2xl border border-border bg-card p-4">
+            <summary className="min-h-11 cursor-pointer content-center text-sm font-semibold text-foreground">
+              Lihat sebagai tabel
+            </summary>
+            <RecordsTable history={history} />
+          </details>
         </>
       ) : (
-        <p className="mt-2 max-w-prose text-sm text-muted-foreground">
-          Grafik tampil setelah varian ini punya minimal {MIN_CHART_POINTS} pemeriksaan berhasil dalam rentang{" "}
-          {MIN_CHART_SPAN_DAYS} hari. Sampai saat itu, berikut catatan harganya.
-        </p>
+        <>
+          <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+            Grafik tampil setelah varian ini punya minimal {MIN_CHART_POINTS} pemeriksaan berhasil dalam rentang{" "}
+            {MIN_CHART_SPAN_DAYS} hari. Sampai saat itu, berikut {Math.min(history.records.length, RECENT_LIMIT)} pemeriksaan
+            terbaru.
+          </p>
+          <RecentChecks history={history} />
+        </>
       )}
-
-      <details className="mt-4 rounded-2xl border border-border bg-card p-4" open={!history.qualifies}>
-        <summary className="min-h-11 cursor-pointer text-sm font-semibold text-foreground">
-          {history.qualifies ? "Lihat sebagai tabel" : `Catatan harga (${Math.min(history.records.length, 5)} terbaru)`}
-        </summary>
-        <RecordsTable history={history.qualifies ? history : { ...history, records: history.records.slice(0, 5) }} />
-      </details>
     </section>
   );
 }

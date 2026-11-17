@@ -25,7 +25,7 @@ export function CompareToggle({ item }: { item: TrayItem }) {
       onClick={() => toggleTray(item)}
       className={cn(
         "flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-        selected ? "bg-brand-muted text-brand" : "text-brand hover:bg-brand-muted/40"
+        selected ? "bg-brand-muted text-brand-text" : "text-brand-text hover:bg-brand-muted/40"
       )}
     >
       <HugeiconsIcon icon={selected ? Tick02Icon : Add01Icon} size={14} strokeWidth={2.2} aria-hidden />

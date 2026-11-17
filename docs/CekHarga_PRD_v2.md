@@ -1,6 +1,6 @@
 # CekHarga — PRD dan Kebutuhan Sistem
 
-Versi: 2.0 • Tanggal: 3 September 2026 • Pembaruan §8: 7 Oktober 2026 (keputusan pemilik produk, lihat "Keputusan visual" di §8) • Pembaruan §3: 16 Oktober 2026 (grafik harga publik diaktifkan, PB-31)
+Versi: 2.0 • Tanggal: 3 September 2026 • Pembaruan §8: 7 Oktober 2026 (keputusan pemilik produk, lihat "Keputusan visual" di §8) • Pembaruan §3: 16 Oktober 2026 (grafik harga publik diaktifkan, PB-31) • Pembaruan §8: 13 November 2026 (tema Verdant, lihat `DESIGN.md`)
 
 Status: baseline perencanaan untuk implementasi AI Agent, berdasarkan keputusan produk dalam percakapan. Dokumen ini bukan laporan audit repository atau bukti bahwa fitur telah tersedia.
 
@@ -183,27 +183,31 @@ Target otomatisasi tidak boleh menghambat seluruh produk: jika akses tidak layak
 
 ## 8. UI/UX — Tema utama yang disepakati
 
-Referensi visual adalah tampilan katalog jam tangan yang diberikan pengguna: **premium, minimal, product-first**, latar abu sangat muda, kartu putih membulat, headline besar, dan foto produk dominan. Ambil bahasa visualnya, bukan fungsi toko atau identitas mereknya.
+Referensi visual awal adalah tampilan katalog jam tangan yang diberikan pengguna: **premium, minimal, product-first**, kartu putih membulat, headline besar, dan foto produk dominan. Ambil bahasa visualnya, bukan fungsi toko atau identitas mereknya. Sejak 13 November 2026 bahasa visual itu dilanjutkan oleh tema **Verdant** (lihat "Keputusan visual (13 November 2026)" di bawah); aturan rinci token, kaca, dan motion ada di `DESIGN.md` (root repo).
 
 ### Palet dan tipografi
 
+Diperbarui 13 November 2026 (tema Verdant). Nilai pasti, versi gelap, dan rasio kontras ada di `DESIGN.md` §3.
+
 | Peran | Arah visual |
 | --- | --- |
-| Canvas | Abu/off-white lembut; acuan sekitar `#F5F5F5` |
-| Surface | Putih `#FFFFFF` |
-| Headline/CTA utama | Charcoal; acuan sekitar `#303030` |
-| Teks sekunder | Blue-gray; acuan sekitar `#667085` |
-| Border | Abu lembut; acuan sekitar `#E5E7EB` |
-| Brand | Teal sebagai aksen terbatas, bukan warna dominan seluruh halaman |
+| Canvas | Hijau keabuan lembut; Verdant Day `#DFE6E1` |
+| Surface | Putih `#FFFFFF`; semua data harga, tabel, penawaran, dan grafik di permukaan ini |
+| Headline | Hijau sangat gelap mendekati hitam; `#0F1D17` |
+| CTA utama | Hijau aksen; `#137A50` (terang), mint `#6EE0A1` dengan teks gelap (gelap) |
+| Teks sekunder | Abu kehijauan; `#4A5B52` |
+| Border | Hijau gelap transparan tipis; kontrol form `#6D827E` |
+| Brand | Hijau sebagai satu-satunya aksen; terracotta dipensiunkan dari UI publik |
+| Kaca | Hanya bingkai (header, filter bar, compare tray, panel hero, composer AI) di atas foto latar milik sendiri/berlisensi |
 | Status | Hijau/amber/merah disertai kata atau ikon |
 
-Hex di atas adalah acuan desain, bukan hasil sampling screenshot atau kontrak warna baru. Implementasikan melalui semantic token; ukur contrast pada kombinasi yang dipakai. Gunakan Plus Jakarta Sans, headline tebal, harga mudah dipindai, dan body dengan panjang baris nyaman.
+Hex di atas adalah acuan desain, bukan hasil sampling screenshot. Implementasikan melalui semantic token; ukur contrast pada kombinasi yang dipakai. Gunakan Plus Jakarta Sans, headline tebal, harga mudah dipindai, dan body dengan panjang baris nyaman.
 
 ### Komposisi
 
 - Container desktop sekitar 1200–1280 px; padding mobile sekitar 16 px. Ritme spacing konsisten.
 - Header: logo/wordmark, navigasi kapsul, tombol ikon bulat untuk fungsi yang tersedia. Tidak ada cart atau favorit palsu.
-- Hero: dua kolom desktop, satu kolom mobile; copy dan dua CTA di kiri, perangkat besar di kanan dengan bidang lingkaran abu lembut dan panel harga/freshness kecil.
+- Hero: dua kolom desktop, satu kolom mobile; copy dan dua CTA di kiri, panel harga/freshness di kanan. Sejak 13 November 2026 panel ini adalah Hero Price Panel kaca di atas foto latar, berisi kartu harga solid dengan varian acuan dan waktu periksa (menggantikan perangkat besar dengan bidang lingkaran abu).
 - Katalog: kartu putih ber-radius sekitar 24–32 px, area visual dominan, metadata ringkas. Grid desktop lebar (≥1280 px) **5 kolom** (keputusan 7 Oktober 2026, menggantikan 3 kolom), lalu 4/3/2 di layar lebih kecil; filter mobile berupa disclosure.
 - Detail: visual kiri, ringkasan keputusan kanan; mobile berurutan visual → identitas/varian → harga/freshness → aksi → penawaran dan bukti.
 - Perbandingan: perbedaan terlihat jelas, label/nama tetap dekat nilainya pada mobile. Jangan memaksa tabel lebar yang tak terbaca.
@@ -212,15 +216,30 @@ Hex di atas adalah acuan desain, bukan hasil sampling screenshot atau kontrak wa
 
 Foto harus sesuai produk/varian dan boleh digunakan. Selama belum ada, gunakan SVG perangkat generik lokal dengan keterangan yang tepat; dekorasi `aria-hidden`. Jangan gunakan inisial besar sebagai gambar produk atau membuat render generik tampak sebagai foto model asli.
 
-### Motion dan aksesibilitas
-
 ### Keputusan visual (7 Oktober 2026)
+
+> Digantikan sebagian oleh keputusan 13 November 2026: butir CTA charcoal dan "tanpa gaya kaca" tidak berlaku lagi untuk UI publik; butir grid 5 kolom tetap berlaku. Teks asli dipertahankan sebagai riwayat.
 
 - **CTA utama charcoal** (`--primary`), sesuai tabel palet di atas; teal kembali menjadi aksen terbatas (`--brand`: status harga, tautan aksen, logo) dan warna ring fokus. Di tema gelap publik, CTA dibalik menjadi terang dengan teks gelap.
 - **Tanpa gaya kaca:** tombol dan navigasi padat bertoken, tanpa backdrop blur, gradien, bayangan `rgba` mentah, efek terangkat, atau glow pada menu aktif. Menu aktif ditandai latar `muted` dan `aria-current`.
 - **Grid katalog desktop 5 kolom** (lihat Komposisi). Catatan: ponsel saat ini 2 kolom, berbeda dari acuan awal 1 kolom; belum diputuskan terpisah.
 
-Motion adalah tambahan implementasi, bukan perilaku yang dapat dibuktikan dari screenshot referensi. Gunakan micro-interaction sekitar 120–180 ms dan entrance 280–420 ms dengan opacity/transform. Hero/SVG boleh bergerak halus sekali; hindari loop, parallax, glow, dan scroll hijacking.
+### Keputusan visual (13 November 2026): tema Verdant
+
+Pemilik produk menetapkan tema publik baru bernama Verdant, terinspirasi gaya UI dan motion template Verdelo. Keputusan ini menggantikan sebagian keputusan 7 Oktober 2026:
+
+- **Gaya kaca diizinkan secara terbatas.** Panel kaca di atas foto latar boleh dipakai untuk bingkai (header, filter bar, compare tray, panel hero, composer AI). Harga, tabel, penawaran, grafik, dan teks panjang tetap di permukaan solid. Kaca memakai warna semi-transparan; hanya panel hero yang memakai foto pre-blurred; `backdrop-filter` hanya untuk elemen yang menempel atau melayang (header, filter bar, compare tray).
+- **Warna:** aksen hijau mint (gelap) dan hijau tua (terang) menggantikan teal. CTA utama memakai warna aksen (hijau), tidak lagi charcoal. Terracotta dipensiunkan dari UI publik.
+- **Font tetap Plus Jakarta Sans.**
+- **Gradien** hanya untuk veil di atas foto latar dan aksen tombol utama; tidak ada gradien pelangi atau glow berdenyut.
+- **Harga tidak pernah dianimasikan dari nol.** Server merender harga final; count-up hanya saat varian berubah, dari harga lama ke harga baru.
+- **Tema bawaan** tetap terang (Verdant Day); tema gelap (Verdant Night) tersedia lewat toggle.
+- **Foto latar** milik sendiri atau berlisensi bebas, sumbernya dicatat. Kode, foto, ikon, dan teks Verdelo tidak disalin.
+- Detail token dan komponen ada di `DESIGN.md`; rencana bertahap di `docs/ux/REDESIGN-VERDANT-2026-11.md`. Area admin tidak termasuk.
+
+### Motion dan aksesibilitas
+
+Motion adalah tambahan implementasi, bukan perilaku yang dapat dibuktikan dari screenshot referensi. Sejak 13 November 2026: micro-interaction sekitar 160 ms, entrance 350–600 ms, data reveal (grafik tergambar, count-up harga) maksimal 1000 ms dan hanya sekali, dengan opacity/transform. Elemen di atas lipatan pertama tampil langsung atau dengan entrance singkat. Tetap hindari loop, parallax, glow, dan scroll hijacking. (Sebelumnya: micro 120–180 ms, entrance 280–420 ms.)
 
 Reduced motion menghentikan gerak non-esensial; konten tetap terlihat tanpa animasi. Hover affordance hanya untuk elemen interaktif. Skeleton hanya saat benar-benar memuat data.
 

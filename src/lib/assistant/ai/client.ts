@@ -88,8 +88,12 @@ export const AI_LIMITS = {
    * panjang konteks tetap terkendali di percakapan yang berlarut (PRD §10).
    */
   maxHistoryTurns: 12,
-  /** Panggilan per IP per jendela waktu. */
-  requestsPerWindow: 8,
+  /**
+   * Panggilan per IP per jendela waktu. Sejak VD-08 satu giliran pencarian
+   * atau pertanyaan produk memakai dua permintaan (kartu, lalu penjelasan),
+   * jadi 16 setara 8 giliran per menit seperti sebelumnya.
+   */
+  requestsPerWindow: 16,
   /** Panggilan total per instance per jendela waktu, lintas semua klien. */
   globalRequestsPerWindow: 120,
   windowMs: 60_000,

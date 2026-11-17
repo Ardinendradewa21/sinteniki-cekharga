@@ -296,7 +296,8 @@ test("kuota AI: penolakan menyarankan form, dan batas retry tetap terbatas", () 
 });
 
 import { mergeHints, readBudget, readHints } from "@/lib/assistant/hints";
-import { nextFocus, refinementSuggestions, shouldSearch } from "@/lib/assistant/dialog-policy";
+import { decideTurn, nextFocus, refinementSuggestions } from "@/lib/assistant/dialog-policy";
+import { findProductMentions } from "@/lib/assistant/product-mentions";
 import { EMPTY_COLLECTED, type Collected } from "@/lib/assistant/ai/chat-state";
 
 test("kamus sinonim: bahasa sehari-hari menjadi kebutuhan, penyangkalan diabaikan", () => {
@@ -334,21 +335,59 @@ test("kamus sinonim hanya menambah, tidak menimpa hasil model", () => {
   assert.deepEqual(merged.priorities, ["kamera", "baterai"]);
 });
 
-test("kebijakan dialog: hasil paling lambat setelah dua pertanyaan", () => {
+test("kebijakan dialog VD-08: tampilkan dulu, budget tidak wajib, pertanyaan produk dan umum tidak dibelokkan ke budget", () => {
   const empty = EMPTY_COLLECTED;
-  const withBudget: Collected = { ...empty, budgetIdr: 3_000_000 };
-  const ready: Collected = { ...withBudget, activities: ["game"] };
+  const gaming: Collected = { ...empty, activities: ["game"] };
+  const base = { mentions: 0, namedProducts: 0, hasResult: false, userTurns: 1, modelEnough: false };
 
-  assert.equal(nextFocus(empty, false), "budget");
-  assert.equal(nextFocus(withBudget, false), "kegunaan");
-  assert.equal(nextFocus(ready, false), "prioritas");
-  assert.equal(nextFocus(ready, true), "penyempurnaan");
+  assert.equal(nextFocus(empty, false), "terbuka");
+  assert.equal(nextFocus(gaming, true), "penyempurnaan");
 
-  assert.equal(shouldSearch(withBudget, { userTurns: 1, modelEnough: false, hasResult: false }), false);
-  assert.equal(shouldSearch(ready, { userTurns: 1, modelEnough: false, hasResult: false }), true);
-  assert.equal(shouldSearch(withBudget, { userTurns: 3, modelEnough: false, hasResult: false }), true);
-  assert.equal(shouldSearch(empty, { userTurns: 5, modelEnough: true, hasResult: false }), false, "tanpa informasi apa pun tidak mencari");
-  assert.equal(shouldSearch(empty, { userTurns: 1, modelEnough: false, hasResult: true }), true);
+  // "hp buat gaming yang bagus apa ya": langsung cari, tanpa menanyakan budget.
+  assert.equal(decideTurn({ ...base, intent: "cari", collected: gaming }), "search");
+  // "bantu cari hp dong": belum ada sinyal, tanya sekali; pesan kedua tetap kosong -> tampilkan.
+  assert.equal(decideTurn({ ...base, intent: "cari", collected: empty }), "ask");
+  assert.equal(decideTurn({ ...base, intent: "cari", collected: empty, userTurns: 2 }), "search");
+  // "redmi note 17 sama a6 pro mending mana": perbandingan dari data katalog.
+  assert.equal(decideTurn({ ...base, intent: "bandingkan", collected: empty, mentions: 2, namedProducts: 2 }), "product");
+  assert.equal(decideTurn({ ...base, intent: "umum", collected: empty, mentions: 2, namedProducts: 2 }), "product");
+  assert.equal(decideTurn({ ...base, intent: "produk", collected: empty, mentions: 1, namedProducts: 1 }), "product");
+  // Produk yang tidak ada di katalog dinyatakan terus terang.
+  assert.equal(decideTurn({ ...base, intent: "produk", collected: empty, namedProducts: 1 }), "missing-product");
+  // "amoled sama ips bedanya apa": dijawab, bukan mencari, bahkan setelah hasil tampil.
+  assert.equal(decideTurn({ ...base, intent: "umum", collected: empty }), "general");
+  assert.equal(decideTurn({ ...base, intent: "umum", collected: gaming, hasResult: true }), "general");
+  assert.equal(decideTurn({ ...base, intent: "lainnya", collected: empty }), "chat");
+  // Setelah hasil, pesan cari menyempurnakan.
+  assert.equal(decideTurn({ ...base, intent: "cari", collected: empty, hasResult: true }), "search");
+  // "yang mirip redmi note 17 tapi lebih murah": dicarikan, bukan dijawab sebagai satu produk.
+  assert.equal(decideTurn({ ...base, intent: "cari", collected: empty, mentions: 1, namedProducts: 1 }), "search");
+
+  // Tanpa budget, budget ditawarkan sebagai pilihan cepat.
+  const chips = refinementSuggestions(gaming);
+  assert.ok(chips.some((chip) => chip.startsWith("Budget sekitar")));
+});
+
+test("nama produk di pesan dikenali dari katalog, bukan ditebak model", () => {
+  const catalog = [
+    { slug: "xiaomi-redmi-note-17", brand: "Xiaomi", model: "Redmi Note 17" },
+    { slug: "xiaomi-redmi-note-17-pro", brand: "Xiaomi", model: "Redmi Note 17 Pro" },
+    { slug: "xiaomi-redmi-17", brand: "Xiaomi", model: "Redmi 17" },
+    { slug: "oppo-a6-pro", brand: "OPPO", model: "A6 Pro" },
+    { slug: "oppo-a6", brand: "OPPO", model: "A6" },
+    { slug: "apple-iphone-17", brand: "Apple", model: "iPhone 17" },
+    { slug: "xiaomi-15t", brand: "Xiaomi", model: "15T" },
+    { slug: "samsung-galaxy-a57", brand: "Samsung", model: "Galaxy A57" },
+  ];
+  const find = (text: string) => findProductMentions(text, catalog);
+  assert.deepEqual(find("redmi note 17 sama oppo a6 pro mending mana buat foto?"), ["xiaomi-redmi-note-17", "oppo-a6-pro"]);
+  assert.deepEqual(find("Redmi Note 17 Pro vs A6"), ["xiaomi-redmi-note-17-pro"], "A6 tanpa merek terlalu pendek");
+  assert.deepEqual(find("oppo a6 atau redmi 17?"), ["oppo-a6", "xiaomi-redmi-17"]);
+  assert.deepEqual(find("harga iphone 17 berapa"), ["apple-iphone-17"]);
+  assert.deepEqual(find("xiaomi 15t bagus ga"), ["xiaomi-15t"]);
+  assert.deepEqual(find("budget 15 juta ada yang 17 gb?"), [], "angka biasa tidak dianggap model");
+  assert.deepEqual(find("galaxy a57 5g"), ["samsung-galaxy-a57"]);
+  assert.deepEqual(find("bantu cari hp buat ibu"), []);
 });
 
 test("kebijakan dialog: pilihan penyempurnaan tidak menawarkan yang sudah dipakai", () => {
@@ -443,4 +482,42 @@ test("statistik katalog (PB-30): harga segar dihitung per produk, tanpa angka pe
     { products: 3, brands: 2, activeOffers: 2, stores: 1, freshProducts: 1 }
   );
   assert.equal(stats.latestCheckAt, hoursAgo(2));
+});
+
+import { priceBand, spreadAcrossPriceBands } from "@/lib/assistant/price-bands";
+
+test("tanpa budget: kartu teratas satu per kelas harga, termurah dulu", () => {
+  assert.equal(priceBand(1_849_000), 0);
+  assert.equal(priceBand(4_500_000), 1);
+  assert.equal(priceBand(44_499_000), 4);
+  const byScore = [
+    { name: "Fold Ultra", price: 44_499_000 },
+    { name: "Flip", price: 19_999_000 },
+    { name: "vivo T5", price: 4_399_000 },
+    { name: "Poco", price: 1_849_000 },
+    { name: "Tanpa harga", price: null },
+    { name: "iQOO Z11x", price: 4_999_000 },
+  ];
+  const spread = spreadAcrossPriceBands(byScore, (c) => c.price).map((c) => c.name);
+  assert.deepEqual(spread, ["Poco", "vivo T5", "iQOO Z11x", "Fold Ultra", "Flip", "Tanpa harga"]);
+});
+
+import { hashNeeds, signWriteTicket, verifyWriteTicket, WRITE_TICKET_TTL_MS } from "@/lib/assistant/ai/write-ticket";
+
+test("tiket tahap tulis: hanya sah dari server, sebelum kedaluwarsa, dan tidak bisa diubah", () => {
+  const secret = "rahasia-uji";
+  const now = Date.parse("2026-11-17T03:00:00Z");
+  const needsHash = hashNeeds({ budgetIdr: 3_000_000, activities: ["game"] });
+  const token = signWriteTicket({ kind: "hasil", slugs: [], text: "hp buat gaming", needsHash }, secret, now);
+  const ok = verifyWriteTicket(token, secret, now + 1000);
+  assert.ok(ok);
+  assert.equal(ok.text, "hp buat gaming");
+  assert.equal(ok.needsHash, needsHash);
+  assert.equal(verifyWriteTicket(token, "rahasia-lain", now), null, "rahasia lain ditolak");
+  assert.equal(verifyWriteTicket(token, secret, now + WRITE_TICKET_TTL_MS + 1), null, "kedaluwarsa ditolak");
+  const [body, mac] = token.split(".");
+  const tampered = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(body!, "base64url").toString()), kind: "produk", slugs: ["x"] })).toString("base64url");
+  assert.equal(verifyWriteTicket(`${tampered}.${mac}`, secret, now), null, "isi diubah ditolak");
+  assert.equal(verifyWriteTicket("sampah", secret, now), null);
+  assert.notEqual(hashNeeds({ budgetIdr: 3_000_000 }), hashNeeds({ budgetIdr: 4_000_000 }));
 });

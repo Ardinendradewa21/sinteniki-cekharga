@@ -2,6 +2,7 @@ import type * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { CatalogGrid, CatalogGridItem } from "@/components/catalog/catalog-grid";
 import { CompareColumnSwitch } from "@/components/compare/compare-column-switch";
 import { SpecIcon } from "@/components/compare/spec-icons";
 import { DemoBadge } from "@/components/demo-marker";
@@ -28,8 +29,10 @@ import { cn } from "@/lib/utils";
  *
  * Yang sengaja TIDAK dilakukan, karena PRD melarangnya:
  *
- * - Tidak ada skor, peringkat, bintang, atau penanda "pemenang". Titik kecil
- *   hanya menandai bahwa nilainya BERBEDA, bukan mana yang lebih baik.
+ * - Tidak ada skor, peringkat, bintang, atau penanda "pemenang". Baris yang
+ *   nilainya berbeda disorot `--brand-muted` dengan label kata "beda" (VD-07):
+ *   hanya menandai BERBEDA, bukan mana yang lebih baik, dan tidak bergantung
+ *   pada warna saja.
  * - Nilai yang tidak diketahui tidak pernah dihitung sebagai kalah dan tidak
  *   ditulis "-" yang bisa terbaca "tidak ada". Atribut yang kosong di SEMUA
  *   kolom disebut terbuka di catatan, bukan diisi baris kosong.
@@ -128,7 +131,8 @@ function SpecTable({
           <div
             key={row.label}
             role="row"
-            className={cn("grid items-start gap-x-4 gap-y-1.5 px-4 py-3", rowGrid)}
+            data-different={row.different || undefined}
+            className={cn("grid items-start gap-x-4 gap-y-1.5 px-4 py-3", rowGrid, row.different && "bg-brand-muted")}
           >
             <div
               role="rowheader"
@@ -139,10 +143,8 @@ function SpecTable({
                 {row.label}
                 {row.different ? (
                   <>
-                    <span
-                      aria-hidden="true"
-                      className="ml-1.5 inline-block size-1.5 -translate-y-px rounded-full bg-brand align-middle"
-                    />
+                    {" "}
+                    <DiffLabel />
                     <span className="sr-only"> (berbeda antar produk)</span>
                   </>
                 ) : null}
@@ -164,6 +166,19 @@ function SpecTable({
         ))}
       </div>
     </section>
+  );
+}
+
+/** Label kata untuk baris yang nilainya berbeda; warna sorot saja tidak cukup (PRD §8). */
+function DiffLabel({ decorative = true }: { decorative?: boolean }) {
+  return (
+    <span
+      // Di baris tabel pembaca layar sudah mendengar "(berbeda antar produk)".
+      aria-hidden={decorative || undefined}
+      className="ml-1 inline-flex -translate-y-px items-center rounded-md border border-brand/40 bg-card px-1.5 align-middle text-xs leading-4 font-semibold text-brand-text"
+    >
+      beda
+    </span>
   );
 }
 
@@ -206,7 +221,7 @@ function ProductColumn({
   isDemo: boolean;
 }) {
   return (
-    <article className="flex flex-col rounded-xl border border-border bg-card p-5">
+    <article className="flex h-full flex-col rounded-xl border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground">{item.brand}</p>
@@ -215,7 +230,8 @@ function ProductColumn({
         {isDemo ? <DemoBadge /> : null}
       </div>
 
-      <div className="mt-4 flex h-48 items-center justify-center rounded-lg bg-muted/60">
+      {/* Panggung foto terang, juga di tema gelap (DESIGN.md §2 butir 2). */}
+      <div className="stage mt-4 flex h-48 items-center justify-center rounded-lg">
         {item.image.isGenericIllustration ? (
           <DevicePlaceholder size="md" />
         ) : (
@@ -238,12 +254,8 @@ function ProductColumn({
       </p>
       <div className="mt-1">
         <CardPriceValue price={item.price} />
-        <CardPriceMeta
-          price={item.price}
-          referenceVariant={item.variantLabel}
-          now={now}
-          className="mt-1"
-        />
+        {/* Varian sudah tertulis tepat di atas harga; tidak diulang (temuan VD-07). */}
+        <CardPriceMeta price={item.price} referenceVariant={null} now={now} className="mt-1" />
       </div>
 
       {item.variantOptions.length > 1 ? (
@@ -266,7 +278,7 @@ function ProductColumn({
       <div className="mt-auto flex flex-wrap gap-x-4 pt-4">
         <Link
           href={item.detailHref}
-          className="inline-flex min-h-11 items-center text-sm font-semibold text-brand underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
         >
           Lihat detail
         </Link>
@@ -314,7 +326,9 @@ export function CompareTable({
   return (
     <div>
       {/* Bar pemilih menempel saat digulir, seperti lembar perbandingan produsen. */}
-      <div className="sticky top-0 z-20 -mx-4 border-b border-border/60 bg-background/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      {/* Menempel tepat di bawah Glass Header (--header-h), bukan di top-0 yang
+          tertutup header. Kaca berteks + blur: elemen menempel (DESIGN.md §2.3). */}
+      <div className="glass-text glass-float sticky top-(--header-h) z-20 -mx-4 rounded-lg px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className={cn("grid gap-3 sm:gap-8", gridCols)}>
           {items.map((item, index) => (
             <CompareColumnSwitch
@@ -328,11 +342,18 @@ export function CompareTable({
         </div>
       </div>
 
-      <div className={cn("mt-6 grid gap-4", MD_GRID_COLS[items.length] ?? MD_GRID_COLS[3])}>
-        {items.map((item) => (
-          <ProductColumn key={item.slug} item={item} now={now} isDemo={isDemo} />
+      {/*
+        Kandidat yang tetap bergeser ke kolom barunya (layout 450ms), kandidat
+        baru fade-up, yang dihapus memudar (DESIGN.md §8, VD-07). Halaman yang
+        baru dibuka tidak dianimasikan; reduced motion seketika.
+      */}
+      <CatalogGrid className={cn("mt-6 grid gap-4", MD_GRID_COLS[items.length] ?? MD_GRID_COLS[3])}>
+        {items.map((item, index) => (
+          <CatalogGridItem key={item.slug} index={index} columns={3}>
+            <ProductColumn item={item} now={now} isDemo={isDemo} />
+          </CatalogGridItem>
         ))}
-      </div>
+      </CatalogGrid>
 
       <section aria-labelledby="spesifikasi-utama" className="mt-14">
         <h3
@@ -343,11 +364,7 @@ export function CompareTable({
         </h3>
         {isComparing ? (
           <p className="mx-auto mt-2 max-w-prose text-center text-sm text-muted-foreground">
-            <span
-              aria-hidden="true"
-              className="mr-1.5 inline-block size-1.5 -translate-y-px rounded-full bg-brand align-middle"
-            />
-            Titik menandai atribut yang nilainya berbeda antar produk, bukan
+            Baris berlatar hijau dan berlabel <DiffLabel decorative={false} /> nilainya berbeda antar produk. Label ini tidak menunjukkan
             mana yang lebih baik.
             {incompleteCount > 0
               ? ` ${incompleteCount} atribut belum lengkap datanya dan tidak dinilai.`

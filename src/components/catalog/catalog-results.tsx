@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { CatalogPagination } from "@/components/catalog/catalog-pagination";
-import { RevealItem } from "@/components/motion/reveal-item";
+import { CatalogGrid, CatalogGridItem } from "@/components/catalog/catalog-grid";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import { formatIdr } from "@/lib/catalog/pricing";
@@ -112,8 +112,9 @@ export function CatalogResults({
 
   return (
     // Target lompatan pagination: pindah halaman langsung ke awal hasil,
-    // bukan ke atas halaman yang masih berisi panel filter.
-    <div id="hasil" className="scroll-mt-24">
+    // bukan ke atas halaman yang masih berisi panel filter. Jarak dari Glass
+    // Header sudah diatur scroll-padding-top di globals.css.
+    <div id="hasil" className="scroll-mt-2">
       {/*
         Judul wilayah hasil. Sengaja hanya untuk pembaca layar: judul ini tidak
         menambah apa pun secara visual karena halaman sudah punya h1 "Katalog
@@ -162,15 +163,20 @@ export function CatalogResults({
           </div>
         </div>
       ) : (
-        <ul className="-mx-2 mt-4 grid grid-cols-2 gap-2 sm:mx-0 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
-          {result.items.map((product, index) => (
-            <Fragment key={product.id}>
-            {/* Iklan in-feed selebar satu baris, setelah 10 produk pertama:
-                terpisah jelas dari hasil, bukan berbentuk kartu produk. */}
-            {inFeedAd && index === IN_FEED_AFTER && result.items.length > IN_FEED_AFTER ? (
-              <li className="col-span-full px-2 py-2 sm:px-0">{inFeedAd}</li>
-            ) : null}
-            <RevealItem index={index}>
+        // AnimatePresence butuh anak langsung yang ber-key, jadi iklan in-feed
+        // dan kartu produk diratakan menjadi satu daftar (bukan Fragment).
+        <CatalogGrid className="-mx-2 mt-4 grid grid-cols-2 gap-2 sm:mx-0 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          {result.items.flatMap((product, index) => [
+            // Iklan in-feed selebar satu baris, setelah 10 produk pertama:
+            // terpisah jelas dari hasil, bukan berbentuk kartu produk.
+            ...(inFeedAd && index === IN_FEED_AFTER && result.items.length > IN_FEED_AFTER
+              ? [
+                  <CatalogGridItem key="iklan-in-feed" className="col-span-full px-2 py-2 sm:px-0">
+                    {inFeedAd}
+                  </CatalogGridItem>,
+                ]
+              : []),
+            <CatalogGridItem key={product.id} index={index}>
               <ProductCard
                 product={product}
                 now={now}
@@ -187,17 +193,16 @@ export function CatalogResults({
                       href={review.videoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-2 inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring"
+                      className="mt-2 inline-flex min-h-11 items-center font-semibold text-brand-text underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       Lihat sumber ulasan
                     </a>
                   ) : null}
                 </div>
               ))}
-            </RevealItem>
-            </Fragment>
-          ))}
-        </ul>
+            </CatalogGridItem>,
+          ])}
+        </CatalogGrid>
       )}
 
       <CatalogPagination

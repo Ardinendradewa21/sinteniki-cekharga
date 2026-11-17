@@ -1,7 +1,9 @@
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowUpRight01Icon, Clock01Icon } from "@hugeicons/core-free-icons";
+import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 
+import { StaggerList } from "@/components/motion/reveal";
 import { MarketplaceLogo, marketplaceKey } from "@/components/product/marketplace-logo";
+import { StatusPill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { formatCheckedAt, formatIdr } from "@/lib/catalog/pricing";
 import type { ProductDetailOffer } from "@/lib/catalog/queries";
@@ -11,8 +13,12 @@ import { isOfficialWarranty } from "@/lib/catalog/warranty";
 import { cn } from "@/lib/utils";
 
 /**
- * Daftar penawaran untuk varian terpilih (PRD FR-05), sebagai kartu baris
- * ringkas: logo toko, nama, waktu pemeriksaan, harga, lalu tombol ke toko.
+ * Daftar penawaran untuk varian terpilih (PRD FR-05) sebagai Offer Row
+ * (DESIGN.md §7, VD-06): satu daftar bergaya "transaction list" di permukaan
+ * solid, satu kolom supaya kolom harga sejajar dan mudah dipindai. Tiap baris:
+ * tile logo toko, nama toko dan penjual, warna, Status Pill waktu periksa,
+ * harga, lalu tombol Buka. Baris di bawah lipatan muncul bertahap sekali
+ * (StaggerList); tanpa JavaScript semuanya tetap tampil.
  *
  * Aturan yang ditegakkan:
  *
@@ -60,17 +66,16 @@ function OfferCard({
       className={cn(
         // Filter pilihan pengguna (OfferFilters) menyembunyikan lewat atribut data.
         "group-data-[hide-oos=true]/offers:data-[out-of-stock=true]:hidden group-data-[official-only=true]/offers:data-[official=false]:hidden",
-        "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 rounded-2xl border bg-card p-3 transition-colors duration-150 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:p-4",
-        offer.isPriceBasis && offer.isFreshPrice
-          ? "border-brand/50 ring-1 ring-brand/20"
-          : "border-border hover:border-border-strong"
+        "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:px-5 sm:py-4",
+        // Dasar harga segar ditandai latar hijau muda selain label katanya.
+        offer.isPriceBasis && offer.isFreshPrice ? "bg-brand-muted/40" : null
       )}
     >
       <MarketplaceLogo url={offer.url} store={offer.store} name={offer.marketplace} />
 
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="truncate text-sm font-bold text-foreground">{offer.marketplace}</p>
+          <p className="line-clamp-2 text-sm font-bold break-words text-foreground">{offer.marketplace}</p>
           {offer.isPriceBasis ? (
             /*
               Penawaran basi memang sumber angka "harga terakhir tercatat",
@@ -78,7 +83,8 @@ function OfferCard({
               berlaku.
             */
             <Chip tone={offer.isFreshPrice ? "strong" : "warning"}>
-              {offer.isFreshPrice ? "Dasar harga" : "Harga terakhir tercatat"}
+              {/* Basi: kata "Harga terakhir tercatat" sudah ada di pil waktu periksa. */}
+              {offer.isFreshPrice ? "Dasar harga" : "Acuan harga di atas"}
             </Chip>
           ) : null}
           {offer.sellerVerified ? <Chip tone="brand">Penjual terverifikasi</Chip> : null}
@@ -108,17 +114,13 @@ function OfferCard({
             ))}
           </p>
         ) : null}
-        <p
-          className={cn(
-            "mt-0.5 flex items-center gap-1 text-xs font-medium",
-            offer.isFreshPrice ? "text-success" : "text-warning"
-          )}
-        >
-          <HugeiconsIcon icon={Clock01Icon} size={13} strokeWidth={2} aria-hidden />
+        <StatusPill tone={offer.isFreshPrice ? "fresh" : "stale"} className="mt-1.5 px-2 py-0.5">
           {offer.checkedAt
-            ? `Diperiksa ${formatCheckedAt(offer.checkedAt, now)}${offer.isFreshPrice ? "" : ", sudah lama"}`
+            ? offer.isFreshPrice
+              ? `Diperiksa ${formatCheckedAt(offer.checkedAt, now)}`
+              : `Harga terakhir tercatat · ${formatCheckedAt(offer.checkedAt, now)}`
             : "Belum pernah berhasil diperiksa"}
-        </p>
+        </StatusPill>
       </div>
 
       <div className="text-right">
@@ -201,11 +203,11 @@ export function OfferList({
           outOfStockCount={offers.filter((offer) => offer.listingStatus === "out-of-stock").length}
           officialCount={offers.filter((offer) => isOfficialWarranty(offer.warranty)).length}
         >
-          <ul className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <StaggerList className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
             {offers.map((offer) => (
               <OfferCard key={offer.id} offer={offer} selectedColor={selectedColor} now={now} />
             ))}
-          </ul>
+          </StaggerList>
         </OfferFilters>
       )}
     </section>

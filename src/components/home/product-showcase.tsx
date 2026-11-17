@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ProductRail } from "@/components/home/product-rail";
+import { StaggerItem, StaggerList } from "@/components/motion/reveal";
 import { ProductCard } from "@/components/product-card";
 import { Section } from "@/components/section";
 import { Button } from "@/components/ui/button";
@@ -48,9 +49,10 @@ export function ProductShowcase({
         </div>
       ) : (
         <ProductRail>
-          <ul className="flex w-max gap-2 sm:gap-3">
+          {/* Muncul berurutan saat masuk layar (DESIGN.md §8, stagger maks. 8). */}
+          <StaggerList className="flex w-max gap-2 sm:gap-3">
             {previewProducts.map((product) => (
-              <li
+              <StaggerItem
                 key={product.id}
                 className="w-[calc((100vw-3rem)/2)] min-w-36 max-w-44 shrink-0 sm:w-52 sm:max-w-none lg:w-56"
               >
@@ -60,9 +62,9 @@ export function ProductShowcase({
                   isDemo={isDemo}
                   href={`/products/${product.slug}`}
                 />
-              </li>
+              </StaggerItem>
             ))}
-          </ul>
+          </StaggerList>
         </ProductRail>
       )}
     </Section>

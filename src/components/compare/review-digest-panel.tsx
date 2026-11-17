@@ -57,12 +57,12 @@ export function ReviewDigestPanel({
         {digest ? (
           <div className="mt-4 space-y-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Keseluruhan</p>
+              <h4 className="heading-label text-foreground">Keseluruhan</h4>
               <p className="mt-1 text-sm leading-relaxed text-foreground">{digest.overall}</p>
             </div>
             {digest.camera ? (
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Kamera</p>
+                <h4 className="heading-label text-foreground">Kamera</h4>
                 <p className="mt-1 text-sm leading-relaxed text-foreground">{digest.camera}</p>
               </div>
             ) : null}

@@ -63,4 +63,10 @@ next-env.d.ts
 .windsurf
 
 # Hasil QA visual. PRD §12 melarang screenshot dan log masuk Git.
+# Screenshot tiket Verdant disimpan di qa-shots/verdant/<tiket>/.
 qa-shots/
+
+# Referensi visual pihak ketiga (tidak boleh di-commit) dan foto scene mentah.
+# Aset scene jadi ada di public/images/scene/ (dibuat scripts/build-scene.mjs).
+design/references/
+design/scene-src/

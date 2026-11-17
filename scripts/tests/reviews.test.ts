@@ -123,3 +123,24 @@ test("rangkuman: penilaian, skor, dan kamera karangan ditolak", () => {
   assert.equal(validateDigest({ overall: "Menurut GadgetIn, baterainya bertahan seharian penuh untuk pemakaian campuran.", camera: "" }, PRODUCTS), null);
   assert.ok(validateDigest({ overall: "Menurut GadgetIn, baterai A6 bertahan seharian penuh untuk pemakaian campuran.", camera: "" }, PRODUCTS));
 });
+
+import { draftSchema } from "@/lib/reviews/ai-draft";
+
+test("draf ulasan AI: hanya bentuk yang diharapkan yang mengisi formulir", () => {
+  const valid = {
+    relevan: true,
+    aspek: "kamera",
+    ringkasan: "Menurut reviewer, kamera utamanya tajam di siang hari tetapi agak berisik di malam hari.",
+    kelebihan: ["Foto siang tajam"],
+    kekurangan: ["Noise di malam hari"],
+    konteks: "Dipakai seminggu",
+    menit: "4:35",
+    bersponsor: false,
+    catatan: "",
+  };
+  assert.ok(draftSchema.safeParse(valid).success);
+  assert.equal(draftSchema.safeParse({ ...valid, aspek: "baterai" }).success, false, "aspek hanya umum/kamera (PB-40)");
+  assert.equal(draftSchema.safeParse({ ...valid, kelebihan: Array(7).fill("poin") }).success, false, "maksimal 6 poin");
+  assert.equal(draftSchema.safeParse({ ...valid, ringkasan: "x".repeat(1300) }).success, false);
+  assert.equal(draftSchema.safeParse({ ...valid, bersponsor: "ya" }).success, false);
+});

@@ -8,18 +8,20 @@ import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 
 import { DevicePlaceholder } from "@/components/product/device-placeholder";
 import { Button } from "@/components/ui/button";
+import { useMotionPreset } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 type Photo = { src: string; alt: string; source: string };
 
-/** Geser minimal (px) atau kecepatan (px/detik) agar swipe dianggap pindah foto. */
 /**
- * Latar samar di belakang foto, dari token desain yang ada. Foto produk sudah
- * dihapus latarnya (WebP transparan), jadi HP berwarna putih tidak menyatu
- * dengan kartu putih (masukan PO 16 Okt 2026).
+ * Panggung foto terang (DESIGN.md §2 butir 2, VD-06): `--stage` juga di tema
+ * gelap, karena foto produk resmi dibuat untuk latar terang. Panggung hanya
+ * berisi foto; HP putih tetap terpisah dari latar karena panggungnya sedikit
+ * kehijauan, bukan putih murni (masukan PO 16 Okt 2026).
  */
-const PHOTO_BACKDROP = "rounded-lg bg-gradient-to-br from-muted via-muted/70 to-brand-muted";
+const PHOTO_BACKDROP = "stage rounded-lg";
 
+/** Geser minimal (px) atau kecepatan (px/detik) agar swipe dianggap pindah foto. */
 const SWIPE_OFFSET = 60;
 const SWIPE_VELOCITY = 400;
 
@@ -52,6 +54,7 @@ export function ProductGallery({
   name: string;
 }) {
   const [[index, direction], setPage] = useState<[number, number]>([0, 0]);
+  const { transition } = useMotionPreset();
   const count = photos.length;
 
   if (count <= 1) {
@@ -121,7 +124,7 @@ export function ProductGallery({
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.8 }}
+              transition={transition("layout")}
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.5}
@@ -149,9 +152,10 @@ export function ProductGallery({
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} className="size-5" />
         </GalleryButton>
 
+        {/* Pil solid berwarna tetap (DESIGN.md §3.4): terbaca di panggung terang pada kedua tema. */}
         <p
           aria-hidden="true"
-          className="absolute right-2 top-2 rounded-pill border border-border bg-card px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground"
+          className="absolute right-2 top-2 rounded-pill bg-stage-foreground px-2.5 py-1 text-xs font-semibold tabular-nums text-stage"
         >
           {index + 1}/{count}
         </p>
@@ -172,7 +176,7 @@ export function ProductGallery({
               aria-label={`Tampilkan foto ${position + 1}`}
               aria-current={active ? "true" : undefined}
               className={cn(
-                "relative size-14 shrink-0 rounded-lg border bg-background/60 p-1 transition-[border-color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "stage relative size-14 shrink-0 rounded-lg border p-1 transition-[border-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 active
                   ? "border-transparent opacity-100"
                   : "border-border opacity-60 hover:opacity-100"
@@ -190,7 +194,7 @@ export function ProductGallery({
                   layoutId="product-gallery-active"
                   aria-hidden="true"
                   className="absolute inset-0 rounded-lg ring-2 ring-primary"
-                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  transition={transition("thumb")}
                 />
               ) : null}
             </button>
