@@ -11,7 +11,7 @@ export function ComparePicker({ result }: { result: CompareResult }) {
     <section aria-labelledby="pilih-kandidat" className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-text">Langkah 1</p>
+          <p className="text-sm font-semibold text-brand-text">Langkah 1 dari 3</p>
           <h2 id="pilih-kandidat" className="mt-1 heading-section text-foreground">
             Pilih produk
           </h2>
@@ -26,7 +26,7 @@ export function ComparePicker({ result }: { result: CompareResult }) {
 
       {result.items.length > 0 ? (
         <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Produk terpilih</p>
+          <h3 className="heading-label text-foreground">Produk terpilih</h3>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {result.items.map((item) => (
               <li key={item.slug} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5">

@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -10,9 +9,9 @@ import { CompareTable } from "@/components/compare/compare-table";
 import { DataErrorBoundary, DataUnavailable } from "@/components/data-error";
 import { loadOrNull } from "@/lib/catalog/load";
 import { DemoNotice } from "@/components/demo-marker";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getComparison, isDemoData } from "@/lib/catalog/queries";
 import { pairPath } from "@/lib/catalog/compare-pair-rules";
 import { listComparePairs } from "@/lib/catalog/compare-pairs";
@@ -32,20 +31,11 @@ export const metadata: Metadata = {
  * peringkat, dan tidak ada penanda pemenang; yang ditampilkan hanya nilainya,
  * di mana nilainya berbeda, dan apa yang belum diketahui.
  *
- * Seperti katalog, kerangka halaman berada di luar `<Suspense>` supaya ikut ke
- * shell, sedangkan bagian yang bergantung pada `searchParams` mengalir di
- * dalamnya.
+ * Tanpa `<Suspense>` (VD-07): bagian yang dialirkan belakangan disisipkan oleh
+ * skrip, jadi tanpa JavaScript halaman ini dulu hanya berisi 2 skeleton dan 0
+ * kartu (temuan VD-05). Rutenya sudah dinamis (cookie tema di layout publik),
+ * jadi tidak ada shell statis yang hilang.
  */
-
-function CompareSkeleton() {
-  return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {Array.from({ length: 2 }, (_, index) => (
-        <Skeleton key={index} className="h-[32rem] w-full rounded-xl" />
-      ))}
-    </div>
-  );
-}
 
 /** Pasangan pilihan admin (PB-28), sebagai contoh siap buka. Tanpa klaim "populer". */
 async function PairExamples() {
@@ -112,7 +102,7 @@ async function CompareView({
       {result.items.length > 0 ? (
         <section aria-labelledby="hasil-bandingkan" className="mt-10">
           <div className="mb-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-brand-text">Langkah 2</p>
+            <p className="text-sm font-semibold text-brand-text">Langkah 2 dari 3</p>
             <h2 id="hasil-bandingkan" className="mt-1 heading-section text-foreground">
               {hasEnough ? "Lihat perbedaan" : "Produk yang dipilih"}
             </h2>
@@ -128,7 +118,7 @@ async function CompareView({
 
       {hasEnough ? (
         <section aria-labelledby="konteks-bandingkan" className="mt-10">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-text">Langkah 3</p>
+          <p className="text-sm font-semibold text-brand-text">Langkah 3 dari 3</p>
           <h2 id="konteks-bandingkan" className="mt-1 heading-section text-foreground">
             Baca konteksnya
           </h2>
@@ -150,10 +140,10 @@ async function CompareView({
 export default function ComparePage(props: PageProps<"/compare">) {
   return (
     <Container className="py-8 md:py-12">
+      <Breadcrumbs items={[{ label: "Beranda", href: "/" }, { label: "Bandingkan" }]} className="mb-4" />
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-text">CekHarga / Bandingkan</p>
-          <h1 className="mt-2 heading-page text-foreground">
+          <h1 className="heading-page text-foreground">
             Bandingkan produk
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
@@ -167,9 +157,7 @@ export default function ComparePage(props: PageProps<"/compare">) {
       </header>
 
       <DataErrorBoundary area="Perbandingan">
-        <Suspense fallback={<CompareSkeleton />}>
-          <CompareView searchParams={props.searchParams} />
-        </Suspense>
+        <CompareView searchParams={props.searchParams} />
       </DataErrorBoundary>
     </Container>
   );

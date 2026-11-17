@@ -7,6 +7,7 @@ import { CompareSummary } from "@/components/compare/compare-summary";
 import { ReviewDigestSection } from "@/components/compare/review-digest-section";
 import { CompareTable } from "@/components/compare/compare-table";
 import { DemoNotice } from "@/components/demo-marker";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { buildCompareHref } from "@/lib/catalog/compare-href";
@@ -73,9 +74,12 @@ export default async function ComparePairPage(props: PageProps<"/bandingkan/[pas
 
   return (
     <Container className="py-8 md:py-12">
+      <Breadcrumbs
+        items={[{ label: "Beranda", href: "/" }, { label: "Bandingkan", href: "/compare" }, { label: `${pair.nameA} vs ${pair.nameB}` }]}
+        className="mb-4"
+      />
       <header className="mb-8 max-w-3xl">
-        <p className="text-xs font-bold uppercase tracking-widest text-brand-text">CekHarga / Bandingkan</p>
-        <h1 className="mt-2 heading-page text-foreground">
+        <h1 className="heading-page text-foreground">
           {pair.nameA} vs {pair.nameB}
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
