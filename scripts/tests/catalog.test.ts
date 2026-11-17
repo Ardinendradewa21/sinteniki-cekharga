@@ -360,3 +360,59 @@ test("resilientFetch: tulis diteruskan sekali, galat jaringan dan pembatalan pem
   await assert.rejects(pending, /aborted/);
   assert.equal(count, 1, "dibatalkan pemanggil (timeout SDK): tidak diulang");
 });
+
+/* ------------------------------------------- harga manual admin (15 Nov 2026) */
+
+import { parseRupiahInput } from "@/lib/admin/rupiah-input";
+import { offerInput, priceInput } from "@/lib/admin/schema";
+
+test("harga manual admin: format Indonesia diterima, Rp0 dan salah ketik ditolak", () => {
+  const value = (raw: string) => {
+    const parsed = parseRupiahInput(raw);
+    return parsed.ok ? parsed.value : parsed.error;
+  };
+  // Dulu "2.849.000" ditolak browser (type=number) dan harga tidak terkirim.
+  assert.equal(value("2.849.000"), 2_849_000);
+  assert.equal(value("2849000"), 2_849_000);
+  assert.equal(value("Rp 2.849.000"), 2_849_000);
+  assert.equal(value("Rp2.849.000,00"), 2_849_000);
+  assert.equal(value("2,849,000"), 2_849_000);
+  assert.equal(value(" 2.849.500 "), 2_849_500, "bukan kelipatan Rp1.000 tetap sah (45 harga seperti ini sudah ada)");
+  assert.equal(value("12.999.000"), 12_999_000);
+
+  assert.match(String(value("")), /wajib/);
+  assert.match(String(value("0")), /terlalu kecil/, "harga kosong bukan nol (PRD §7)");
+  assert.match(String(value("2.849")), /terlalu kecil/, "2.849 hampir pasti salah ketik ribuan");
+  assert.match(String(value("2.849.000,50")), /tanpa sen/);
+  assert.match(String(value("2.84.9000")), /tidak dikenali/);
+  assert.match(String(value("dua juta")), /hanya boleh/);
+  assert.match(String(value("-2849000")), /hanya boleh/);
+  assert.match(String(value("28490000000")), /batas wajar/);
+});
+
+test("schema penawaran: harga opsional saat menambah, wajib saat mencatat", () => {
+  const base = {
+    variantId: "3fbb172b-8827-4ed3-9bfc-dd6065aaff1d",
+    marketplace: "Shopee",
+    sellerName: "Motorola Official Store",
+    url: "https://shopee.co.id/motorola-g77-power-i.1.2",
+    warranty: "",
+    listingStatus: "active",
+  };
+  const withoutPrice = offerInput.safeParse({ ...base, priceIdr: "" });
+  assert.ok(withoutPrice.success);
+  assert.equal(withoutPrice.data.priceIdr, null);
+  const missingField = offerInput.safeParse(base);
+  assert.ok(missingField.success, "kolom harga tidak ada = tanpa harga");
+  assert.equal(missingField.data.priceIdr, null);
+  const withPrice = offerInput.safeParse({ ...base, priceIdr: "2.849.000" });
+  assert.ok(withPrice.success);
+  assert.equal(withPrice.data.priceIdr, 2_849_000);
+  assert.equal(offerInput.safeParse({ ...base, priceIdr: "0" }).success, false);
+
+  const offerId = "9dbe4e37-3d7b-4c8a-852d-369fa9f1290a";
+  assert.equal(priceInput.safeParse({ offerId, priceIdr: "2.849.000" }).data?.priceIdr, 2_849_000);
+  const empty = priceInput.safeParse({ offerId, priceIdr: "" });
+  assert.equal(empty.success, false, "Rp0 dari kolom kosong tidak lagi lolos (dulu z.coerce)");
+  assert.equal(priceInput.safeParse({ offerId: "bukan-uuid", priceIdr: "2849000" }).success, false);
+});
