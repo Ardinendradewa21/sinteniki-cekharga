@@ -1436,3 +1436,125 @@ test("host foto Motorola bernomor diizinkan, host lain di domain yang sama tidak
   assert.equal(safeHttpsImageUrl("https://p1-ofp.static.pub.evil.com/x.png"), null);
   assert.equal(safeHttpsImageUrl("http://p1-ofp.static.pub/x.png"), null);
 });
+
+/* ------------------------------------------------ tarik otomatis: blokir GSMArena (14 Nov 2026) */
+
+import { BLOCK_COOLDOWN_HOURS, cooldownMessage, cooldownUntil, formatCooldownTime } from "@/lib/scrape/cooldown-rules";
+import { lineupFromSitemap, motorolaNameFromPath, MOTOROLA_SITEMAP_LINEUP } from "@/lib/scrape/sitemap-lineup";
+import { parseSpecPaste, SPEC_PASTE_HEADER, SPEC_PASTE_MAX_CHARS } from "@/lib/scrape/spec-paste";
+import { SPEC_HELPER_BOOKMARKLET, SPEC_HELPER_SOURCE } from "@/lib/scrape/spec-helper";
+import { parseSpecPage } from "@/lib/scrape/parsers";
+
+test("masa tenang: 6 jam sejak blokir terakhir, lalu selesai sendiri", () => {
+  const blocked = "2026-11-14T03:00:00.000Z"; // 10.00 WIB
+  const now = Date.parse("2026-11-14T05:00:00.000Z");
+  const until = cooldownUntil(blocked, now);
+  assert.ok(until);
+  assert.equal(until.toISOString(), "2026-11-14T09:00:00.000Z");
+  assert.equal(BLOCK_COOLDOWN_HOURS, 6);
+  assert.equal(cooldownUntil(blocked, Date.parse("2026-11-14T09:00:01.000Z")), null, "lewat 6 jam");
+  assert.equal(cooldownUntil(null, now), null, "belum pernah diblokir");
+  assert.equal(cooldownUntil("bukan tanggal", now), null);
+  assert.equal(formatCooldownTime(until, now), "16.00 WIB");
+  assert.equal(formatCooldownTime(until, Date.parse("2026-11-13T05:00:00.000Z")), "14 Nov 16.00 WIB", "beda hari menyebut tanggal");
+  const message = cooldownMessage("www.gsmarena.com", until, now);
+  assert.match(message, /^GSMArena sedang membatasi akses CekHarga/);
+  assert.match(message, /Salin spesifikasi/);
+});
+
+test("daftar model Motorola dari sitemap resmi Indonesia", () => {
+  assert.equal(motorolaNameFromPath("/id/id/p/phones/moto-g/45/pmipmhm41mj"), "moto g45");
+  assert.equal(motorolaNameFromPath("/id/id/p/phones/moto-g/57-power-5g/pmipmjf43mj"), "moto g57 power 5G");
+  assert.equal(motorolaNameFromPath("/id/id/p/phones/moto-g/g06-power/pmipmhy43m4"), "moto g06 power");
+  assert.equal(motorolaNameFromPath("/id/id/p/phones/motorola-edge/60-fusion/pmipmht41mf"), "motorola edge 60 fusion");
+  assert.equal(
+    motorolaNameFromPath("/id/id/p/phones/motorola-edge/motorola-edge-70-fusion-7000mah/pmipmjk43mm"),
+    "motorola edge 70 fusion",
+    "kapasitas baterai bukan bagian nama"
+  );
+  assert.equal(motorolaNameFromPath("/id/id/p/phones/motorola-signature/signature/pmipmjm43mx"), "motorola signature");
+  assert.equal(motorolaNameFromPath("/id/id/p/phones/razr/razr-fold/pmipmjn43m2"), "razr fold");
+  assert.equal(motorolaNameFromPath("/id/id/p/accessories/x"), null);
+
+  const xml = `<?xml version="1.0"?><urlset>
+    <url><loc>https://www.motorola.com/id/id/p/phones/moto-g/45/pmipmhm41mj</loc></url>
+    <url><loc>https://www.motorola.com/id/id/p/phones/moto-g/45/pmipmhm41mj</loc></url>
+    <url><loc>https://www.motorola.com/id/id/p/phones/razr/razr-60/pmipmhv41mm</loc></url>
+    <url><loc>https://www.motorola.com/id/id/p/accessories/moto-buds/pmipmx</loc></url>
+    <url><loc>https://evil.example/id/id/p/phones/moto-g/99/pmipmzz</loc></url>
+    <url><loc>https://www.motorola.com/us/p/phones/moto-g/45/pmipmhm41mj</loc></url>
+  </urlset>`;
+  const items = lineupFromSitemap(xml, MOTOROLA_SITEMAP_LINEUP);
+  assert.deepEqual(
+    items.map((item) => item.name),
+    ["moto g45", "razr 60"],
+    "duplikat, aksesori, host lain, dan negara lain dibuang"
+  );
+  assert.equal(items[0].id, "moto-g/45/pmipmhm41mj");
+  assert.deepEqual(lineupFromSitemap("<html>Access denied</html>", MOTOROLA_SITEMAP_LINEUP), [], "halaman blokir = daftar kosong");
+});
+
+const SAMPLE_SPEC_BODY = `<div id="body"><div class="article-info">
+<h1 class="specs-phone-name-title" data-spec="modelname">Motorola Moto G45</h1>
+<div class="specs-photo-main"><a href="motorola_moto_g45-pictures-13202.php"><img alt="Motorola Moto G45" src="https://fdn2.gsmarena.com/vv/bigpic/motorola-moto-g45.jpg"></a></div>
+</div><div id="specs-list"><table cellspacing="0"><tr><th rowspan="15" scope="row">Network</th>
+<td class="ttl"><a href="network-bands.php3">Technology</a></td><td class="nfo"><a href="#" class="link-network-detail collapse" data-spec="nettech">GSM / HSPA / LTE / 5G</a></td></tr></table>
+<table cellspacing="0"><tr><th rowspan="2" scope="row">Launch</th><td class="ttl"><a href="glossary.php3?term=phone-life-cycle">Announced</a></td><td class="nfo" data-spec="year">2024, August 22</td></tr>
+<tr><td class="ttl"><a href="glossary.php3?term=phone-life-cycle">Status</a></td><td class="nfo" data-spec="status">Available. Released 2024, August 28</td></tr></table>
+<table cellspacing="0"><tr><th rowspan="5" scope="row">Memory</th><td class="ttl"><a href="glossary.php3?term=dynamic-memory">Internal</a></td><td class="nfo" data-spec="internalmemory">128GB 4GB RAM, 128GB 8GB RAM</td></tr></table>
+</div></div>`;
+
+test("salin spesifikasi: tempelan dari bookmarklet diurai tanpa menghubungi GSMArena", () => {
+  const text = `${SPEC_PASTE_HEADER}\nmotorola_moto_g45-13202.php\n${SAMPLE_SPEC_BODY}`;
+  const parsed = parseSpecPaste(`﻿  ${text}\n\n`);
+  assert.ok(parsed.ok);
+  assert.equal(parsed.paste.path, "motorola_moto_g45-13202.php");
+  assert.equal(parsed.paste.modelName, "Motorola Moto G45");
+  const crlf = parseSpecPaste(text.replace(/\n/g, "\r\n"));
+  assert.ok(crlf.ok, "clipboard Windows (CRLF) diterima");
+  assert.equal(crlf.paste.path, "motorola_moto_g45-13202.php");
+
+  const spec = parseSpecPage(parsed.paste.html, parsed.paste.path, "Motorola");
+  assert.equal(spec.row.model_name, "Motorola Moto G45");
+  assert.equal(spec.row.network_technology, "GSM / HSPA / LTE / 5G");
+  assert.equal(spec.row.memory_variants_summary, "128GB/4GB; 128GB/8GB");
+  assert.equal(spec.row.image_url, "https://fdn2.gsmarena.com/vv/bigpic/motorola-moto-g45.jpg");
+
+  assert.equal(parseSpecPaste("").ok, false);
+  assert.equal(parseSpecPaste(`motorola_moto_g45-13202.php\n${SAMPLE_SPEC_BODY}`).ok, false, "tanpa header");
+  assert.equal(parseSpecPaste(`${SPEC_PASTE_HEADER}\n../admin.php\n${SAMPLE_SPEC_BODY}`).ok, false, "path tidak valid");
+  assert.equal(parseSpecPaste(`${SPEC_PASTE_HEADER}\nhttps://evil.example/x-1.php\n${SAMPLE_SPEC_BODY}`).ok, false, "URL penuh ditolak");
+  assert.equal(
+    parseSpecPaste(`${SPEC_PASTE_HEADER}\nmotorola-phones-4.php\n<div id="body">daftar</div>`).ok,
+    false,
+    "halaman daftar, bukan spesifikasi"
+  );
+  assert.equal(parseSpecPaste(`${SPEC_PASTE_HEADER}\nmotorola_moto_g45-13202.php\n${"x".repeat(SPEC_PASTE_MAX_CHARS)}`).ok, false, "terlalu besar");
+});
+
+test("bookmarklet salin spesifikasi: hanya halaman model www.gsmarena.com", () => {
+  const api = new Function(`${SPEC_HELPER_SOURCE}; return { chsBuildPayload };`)() as {
+    chsBuildPayload(
+      config: { header: string; maxChars: number },
+      hostname: string,
+      pathname: string,
+      bodyHtml: string,
+      hasSpecs: boolean
+    ): { text?: string; error?: string };
+  };
+  const config = { header: SPEC_PASTE_HEADER, maxChars: SPEC_PASTE_MAX_CHARS };
+  const ok = api.chsBuildPayload(config, "www.gsmarena.com", "/motorola_moto_g45-13202.php", SAMPLE_SPEC_BODY, true);
+  assert.ok(ok.text);
+  const roundTrip = parseSpecPaste(ok.text);
+  assert.ok(roundTrip.ok, "hasil bookmarklet diterima pengurai server");
+  assert.equal(roundTrip.paste.modelName, "Motorola Moto G45");
+
+  assert.ok(api.chsBuildPayload(config, "m.gsmarena.com", "/motorola_moto_g45-13202.php", SAMPLE_SPEC_BODY, true).error, "versi seluler");
+  assert.ok(api.chsBuildPayload(config, "evil.example", "/motorola_moto_g45-13202.php", SAMPLE_SPEC_BODY, true).error);
+  assert.ok(api.chsBuildPayload(config, "www.gsmarena.com", "/motorola-phones-4.php", SAMPLE_SPEC_BODY, false).error, "halaman daftar");
+  assert.ok(api.chsBuildPayload(config, "www.gsmarena.com", "/news.php3", "", false).error);
+
+  assert.match(SPEC_HELPER_BOOKMARKLET, /^javascript:/);
+  // URL bookmarklet harus JavaScript yang sah setelah didekode.
+  assert.doesNotThrow(() => new Function(decodeURIComponent(SPEC_HELPER_BOOKMARKLET.slice("javascript:".length))));
+});

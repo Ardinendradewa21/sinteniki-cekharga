@@ -22,7 +22,9 @@ import {
   sessionJobs,
   type ScrapeJobStatus,
 } from "@/lib/scrape/jobs";
-import { claimCommit, getSession, getSessionResults, linkBatch, type ResultState } from "@/lib/scrape/sessions";
+import { resolveLineupItem } from "@/lib/scrape/resolve";
+import { claimCommit, createSession, getSession, getSessionResults, linkBatch, saveResult, type ResultState } from "@/lib/scrape/sessions";
+import { parseSpecPaste, SPEC_PASTE_MAX_CHARS } from "@/lib/scrape/spec-paste";
 import { GSMARENA_PATH, officialSourceFor } from "@/lib/scrape/sources";
 import { SCRAPE_BRAND_LABELS, SCRAPE_BRANDS, type CommitSummary, type LineupItem } from "@/lib/scrape/types";
 
@@ -95,6 +97,52 @@ export async function queueResolveAction(input: unknown): Promise<{ ok: true } |
   }
   scheduleWorker();
   return { ok: true };
+}
+
+/**
+ * Salin spesifikasi: cadangan saat GSMArena membatasi akses server.
+ *
+ * Admin menempel salinan halaman model dari bookmarklet (spec-helper.ts).
+ * Aksi ini TIDAK menghubungi GSMArena; hanya mengurai teks tempelan dengan
+ * parser yang sama dan menyimpan hasilnya sebagai sesi satu model, sehingga
+ * langkah berikutnya (pratinjau, kirim ke Pusat Impor) sama persis dengan
+ * tarik otomatis. Penguraian dan dua query katalog cukup ringan untuk
+ * berjalan di request (aturan 3 hanya melarang pengambilan dari situs lain).
+ */
+export async function pasteSpecAction(
+  input: unknown
+): Promise<{ ok: true; sessionId: string } | { ok: false; error: string }> {
+  const admin = await requireStaff([]);
+  const parsed = z
+    .object({ brand: z.enum(SCRAPE_BRANDS), text: z.string().min(1).max(SPEC_PASTE_MAX_CHARS + 1_000) })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Pilih merek dan tempel hasil salinan bookmarklet (paling besar 400 ribu karakter)." };
+  }
+  const { brand, text } = parsed.data;
+  const pasted = parseSpecPaste(text);
+  if (!pasted.ok) return pasted;
+  const { path, html, modelName } = pasted.paste;
+
+  const lineup: LineupItem = {
+    officialId: path.replace(/\.php$/, ""),
+    brand,
+    officialName: modelName,
+    officialUrl: null,
+    prices: [],
+    storageOnlyPrices: [],
+    unassignedPrices: [],
+    priceIssues: [],
+    siblingHas5g: false,
+    gsmarenaPath: path,
+  };
+  const result = await resolveLineupItem(lineup, undefined, { html });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const sessionId = await createSession(brand, [lineup], new Date().toISOString(), admin);
+  if (!sessionId) return { ok: false, error: "Sesi gagal disimpan. Coba lagi." };
+  await saveResult(sessionId, lineup.officialId, { status: "ok", item: result.item });
+  return { ok: true, sessionId };
 }
 
 export async function stopResolveAction(sessionId: string): Promise<number> {

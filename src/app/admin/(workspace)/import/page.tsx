@@ -5,6 +5,7 @@ import { UploadForm } from "@/components/admin/upload-form";
 import { PhotoReprocessForm } from "@/components/admin/photo-reprocess-form";
 import { PriceHelperLink } from "@/components/admin/price-helper-link";
 import { ScrapeWorkbench } from "@/components/admin/scrape-workbench";
+import { SpecPasteForm } from "@/components/admin/spec-paste-form";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { NavTabs } from "@/components/ui/nav-tabs";
@@ -20,7 +21,10 @@ import { PRICE_HELPER_BOOKMARKLET } from "@/lib/import/price-helper";
 import { templateTerpadu } from "@/lib/import/unified";
 import { photoJobCounts } from "@/lib/import/photo-jobs";
 import { MAX_PHOTOS_PER_COLOR, MAX_PHOTOS_PER_PRODUCT } from "@/lib/import/photo-rules";
+import { cooldownFor } from "@/lib/scrape/cooldown";
+import { cooldownMessage } from "@/lib/scrape/cooldown-rules";
 import { getSession, listRecentSessions } from "@/lib/scrape/sessions";
+import { SPEC_HELPER_BOOKMARKLET } from "@/lib/scrape/spec-helper";
 import { SCRAPE_BRAND_LABELS, scrapeBrandOf, type ScrapeBrand } from "@/lib/scrape/types";
 import { cn } from "@/lib/utils";
 
@@ -222,9 +226,19 @@ async function ScrapeTab({
   brand: ScrapeBrand | null;
   search: string;
 }) {
-  const [session, recent] = await Promise.all([sessionId ? getSession(sessionId) : null, listRecentSessions(5)]);
+  const [session, recent, gsmarenaCooldown] = await Promise.all([
+    sessionId ? getSession(sessionId) : null,
+    listRecentSessions(5),
+    cooldownFor("www.gsmarena.com"),
+  ]);
   return (
     <div className="space-y-6">
+      {gsmarenaCooldown ? (
+        <p role="status" className="rounded-xl border border-warning bg-warning-muted p-4 text-sm font-medium text-foreground">
+          {cooldownMessage("www.gsmarena.com", gsmarenaCooldown)}
+        </p>
+      ) : null}
+
       <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
         Daftar model dan harga per varian diambil dari situs resmi merek, spesifikasinya dari GSMArena. Hasilnya
         disimpan sebagai sesi di server, jadi aman bila halaman dimuat ulang. Model yang dikirim masuk ke batch pratinjau
@@ -238,7 +252,12 @@ async function ScrapeTab({
             Harga berasal dari teks di situs resmi pada saat diambil, dan waktu itu yang dicatat sebagai waktu
             pemeriksaan. Situs resmi juga memuat model lama; periksa temuan kuning sebelum menyimpan.
           </li>
-          <li>Pengambilan sengaja pelan dan berhenti bila situs sumber meminta verifikasi anti-bot. Verifikasi itu tidak ditembus.</li>
+          <li>
+            Pengambilan sengaja pelan dan berhenti bila situs sumber meminta verifikasi anti-bot. Verifikasi itu tidak
+            ditembus; sumber yang memblokir diistirahatkan 6 jam sebelum dicoba lagi. Selama itu, pakai Salin spesifikasi di
+            bawah.
+          </li>
+          <li>Daftar model yang kosong dianggap gagal, bukan sesi baru tanpa model.</li>
           <li>Produk yang sudah terbit tidak diturunkan menjadi draft; hanya spesifikasinya yang diperbarui.</li>
         </ul>
       </div>
@@ -277,6 +296,28 @@ async function ScrapeTab({
 
       {/* key: pindah sesi = mulai dari state sesi itu, bukan sisa sesi sebelumnya. */}
       <ScrapeWorkbench key={session?.id ?? "baru"} initialSession={session} initialBrand={brand} initialFilter={search} />
+
+      <section aria-labelledby="salin-spek" className="rounded-xl border border-border bg-card p-5">
+        <h2 id="salin-spek" className="text-base font-bold text-foreground">
+          Cadangan: Salin spesifikasi dari GSMArena
+        </h2>
+        <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
+          Untuk model yang mendesak saat GSMArena membatasi akses server CekHarga. Halaman dibuka di browser Anda sendiri,
+          jadi CekHarga tidak mengirim permintaan apa pun ke GSMArena. Hasilnya menjadi sesi satu model yang ditinjau dan
+          dikirim ke Pusat Impor seperti biasa.
+        </p>
+        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-foreground">
+          <li>Seret tombol di bawah ke bilah bookmark browser (sekali saja).</li>
+          <li>Buka halaman spesifikasi model di www.gsmarena.com, lalu klik bookmark itu.</li>
+          <li>Kembali ke sini, pilih merek, tempel hasilnya, lalu tekan Baca spesifikasi.</li>
+        </ol>
+        <div className="mt-4">
+          <PriceHelperLink href={SPEC_HELPER_BOOKMARKLET} label="Salin spesifikasi" />
+        </div>
+        <div className="mt-5 border-t border-border pt-5">
+          <SpecPasteForm initialBrand={brand} />
+        </div>
+      </section>
     </div>
   );
 }

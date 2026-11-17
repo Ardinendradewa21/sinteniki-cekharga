@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   effectiveOfficialPrices,
+  GSMARENA_PATH,
   isBotChallenge,
   looksLikeAccessory,
   looksLikeNonPhone,
@@ -26,8 +27,10 @@ import {
   scrapeBackoffMs,
   type ScrapeFailure,
 } from "@/lib/scrape/retry-rules";
+import { assertNoCooldown, rememberBlock } from "@/lib/scrape/cooldown";
 import { OFFICIAL_SELLERS } from "@/lib/scrape/official-sellers";
-import type { LineupItem, ScrapeBrand } from "@/lib/scrape/types";
+import { lineupFromSitemap, MOTOROLA_SITEMAP_LINEUP, type SitemapLineupConfig } from "@/lib/scrape/sitemap-lineup";
+import { SCRAPE_BRAND_LABELS, type LineupItem, type ScrapeBrand } from "@/lib/scrape/types";
 
 /**
  * Pengambilan data untuk fitur tarik data otomatis.
@@ -44,6 +47,13 @@ import type { LineupItem, ScrapeBrand } from "@/lib/scrape/types";
  * - Hanya host yang ada di daftar izin yang boleh dihubungi, dan path GSMArena
  *   divalidasi polanya, supaya aksi admin ini tidak bisa dipakai untuk
  *   meminta URL sembarang (SSRF).
+ * - Setelah diblokir, host tidak dihubungi lagi selama masa tenang
+ *   (cooldown-rules.ts, 14 November 2026).
+ * - Halaman daftar GSMArena yang tidak berisi satu pun model diperlakukan
+ *   sebagai pembatasan, bukan daftar kosong, dan pencarian nama model dibatasi
+ *   beberapa halaman terbaru (dulu bisa memindai puluhan halaman per model).
+ * - Daftar model sebisa mungkin dari sitemap resmi merek (Motorola), sehingga
+ *   GSMArena hanya dimintai halaman spesifikasi.
  */
 
 // Dipakai tarik otomatis (dipicu admin) dan pemeriksaan harga harian (terjadwal).
@@ -52,6 +62,7 @@ const TIMEOUT_MS = 20_000;
 
 const MIN_INTERVAL_MS: Record<string, number> = {
   "www.gsmarena.com": 3_000,
+  "www.motorola.com": 1_000,
   "www.vivo.com": 1_000,
   "www.iqoo.com": 1_000,
   "www.oppo.com": 1_000,
@@ -108,6 +119,8 @@ async function fetchOnce(url: URL, init: RequestInit, minInterval: number): Prom
   }
 
   if (response.status === 429 || response.status === 403 || isBotChallenge(body)) {
+    // Masa tenang langsung berlaku di proses ini (lihat cooldown.ts).
+    rememberBlock(url.hostname);
     throw new ScrapeBlockedError(
       `${url.hostname} meminta verifikasi anti-bot atau membatasi akses. Proses dihentikan; coba lagi nanti, jangan dipaksa.`
     );
@@ -131,6 +144,9 @@ async function politeFetch(url: URL, init: RequestInit = {}): Promise<string> {
   if (minInterval === undefined) {
     throw new ScrapeSourceError(`Host ${url.hostname} tidak ada di daftar izin.`);
   }
+  // Host yang baru memblokir tidak dihubungi lagi selama masa tenang
+  // (tombol admin, worker, dan pemeriksaan harian sama-sama tertahan).
+  await assertNoCooldown(url.hostname);
 
   for (let attempt = 1; ; attempt += 1) {
     try {
@@ -167,6 +183,11 @@ type BrandConfig = {
   namePrefix?: string;
   /** Nama sumber harga yang berbeda total dari nama GSMArena (bukan sekadar spasi/merek). */
   nameAliases?: Record<string, string>;
+  /**
+   * Daftar model dari sitemap resmi untuk merek tanpa harga online. Tanpa
+   * ini, daftarnya dari halaman daftar merek GSMArena.
+   */
+  sitemapLineup?: SitemapLineupConfig;
   official: {
     label: string;
     /** Host yang sah untuk tautan produk resmi (dicek ulang saat menyimpan). */
@@ -394,7 +415,15 @@ const BRANDS: Record<ScrapeBrand, BrandConfig> = {
     },
   },
   itel: { gsmarenaBrand: "itel", gsmarenaListPage: "itel-phones-131.php", brandWords: ["itel"], official: null },
-  motorola: { gsmarenaBrand: "Motorola", gsmarenaListPage: "motorola-phones-4.php", brandWords: ["motorola", "moto"], official: null },
+  motorola: {
+    gsmarenaBrand: "Motorola",
+    gsmarenaListPage: "motorola-phones-4.php",
+    brandWords: ["motorola", "moto"],
+    official: null,
+    // Daftar model dari sitemap resmi Indonesia (11 ponsel per 14 Nov 2026),
+    // bukan 2 halaman daftar global GSMArena (±80 model).
+    sitemapLineup: MOTOROLA_SITEMAP_LINEUP,
+  },
 };
 
 /** Kunci nama model per merek, sama dengan yang dipakai saat menarik lineup. */
@@ -413,11 +442,55 @@ export function officialSourceFor(brand: ScrapeBrand) {
 /** Halaman daftar merek GSMArena yang dipakai sebagai daftar model merek tanpa harga resmi. */
 const GSMARENA_LINEUP_PAGES = 2;
 
+/**
+ * Batas halaman daftar merek yang dimuat untuk mencari SATU nama model.
+ * Dulu pencarian memuat halaman berikutnya sampai ketemu, jadi nama yang
+ * tidak ada di GSMArena memindai seluruh indeks merek (puluhan permintaan
+ * berjeda 3 detik per model), pola yang mudah dianggap scraping. Model yang
+ * dijual sekarang hampir selalu ada di halaman-halaman terbaru; selebihnya
+ * admin memilih halamannya sendiri atau memakai Salin spesifikasi.
+ */
+export const GSMARENA_LOOKUP_MAX_PAGES = 5;
+
+/**
+ * Daftar model satu merek. Daftar kosong TIDAK pernah dikembalikan sebagai
+ * hasil: dulu tersimpan sebagai sesi "0/0 model" tanpa penjelasan, padahal
+ * hampir selalu berarti sumbernya sedang membatasi (13 November 2026).
+ */
 export async function fetchLineup(brand: ScrapeBrand): Promise<LineupItem[]> {
+  const items = await fetchLineupItems(brand);
+  if (items.length === 0) {
+    throw new ScrapeSourceError(
+      `Daftar model ${brand} kosong. Sumbernya kemungkinan sedang membatasi akses atau berubah format; coba lagi nanti.`
+    );
+  }
+  return items;
+}
+
+async function fetchLineupItems(brand: ScrapeBrand): Promise<LineupItem[]> {
   const config = BRANDS[brand];
 
+  if (!config.official && config.sitemapLineup) {
+    // Merek tanpa harga online dengan sitemap resmi: daftar model Indonesia,
+    // nama dicocokkan ke GSMArena saat spesifikasinya diambil.
+    const xml = await politeFetch(new URL(config.sitemapLineup.sitemapUrl));
+    return lineupFromSitemap(xml, config.sitemapLineup).map((model) => ({
+      officialId: model.id,
+      brand,
+      officialName: model.name,
+      // Halaman resmi hanya rujukan; tanpa harga, tidak ada penawaran yang dibuat.
+      officialUrl: null,
+      prices: [],
+      storageOnlyPrices: [],
+      unassignedPrices: [],
+      priceIssues: [],
+      siblingHas5g: false,
+      gsmarenaPath: null,
+    }));
+  }
+
   if (!config.official) {
-    // Merek tanpa harga resmi online: daftar model terbaru dari GSMArena.
+    // Merek tanpa harga resmi online dan tanpa sitemap: daftar model terbaru dari GSMArena.
     const index = await loadBrandIndex(brand, GSMARENA_LINEUP_PAGES);
     return index.items
       .filter((item) => !looksLikeNonPhone(item.name))
@@ -472,8 +545,9 @@ export async function fetchLineup(brand: ScrapeBrand): Promise<LineupItem[]> {
 
 const GSMARENA = "https://www.gsmarena.com/";
 const INDEX_TTL_MS = 30 * 60_000;
-/** Tanda kurung ikut diizinkan: GSMArena menulis model bertahun sebagai "..._(2022)-11410.php". */
-export const GSMARENA_PATH = /^[a-z0-9_()]+-\d+\.php$/;
+// Pola path ada di parsers.ts (modul murni) supaya pengurai Salin spesifikasi
+// bisa memakainya; diekspor ulang di sini untuk pemakai lama.
+export { GSMARENA_PATH };
 
 type BrandIndex = {
   items: (GsmarenaListItem & { key: ModelKey })[];
@@ -498,8 +572,28 @@ async function loadNextIndexPage(brand: ScrapeBrand, index: BrandIndex): Promise
   const page = index.pending.shift();
   if (!page) return false;
   const config = BRANDS[brand];
-  const html = await politeFetch(new URL(page, GSMARENA));
+  const url = new URL(page, GSMARENA);
+  let html: string;
+  try {
+    html = await politeFetch(url);
+  } catch (error) {
+    // Halaman yang gagal dimuat dikembalikan ke antrean; tanpa ini indeks yang
+    // di-cache 30 menit diam-diam kehilangan halaman itu.
+    index.pending.unshift(page);
+    throw error;
+  }
   const parsed = parseBrandListPage(html);
+  if (parsed.items.length === 0) {
+    index.pending.unshift(page);
+    // Halaman daftar merek selalu berisi model. Halaman tanpa model adalah
+    // halaman pembatasan yang tidak dikenali isBotChallenge; potongan awalnya
+    // dicatat supaya polanya bisa ditambahkan ke pendeteksi.
+    console.warn(`[scrape] ${page} tanpa model:`, html.slice(0, 200).replace(/\s+/g, " "));
+    rememberBlock(url.hostname);
+    throw new ScrapeBlockedError(
+      `${url.hostname} tidak mengembalikan daftar model (kemungkinan sedang membatasi akses). Proses dihentikan; coba lagi nanti, jangan dipaksa.`
+    );
+  }
   const known = new Set(index.items.map((item) => item.path));
   for (const item of parsed.items) {
     if (!known.has(item.path)) {
@@ -538,8 +632,30 @@ export async function findGsmarenaPage(
   for (;;) {
     const result = pickGsmarenaCandidate(official, index.items, siblingHas5g);
     if (result.chosen) return result;
+    if (index.pagesLoaded >= GSMARENA_LOOKUP_MAX_PAGES) return result;
     if (!(await loadNextIndexPage(brand, index))) return result;
   }
+}
+
+/**
+ * Spesifikasi dari HTML halaman GSMArena yang disalin admin dari browsernya
+ * sendiri (Salin spesifikasi). Parser sama dengan pengambilan otomatis, tanpa
+ * permintaan jaringan.
+ */
+export function parseGsmarenaSpecHtml(brand: ScrapeBrand, path: string, html: string) {
+  if (!GSMARENA_PATH.test(path)) {
+    throw new ScrapeSourceError("Alamat halaman GSMArena tidak valid.");
+  }
+  // Path GSMArena selalu berawalan merek ("samsung_galaxy_a56-13603.php",
+  // iQOO: "vivo_iqoo_z10-13780.php"). Mencegah halaman merek lain tersimpan
+  // dengan merek yang dipilih admin.
+  const prefix = `${BRANDS[brand].gsmarenaBrand.toLowerCase()}_`;
+  if (!path.startsWith(prefix)) {
+    throw new ScrapeSourceError(
+      `Halaman yang ditempel bukan model ${SCRAPE_BRAND_LABELS[brand].split(" (")[0]}. Pilih merek yang sesuai, atau salin dari halaman model yang benar.`
+    );
+  }
+  return parseSpecPage(html, path, BRANDS[brand].gsmarenaBrand);
 }
 
 export async function fetchGsmarenaSpec(brand: ScrapeBrand, path: string) {

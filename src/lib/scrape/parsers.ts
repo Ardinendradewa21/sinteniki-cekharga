@@ -762,6 +762,9 @@ export function parseSpecPage(
 }
 
 /** Halaman tantangan anti-bot (Cloudflare Turnstile) yang TIDAK boleh ditembus. */
+/** Path halaman model GSMArena. Tanda kurung diizinkan: model bertahun ditulis "..._(2022)-11410.php". */
+export const GSMARENA_PATH = /^[a-z0-9_()]+-\d+\.php$/;
+
 export function isBotChallenge(html: string): boolean {
   return /Turnstile check|challenges\.cloudflare\.com|cf-chl-|Just a moment\.\.\./i.test(html);
 }
