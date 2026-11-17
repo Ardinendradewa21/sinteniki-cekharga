@@ -276,17 +276,17 @@ export function AssistantChat({
                 ))}
               </ul>
             </div>
+            {/* Di dalam panel kaca, bukan langsung di atas foto: di luar zona
+                --veil-text tautan hijau hanya 1,9:1 di atas daun (audit VD-09). */}
+            <p className="border-t border-border pt-3 text-sm text-foreground">
+              Lebih suka memilih daripada mengetik?{" "}
+              <Link href="/assistant?tanya=form" className="font-semibold text-brand-text underline underline-offset-4 hover:text-foreground">
+                Jawab pertanyaan saja
+              </Link>
+            </p>
+            {isDemo ? <p className="text-xs text-warning">Data demo: produk dan harga masih contoh.</p> : null}
           </div>
 
-          <p className="mt-6 text-center text-sm text-foreground">
-            Lebih suka memilih daripada mengetik?{" "}
-            <Link href="/assistant?tanya=form" className="font-semibold text-brand-text underline underline-offset-4 hover:text-foreground">
-              Jawab pertanyaan saja
-            </Link>
-          </p>
-          {isDemo ? (
-            <p className="mt-2 text-center text-xs text-warning">Data demo: produk dan harga masih contoh.</p>
-          ) : null}
         </div>
       </div>
     );
