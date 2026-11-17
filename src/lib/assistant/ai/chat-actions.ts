@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { AI_LIMITS, rateLimit } from "@/lib/assistant/ai/client";
 import { runChatTurn } from "@/lib/assistant/ai/chat";
-import { consumeDailyQuota, quotaMessage } from "@/lib/assistant/ai/quota";
+import { consumeDailyQuota, quotaMessage, quotaSecret } from "@/lib/assistant/ai/quota";
+import { hashNeeds, signWriteTicket, verifyWriteTicket, type WriteKind } from "@/lib/assistant/ai/write-ticket";
 import { CHAT_START, type ChatMessage, type ChatState } from "@/lib/assistant/ai/chat-state";
 import { collectedSchema } from "@/lib/assistant/ai/collected-schema";
 import { clientIp } from "@/lib/rate-limit";
@@ -37,6 +38,11 @@ import { buildCompareHref } from "@/lib/catalog/compare-href";
  *   4. Kode mengambil fakta — `recommend()` untuk rekomendasi, halaman
  *                       detail/perbandingan untuk produk yang disebut.
  *   5. Model menjelaskan — penulis balasan, diperiksa validator nama/harga.
+ *
+ * Langkah 5 berjalan di TAHAP KEDUA (`fase=tulis`) bila rahasia HMAC ada:
+ * tahap pertama langsung mengembalikan kartu (sekitar 2 detik) beserta tiket,
+ * lalu klien meminta penjelasannya. Streaming token tidak dipakai karena
+ * setiap balasan harus lolos validator SEBELUM terlihat.
  *
  * Riwayat percakapan datang dari klien dan kembali ke klien; tidak ada yang
  * disimpan di server (PRD §10).
@@ -80,6 +86,8 @@ export async function sendChatMessage(
     collected: prevCollected.success ? prevCollected.data : CHAT_START.collected,
     error: null,
   };
+
+  if (formData.get("fase") === "tulis") return finishWrite(prev, String(formData.get("tiket") ?? ""));
 
   const text = String(formData.get("pesan") ?? "").trim();
   if (!text) return { ...prev, error: "Tulis dulu pesannya." };
@@ -168,6 +176,7 @@ export async function sendChatMessage(
     compareHref: null,
     error: null,
     retryText: null,
+    pendingWrite: null,
     ...extra,
   });
   const assistantIndex = withUser.length;
@@ -208,35 +217,84 @@ export async function sendChatMessage(
         retryText: text,
       });
     }
-    const written = await writeProductReply({ history: prev.messages, userText: text, facts, catalogNames });
-    const fallback =
-      facts.cards.length > 1
-        ? `Ini data ${facts.cards.map((card) => card.name).join(" dan ")} dari katalog CekHarga. Perbedaan lengkapnya ada di halaman perbandingan.`
-        : `Ini data ${facts.cards[0]!.name} dari katalog CekHarga. Rincian spesifikasi dan penawarannya ada di halaman produk.`;
-    return reply(written?.reply ?? fallback, {
-      products: facts.cards,
-      productsIndex: assistantIndex,
-      productsCompareHref: facts.compareHref,
-      suggestions: written?.followUps ?? [],
-    });
+    const cards = { products: facts.cards, productsIndex: assistantIndex, productsCompareHref: facts.compareHref };
+    const ticket = issueTicket("produk", mentioned, text, collected);
+    if (ticket) return awaitingWrite(prev, withUser, collected, ticket, cards);
+    const written = await writeProductTurn(prev.messages, text, facts, catalogNames);
+    return reply(written.reply, { ...cards, suggestions: written.suggestions });
   }
 
   // action === "search"
   const result = await cariKandidat(collected, now);
-
-  /*
-   * Giliran yang menampilkan hasil ditulis ulang oleh penulis balasan, yang
-   * boleh menyebut produk dan harga dari hasil giliran ini (PB-39). Bila
-   * penulis gagal atau ditolak validator, balasan giliran pertama yang tanpa
-   * nama produk tetap dipakai, jadi percakapan tidak pernah putus.
-   */
-  const written = await writeResultReply({
-    history: prev.messages,
-    userText: text,
-    collected,
-    view: result,
-    catalogNames,
+  const ticket = issueTicket("hasil", [], text, collected);
+  if (ticket) return awaitingWrite(prev, withUser, collected, ticket, { result, resultIndex: assistantIndex });
+  const written = await writeResultTurn(prev.messages, text, collected, result, catalogNames);
+  return reply(written.reply, {
+    result,
+    resultIndex: assistantIndex,
+    compareHref: written.compareHref,
+    suggestions: written.suggestions,
   });
+}
+
+/* --------------------------------------------------------- tahap tulis */
+
+/** Nonce tiket yang sudah dipakai (per instance; tiket juga kedaluwarsa 2 menit). */
+const usedNonces = new Map<string, number>();
+
+function issueTicket(kind: WriteKind, slugs: string[], text: string, collected: ChatState["collected"]): string | null {
+  const secret = quotaSecret();
+  return secret ? signWriteTicket({ kind, slugs, text, needsHash: hashNeeds(collected) }, secret) : null;
+}
+
+/** Tahap 1 selesai: kartu tampil, penjelasan menyusul (klien mengirim `fase=tulis`). */
+function awaitingWrite(
+  prev: ChatState,
+  withUser: ChatMessage[],
+  collected: ChatState["collected"],
+  ticket: string,
+  attachments: Partial<ChatState>
+): ChatState {
+  return {
+    ...prev,
+    messages: withUser,
+    collected,
+    suggestions: [],
+    compareHref: null,
+    error: null,
+    retryText: null,
+    pendingWrite: ticket,
+    ...attachments,
+  };
+}
+
+async function writeProductTurn(
+  history: ChatMessage[],
+  text: string,
+  facts: NonNullable<Awaited<ReturnType<typeof productFacts>>>,
+  catalogNames: string[]
+): Promise<{ reply: string; suggestions: string[] }> {
+  const written = await writeProductReply({ history, userText: text, facts, catalogNames });
+  const fallback =
+    facts.cards.length > 1
+      ? `Ini data ${facts.cards.map((card) => card.name).join(" dan ")} dari katalog CekHarga. Perbedaan lengkapnya ada di halaman perbandingan.`
+      : `Ini data ${facts.cards[0]!.name} dari katalog CekHarga. Rincian spesifikasi dan penawarannya ada di halaman produk.`;
+  return { reply: written?.reply ?? fallback, suggestions: written?.followUps ?? [] };
+}
+
+async function writeResultTurn(
+  history: ChatMessage[],
+  text: string,
+  collected: ChatState["collected"],
+  result: Awaited<ReturnType<typeof cariKandidat>>,
+  catalogNames: string[]
+): Promise<{ reply: string; suggestions: string[]; compareHref: string | null }> {
+  /*
+   * Penulis balasan boleh menyebut produk dan harga dari hasil giliran ini
+   * (PB-39). Bila gagal atau ditolak validator dua kali, ringkasan
+   * deterministik dipakai, jadi percakapan tidak pernah putus.
+   */
+  const written = await writeResultReply({ history, userText: text, collected, view: result, catalogNames });
   const numbered = numberCandidates(result);
   const compareNumbers = compareRequest(text, numbered.length) ?? written?.compareNumbers ?? null;
   const compareHref = compareNumbers
@@ -247,13 +305,74 @@ export async function sendChatMessage(
         })
       )
     : null;
-
-  return reply(written?.reply ?? fallbackResultReply(result), {
-    result,
-    resultIndex: assistantIndex,
+  return {
+    reply: written?.reply ?? fallbackResultReply(result),
     compareHref,
     // Saran dari penulis (spesifik ke hasil) dulu, lalu penyempurnaan dari kode.
     suggestions: [...new Set([...(written?.followUps ?? []).slice(0, 2), ...refinementSuggestions(collected)])].slice(0, 4),
+  };
+}
+
+/**
+ * Tahap 2: menulis penjelasan untuk kartu yang sudah tampil. Tidak memakai
+ * kuota harian lagi (tiket membuktikan tahap 1 sudah), tetap kena batas laju.
+ * Apa pun yang gagal di sini berakhir dengan balasan, bukan layar macet.
+ */
+async function finishWrite(prev: ChatState, token: string): Promise<ChatState> {
+  const now = new Date();
+  const done = (content: string, extra: Partial<ChatState> = {}): ChatState => ({
+    ...prev,
+    messages: [...prev.messages, { role: "assistant", content }],
+    pendingWrite: null,
+    error: null,
+    ...extra,
+  });
+  const fallback = () =>
+    prev.result && prev.resultIndex === prev.messages.length
+      ? fallbackResultReply(prev.result)
+      : "Data produknya ada di kartu di bawah. Penjelasannya belum bisa ditulis sekarang.";
+
+  const secret = quotaSecret();
+  const ticket = secret ? verifyWriteTicket(token, secret, now.getTime()) : null;
+  const last = prev.messages.at(-1);
+  for (const [nonce, expiresAt] of usedNonces) if (expiresAt < now.getTime()) usedNonces.delete(nonce);
+  if (
+    !ticket ||
+    usedNonces.has(ticket.nonce) ||
+    last?.role !== "user" ||
+    last.content !== ticket.text ||
+    hashNeeds(prev.collected) !== ticket.needsHash
+  ) {
+    return done(fallback());
+  }
+  usedNonces.set(ticket.nonce, ticket.expiresAt);
+
+  if (!rateLimit(await clientIp()).allowed) return done(fallback());
+
+  const history = prev.messages.slice(0, -1);
+  const catalog = await loadPublishedCatalog(now);
+  const catalogNames = catalogNameList(catalog.products);
+
+  if (ticket.kind === "produk") {
+    const facts = await productFacts(now, ticket.slugs);
+    if (!facts) return done(fallback());
+    const written = await writeProductTurn(history, ticket.text, facts, catalogNames);
+    return done(written.reply, {
+      products: facts.cards,
+      productsCompareHref: facts.compareHref,
+      suggestions: written.suggestions,
+    });
+  }
+
+  // Hasil dihitung ulang dari kebutuhan yang sama (hash di tiket), bukan
+  // dipercaya dari browser.
+  const result = await cariKandidat(prev.collected, now);
+  const written = await writeResultTurn(history, ticket.text, prev.collected, result, catalogNames);
+  return done(written.reply, {
+    result,
+    resultIndex: prev.messages.length,
+    compareHref: written.compareHref,
+    suggestions: written.suggestions,
   });
 }
 

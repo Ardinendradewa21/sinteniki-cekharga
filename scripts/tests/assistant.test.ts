@@ -501,3 +501,23 @@ test("tanpa budget: kartu teratas satu per kelas harga, termurah dulu", () => {
   const spread = spreadAcrossPriceBands(byScore, (c) => c.price).map((c) => c.name);
   assert.deepEqual(spread, ["Poco", "vivo T5", "iQOO Z11x", "Fold Ultra", "Flip", "Tanpa harga"]);
 });
+
+import { hashNeeds, signWriteTicket, verifyWriteTicket, WRITE_TICKET_TTL_MS } from "@/lib/assistant/ai/write-ticket";
+
+test("tiket tahap tulis: hanya sah dari server, sebelum kedaluwarsa, dan tidak bisa diubah", () => {
+  const secret = "rahasia-uji";
+  const now = Date.parse("2026-11-17T03:00:00Z");
+  const needsHash = hashNeeds({ budgetIdr: 3_000_000, activities: ["game"] });
+  const token = signWriteTicket({ kind: "hasil", slugs: [], text: "hp buat gaming", needsHash }, secret, now);
+  const ok = verifyWriteTicket(token, secret, now + 1000);
+  assert.ok(ok);
+  assert.equal(ok.text, "hp buat gaming");
+  assert.equal(ok.needsHash, needsHash);
+  assert.equal(verifyWriteTicket(token, "rahasia-lain", now), null, "rahasia lain ditolak");
+  assert.equal(verifyWriteTicket(token, secret, now + WRITE_TICKET_TTL_MS + 1), null, "kedaluwarsa ditolak");
+  const [body, mac] = token.split(".");
+  const tampered = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(body!, "base64url").toString()), kind: "produk", slugs: ["x"] })).toString("base64url");
+  assert.equal(verifyWriteTicket(`${tampered}.${mac}`, secret, now), null, "isi diubah ditolak");
+  assert.equal(verifyWriteTicket("sampah", secret, now), null);
+  assert.notEqual(hashNeeds({ budgetIdr: 3_000_000 }), hashNeeds({ budgetIdr: 4_000_000 }));
+});

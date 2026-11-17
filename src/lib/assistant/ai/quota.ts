@@ -41,7 +41,7 @@ export function quotaMessage(reason: Exclude<QuotaDecision, { allowed: true }>["
   }
 }
 
-function quotaSecret(): string | null {
+export function quotaSecret(): string | null {
   return process.env.AI_QUOTA_SECRET?.trim() || process.env.INSFORGE_API_KEY?.trim() || null;
 }
 

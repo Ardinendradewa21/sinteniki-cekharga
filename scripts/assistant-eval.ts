@@ -17,7 +17,16 @@ import { EMPTY_COLLECTED, type Collected } from "@/lib/assistant/ai/chat-state";
 import { nextFocus } from "@/lib/assistant/dialog-policy";
 import { guardRequirements, mergeHints, readHints } from "@/lib/assistant/hints";
 
-type Expect = Partial<Collected> & { priorities_awal?: string; requirements_tidak?: string[] };
+type Expect = Partial<Collected> & {
+  priorities_awal?: string;
+  requirements_tidak?: string[];
+  /** Maksud yang diharapkan (VD-08). */
+  maksud?: string;
+  /** Minimal jumlah nama produk yang ditangkap. */
+  produk_min?: number;
+  /** Balasan tidak boleh menanyakan budget (pertanyaan umum, sapaan). */
+  tanpa_tanya_budget?: boolean;
+};
 const { kasus } = JSON.parse(fs.readFileSync("scripts/tests/fixtures/assistant-eval.json", "utf8")) as {
   kasus: { id: string; pesan: string; harap: Expect }[];
 };
@@ -68,6 +77,11 @@ for (const item of kasus) {
   if (h.brands) check(`brands ${got.brands.join("+")}`, sameSet(got.brands, h.brands));
   if (h.brandsOnly !== undefined) check(`brandsOnly ${got.brandsOnly}`, got.brandsOnly === h.brandsOnly);
   if (h.avoidBrands) check(`avoidBrands ${got.avoidBrands.join("+")}`, sameSet(got.avoidBrands, h.avoidBrands));
+  if (h.maksud) check(`maksud ${turn.intent}`, turn.intent === h.maksud);
+  if (h.produk_min) check(`produk ${turn.namedProducts.length}`, turn.namedProducts.length >= h.produk_min);
+  if (h.tanpa_tanya_budget) {
+    check("menanyakan budget", !/(budget|anggaran|dana)[^.?!]*\?/i.test(turn.reply));
+  }
 
   // Mengulang budget yang ditulis pengguna sendiri ("Rp4.500.000") bukan menyebut harga produk.
   const replyWithoutUserBudget = turn.reply.replace(/Rp\s?[\d.,]+/gi, (amount) =>

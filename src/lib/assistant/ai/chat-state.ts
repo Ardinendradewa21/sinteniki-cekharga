@@ -74,6 +74,11 @@ export type ChatState = {
   error: string | null;
   /** Pesan pengguna yang gagal diproses, untuk tombol "Coba lagi" (PRD FR-06). */
   retryText: string | null;
+  /**
+   * Tiket tahap tulis: kartu sudah tampil, penjelasan sedang diminta klien
+   * (VD-08). null bila tidak ada yang menunggu.
+   */
+  pendingWrite: string | null;
 };
 
 export const CHAT_START: ChatState = {
@@ -88,4 +93,5 @@ export const CHAT_START: ChatState = {
   productsIndex: null,
   error: null,
   retryText: null,
+  pendingWrite: null,
 };

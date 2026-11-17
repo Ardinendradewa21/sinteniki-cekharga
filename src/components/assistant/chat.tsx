@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useOptimistic, useRef, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition, type ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowUp01Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 
@@ -99,6 +99,20 @@ export function AssistantChat({
   const retryRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const kosong = messages.length === 0;
+  const [, startWrite] = useTransition();
+  const sentTicket = useRef<string | null>(null);
+  // Tahap 2 (VD-08): kartu sudah tampil, minta penjelasannya. Sekali per tiket.
+  const waitingWrite = state.pendingWrite !== null;
+
+  useEffect(() => {
+    const ticket = state.pendingWrite;
+    if (!ticket || pending || sentTicket.current === ticket) return;
+    sentTicket.current = ticket;
+    const formData = new FormData();
+    formData.set("fase", "tulis");
+    formData.set("tiket", ticket);
+    startWrite(() => action(formData));
+  }, [state.pendingWrite, pending, action]);
 
   // Diisi lewat ref, bukan defaultValue: reset form setelah kirim akan
   // mengembalikan defaultValue, sehingga kalimat awal muncul lagi.
@@ -200,12 +214,12 @@ export function AssistantChat({
             // Enter mengirim, Shift+Enter baris baru. Kebiasaan chat.
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
-              if (!pending) formRef.current?.requestSubmit();
+              if (!pending && !waitingWrite) formRef.current?.requestSubmit();
             }
           }}
         />
         <input ref={retryRef} type="hidden" name="ulang" defaultValue="" />
-        <Button type="submit" size="icon" disabled={pending} aria-label="Kirim pesan" className="mb-0.5 shrink-0 rounded-full">
+        <Button type="submit" size="icon" disabled={pending || waitingWrite} aria-label="Kirim pesan" className="mb-0.5 shrink-0 rounded-full">
           <HugeiconsIcon icon={ArrowUp01Icon} size={20} strokeWidth={2.2} aria-hidden />
         </Button>
       </div>
@@ -288,7 +302,9 @@ export function AssistantChat({
       </div>
 
       <div className="mt-4 space-y-6" aria-live="polite" aria-atomic="false">
-        {messages.map((message, index) =>
+        {/* Baris penjelasan yang sedang ditulis memakai kunci yang sama dengan
+            pesan yang menggantikannya, jadi kartunya tidak dipasang ulang. */}
+        {(waitingWrite ? [...messages, { role: "assistant" as const, content: "" }] : messages).map((message, index) =>
           message.role === "user" ? (
             <div key={`u-${index}`} className="flex justify-end">
               <p className="max-w-[85%] rounded-3xl rounded-br-lg bg-muted px-4 py-2.5 text-base leading-relaxed whitespace-pre-wrap text-foreground">
@@ -299,7 +315,14 @@ export function AssistantChat({
             <div key={`a-${index}`} className="flex gap-3">
               <AssistantMark />
               <div className="min-w-0 flex-1">
-                <p className="text-base leading-relaxed whitespace-pre-wrap text-foreground">{message.content}</p>
+                {message.content ? (
+                  <p className="text-base leading-relaxed whitespace-pre-wrap text-foreground">{message.content}</p>
+                ) : (
+                  <p role="status" className="flex items-center gap-2 pt-1.5 text-sm text-muted-foreground">
+                    <span className="size-2 animate-pulse rounded-full bg-brand" aria-hidden />
+                    Data sudah ketemu, menulis penjelasannya
+                  </p>
+                )}
 
                 {state.products && state.productsIndex === index ? (
                   <ArrivalStagger key={`p-${index}`}>
@@ -315,6 +338,7 @@ export function AssistantChat({
                       </Button>
                     ) : null}
                     <AssistantResults
+                      compact
                       result={state.result}
                       newConversationHref="/assistant"
                       extraActions={<ShareResultButton href={state.result.shareHref} />}
@@ -322,7 +346,7 @@ export function AssistantChat({
                   </ArrivalStagger>
                 ) : null}
 
-                {index === messages.length - 1 && state.suggestions.length > 0 && !pending ? (
+                {index === messages.length - 1 && state.suggestions.length > 0 && !pending && !waitingWrite ? (
                   <ul className="mt-4 flex flex-wrap gap-2" aria-label={state.result ? "Lanjutkan atau sempurnakan" : "Pilihan jawaban"}>
                     {state.suggestions.map((suggestion) => (
                       <li key={suggestion}>
@@ -338,7 +362,7 @@ export function AssistantChat({
           )
         )}
 
-        {pending ? (
+        {pending && !waitingWrite ? (
           <div className="flex gap-3" role="status">
             <AssistantMark />
             <p className="flex items-center gap-2 pt-1.5 text-sm text-muted-foreground">

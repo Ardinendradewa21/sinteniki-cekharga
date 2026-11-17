@@ -59,7 +59,8 @@ export function RecommendationCard({
       ) : null}
 
       <div className="flex gap-4">
-        <div className="relative size-20 shrink-0 overflow-hidden rounded-xl bg-muted sm:size-24">
+        {/* Panggung foto terang, juga di tema gelap (DESIGN.md §2 butir 2). */}
+        <div className="stage relative size-20 shrink-0 overflow-hidden rounded-xl sm:size-24">
           <Image
             src={candidate.image.src}
             alt={candidate.image.isGenericIllustration ? "" : candidate.image.alt}
@@ -98,31 +99,42 @@ export function RecommendationCard({
         </div>
       ) : null}
 
-      <details className="group mt-3 border-t border-border pt-1">
-        <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-foreground">
-          {moreReasons.length > 0 ? `Alasan lain (${moreReasons.length}) dan ` : ""}
-          Komprominya ({candidate.tradeOffs.length})
-        </summary>
-        {moreReasons.length > 0 ? (
-          <ul className="mb-3 space-y-1.5">
-            {moreReasons.map((reason, index) => (
-              <ReasonItem key={`${reason.text}-${index}`} reason={reason} />
-            ))}
-          </ul>
-        ) : null}
-        {candidate.tradeOffs.length === 0 ? (
-          <p className="pb-2 text-sm leading-relaxed text-muted-foreground">
-            Belum ada kompromi yang tercatat untuk produk ini. Itu berarti belum
-            ada catatannya, bukan berarti tidak ada.
-          </p>
-        ) : (
-          <ul className="space-y-1.5 pb-2">
-            {candidate.tradeOffs.map((tradeOff, index) => (
-              <ReasonItem key={`${tradeOff.text}-${index}`} reason={tradeOff} />
-            ))}
-          </ul>
-        )}
-      </details>
+      {moreReasons.length === 0 && candidate.tradeOffs.length === 0 ? (
+        // "Komprominya (0)" terbaca seolah tanpa kekurangan; nyatakan apa adanya.
+        <p className="mt-3 border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">
+          Kompromi: belum ada catatan untuk produk ini, bukan berarti tidak ada.
+        </p>
+      ) : (
+        <details className="group mt-3 border-t border-border pt-1">
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-foreground">
+            {[
+              moreReasons.length > 0 ? `Alasan lain (${moreReasons.length})` : null,
+              candidate.tradeOffs.length > 0 ? `Komprominya (${candidate.tradeOffs.length})` : "Kompromi belum tercatat",
+            ]
+              .filter(Boolean)
+              .join(" dan ")}
+          </summary>
+          {moreReasons.length > 0 ? (
+            <ul className="mb-3 space-y-1.5">
+              {moreReasons.map((reason, index) => (
+                <ReasonItem key={`${reason.text}-${index}`} reason={reason} />
+              ))}
+            </ul>
+          ) : null}
+          {candidate.tradeOffs.length === 0 ? (
+            <p className="pb-2 text-sm leading-relaxed text-muted-foreground">
+              Belum ada kompromi yang tercatat untuk produk ini. Itu berarti belum
+              ada catatannya, bukan berarti tidak ada.
+            </p>
+          ) : (
+            <ul className="space-y-1.5 pb-2">
+              {candidate.tradeOffs.map((tradeOff, index) => (
+                <ReasonItem key={`${tradeOff.text}-${index}`} reason={tradeOff} />
+              ))}
+            </ul>
+          )}
+        </details>
+      )}
 
       <Link
         href={candidate.detailHref}
