@@ -9,6 +9,8 @@ import type { ActionState } from "@/lib/admin/actions";
 import { requireStaff } from "@/lib/auth/dal";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { publishFromCandidateAction, rejectCandidateAction } from "@/lib/reviews/actions";
+import { draftReviewFromVideoAction } from "@/lib/reviews/ai-draft-actions";
+import { hasAiCredentials } from "@/lib/assistant/ai/client";
 import { getCandidate } from "@/lib/reviews/queries";
 import { youtubeWatchUrl } from "@/lib/reviews/youtube-match";
 
@@ -18,6 +20,8 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
+/** "Buat draf dengan AI" menonton video lewat model; bisa lebih dari satu menit. */
+export const maxDuration = 120;
 
 /** Menulis ringkasan dari satu kandidat video (PB-40). */
 export default async function CandidatePage(props: PageProps<"/admin/ulasan/[id]">) {
@@ -41,6 +45,11 @@ export default async function CandidatePage(props: PageProps<"/admin/ulasan/[id]
   async function publish(state: ActionState, formData: FormData) {
     "use server";
     return publishFromCandidateAction(id, state, formData);
+  }
+  // Id kandidat diikat di server, tidak dikirim dari formulir.
+  async function draft(aspect: string) {
+    "use server";
+    return draftReviewFromVideoAction(id, aspect);
   }
 
   return (
@@ -95,7 +104,12 @@ export default async function CandidatePage(props: PageProps<"/admin/ulasan/[id]
           ) : null}
         </div>
 
-        <CandidateReviewForm action={publish} suggestedAspect={candidate.suggestedAspect} variants={variants} />
+        <CandidateReviewForm
+          action={publish}
+          draftAction={hasAiCredentials() ? draft : null}
+          suggestedAspect={candidate.suggestedAspect}
+          variants={variants}
+        />
       </div>
     </Container>
   );
