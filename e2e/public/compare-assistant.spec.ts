@@ -82,6 +82,25 @@ test.describe("Tanya AI, jalur formulir (FR-06)", () => {
   });
 });
 
+test.describe("Tanya AI, mode percakapan (FR-06, VD-08)", () => {
+  test("TC-AI-04 layar awal: Quick Start mengisi kotak tulis tanpa memanggil model @regression", async ({ page }) => {
+    await page.goto("/assistant");
+    test.skip((await page.locator("#pesan").count()) === 0, "kredensial model tidak terpasang; halaman memakai jalur formulir");
+    await expect(page.getByRole("heading", { level: 1, name: "Mau cari HP seperti apa?" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Kirim pesan" })).toBeVisible();
+    await page.getByRole("button", { name: "Foto dan video" }).click();
+    await page.getByRole("button", { name: "± 5 juta" }).click();
+    await expect(page.locator("#pesan")).toHaveValue("Cari HP buat foto dan video, budget sekitar 5 juta");
+    await expect(page.getByRole("button", { name: "Foto dan video" })).toHaveAttribute("aria-pressed", "true");
+    // Contoh pertanyaan memperlihatkan kemampuan selain mencari: membandingkan dan menjawab pertanyaan umum.
+    await page.getByRole("button", { name: /bedanya apa/ }).click();
+    await expect(page.locator("#pesan")).toHaveValue(/AMOLED/);
+    // Belum ada yang terkirim: layar awal tetap tampil.
+    await expect(page.getByRole("heading", { level: 1, name: "Mau cari HP seperti apa?" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Jawab pertanyaan saja" })).toHaveAttribute("href", "/assistant?tanya=form");
+  });
+});
+
 test.describe("Transparansi (FR-08) dan berkas publik", () => {
   test("TC-TRN-01 halaman cara kerja menjelaskan sumber dan keterbatasan @regression", async ({ page }) => {
     const response = await page.goto("/how-it-works");

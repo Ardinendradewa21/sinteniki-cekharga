@@ -12,8 +12,12 @@ import { recommend } from "@/lib/assistant/recommend";
 import { parseNeeds } from "@/lib/assistant/needs";
 import { toResultView } from "@/lib/assistant/results";
 import { guardRequirements, mergeHints, readHints } from "@/lib/assistant/hints";
-import { compareRequest, nextFocus, refinementSuggestions, shouldSearch } from "@/lib/assistant/dialog-policy";
-import { writeResultReply } from "@/lib/assistant/ai/writer";
+import { compareRequest, decideTurn, nextFocus, refinementSuggestions } from "@/lib/assistant/dialog-policy";
+import { fallbackResultReply, writeProductReply, writeResultReply } from "@/lib/assistant/ai/writer";
+import { spreadAcrossPriceBands } from "@/lib/assistant/price-bands";
+import { findProductMentions } from "@/lib/assistant/product-mentions";
+import { productFacts } from "@/lib/assistant/product-facts";
+import { checkReply, readAmounts } from "@/lib/assistant/reply-validator";
 import { numberCandidates } from "@/lib/assistant/result-numbering";
 import { loadPublishedCatalog } from "@/lib/catalog/queries";
 import { buildCompareHref } from "@/lib/catalog/compare-href";
@@ -25,12 +29,14 @@ import { buildCompareHref } from "@/lib/catalog/compare-href";
  *
  *   1. Batasi laju    — endpoint ini memanggil model berbayar (PRD §10):
  *                       per menit di memori, lalu kuota harian di database.
- *   2. Model bicara   — mengobrol, bertanya, mengumpulkan kebutuhan.
- *                       Kamus sinonim (`hints.ts`) menambah yang terlewat.
- *   3. Kode memutuskan — `dialog-policy.ts` menentukan kapan hasil tampil
- *                       (paling banyak dua pertanyaan sebelum hasil pertama).
- *   4. Kode mencari   — `recommend()` yang menentukan kandidat, bukan model.
- *                       Setelah hasil tampil, setiap pesan menyempurnakannya.
+ *   2. Model memahami — maksud pesan, kebutuhan, nama produk yang disebut.
+ *                       Kamus sinonim (`hints.ts`) menambah yang terlewat;
+ *                       nama produk dicocokkan ke katalog oleh KODE.
+ *   3. Kode memutuskan — `decideTurn()`: bertanya, mencari, menjawab dari
+ *                       data produk, atau menjawab pertanyaan umum (VD-08).
+ *   4. Kode mengambil fakta — `recommend()` untuk rekomendasi, halaman
+ *                       detail/perbandingan untuk produk yang disebut.
+ *   5. Model menjelaskan — penulis balasan, diperiksa validator nama/harga.
  *
  * Riwayat percakapan datang dari klien dan kembali ke klien; tidak ada yang
  * disimpan di server (PRD §10).
@@ -86,12 +92,20 @@ export async function sendChatMessage(
     };
   }
 
+  // "Coba lagi" (PRD FR-06): pesan yang gagal sudah ada di riwayat; jangan
+  // digandakan.
+  const last = prev.messages.at(-1);
+  if (formData.get("ulang") === "ya" && last?.role === "user" && last.content === text) {
+    prev.messages = prev.messages.slice(0, -1);
+  }
+
   const ip = await clientIp();
   const limit = rateLimit(ip);
   if (!limit.allowed) {
     return {
       ...prev,
       error: `Terlalu cepat. Tunggu ${limit.retryAfterSec} detik lagi.`,
+      retryText: null,
     };
   }
 
@@ -99,7 +113,7 @@ export async function sendChatMessage(
   // validasi murah lolos, supaya pesan yang ditolak tidak memakan kuota.
   const quota = await consumeDailyQuota(ip);
   if (!quota.allowed) {
-    return { ...prev, error: quotaMessage(quota.reason) };
+    return { ...prev, error: quotaMessage(quota.reason), retryText: null };
   }
 
   // Pesan pengguna langsung masuk daftar supaya tetap terlihat walau
@@ -107,40 +121,107 @@ export async function sendChatMessage(
   // membingungkan.
   const withUser: ChatMessage[] = [...prev.messages, { role: "user", content: text }];
 
-  // Petunjuk dari kamus sinonim ikut menentukan fokus pertanyaan giliran ini,
-  // supaya model tidak menanyakan hal yang sudah tersirat di pesan terbaru.
+  const now = new Date();
   const hints = readHints(text);
   const hasResult = prev.result !== null;
-  const turn = await runChatTurn(prev.messages, text, {
-    collected: prev.collected,
-    focus: nextFocus(mergeHints(prev.collected, hints), hasResult),
-    hasResult,
-  });
+  const [turn, catalog] = await Promise.all([
+    runChatTurn(prev.messages, text, {
+      collected: prev.collected,
+      focus: nextFocus(mergeHints(prev.collected, hints), hasResult),
+      hasResult,
+    }),
+    loadPublishedCatalog(now),
+  ]);
 
   if (!turn.ok) {
-    return { ...prev, messages: withUser, suggestions: [], error: turn.reason };
+    return { ...prev, messages: withUser, suggestions: [], error: turn.reason, retryText: text };
   }
-
-  const messages: ChatMessage[] = [
-    ...withUser,
-    { role: "assistant", content: turn.reply },
-  ];
 
   const collected = mergeHints(guardRequirements(prev.collected.requirements, turn.collected, text), hints);
   const userTurns = withUser.filter((message) => message.role === "user").length;
+  // Produk dikenali dari kalimat pengguna, lalu dari nama yang ditangkap model
+  // (salah ketik ringan). Keduanya dicocokkan ke katalog terbit oleh kode.
+  const mentioned = [
+    ...new Set([
+      ...findProductMentions(text, catalog.products),
+      ...findProductMentions(turn.namedProducts.join(" | "), catalog.products),
+    ]),
+  ].slice(0, 3);
+  const catalogNames = catalogNameList(catalog.products);
 
-  if (!shouldSearch(collected, { userTurns, modelEnough: turn.enough, hasResult })) {
-    return {
-      messages,
-      collected,
-      suggestions: turn.suggestions,
-      result: null,
-      compareHref: null,
-      error: null,
-    };
+  const action = decideTurn({
+    intent: turn.intent,
+    mentions: mentioned.length,
+    namedProducts: turn.namedProducts.length,
+    collected,
+    hasResult,
+    userTurns,
+    modelEnough: turn.enough,
+  });
+
+  /** Balasan asisten baru + lampiran; hasil lama tetap di tempatnya. */
+  const reply = (content: string, extra: Partial<ChatState> = {}): ChatState => ({
+    ...prev,
+    messages: [...withUser, { role: "assistant", content }],
+    collected,
+    suggestions: [],
+    compareHref: null,
+    error: null,
+    retryText: null,
+    ...extra,
+  });
+  const assistantIndex = withUser.length;
+
+  if (action === "ask" || action === "chat") {
+    return reply(turn.reply, { suggestions: turn.suggestions });
   }
 
-  const now = new Date();
+  if (action === "general") {
+    // Jawaban umum dari model pemahaman: tanpa nama produk katalog dan tanpa
+    // harga karangan (hanya angka yang disebut pengguna sendiri).
+    const safe = checkReply({
+      reply: turn.reply,
+      allowedNames: [],
+      catalogNames,
+      allowedAmounts: [...readAmounts(text), ...(collected.budgetIdr ? [collected.budgetIdr] : [])],
+    }).ok;
+    return reply(
+      safe
+        ? turn.reply
+        : "Pertanyaan itu menyinggung produk atau harga tertentu, jadi aku jawab dari data katalog saja. Sebutkan nama HP-nya, atau ceritakan kebutuhanmu supaya aku carikan kandidatnya.",
+      { suggestions: turn.suggestions }
+    );
+  }
+
+  if (action === "missing-product") {
+    const names = turn.namedProducts.slice(0, 3).join(" dan ");
+    return reply(
+      `Aku belum menemukan ${names} di katalog CekHarga, jadi belum bisa memberi harga atau spesifikasinya dari data kami. Kalau mau, aku carikan HP lain yang mirip kebutuhannya.`,
+      { suggestions: ["Carikan yang mirip"] }
+    );
+  }
+
+  if (action === "product") {
+    const facts = await productFacts(now, mentioned);
+    if (!facts) {
+      return reply("Data produk itu belum bisa dibaca sekarang. Coba lagi sebentar, atau buka katalog.", {
+        retryText: text,
+      });
+    }
+    const written = await writeProductReply({ history: prev.messages, userText: text, facts, catalogNames });
+    const fallback =
+      facts.cards.length > 1
+        ? `Ini data ${facts.cards.map((card) => card.name).join(" dan ")} dari katalog CekHarga. Perbedaan lengkapnya ada di halaman perbandingan.`
+        : `Ini data ${facts.cards[0]!.name} dari katalog CekHarga. Rincian spesifikasi dan penawarannya ada di halaman produk.`;
+    return reply(written?.reply ?? fallback, {
+      products: facts.cards,
+      productsIndex: assistantIndex,
+      productsCompareHref: facts.compareHref,
+      suggestions: written?.followUps ?? [],
+    });
+  }
+
+  // action === "search"
   const result = await cariKandidat(collected, now);
 
   /*
@@ -149,13 +230,12 @@ export async function sendChatMessage(
    * penulis gagal atau ditolak validator, balasan giliran pertama yang tanpa
    * nama produk tetap dipakai, jadi percakapan tidak pernah putus.
    */
-  const catalog = await loadPublishedCatalog(now);
   const written = await writeResultReply({
     history: prev.messages,
     userText: text,
     collected,
     view: result,
-    catalogNames: catalogNameList(catalog.products),
+    catalogNames,
   });
   const numbered = numberCandidates(result);
   const compareNumbers = compareRequest(text, numbered.length) ?? written?.compareNumbers ?? null;
@@ -168,14 +248,13 @@ export async function sendChatMessage(
       )
     : null;
 
-  return {
-    messages: written ? [...withUser, { role: "assistant", content: written.reply }] : messages,
-    collected,
-    suggestions: refinementSuggestions(collected),
+  return reply(written?.reply ?? fallbackResultReply(result), {
     result,
+    resultIndex: assistantIndex,
     compareHref,
-    error: null,
-  };
+    // Saran dari penulis (spesifik ke hasil) dulu, lalu penyempurnaan dari kode.
+    suggestions: [...new Set([...(written?.followUps ?? []).slice(0, 2), ...refinementSuggestions(collected)])].slice(0, 4),
+  });
 }
 
 /**
@@ -212,5 +291,12 @@ async function cariKandidat(collected: ChatState["collected"], now: Date) {
     hindari: collected.avoidBrands,
   });
 
-  return toResultView(await recommend(now, needs), needs);
+  const found = await recommend(now, needs);
+  // Tanpa budget: satu kandidat per kelas harga dulu, bukan ponsel termahal
+  // yang paling cocok di atas (VD-08). Prioritas "harga" sudah murah dulu.
+  const spread =
+    needs.budgetIdr === null && !needs.priorities.includes("harga")
+      ? { ...found, matches: spreadAcrossPriceBands(found.matches, (c) => (c.price.status === "unavailable" ? null : c.price.priceIdr)) }
+      : found;
+  return toResultView(spread, needs);
 }

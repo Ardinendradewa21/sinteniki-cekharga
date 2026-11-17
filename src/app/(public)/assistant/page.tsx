@@ -6,6 +6,7 @@ import { Consultation } from "@/components/assistant/consultation";
 import { AssistantResults } from "@/components/assistant/results";
 import { ShareResultButton } from "@/components/assistant/share-result-button";
 import { Container } from "@/components/layout/container";
+import { SceneBackdrop } from "@/components/layout/scene-backdrop";
 import { hasAiCredentials } from "@/lib/assistant/ai/client";
 import { isDemoData } from "@/lib/catalog/queries";
 import { loadOrNull } from "@/lib/catalog/load";
@@ -60,18 +61,13 @@ export default async function AssistantPage({
     // Kalimat dari kotak isian beranda; batasnya sama dengan kotak tulis chat.
     const pesan = typeof params.pesan === "string" ? params.pesan.trim().slice(0, 600) : "";
     return (
-      <Container className="py-8 md:py-12">
-        <AssistantChat isDemo={isDemoData()} initialMessage={pesan} />
-        <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-muted-foreground">
-          Lebih suka memilih daripada mengetik?{" "}
-          <Link
-            href="/assistant?tanya=form"
-            className="font-medium text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
-          >
-            Jawab pertanyaan saja
-          </Link>
-        </p>
-      </Container>
+      // Tanpa Container: scene layar awal selebar layar; lebar kolom diatur AssistantChat.
+      <AssistantChat
+        isDemo={isDemoData()}
+        initialMessage={pesan}
+        // Scene penuh di belakang layar awal (VD-08, DESIGN.md §6.2); judul di zona --veil-text.
+        backdrop={<SceneBackdrop variant="full" textZone="top" />}
+      />
     );
   }
 
