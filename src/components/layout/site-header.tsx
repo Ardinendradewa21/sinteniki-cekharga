@@ -26,9 +26,11 @@ export function SiteHeader({ initialTheme }: { initialTheme: PublicTheme }) {
         <div className="glass-text glass-float pointer-events-auto flex h-14 items-center justify-between gap-3 rounded-pill pr-1.5 pl-2 md:h-16 md:pr-2 md:pl-3">
           <Link
             href="/"
-            className="flex min-h-11 items-center gap-2.5 rounded-pill pr-2 text-lg font-extrabold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-11 items-center gap-2.5 rounded-pill pr-2 text-lg font-bold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <span className="flex size-9 items-center justify-center rounded-pill bg-brand text-xs font-extrabold text-brand-foreground">
+            {/* Tanda monokrom (hitam di Frost, putih di Smoke) seperti CTA utama
+                Calda; biru disimpan untuk status aktif dan tautan (CD-00). */}
+            <span className="flex size-9 items-center justify-center rounded-pill bg-primary text-xs font-bold text-primary-foreground">
               CH
             </span>
             <span>CekHarga</span>

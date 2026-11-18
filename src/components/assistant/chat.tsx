@@ -231,7 +231,7 @@ export function AssistantChat({
       <div className="relative isolate -mt-(--header-h) flex min-h-[calc(100svh-4rem)] flex-col justify-center pt-[calc(var(--header-h)+2rem)] pb-12">
         {backdrop}
         <div className="mx-auto w-full max-w-2xl px-4">
-          <h1 className="text-center text-3xl leading-tight font-extrabold tracking-tight text-foreground sm:text-4xl">
+          <h1 className="text-center text-3xl leading-tight font-bold tracking-tight text-foreground sm:text-4xl">
             Mau cari HP seperti apa?
           </h1>
           <p className="mx-auto mt-3 max-w-lg text-center text-base leading-relaxed text-foreground">

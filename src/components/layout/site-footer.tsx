@@ -69,7 +69,7 @@ export function SiteFooter() {
       <Container className="py-12 md:py-14">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1.4fr)]">
           <div>
-            <p className="text-lg font-extrabold tracking-tight text-foreground">
+            <p className="text-lg font-bold tracking-tight text-foreground">
               {COMPANY.product}
             </p>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">

@@ -66,7 +66,7 @@ export function Hero({ tour, isDemo }: { tour: HeroTourData; isDemo: boolean }) 
                 Versi awal, baru mencakup smartphone kondisi baru
               </p>
 
-              <h1 className="mt-6 text-4xl leading-[1.08] font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+              <h1 className="mt-6 text-4xl leading-[1.08] font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Pilih HP yang cocok, lengkap dengan komprominya.
               </h1>
 

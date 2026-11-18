@@ -33,8 +33,11 @@
 */
 
 @theme inline {
-  --font-sans: var(--font-plus-jakarta-sans);
-  --font-heading: var(--font-plus-jakarta-sans);
+  /* Urbanist sejak CD-00 (tema Calda). Plus Jakarta Sans hanya untuk angka
+     tabular (`--font-numeric`), karena Urbanist tidak punya `tnum`. */
+  --font-sans: var(--font-urbanist), var(--font-plus-jakarta-sans), system-ui, sans-serif;
+  --font-heading: var(--font-urbanist), var(--font-plus-jakarta-sans), system-ui, sans-serif;
+  --font-numeric: var(--font-plus-jakarta-sans), system-ui, sans-serif;
 
   /* Canvas & surface */
   --color-background: var(--background);
@@ -146,12 +149,14 @@
   --border: #e5e7eb;
   --border-strong: #8a93a5;
   --input: #8a93a5;
-  --ring: #0f766e;
+  /* Bawaan di luar tema publik/admin (mis. tautan "Lewati ke konten" di root
+     layout) memakai biru Calda supaya fokus tidak tampil teal lama (CD-00). */
+  --ring: #08599c;
 
-  --brand: #0f766e;
+  --brand: #0b70c2;
   --brand-foreground: #ffffff;
-  --brand-muted: #eefaf8;
-  --brand-text: #0f766e;
+  --brand-muted: #e3effa;
+  --brand-text: #08599c;
 
   /* Terracotta hangat (admin saja; dipensiunkan dari UI publik) */
   --accent-warm: #d97757;
@@ -201,16 +206,18 @@
 }
 
 /*
-  Identitas publik CekHarga: tema Verdant (PRD §8 keputusan 13 November 2026,
-  rinci di DESIGN.md). Hijau = satu-satunya aksen sekaligus CTA utama
-  (--primary), data harga selalu di permukaan solid (--card), kaca hanya untuk
-  bingkai, foto produk di panggung terang (--stage). Semua komponen publik
-  memakai token semantik ini, jadi tema gelap tidak membutuhkan warna per
-  halaman.
+  Identitas publik CekHarga: tema Calda (CD-00, keputusan PO 18 November 2026,
+  rinci di DESIGN.md), menggantikan Verdant.
+  - Frost (terang) dan Smoke (gelap): permukaan abu netral, teks hampir
+    hitam/putih. Satu aksen biru (--brand) untuk status aktif, progres, dan
+    tautan; CTA utama (--primary) monokrom: hitam di Frost, putih di Smoke.
+  - Data harga selalu di permukaan solid (--card), kaca hanya bingkai, foto
+    produk di panggung terang (--stage) di kedua tema.
 
-  Token yang tidak diatur DESIGN.md (secondary, muted, accent, popover, *-muted)
-  diturunkan dari palet yang sama dan diukur: muted-foreground/muted 6.2:1
-  terang, 8.0:1 gelap; status di atas latar *-muted-nya ≥ 4.84:1.
+  Kontras terukur (CD-00): Frost terburuk muted/kanvas 5.61:1, brand-text/
+  kanvas 4.89:1, putih di atas --brand 5.11:1, border-strong 4.10:1. Smoke
+  semua teks >= 5.67:1; grafis --brand/kartu 4.28:1, border-strong 3.25:1
+  (syarat grafis 3:1).
 
   --glass memakai --frost dari elemen yang sama. Untuk mengubah tingkat buram
   di satu bagian, timpa --glass (bukan --frost) karena variabel CSS dihitung
@@ -218,128 +225,133 @@
 */
 .public-theme {
   --frost: 0.5;
-  --ch-radius-sm: 10px;
-  --ch-radius-md: 14px;
+  --ch-radius-sm: 12px;
+  --ch-radius-md: 16px;
   --ch-radius-lg: 22px;
-  --ch-radius-xl: 28px;
-  --stage-foreground: #0f1d17;
-  /* Terracotta dipensiunkan: alias ke hijau (lihat @theme inline). */
+  --ch-radius-xl: 26px;
+  --stage-foreground: #16191d;
+  /* Terracotta dipensiunkan: alias ke aksen (lihat @theme inline). */
   --accent-warm: var(--brand);
   --accent-warm-soft: var(--brand-muted);
   --accent-warm-strong: var(--brand-text);
 }
 
+/* Frost (terang): kanvas abu, kartu hampir putih, CTA hitam, aksen biru tua. */
 .public-theme[data-theme="light"] {
-  --background: #dfe6e1;
-  --foreground: #0f1d17;
-  --card: #ffffff;
-  --card-foreground: #0f1d17;
-  --popover: #ffffff;
-  --popover-foreground: #0f1d17;
+  --background: #d3d5d8;
+  --foreground: #16191d;
+  --card: #f6f7f8;
+  --card-foreground: #16191d;
+  --popover: #f6f7f8;
+  --popover-foreground: #16191d;
 
-  --primary: #137a50;
+  --primary: #1b1e21;
   --primary-foreground: #ffffff;
-  --secondary: #e6eee9;
-  --secondary-foreground: #0f1d17;
-  --muted: #e9efeb;
-  --muted-foreground: #4a5b52;
-  --accent: #dde8e1;
-  --accent-foreground: #0f1d17;
+  --secondary: #e4e6e9;
+  --secondary-foreground: #16191d;
+  --muted: #e8eaec;
+  --muted-foreground: #4a4f56;
+  --accent: #dfe1e4;
+  --accent-foreground: #16191d;
 
-  --border: rgba(15, 40, 28, 0.1);
-  --border-strong: #6d827e;
-  --input: #6d827e;
-  --ring: #137a50;
+  --border: rgba(22, 25, 29, 0.1);
+  --border-strong: #737981;
+  --input: #737981;
+  --ring: #08599c;
 
-  --brand: #137a50;
+  /* Biru Calda digelapkan untuk tema terang: #29a1f7 hanya 2.7:1 di kartu.
+     #0b70c2 = 4.76:1 sebagai grafis, putih di atasnya 5.11:1; teks biru
+     memakai #08599c (4.89:1 di kanvas, 5.38:1 di chip brand-muted). */
+  --brand: #0b70c2;
   --brand-foreground: #ffffff;
-  --brand-muted: rgba(19, 122, 80, 0.12);
-  /* DESIGN.md menulis #0f6c46; digelapkan karena di chip brand-muted di atas
-     canvas hanya 4.38:1. #0d6340 = 4.96:1 di chip, 7.3:1 di card. */
-  --brand-text: #0d6340;
+  --brand-muted: rgba(11, 112, 194, 0.12);
+  --brand-text: #08599c;
 
-  /* #106d44 (VD-04): #12764a hanya 4.45:1 di canvas (Lighthouse a11y);
-     kini ≥ 5.02:1 di card, canvas, muted, secondary, accent, dan latar pil. */
-  --success: #106d44;
-  --success-muted: #e2f1e8;
-  --warning: #85560a;
-  --warning-muted: #f7ecd8;
-  --destructive: #b13b22;
-  --destructive-muted: #f8e4df;
+  /* #1b6139: status "Diperiksa" juga tampil langsung di kanvas; #1f6b3d hanya
+     4.42:1 di sana (pindai kontras CD-00). Kini 5.07:1 kanvas, 6.95:1 kartu. */
+  --success: #1b6139;
+  --success-muted: #e2efe6;
+  /* Peringatan dan bahaya juga digelapkan agar >= 4.5:1 langsung di kanvas
+     (#80520a 4.56:1 dan #a8361f 4.44:1 terlalu tipis). */
+  --warning: #7a4e09;
+  --warning-muted: #f4ead6;
+  --destructive: #9a321c;
+  --destructive-muted: #f6e3de;
 
-  --stage: #f4f7f5;
-  --scrim: rgba(15, 29, 23, 0.48);
+  --stage: #ffffff;
+  --scrim: rgba(22, 25, 29, 0.48);
 
-  --glass: rgba(255, 255, 255, calc(0.42 + var(--frost) * 0.2));
-  --glass-text: rgba(255, 255, 255, 0.86);
-  --glass-rim: rgba(255, 255, 255, 0.62);
+  --glass: rgba(246, 247, 248, calc(0.5 + var(--frost) * 0.2));
+  --glass-text: rgba(246, 247, 248, 0.88);
+  --glass-rim: rgba(255, 255, 255, 0.72);
   --glass-top: rgba(255, 255, 255, 0.95);
-  /* Latar gradasi merek pengganti foto scene (keputusan PO 18 Nov 2026): dua
-     cahaya hijau samar di atas yang memudar ke kanvas. Tanpa gambar. */
+  /* Gradasi abu netral tanpa foto (keputusan PO 18 Nov 2026): cahaya putih
+     samar di kiri dan kanan atas yang memudar ke kanvas. */
   --scene-gradient:
-    radial-gradient(70rem 38rem at 10% -12%, rgba(19, 122, 80, 0.17), transparent 65%),
-    radial-gradient(56rem 32rem at 96% 2%, rgba(64, 168, 124, 0.14), transparent 62%),
-    linear-gradient(180deg, #e8f0eb 0%, var(--background) 100%);
+    radial-gradient(70rem 40rem at 12% -14%, rgba(255, 255, 255, 0.7), transparent 65%),
+    radial-gradient(52rem 30rem at 96% 0%, rgba(255, 255, 255, 0.4), transparent 60%),
+    linear-gradient(180deg, #e2e4e7 0%, var(--background) 100%);
 
-  --ch-shadow-sm: 0 1px 2px rgba(20, 50, 34, 0.07);
-  --ch-shadow: 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.38);
+  --ch-shadow-sm: 0 1px 2px rgba(20, 24, 30, 0.07);
+  --ch-shadow: 0 1px 2px rgba(20, 24, 30, 0.06), 0 18px 40px -26px rgba(20, 24, 30, 0.4);
   --ch-shadow-md: var(--ch-shadow);
-  --ch-shadow-lg: 0 2px 6px rgba(20, 50, 34, 0.1), 0 34px 70px -28px rgba(20, 50, 34, 0.48);
+  --ch-shadow-lg: 0 2px 6px rgba(20, 24, 30, 0.1), 0 34px 70px -28px rgba(20, 24, 30, 0.5);
   --ch-shadow-xl: var(--ch-shadow-lg);
 
   color-scheme: light;
 }
 
+/* Smoke (gelap): kanvas arang #2a2c2f, kartu abu, CTA putih, aksen biru Calda. */
 .public-theme[data-theme="dark"] {
-  --background: #0c1210;
-  --foreground: #eef4ee;
-  --card: #121b18;
-  --card-foreground: #eef4ee;
-  --popover: #16211d;
-  --popover-foreground: #eef4ee;
+  --background: #2a2c2f;
+  --foreground: #ffffff;
+  --card: #35373b;
+  --card-foreground: #ffffff;
+  --popover: #3a3c40;
+  --popover-foreground: #ffffff;
 
-  --primary: #6ee0a1;
-  --primary-foreground: #062a16;
-  --secondary: #1a2621;
-  --secondary-foreground: #eef4ee;
-  --muted: #17221e;
-  --muted-foreground: #a8b9af;
-  --accent: #1f2e28;
-  --accent-foreground: #eef4ee;
+  --primary: #ffffff;
+  --primary-foreground: #1b1e21;
+  --secondary: #404246;
+  --secondary-foreground: #ffffff;
+  --muted: #3d3f43;
+  --muted-foreground: #c9cdd2;
+  --accent: #45474b;
+  --accent-foreground: #ffffff;
 
-  --border: rgba(220, 255, 236, 0.09);
-  --border-strong: #728d88;
-  --input: #728d88;
-  --ring: #8ee9b7;
+  --border: rgba(255, 255, 255, 0.11);
+  --border-strong: #80868e;
+  --input: #80868e;
+  --ring: #8fcfff;
 
-  --brand: #6ee0a1;
-  --brand-foreground: #062a16;
-  --brand-muted: rgba(110, 224, 161, 0.14);
-  --brand-text: #8ee9b7;
+  --brand: #29a1f7;
+  --brand-foreground: #06233a;
+  --brand-muted: rgba(41, 161, 247, 0.16);
+  --brand-text: #8fcfff;
 
-  --success: #8ee9b7;
-  --success-muted: #13291f;
-  --warning: #f2c770;
-  --warning-muted: #2d2412;
-  --destructive: #f6a38e;
-  --destructive-muted: #33201b;
+  --success: #93e6b4;
+  --success-muted: #26372e;
+  --warning: #ffd486;
+  --warning-muted: #3d3627;
+  --destructive: #ffab98;
+  --destructive-muted: #45302c;
 
-  --stage: #eef3f0;
-  --scrim: rgba(0, 0, 0, 0.62);
+  --stage: #eceef0;
+  --scrim: rgba(0, 0, 0, 0.6);
 
-  --glass: rgba(6, 11, 9, calc(0.36 + var(--frost) * 0.16));
-  --glass-text: rgba(10, 16, 14, 0.84);
-  --glass-rim: rgba(225, 255, 238, 0.1);
-  --glass-top: rgba(235, 255, 244, 0.22);
+  --glass: rgba(58, 60, 64, calc(0.55 + var(--frost) * 0.2));
+  --glass-text: rgba(50, 52, 56, 0.9);
+  --glass-rim: rgba(255, 255, 255, 0.13);
+  --glass-top: rgba(255, 255, 255, 0.3);
   --scene-gradient:
-    radial-gradient(70rem 38rem at 10% -12%, rgba(110, 224, 161, 0.13), transparent 65%),
-    radial-gradient(56rem 32rem at 96% 2%, rgba(64, 168, 124, 0.1), transparent 62%),
-    linear-gradient(180deg, #0f1814 0%, var(--background) 100%);
+    radial-gradient(70rem 40rem at 12% -14%, rgba(255, 255, 255, 0.08), transparent 65%),
+    radial-gradient(52rem 30rem at 96% 0%, rgba(255, 255, 255, 0.05), transparent 60%),
+    linear-gradient(180deg, #37393d 0%, var(--background) 100%);
 
   --ch-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --ch-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 18px 40px -26px rgba(0, 0, 0, 0.6);
+  --ch-shadow: 0 1px 2px rgba(0, 0, 0, 0.26), 0 18px 40px -26px rgba(0, 0, 0, 0.6);
   --ch-shadow-md: var(--ch-shadow);
-  --ch-shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.34), 0 34px 70px -28px rgba(0, 0, 0, 0.7);
+  --ch-shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.32), 0 34px 70px -28px rgba(0, 0, 0, 0.7);
   --ch-shadow-xl: var(--ch-shadow-lg);
 
   color-scheme: dark;
@@ -356,9 +368,8 @@
     progress bar memakai --brand teal (5.93:1 di kartu), bukan mint (1.32:1).
   - Kontras terukur: terburuk muted/kanvas 5.87:1 (terang) dan 7.97:1 (gelap),
     border-strong 3.96:1 / 3.79:1 (syarat grafis 3:1).
-  - Font Urbanist (variabel --font-urbanist dari next/font di layout admin).
-    Urbanist tidak punya angka tabular, jadi `.tabular`/`tabular-nums` di admin
-    tetap Plus Jakarta Sans supaya kolom angka sejajar.
+  - Font Urbanist berlaku global sejak CD-00 (lihat @theme inline dan
+    `.tabular` di @layer base).
 */
 .admin-theme {
   --background: #ededef;
@@ -415,13 +426,7 @@
   --ch-shadow-lg: 0 2px 6px rgba(21, 17, 18, 0.06), 0 30px 60px -30px rgba(21, 17, 18, 0.4);
   --ch-shadow-xl: var(--ch-shadow-lg);
 
-  font-family: var(--font-urbanist), var(--font-plus-jakarta-sans), system-ui, sans-serif;
-  font-weight: 500;
   color-scheme: light;
-}
-
-.admin-theme :is(.tabular, .tabular-nums) {
-  font-family: var(--font-plus-jakarta-sans), system-ui, sans-serif;
 }
 
 .admin-theme.dark {
@@ -476,8 +481,10 @@
 }
 
 /*
-  Kaca Verdant (DESIGN.md §6.1). Hanya untuk bingkai; harga, tabel, penawaran,
-  dan grafik tidak pernah di atas kaca.
+  Kaca Calda (DESIGN.md §6.1, CD-00). Hanya untuk bingkai; harga, tabel,
+  penawaran, dan grafik tidak pernah di atas kaca. Tepinya garis tipis
+  (--glass-rim) dengan kilau diagonal dari kiri atas (--glass-top), ciri kaca
+  Calda; tujuannya memisahkan bingkai dari kanvas tanpa bayangan tebal.
   - glass       bidang tanpa teks (atau teksnya di elemen solid di dalamnya)
   - glass-text  kaca berteks: header, filter bar, compare tray, composer.
                 Opasitasnya dipilih agar teks lolos 4.5:1 di atas foto
@@ -489,24 +496,24 @@
 @utility glass {
   background: var(--glass);
   border: 1px solid var(--glass-rim);
-  box-shadow: inset 0 1px 0 var(--glass-top), var(--ch-shadow);
+  box-shadow: inset 1px 1px 0 var(--glass-top), var(--ch-shadow);
 }
 
 @utility glass-text {
   background: var(--glass-text);
   border: 1px solid var(--glass-rim);
-  box-shadow: inset 0 1px 0 var(--glass-top), var(--ch-shadow);
+  box-shadow: inset 1px 1px 0 var(--glass-top), var(--ch-shadow);
 }
 
 @utility glass-float {
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  backdrop-filter: blur(16px) saturate(1.1);
 }
 
 /*
-  Latar Verdant (DESIGN.md §6.2, komponen src/components/layout/scene-backdrop.tsx).
-  Sejak 18 November 2026 tanpa foto (keputusan PO: foto tumbuhan/lampu tidak
-  relevan dengan CekHarga): --scene-gradient dari warna merek.
+  Latar (DESIGN.md §6.2, komponen src/components/layout/scene-backdrop.tsx).
+  Sejak 18 November 2026 tanpa foto (keputusan PO); sejak CD-00
+  --scene-gradient berupa gradasi abu netral.
   - scene-fade: gradasi di atas setiap halaman, memudar ke kanvas.
   - scene-full: gradasi penuh di belakang hero beranda dan layar awal Tanya AI.
   - hero-panel: kaca warna di atas gradasi (tanpa foto blur dan tanpa
@@ -546,18 +553,19 @@
   heading tingkat lebih rendah tidak pernah lebih besar dari induknya.
   Nilai = skala bawaan Tailwind (text-3xl dst.) ditulis literal, karena
   Tailwind v4 hanya mengeluarkan variabel tema yang dipakai utility.
-    heading-page        H1 halaman             30 → 36px  extrabold
-    heading-section-lg  H2 seksi beranda       24 → 30px  extrabold
-    heading-section     H2 seksi halaman       20 → 24px  bold
-    heading-sub         H3 subseksi            18 → 20px  bold
-    heading-card        judul kartu            16px       bold
+    heading-page        H1 halaman             30 → 36px  bold (700)
+    heading-section-lg  H2 seksi beranda       24 → 30px  bold (700)
+    heading-section     H2 seksi halaman       20 → 24px  semibold (600)
+    heading-sub         H3 subseksi            18 → 20px  semibold (600)
+    heading-card        judul kartu            16px       semibold (600)
     heading-label       label grup / footer    14px       semibold
-  Breakpoint ganda memakai md (48rem).
+  Breakpoint ganda memakai md (48rem). Ketebalan diturunkan di CD-00:
+  Urbanist 800 terlalu berat di layar, dan Calda memakai 600 untuk judul.
 */
 @utility heading-page {
   font-size: 1.875rem;
   line-height: 2.25rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.025em;
   @media (width >= 48rem) {
     font-size: 2.25rem;
@@ -568,7 +576,7 @@
 @utility heading-section-lg {
   font-size: 1.5rem;
   line-height: 2rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.025em;
   @media (width >= 48rem) {
     font-size: 1.875rem;
@@ -579,7 +587,7 @@
 @utility heading-section {
   font-size: 1.25rem;
   line-height: 1.75rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.025em;
   @media (width >= 48rem) {
     font-size: 1.5rem;
@@ -590,7 +598,7 @@
 @utility heading-sub {
   font-size: 1.125rem;
   line-height: 1.75rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.025em;
   @media (width >= 48rem) {
     font-size: 1.25rem;
@@ -601,7 +609,7 @@
 @utility heading-card {
   font-size: 1rem;
   line-height: 1.5rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.025em;
 }
 
@@ -630,6 +638,8 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    /* Urbanist 400 terlalu tipis untuk teks layar; 500 = bobot teks biasa (CD-00). */
+    font-weight: 500;
   }
 
   /*
@@ -640,15 +650,18 @@
     Pola fokus komponen satu saja: `focus-visible:ring-2 focus-visible:ring-ring`
     (pekat). Pola bawaan shadcn `ring-ring/50` sengaja tidak dipakai: ring 50%
     di atas putih gagal syarat 3:1 untuk indikator fokus (PRD §8, WCAG 1.4.11,
-    audit UX-12). Ring pekat Verdant: 5.35:1 di card dan 4.2:1 di canvas
-    terang, ≥ 12:1 di tema gelap.
+    audit UX-12). Ring pekat Calda: 6.71:1 di kartu dan 4.89:1 di kanvas
+    Frost, ≥ 7:1 di Smoke; admin Veyla ≥ 6.74:1.
   */
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;
   }
 
   /* Harga dan angka lain mudah dipindai saat disejajarkan */
-  .tabular {
+  /* Angka yang harus sejajar memakai Plus Jakarta Sans: Urbanist tidak punya
+     angka tabular, jadi `tabular-nums` saja tidak berpengaruh (CD-00). */
+  :is(.tabular, .tabular-nums) {
+    font-family: var(--font-numeric);
     font-variant-numeric: tabular-nums;
   }
 }
@@ -660,7 +673,9 @@
 }
 
 @utility animate-breathe {
-  animation: breathe 2.4s ease-in-out infinite;
+  /* Dua kali saja (4.8 detik) lalu diam: gerak di atas 5 detik butuh tombol
+     jeda (antislop R-39), dan titik status tidak perlu berdenyut terus (R-19). */
+  animation: breathe 2.4s ease-in-out 2;
 }
 
 /*

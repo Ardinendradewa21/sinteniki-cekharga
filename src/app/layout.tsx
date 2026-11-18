@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
 import { MotionProvider } from "@/components/motion/motion-provider";
+import { urbanist } from "@/lib/fonts/urbanist";
 import { siteUrl } from "@/lib/site-url";
 
 import "./globals.css";
 
+// Plus Jakarta Sans tetap dimuat khusus angka tabular (`.tabular`), karena
+// Urbanist (font utama sejak CD-00) tidak punya angka tabular.
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
   subsets: ["latin"],
@@ -31,7 +34,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="id" className={`${plusJakartaSans.variable} h-full`}>
+    <html lang="id" className={`${urbanist.variable} ${plusJakartaSans.variable} h-full`}>
       {/*
         suppressHydrationWarning khusus untuk <body>.
 

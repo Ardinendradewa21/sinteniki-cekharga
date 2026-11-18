@@ -124,7 +124,7 @@ function NativeAd({ creative }: { creative: ServedCreative }) {
           <span className="truncate text-sm font-semibold text-foreground">{creative.advertiserLabel}</span>
           <span className="ml-auto shrink-0 text-xs text-muted-foreground">Bersponsor</span>
         </div>
-        <p className="text-lg leading-snug font-extrabold tracking-tight text-foreground sm:text-xl">
+        <p className="text-lg leading-snug font-bold tracking-tight text-foreground sm:text-xl">
           {creative.headline}
         </p>
         {creative.body ? (
