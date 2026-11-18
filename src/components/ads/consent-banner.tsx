@@ -19,7 +19,7 @@ export function ConsentBanner() {
     <div
       role="region"
       aria-label="Persetujuan iklan"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-2xl rounded-2xl border border-border bg-card p-4 shadow-xl sm:p-5 print:hidden"
+      className="fixed inset-x-4 bottom-[calc(var(--tabbar-offset,0px)+1rem)] z-50 mx-auto max-w-2xl rounded-2xl border border-border bg-card p-4 shadow-xl sm:p-5 print:hidden"
     >
       <p className="text-sm leading-relaxed text-foreground">
         Kami bisa menampilkan iklan dari mitra pihak ketiga yang memakai cookie untuk mengukur dan

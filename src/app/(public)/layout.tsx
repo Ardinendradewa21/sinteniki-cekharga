@@ -5,6 +5,7 @@ import { ConsentBanner } from "@/components/ads/consent-banner";
 import { CompareTray } from "@/components/compare/compare-tray";
 import { SceneBackdrop } from "@/components/layout/scene-backdrop";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { SiteHeader } from "@/components/layout/site-header";
 import {
   PUBLIC_THEME_COOKIE,
@@ -28,7 +29,7 @@ export default async function PublicLayout({
       data-theme={initialTheme}
       className="public-theme relative isolate flex min-h-svh flex-1 flex-col bg-background text-foreground transition-colors duration-300"
     >
-      {/* Foto latar tipis di atas setiap halaman; hero beranda memasang varian penuh sendiri. */}
+      {/* Gradasi latar tipis di atas setiap halaman; hero beranda memasang varian penuh sendiri. */}
       <SceneBackdrop variant="fade" />
       <SiteHeader initialTheme={initialTheme} />
       <main id="konten-utama" className="flex-1">
@@ -37,6 +38,8 @@ export default async function PublicLayout({
       {/* Rail iklan kiri/kanan, hanya di layar sangat lebar (lihat AdRails). */}
       <AdRails />
       <SiteFooter />
+      {/* Tab bar ponsel (CD-01), di luar header agar `fixed` menempel ke layar. */}
+      <MobileTabBar />
       <CompareTray />
       {adsenseClient ? <ConsentBanner /> : null}
     </div>

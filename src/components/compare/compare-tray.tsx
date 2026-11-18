@@ -76,7 +76,9 @@ export function CompareTray() {
             initial={{ y: "110%" }}
             animate={{ y: 0, transition: transition("entrance") }}
             exit={{ y: "110%", transition: transition("exit") }}
-            className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] print:hidden"
+            // Di ponsel duduk tepat di atas tab bar (`--tabbar-offset`, CD-01);
+            // safe area sudah ditangani tab bar. Mulai md offset-nya 0.
+            className="fixed inset-x-0 bottom-(--tabbar-offset) z-40 px-3 pb-2 md:pb-[max(env(safe-area-inset-bottom),0.75rem)] print:hidden"
           >
             <div className="glass-text glass-float mx-auto max-w-2xl overflow-hidden rounded-xl">
               <AnimatePresence initial={false}>
