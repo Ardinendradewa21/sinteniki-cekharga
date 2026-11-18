@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import { useState, type KeyboardEvent, type ReactNode } from "react";
-import { AnimatePresence, motion, type PanInfo } from "motion/react";
+import { AnimatePresence, type PanInfo } from "motion/react";
+import * as m from "motion/react-m";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 
@@ -114,7 +115,7 @@ export function ProductGallery({
       >
         <div className={cn("relative h-60 w-full sm:h-96", PHOTO_BACKDROP)}>
           <AnimatePresence initial={false} custom={direction} mode="popLayout">
-            <motion.div
+            <m.div
               key={current.src}
               role="group"
               aria-roledescription="slide"
@@ -141,7 +142,7 @@ export function ProductGallery({
                 draggable={false}
                 className="pointer-events-none select-none object-contain"
               />
-            </motion.div>
+            </m.div>
           </AnimatePresence>
         </div>
 
@@ -190,7 +191,7 @@ export function ProductGallery({
                 className="size-full object-contain"
               />
               {active ? (
-                <motion.span
+                <m.span
                   layoutId="product-gallery-active"
                   aria-hidden="true"
                   className="absolute inset-0 rounded-lg ring-2 ring-primary"

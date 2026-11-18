@@ -12,6 +12,8 @@ import { Urbanist } from "next/font/google";
  */
 export const urbanist = Urbanist({
   variable: "--font-urbanist",
-  subsets: ["latin", "latin-ext"],
+  // Hanya "latin": teks Indonesia dan nama merek tidak butuh latin-ext; satu
+  // berkas font lebih sedikit yang dipreload (audit 004 no. 2).
+  subsets: ["latin"],
   display: "swap",
 });

@@ -43,7 +43,7 @@ export default async function AdvertiserListPage() {
           {advertisers.map((row) => (
             <tr key={row.id}>
               <td className={td}>
-                <Link href={`/admin/iklan/advertiser/${row.id}`} className="font-semibold text-foreground hover:underline">
+                <Link href={`/admin/iklan/advertiser/${row.id}`} className="inline-flex min-h-11 items-center rounded-md font-semibold text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring">
                   {row.company_name}
                 </Link>
                 {row.source === "form" ? <div className="text-xs text-muted-foreground">dari form /iklan</div> : null}

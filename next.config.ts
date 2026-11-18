@@ -53,6 +53,8 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     ...(Number.isFinite(buildCpus) && buildCpus > 0 ? { cpus: buildCpus } : {}),
+    // `inlineCss` dicoba di audit 004 no. 2: FCP/LCP tidak berubah di luar
+    // derau pengukuran, padahal CSS jadi tidak bisa di-cache terpisah. Tidak dipakai.
     serverActions: {
       /**
        * Batas bawaan Server Action adalah 1 MB, dan berkas CSV dataset

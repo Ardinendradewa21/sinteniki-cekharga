@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { motion } from "motion/react"
+import * as m from "motion/react-m"
 
 import { useMotionPreset } from "@/lib/motion"
 import { cn } from "@/lib/utils"
@@ -47,7 +47,7 @@ export function BrandChips({ chips, className }: { chips: BrandChip[]; className
               )}
             >
               {chip.active ? (
-                <motion.span
+                <m.span
                   layoutId="chip-merek-aktif"
                   aria-hidden
                   className="absolute inset-0 -z-10 rounded-pill bg-primary"

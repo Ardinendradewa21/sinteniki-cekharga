@@ -81,7 +81,7 @@ export default async function AdsReportPage(props: PageProps<"/admin/iklan/lapor
             return (
               <tr key={item.id}>
                 <td className={td}>
-                  <Link href={`/admin/iklan/io/${item.io_id}`} className="font-semibold text-foreground hover:underline">
+                  <Link href={`/admin/iklan/io/${item.io_id}`} className="inline-flex min-h-11 items-center rounded-md font-semibold text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring">
                     {item.name || "Line item"}
                   </Link>
                 </td>

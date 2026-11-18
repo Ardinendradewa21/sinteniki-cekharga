@@ -139,7 +139,7 @@ export default async function AdvertiserDetailPage(props: PageProps<"/admin/ikla
           {ios.map((io) => (
             <tr key={io.id}>
               <td className={td}>
-                <Link href={`/admin/iklan/io/${io.id}`} className="font-semibold text-foreground hover:underline">
+                <Link href={`/admin/iklan/io/${io.id}`} className="inline-flex min-h-11 items-center rounded-md font-semibold text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring">
                   {io.io_number}
                 </Link>
               </td>
