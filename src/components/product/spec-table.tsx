@@ -1,4 +1,6 @@
+import { SpecGuideDisclosure } from "@/components/product/spec-guide-disclosure";
 import type { ProductSpecRow } from "@/lib/catalog/queries";
+import { specGuidesFor } from "@/lib/catalog/spec-guide";
 
 /**
  * Spesifikasi terstruktur (PRD FR-03).
@@ -35,7 +37,7 @@ export function SpecTable({
         {specs.map((spec) => (
           <div
             key={spec.label}
-            className="flex items-baseline justify-between gap-4 px-5 py-3 text-sm"
+            className="flex items-baseline justify-between gap-4 px-5 py-3 text-[0.9375rem]"
           >
             <dt className="text-muted-foreground">{spec.label}</dt>
             <dd className="text-right font-medium text-foreground">
@@ -48,6 +50,13 @@ export function SpecTable({
           </div>
         ))}
       </dl>
+
+      {/* Penjelasan atribut yang terisi (bank materi, keputusan PO 18 Nov 2026). */}
+      <SpecGuideDisclosure
+        className="mt-3"
+        summary="Apa arti spesifikasi ini?"
+        entries={specGuidesFor(specs.filter((spec) => spec.value !== null).map((spec) => spec.label))}
+      />
 
       <p className="mt-3 text-xs text-muted-foreground">
         Sumber spesifikasi: {source}. {knownCount} dari {specs.length} atribut

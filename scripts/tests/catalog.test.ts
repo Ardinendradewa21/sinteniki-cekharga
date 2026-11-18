@@ -416,3 +416,82 @@ test("schema penawaran: harga opsional saat menambah, wajib saat mencatat", () =
   assert.equal(empty.success, false, "Rp0 dari kolom kosong tidak lagi lolos (dulu z.coerce)");
   assert.equal(priceInput.safeParse({ offerId: "bukan-uuid", priceIdr: "2849000" }).success, false);
 });
+
+import { SPEC_GUIDE, specGuideFor, specGuidesFor } from "@/lib/catalog/spec-guide";
+import { joinNames, specInsight, type InsightSubject } from "@/lib/catalog/spec-insight";
+import type { ProductSpecs } from "@/lib/catalog/schema";
+
+const baseSpecs: ProductSpecs = {
+  displayInches: 6.7, displayTechnology: "AMOLED", refreshRateHz: 120, chipset: "Snapdragon 7s Gen 3",
+  batteryMah: 5000, chargingWatt: 45, mainCameraMp: 50, cameraLensCount: 3, cameraHasUltrawide: true,
+  cameraHasTelephoto: false, cameraOpticalZoomX: null, weightGrams: 190, releaseYear: 2025, is5G: true,
+  hasNfc: true, ipRating: "IP68", has35mmJack: false, osVersion: "Android 15, One UI 7", colorOptions: null,
+};
+const subject = (name: string, specs: Partial<ProductSpecs> = {}, extra: Partial<InsightSubject> = {}): InsightSubject => ({
+  name, specs: { ...baseSpecs, ...specs }, ramGb: 8, storageGb: 256, warranty: "Resmi Indonesia", ...extra,
+});
+
+test("Bank materi: setiap atribut punya 'apa ini' dan 2-4 butir realita, tanpa klaim pemenang", () => {
+  assert.ok(SPEC_GUIDE.length >= 15);
+  for (const entry of SPEC_GUIDE) {
+    assert.ok(entry.what.length > 10, entry.label);
+    assert.ok(entry.reality.length >= 2 && entry.reality.length <= 4, `${entry.label}: 2-4 butir`);
+    const text = [entry.what, ...entry.reality].join(" ");
+    assert.doesNotMatch(text, /terbaik|juara|pemenang|skor|wajib beli/i, entry.label);
+    assert.doesNotMatch(text, /—/, `${entry.label}: tanpa em dash`);
+  }
+  assert.equal(specGuideFor("Baterai")?.label, "Baterai");
+  assert.equal(specGuideFor("Pilihan warna"), null);
+  assert.deepEqual(specGuidesFor(["RAM", "Pilihan warna", "RAM", "Bobot"]).map((e) => e.label), ["RAM", "Bobot"]);
+});
+
+test("Insight: arah faktual + artinya, tanpa 'lebih baik', dan kosong bila ada nilai tak diketahui", () => {
+  assert.equal(joinNames(["A", "B", "C"]), "A, B, dan C");
+
+  const battery = specInsight("Baterai", [subject("A", { batteryMah: 6000 }), subject("B", { batteryMah: 5400 })]);
+  assert.equal(battery?.fact, "A 600 mAh (11%) lebih besar dari B (6.000 mAh vs 5.400 mAh).");
+  assert.match(battery!.meaning!, /cek ulasan/i);
+  const small = specInsight("Baterai", [subject("A", { batteryMah: 5100 }), subject("B", { batteryMah: 5000 })]);
+  assert.match(small!.meaning!, /jarang terasa/);
+
+  const weight = specInsight("Bobot", [subject("A", { weightGrams: 210 }), subject("B", { weightGrams: 185 })]);
+  assert.equal(weight?.fact, "B 25 gram lebih ringan dari A (185 gram vs 210 gram).");
+
+  const three = specInsight("RAM", [subject("A", {}, { ramGb: 12 }), subject("B", {}, { ramGb: 8 }), subject("C", {}, { ramGb: 12 })]);
+  assert.equal(three?.fact, "Paling besar: A dan C (12 GB); paling kecil: B (8 GB). Selisih 4 GB.");
+
+  const nfc = specInsight("NFC", [subject("A"), subject("B", { hasNfc: false })]);
+  assert.equal(nfc?.fact, "Hanya A yang tercatat punya NFC.");
+  const nfc3 = specInsight("NFC", [subject("A"), subject("B"), subject("C", { hasNfc: false })]);
+  assert.equal(nfc3?.fact, "A dan B tercatat punya NFC; C tidak.");
+
+  const chip = specInsight("Chipset", [subject("A", { chipset: "Snapdragon 8 Elite" }), subject("B", { chipset: "Helio G85" })]);
+  assert.equal(chip?.fact, "Kelas chipset A: flagship; B: entry.");
+  assert.match(chip!.meaning!, /bukan benchmark/);
+  assert.equal(specInsight("Chipset", [subject("A", { chipset: "Chip Misterius X1" }), subject("B")]), null);
+
+  const ip = specInsight("Ketahanan (IP rating)", [subject("A"), subject("B", { ipRating: "IP54" })]);
+  assert.equal(ip?.fact, "A: IP68, tahan terendam lebih dari 1 meter; B: IP54, tahan cipratan air.");
+  assert.equal(specInsight("Ketahanan (IP rating)", [subject("A", { ipRating: "IP68/IP69" }), subject("B")])?.fact.startsWith("A: IP69"), true);
+
+  const camera = specInsight("Susunan kamera", [subject("A", { cameraHasTelephoto: true, cameraOpticalZoomX: 3 }), subject("B")]);
+  assert.equal(camera?.fact, "Hanya A yang tercatat punya telefoto (zoom optik).");
+
+  const panel = specInsight("Layar", [subject("A"), subject("B", { displayTechnology: "IPS LCD", displayInches: 6.72 })]);
+  assert.match(panel!.fact, /Panel A: OLED; B: LCD/);
+  assert.doesNotMatch(panel!.fact, /inci lebih/, "selisih 0,02 inci tidak disebut");
+
+  const year = specInsight("Tahun rilis", [subject("A"), subject("B", { releaseYear: 2023 })]);
+  assert.equal(year?.fact, "A dirilis 2025, 2 tahun setelah B (2023).");
+
+  // Nilai tak diketahui tidak pernah dihitung; nilai sama tidak punya arah.
+  assert.equal(specInsight("Baterai", [subject("A"), subject("B", { batteryMah: null })]), null);
+  assert.equal(specInsight("Baterai", [subject("A"), subject("B")]), null);
+  assert.equal(specInsight("Pilihan warna", [subject("A"), subject("B")]), null);
+  assert.equal(specInsight("Baterai", [subject("A")]), null);
+
+  for (const label of SPEC_GUIDE.map((e) => e.label)) {
+    const insight = specInsight(label, [subject("A", { batteryMah: 7000, weightGrams: 230 }, { ramGb: 16 }), subject("B", { hasNfc: false, is5G: false, has35mmJack: true }, { warranty: "Distributor" })]);
+    if (insight) assert.doesNotMatch(`${insight.fact} ${insight.meaning ?? ""}`, /lebih baik|terbaik|pemenang|unggul/i, label);
+  }
+});
