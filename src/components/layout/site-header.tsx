@@ -16,8 +16,9 @@ import type { PublicTheme } from "@/lib/public/preferences-config";
  * scroll-padding supaya fokus keyboard tidak tertutup header.
  *
  * Elemen <header> sendiri transparan dan tidak menangkap klik; hanya kapsul
- * dan menu ponsel yang interaktif, jadi konten di sela-selanya tetap bisa
- * diklik saat menggulir.
+ * yang interaktif, jadi konten di sela-selanya tetap bisa diklik saat
+ * menggulir. Sejak CD-01 menu ponsel pindah ke tab bar bawah
+ * (`mobile-tab-bar.tsx`); di ponsel kapsul ini hanya berisi logo, cari, dan tema.
  */
 export function SiteHeader({ initialTheme }: { initialTheme: PublicTheme }) {
   return (

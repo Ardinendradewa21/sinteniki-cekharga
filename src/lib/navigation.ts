@@ -42,6 +42,38 @@ export const MAIN_NAV: readonly NavItem[] = [
   },
 ] as const;
 
+/**
+ * Tautan sekunder untuk lembar "Lainnya" di tab bar ponsel (CD-01). Semua
+ * route ini sudah ada (juga ditautkan footer).
+ */
+export const MORE_NAV: readonly NavItem[] = [
+  {
+    href: "/how-it-works",
+    label: "Cara Kerja",
+    description: "Sumber data, arti harga, dan keterbatasan.",
+  },
+  {
+    href: "/hp",
+    label: "Cari menurut kebutuhan",
+    description: "Daftar HP 5G, NFC, RAM, dan penyimpanan per batas harga.",
+  },
+  {
+    href: "/faq",
+    label: "Pertanyaan umum",
+    description: "Jawaban singkat soal harga, data, dan cara memakai CekHarga.",
+  },
+  {
+    href: "/iklan",
+    label: "Beriklan",
+    description: "Media kit dan cara mengajukan kerja sama iklan.",
+  },
+  {
+    href: "/terms",
+    label: "Ketentuan layanan",
+    description: "Aturan penggunaan CekHarga.",
+  },
+] as const;
+
 export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);

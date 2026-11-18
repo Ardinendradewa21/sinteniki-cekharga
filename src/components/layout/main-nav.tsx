@@ -4,15 +4,10 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  Cancel01Icon,
-  Menu01Icon,
-  Moon02Icon,
-  Search01Icon,
-  Sun02Icon,
-} from "@hugeicons/core-free-icons"
+import { Moon02Icon, Search01Icon, Sun02Icon } from "@hugeicons/core-free-icons"
 import { AnimatePresence, motion } from "motion/react"
 
+import { NAV_ICONS } from "@/components/layout/nav-icons"
 import { Button } from "@/components/ui/button"
 import { useMotionPreset } from "@/lib/motion"
 import { isActivePath } from "@/lib/navigation"
@@ -34,16 +29,22 @@ type MainNavBarProps = {
 }
 
 /**
- * Navigasi kapsul publik (PRD §8: "navigasi kapsul, tombol ikon bulat") di
- * dalam Glass Header (DESIGN.md §7). Kacanya milik kapsul header; navigasi ini
- * tidak menambah latar, bayangan, atau glow sendiri.
+ * Navigasi publik tema Calda (CD-01, DESIGN.md §7).
  *
- * Menu aktif ditandai latar `--brand-muted` yang bergeser antarmenu (spring
- * thumb dari src/lib/motion.ts) + teks penuh + `aria-current`, jadi tidak
- * bergantung pada warna saja. Reduced motion: pindah seketika.
+ * Desktop: kapsul berisi menu dalam satu "track". Menu aktif adalah kapsul
+ * monokrom (`--primary`, sama dengan CTA utama Calda) yang bergeser antarmenu
+ * lewat Motion `layoutId` (spring thumb dari src/lib/motion.ts) + `aria-current`,
+ * jadi tidak bergantung pada warna saja. Mulai `lg` semua menu berlabel; di
+ * `md` hanya menu aktif yang berlabel (pola Calda), sisanya ikon dengan nama
+ * yang tetap terbaca pembaca layar dan tooltip.
  *
- * Path aktif berasal dari router, bukan state visual lokal, sehingga tombol
- * Back/Forward dan deep link selalu menunjukkan tab yang benar.
+ * Ponsel: menu ada di tab bar bawah (`mobile-tab-bar.tsx`, dirender di layout
+ * publik di luar header karena `backdrop-filter` kapsul header membuat
+ * `position: fixed` menempel ke kapsul, bukan ke layar). Di header ponsel
+ * hanya tombol cari dan tema.
+ *
+ * Path aktif berasal dari router, jadi Back/Forward dan deep link selalu
+ * menunjukkan tab yang benar. Reduced motion: penanda pindah seketika.
  */
 export function MainNavBar({
   items,
@@ -52,27 +53,15 @@ export function MainNavBar({
   initialTheme,
 }: MainNavBarProps) {
   const pathname = usePathname()
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false)
   const [theme, setTheme] = React.useState<PublicTheme>(initialTheme)
   const [themePending, startThemeTransition] = React.useTransition()
-  const { reduce: shouldReduceMotion, transition } = useMotionPreset()
+  const { reduce, transition } = useMotionPreset()
 
   function applyThemeToPage(nextTheme: PublicTheme) {
     document
       .querySelector<HTMLElement>("[data-public-theme]")
       ?.setAttribute("data-theme", nextTheme)
   }
-
-  React.useEffect(() => {
-    if (!isMenuOpen) return
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsMenuOpen(false)
-    }
-
-    window.addEventListener("keydown", closeOnEscape)
-    return () => window.removeEventListener("keydown", closeOnEscape)
-  }, [isMenuOpen])
 
   function toggleTheme() {
     const previousTheme = theme
@@ -90,163 +79,79 @@ export function MainNavBar({
     })
   }
 
-  const themeLabel =
-    theme === "dark" ? "Gunakan tema terang" : "Gunakan tema gelap"
-
-  const themeIcon = (
-    <HugeiconsIcon
-      icon={theme === "dark" ? Sun02Icon : Moon02Icon}
-      size={20}
-      strokeWidth={1.8}
-      aria-hidden
-    />
-  )
+  const themeLabel = theme === "dark" ? "Gunakan tema terang" : "Gunakan tema gelap"
+  // Tombol ikon bulat bertepi tipis (gaya Calda), bukan ghost tanpa batas.
+  const roundButton = "rounded-pill border-border bg-card/70 shadow-none hover:bg-card"
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="hidden items-center md:flex">
-        <nav aria-label="Navigasi utama">
-          <ul className="flex items-center gap-0.5">
-            {items.map((item) => {
-              const isActive = isActivePath(pathname, item.href)
+      <nav aria-label="Navigasi utama" className="hidden md:block">
+        <ul className="flex items-center gap-0.5 rounded-pill bg-foreground/5 p-1">
+          {items.map((item) => {
+            const isActive = isActivePath(pathname, item.href)
+            const icon = NAV_ICONS[item.href]
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  aria-current={isActive ? "page" : undefined}
+                  title={isActive ? undefined : item.label}
+                  className={cn(
+                    "relative isolate flex h-11 items-center gap-2 rounded-pill px-3.5 text-sm font-semibold",
+                    "transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isActive
+                      ? "text-primary-foreground"
+                      : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                  )}
+                >
+                  {isActive ? (
+                    <motion.span
+                      layoutId="header-nav-aktif"
+                      aria-hidden
+                      className="absolute inset-0 -z-10 rounded-pill bg-primary"
+                      transition={transition("thumb")}
+                    />
+                  ) : null}
+                  {icon ? <HugeiconsIcon icon={icon} size={18} strokeWidth={1.8} aria-hidden /> : null}
+                  <span className={cn(!isActive && "sr-only lg:not-sr-only")}>{item.label}</span>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
 
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "relative isolate flex h-11 items-center rounded-pill px-4 text-sm font-medium",
-                      "transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      isActive
-                        ? "text-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    {isActive ? (
-                      // Latar aktif bergeser antarmenu (layoutId); tanpa
-                      // bayangan atau glow.
-                      <motion.span
-                        layoutId="header-nav-active"
-                        aria-hidden
-                        className="absolute inset-0 -z-10 rounded-pill bg-brand-muted"
-                        transition={transition("thumb")}
-                      />
-                    ) : null}
-                    <span className="relative z-10">{item.label}</span>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
+      <Button asChild variant="outline" size="icon" className={roundButton}>
+        <Link href={searchHref} aria-label="Cari produk" title="Cari produk">
+          <HugeiconsIcon icon={Search01Icon} size={19} strokeWidth={1.8} aria-hidden />
+        </Link>
+      </Button>
 
-        <span aria-hidden className="mx-1 h-6 w-px bg-border" />
-
-        <Button asChild variant="ghost" size="icon">
-          <Link href={searchHref} aria-label="Cari produk">
-            <HugeiconsIcon icon={Search01Icon} size={20} strokeWidth={1.8} aria-hidden />
-          </Link>
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          disabled={themePending}
-          aria-label={themeLabel}
-          aria-pressed={theme === "dark"}
-          title={themeLabel}
-        >
-          {themeIcon}
-        </Button>
-      </div>
-
-      <div className="flex items-center gap-0.5 md:hidden">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsMenuOpen((open) => !open)}
-          aria-expanded={isMenuOpen}
-          aria-controls="menu-navigasi-mobile"
-          aria-label={isMenuOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
-        >
-          <HugeiconsIcon
-            icon={isMenuOpen ? Cancel01Icon : Menu01Icon}
-            size={20}
-            strokeWidth={1.8}
-            aria-hidden
-          />
-        </Button>
-
-        <Button asChild variant="ghost" size="icon">
-          <Link href={searchHref} aria-label="Cari produk">
-            <HugeiconsIcon icon={Search01Icon} size={20} strokeWidth={1.8} aria-hidden />
-          </Link>
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          disabled={themePending}
-          aria-label={themeLabel}
-          aria-pressed={theme === "dark"}
-          title={themeLabel}
-        >
-          {themeIcon}
-        </Button>
-      </div>
-
-      <AnimatePresence initial={false}>
-        {isMenuOpen ? (
-          <motion.nav
-            id="menu-navigasi-mobile"
-            aria-label="Navigasi utama (mobile)"
-            initial={{ opacity: 0, y: shouldReduceMotion ? 0 : -8 }}
-            animate={{ opacity: 1, y: 0, transition: transition("micro") }}
-            exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -8, transition: transition("exit") }}
-            className="pointer-events-auto absolute inset-x-0 top-full z-40 px-4 pt-1 md:hidden"
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={toggleTheme}
+        disabled={themePending}
+        aria-label={themeLabel}
+        aria-pressed={theme === "dark"}
+        title={themeLabel}
+        className={roundButton}
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={theme}
+            className="flex"
+            initial={reduce ? false : { rotate: -90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            exit={reduce ? undefined : { rotate: 90, opacity: 0 }}
+            transition={transition("micro")}
           >
-            <ul className="glass-text glass-float mx-auto flex max-w-7xl flex-col gap-1 rounded-xl p-2">
-              {items.map((item) => {
-                const isActive = isActivePath(pathname, item.href)
+            <HugeiconsIcon icon={theme === "dark" ? Sun02Icon : Moon02Icon} size={19} strokeWidth={1.8} aria-hidden />
+          </motion.span>
+        </AnimatePresence>
+      </Button>
 
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      aria-current={isActive ? "page" : undefined}
-                      onClick={() => setIsMenuOpen(false)}
-                      className={cn(
-                        "flex min-h-12 flex-col justify-center rounded-lg px-4 py-2 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-                        isActive ? "bg-brand-muted" : "hover:bg-muted"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "text-sm text-foreground",
-                          isActive ? "font-semibold" : "font-medium"
-                        )}
-                      >
-                        {item.label}
-                      </span>
-                      {item.description ? (
-                        <span className="text-xs text-muted-foreground">
-                          {item.description}
-                        </span>
-                      ) : null}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </motion.nav>
-        ) : null}
-      </AnimatePresence>
     </div>
   )
 }

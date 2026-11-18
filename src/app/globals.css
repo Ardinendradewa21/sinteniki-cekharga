@@ -224,6 +224,12 @@
   di elemen tempat ia didefinisikan.
 */
 .public-theme {
+  /* Tinggi tab bar ponsel (CD-01): tab 3.5rem + padding kapsul 0.75rem +
+     garis kaca 2px + jarak bawah 0.5rem + safe area (terukur 78px di Pixel 7,
+     TC-NAV-03). Halaman, compare tray, banner persetujuan, dan composer Tanya
+     AI dinaikkan setinggi ini supaya tidak tertutup. 0 mulai md. */
+  --tabbar-offset: calc(4.75rem + 2px + env(safe-area-inset-bottom));
+  padding-bottom: var(--tabbar-offset);
   --frost: 0.5;
   --ch-radius-sm: 12px;
   --ch-radius-md: 16px;
@@ -539,6 +545,13 @@
 */
 .public-theme:has(.scene-full) .scene-fade {
   display: none;
+}
+
+/* Tab bar ponsel hanya di bawah md (CD-01); di layar lebar tidak ada offset. */
+@media (width >= 48rem) {
+  .public-theme {
+    --tabbar-offset: 0px;
+  }
 }
 
 /* Panggung foto produk: terang di kedua tema, teks di atasnya tetap gelap. */

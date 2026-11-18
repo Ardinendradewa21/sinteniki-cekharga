@@ -182,7 +182,8 @@ export function AssistantChat({
       }}
       className={cn(
         "glass-text glass-float rounded-3xl p-2",
-        kosong ? "" : "sticky bottom-4 z-30 mt-6"
+        // Di ponsel composer menempel di atas tab bar (`--tabbar-offset`, CD-01).
+        kosong ? "" : "sticky bottom-[calc(var(--tabbar-offset,0px)+1rem)] z-30 mt-6"
       )}
     >
       {!kosong && noted.length > 0 ? (
