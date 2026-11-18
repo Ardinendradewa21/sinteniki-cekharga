@@ -14,6 +14,9 @@ import type {
   CompareResult,
   CompareSpecIcon,
 } from "@/lib/catalog/queries";
+import { SpecGuideDisclosure } from "@/components/product/spec-guide-disclosure";
+import { specGuidesFor, type SpecGuideEntry } from "@/lib/catalog/spec-guide";
+import type { SpecInsight } from "@/lib/catalog/spec-insight";
 import { cn } from "@/lib/utils";
 
 /**
@@ -30,9 +33,11 @@ import { cn } from "@/lib/utils";
  * Yang sengaja TIDAK dilakukan, karena PRD melarangnya:
  *
  * - Tidak ada skor, peringkat, bintang, atau penanda "pemenang". Baris yang
- *   nilainya berbeda disorot `--brand-muted` dengan label kata "beda" (VD-07):
- *   hanya menandai BERBEDA, bukan mana yang lebih baik, dan tidak bergantung
- *   pada warna saja.
+ *   nilainya berbeda disorot `--brand-muted` dengan label kata "beda" (VD-07),
+ *   lalu diberi arah faktual dan artinya (`spec-insight.ts`, keputusan PO
+ *   18 Nov 2026): "A 600 mAh lebih besar dari B" + arti singkatnya, bukan
+ *   "A lebih baik". Penjelasan tiap atribut ada di "Apa artinya?" per bagian
+ *   (bank materi `spec-guide.ts`).
  * - Nilai yang tidak diketahui tidak pernah dihitung sebagai kalah dan tidak
  *   ditulis "-" yang bisa terbaca "tidak ada". Atribut yang kosong di SEMUA
  *   kolom disebut terbuka di catatan, bukan diisi baris kosong.
@@ -90,7 +95,23 @@ type SpecTableRow = {
   different: boolean;
   headline?: boolean;
   cells: React.ReactNode[];
+  insight?: SpecInsight | null;
 };
+
+/** Arah faktual + artinya, tepat di bawah nilai yang berbeda. */
+function InsightLine({ insight }: { insight: SpecInsight }) {
+  return (
+    <div className="space-y-0.5 text-[0.9375rem] leading-relaxed">
+      <p className="font-medium text-foreground">{insight.fact}</p>
+      {insight.meaning ? (
+        <p className="text-muted-foreground">
+          <span className="font-semibold text-foreground">Artinya: </span>
+          {insight.meaning}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 /** Satu topik spesifikasi sebagai tabel ARIA: baris = atribut, kolom = produk. */
 function SpecTable({
@@ -100,6 +121,7 @@ function SpecTable({
   rows,
   rowGrid,
   note,
+  guides = [],
 }: {
   id: string;
   title: string;
@@ -107,6 +129,7 @@ function SpecTable({
   rows: SpecTableRow[];
   rowGrid: string;
   note?: string;
+  guides?: SpecGuideEntry[];
 }) {
   return (
     <section aria-labelledby={`bagian-${id}`} className="mt-10">
@@ -128,15 +151,17 @@ function SpecTable({
           ))}
         </div>
         {rows.map((row) => (
+          // Satu atribut = satu rowgroup: baris nilai + (bila berbeda) baris
+          // insight yang membentang di bawah kolom nilai.
+          <div key={row.label} role="rowgroup" className={cn(row.different && "bg-brand-muted")}>
           <div
-            key={row.label}
             role="row"
             data-different={row.different || undefined}
-            className={cn("grid items-start gap-x-4 gap-y-1.5 px-4 py-3", rowGrid, row.different && "bg-brand-muted")}
+            className={cn("grid items-start gap-x-4 gap-y-1.5 px-4 py-3.5", rowGrid)}
           >
             <div
               role="rowheader"
-              className="col-span-full flex items-center gap-2 text-sm text-muted-foreground md:col-span-1"
+              className="col-span-full flex items-center gap-2 text-[0.9375rem] text-muted-foreground md:col-span-1"
             >
               <SpecIcon name={row.icon} className="size-5 shrink-0 text-muted-foreground" />
               <span>
@@ -156,15 +181,25 @@ function SpecTable({
                 role="cell"
                 className={cn(
                   "min-w-0 font-semibold wrap-break-word text-foreground",
-                  row.headline ? "text-base md:text-lg" : "text-sm"
+                  row.headline ? "text-lg md:text-xl" : "text-base md:text-[1.0625rem]"
                 )}
               >
                 {cell}
               </div>
             ))}
           </div>
+          {row.insight ? (
+            <div role="row" className={cn("grid gap-x-4 px-4 pb-3.5", rowGrid)}>
+              <div role="cell" aria-colspan={items.length + 1} className="col-span-full md:col-[2/-1]">
+                <span className="sr-only">Arah perbedaan {row.label}: </span>
+                <InsightLine insight={row.insight} />
+              </div>
+            </div>
+          ) : null}
+          </div>
         ))}
       </div>
+      <SpecGuideDisclosure entries={guides} className="mt-3" />
     </section>
   );
 }
@@ -183,7 +218,7 @@ function DiffLabel({ decorative = true }: { decorative?: boolean }) {
 }
 
 const UNKNOWN = (
-  <span className="text-sm font-normal text-muted-foreground italic">Belum diketahui</span>
+  <span className="text-[0.9375rem] font-normal text-muted-foreground italic">Belum diketahui</span>
 );
 
 /** Pilihan varian tercatat, disejajarkan per ukuran seperti lembar produsen. */
@@ -368,9 +403,9 @@ export function CompareTable({
           Spesifikasi utama
         </h3>
         {isComparing ? (
-          <p className="mx-auto mt-2 max-w-prose text-center text-sm text-muted-foreground">
-            Baris berlatar hijau dan berlabel <DiffLabel decorative={false} /> nilainya berbeda antar produk. Label ini tidak menunjukkan
-            mana yang lebih baik.
+          <p className="mx-auto mt-2 max-w-prose text-center text-[0.9375rem] leading-relaxed text-muted-foreground">
+            Baris berlatar hijau dan berlabel <DiffLabel decorative={false} /> nilainya berbeda antar produk; di bawahnya tertulis arah
+            angkanya dan artinya. Arah angka (lebih besar, lebih ringan) bukan penilaian mana yang lebih cocok untuk Anda.
             {incompleteCount > 0
               ? ` ${incompleteCount} atribut belum lengkap datanya dan tidak dinilai.`
               : ""}
@@ -384,12 +419,14 @@ export function CompareTable({
             title={section.title}
             items={items}
             rowGrid={rowGrid}
+            guides={specGuidesFor(section.rows.map((row) => row.label))}
             rows={section.rows.map((row) => ({
               label: row.label,
               icon: row.icon,
               different: isComparing && row.state === "different",
               headline: row.headline,
               cells: items.map((_, index) => row.values[index] ?? UNKNOWN),
+              insight: isComparing ? row.insight : null,
             }))}
           />
         ))}

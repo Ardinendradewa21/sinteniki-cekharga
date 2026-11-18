@@ -4,6 +4,7 @@ import { priceDifference, resolveStartingPrice, type PriceResolution, type Start
 import { buildCompareHref, MAX_COMPARE_ITEMS, type CompareSelection } from "@/lib/catalog/compare-href";
 import { type ProductSummary, formatVariantLabel, findProductBySlug, loadPublishedCatalog } from "@/lib/catalog/core";
 import { buildProductDetail } from "@/lib/catalog/product-detail";
+import { specInsight, type InsightSubject, type SpecInsight } from "@/lib/catalog/spec-insight";
 
 /** Perbandingan produk (PRD FR-04): contoh di beranda dan halaman /compare. Tanpa skor atau pemenang. */
 
@@ -132,6 +133,11 @@ export type CompareRow = {
   icon: CompareSpecIcon;
   /** Nilai pendek yang ditampilkan besar (mis. "5G", "5000 mAh"). */
   headline: boolean;
+  /**
+   * Arah faktual + artinya (`spec-insight.ts`), hanya untuk baris
+   * `different` yang semua nilainya diketahui. Bukan pemenang atau skor.
+   */
+  insight: SpecInsight | null;
 };
 
 export type CompareSection = {
@@ -302,6 +308,7 @@ export async function getComparison(
       if (!product) return null;
       return {
         selection,
+        product,
         detail: buildProductDetail(
           catalog,
           product,
@@ -359,6 +366,17 @@ export async function getComparison(
     };
   });
 
+  // Subjek kalimat insight: nama model tanpa merek supaya ringkas, kecuali
+  // bila dua kolom bernama model sama.
+  const models = details.map((entry) => entry.detail.model);
+  const subjects: InsightSubject[] = details.map((entry, index) => ({
+    name: models.filter((model) => model === models[index]).length > 1 ? entry.detail.name : entry.detail.model,
+    specs: entry.product.specs,
+    ramGb: entry.detail.selectedVariant?.ramGb ?? null,
+    storageGb: entry.detail.selectedVariant?.storageGb ?? null,
+    warranty: entry.detail.selectedVariant?.region ?? null,
+  }));
+
   const buildRow = ({
     label,
     icon,
@@ -385,13 +403,15 @@ export async function getComparison(
 
     const hasUnknown = values.some((value) => value === null);
     const allEqual = values.every((value) => value === values[0]);
+    const state: CompareRowState = hasUnknown ? "incomplete" : allEqual ? "same" : "different";
 
     return {
       label,
       values,
       icon,
       headline,
-      state: hasUnknown ? "incomplete" : allEqual ? "same" : "different",
+      state,
+      insight: state === "different" ? specInsight(label, subjects) : null,
     };
   };
   const sections: CompareSection[] = COMPARE_SECTIONS.map((section) => ({
