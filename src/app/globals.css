@@ -71,6 +71,9 @@
     foto resmi berlatar putih. stage-foreground tetap gelap di tema gelap
     supaya label yang menempel ke foto tetap terbaca (16.1 / 15.5 :1).
   */
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-ink-muted: var(--ink-muted);
   --color-stage: var(--stage);
   --color-stage-foreground: var(--stage-foreground);
   /* Latar redup di belakang lembar/panel (filter ponsel, dialog). */
@@ -104,6 +107,8 @@
   --radius-md: var(--ch-radius-md, calc(var(--radius) * 0.8));
   --radius-lg: var(--ch-radius-lg, var(--radius));
   --radius-xl: var(--ch-radius-xl, calc(var(--radius) * 1.4));
+  /* Kartu admin `rounded-2xl` = 22px di tema Veyla (AV-01); di luar admin tetap 1rem. */
+  --radius-2xl: var(--ch-radius-2xl, 1rem);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
@@ -340,44 +345,132 @@
   color-scheme: dark;
 }
 
-/* Tema gelap terisolasi untuk workspace admin. */
+/*
+  Admin: tema Veyla (AV-01, keputusan PO 18 November 2026). Hanya berlaku di
+  dalam `.admin-theme` (shell admin dan halaman login), jadi situs publik
+  tidak ikut berubah.
+  - Kanvas abu muda, kartu putih radius 22px dengan cincin tipis dan bayangan
+    lembut, tinta hampir hitam untuk CTA dan kartu sorotan, mint sebagai
+    permukaan aktif/positif, teal untuk teks dan grafik beraksen.
+  - Mint (#cce5e2) hanya PERMUKAAN (teks di atasnya 14:1); grafik tipis seperti
+    progress bar memakai --brand teal (5.93:1 di kartu), bukan mint (1.32:1).
+  - Kontras terukur: terburuk muted/kanvas 5.87:1 (terang) dan 7.97:1 (gelap),
+    border-strong 3.96:1 / 3.79:1 (syarat grafis 3:1).
+  - Font Urbanist (variabel --font-urbanist dari next/font di layout admin).
+    Urbanist tidak punya angka tabular, jadi `.tabular`/`tabular-nums` di admin
+    tetap Plus Jakarta Sans supaya kolom angka sejajar.
+*/
+.admin-theme {
+  --background: #ededef;
+  --foreground: #151112;
+  --card: #ffffff;
+  --card-foreground: #151112;
+  --popover: #ffffff;
+  --popover-foreground: #151112;
+
+  --primary: #151112;
+  --primary-foreground: #ffffff;
+  --secondary: #e6e6e9;
+  --secondary-foreground: #151112;
+  --muted: #f3f3f4;
+  --muted-foreground: #565b5f;
+  --accent: #e9eaec;
+  --accent-foreground: #151112;
+
+  --border: rgba(21, 17, 18, 0.09);
+  --border-strong: #7a8184;
+  --input: #7a8184;
+  --ring: #255a52;
+
+  --brand: #2f6e65;
+  --brand-foreground: #ffffff;
+  --brand-muted: #cce5e2;
+  --brand-text: #255a52;
+
+  --accent-warm: #f2dccb;
+  --accent-warm-soft: #f7eadf;
+  --accent-warm-strong: #7a4a26;
+
+  --success: #22694f;
+  --success-muted: #e1efe9;
+  --warning: #80520a;
+  --warning-muted: #f4ead6;
+  --destructive: #8e1a26;
+  --destructive-muted: #f6e1e3;
+
+  /* Kartu sorotan bertinta (mis. KPI utama) */
+  --ink: #151112;
+  --ink-foreground: #f4f5f5;
+  --ink-muted: rgba(244, 245, 245, 0.7);
+
+  --ch-radius-sm: 10px;
+  --ch-radius-md: 12px;
+  --ch-radius-lg: 16px;
+  --ch-radius-xl: 18px;
+  --ch-radius-2xl: 22px;
+  /* Cincin tipis + bayangan jatuh lembut (gaya kartu Veyla). */
+  --ch-shadow-sm: inset 0 0 0 1px rgba(21, 17, 18, 0.04), 0 1px 1px rgba(21, 17, 18, 0.03), 0 12px 28px -20px rgba(21, 17, 18, 0.28);
+  --ch-shadow: var(--ch-shadow-sm);
+  --ch-shadow-md: var(--ch-shadow-sm);
+  --ch-shadow-lg: 0 2px 6px rgba(21, 17, 18, 0.06), 0 30px 60px -30px rgba(21, 17, 18, 0.4);
+  --ch-shadow-xl: var(--ch-shadow-lg);
+
+  font-family: var(--font-urbanist), var(--font-plus-jakarta-sans), system-ui, sans-serif;
+  font-weight: 500;
+  color-scheme: light;
+}
+
+.admin-theme :is(.tabular, .tabular-nums) {
+  font-family: var(--font-plus-jakarta-sans), system-ui, sans-serif;
+}
+
 .admin-theme.dark {
-  --background: #0b1220;
-  --foreground: #e7edf5;
-  --card: #111a2a;
-  --card-foreground: #e7edf5;
-  --popover: #111a2a;
-  --popover-foreground: #e7edf5;
+  --background: #111314;
+  --foreground: #eef1f0;
+  --card: #1a1d1e;
+  --card-foreground: #eef1f0;
+  --popover: #212526;
+  --popover-foreground: #eef1f0;
 
-  --primary: #e7edf5;
-  --primary-foreground: #0b1220;
-  --secondary: #1c293b;
-  --secondary-foreground: #e7edf5;
-  --muted: #182437;
-  --muted-foreground: #a8b4c5;
-  --accent: #1c293b;
-  --accent-foreground: #e7edf5;
+  --primary: #eef1f0;
+  --primary-foreground: #111314;
+  --secondary: #252a2b;
+  --secondary-foreground: #eef1f0;
+  --muted: #212526;
+  --muted-foreground: #a3abac;
+  --accent: #252a2b;
+  --accent-foreground: #eef1f0;
 
-  --border: #2a384d;
-  --border-strong: #748198;
-  --input: #748198;
-  --ring: #5eead4;
+  --border: rgba(238, 241, 240, 0.08);
+  --border-strong: #6f797b;
+  --input: #6f797b;
+  --ring: #a9d3cc;
 
-  --brand: #5eead4;
-  --brand-foreground: #062c2a;
-  --brand-muted: #123b3a;
-  --brand-text: #5eead4;
+  --brand: #7fb0a9;
+  --brand-foreground: #111314;
+  --brand-muted: rgba(127, 176, 169, 0.2);
+  --brand-text: #a9d3cc;
 
-  --accent-warm: #fb9777;
-  --accent-warm-soft: #3f2925;
-  --accent-warm-strong: #ffae91;
+  --accent-warm: #e8c6ab;
+  --accent-warm-soft: #33291f;
+  --accent-warm-strong: #f0d4bd;
 
-  --success: #6ee7a0;
-  --success-muted: #173829;
-  --warning: #fbbf6a;
-  --warning-muted: #3d2d16;
-  --destructive: #fda29b;
-  --destructive-muted: #442321;
+  --success: #8fd4b0;
+  --success-muted: #1d2e27;
+  --warning: #f0c674;
+  --warning-muted: #2e2817;
+  --destructive: #f2a0a6;
+  --destructive-muted: #36201f;
+
+  --ink: #0b0c0d;
+  --ink-foreground: #eef1f0;
+  --ink-muted: rgba(238, 241, 240, 0.66);
+
+  --ch-shadow-sm: inset 0 0 0 1px rgba(238, 241, 240, 0.03), 0 12px 28px -20px rgba(0, 0, 0, 0.7);
+  --ch-shadow: var(--ch-shadow-sm);
+  --ch-shadow-md: var(--ch-shadow-sm);
+  --ch-shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.4), 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  --ch-shadow-xl: var(--ch-shadow-lg);
 
   color-scheme: dark;
 }
@@ -558,6 +651,16 @@
   .tabular {
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* Titik status "langsung" yang bernapas pelan (admin AV-01). */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0; }
+}
+
+@utility animate-breathe {
+  animation: breathe 2.4s ease-in-out infinite;
 }
 
 /*

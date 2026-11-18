@@ -77,7 +77,7 @@ export default async function AdsDashboardPage() {
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-2xl border border-border bg-card p-4">
             <dt className="text-xs font-semibold text-muted-foreground">{stat.label}</dt>
-            <dd className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">{stat.value}</dd>
+            <dd className="mt-1 text-2xl font-bold tabular-nums text-foreground">{stat.value}</dd>
           </div>
         ))}
       </dl>

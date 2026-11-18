@@ -2,145 +2,181 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  ArrowRight01Icon,
+  ArrowUpRight01Icon,
   Cancel01Icon,
-  Megaphone01Icon,
   DashboardSquare01Icon,
   DatabaseImportIcon,
   Logout01Icon,
+  Megaphone01Icon,
   Menu02Icon,
   Moon02Icon,
   Package01Icon,
+  PlusSignIcon,
+  Search01Icon,
   Sun02Icon,
   Video01Icon,
 } from "@hugeicons/core-free-icons";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import { setAdminThemeAction } from "@/lib/admin/preferences";
 import type { AdminTheme } from "@/lib/admin/preferences-config";
 import { signOutAction } from "@/lib/auth/actions";
 import type { StaffRole } from "@/lib/auth/dal";
+import { useMotionPreset } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /**
+ * Shell workspace admin, tema Veyla (AV-01, keputusan PO 18 Nov 2026).
+ *
+ * - Sidebar sewarna kanvas: logo, pencarian produk (Ctrl/⌘ K), menu
+ *   berkelompok dengan penanda aktif yang bergeser (Motion `layoutId`), kartu
+ *   tinta "situs publik", dan kartu akun dengan tombol keluar.
+ * - Topbar: remah roti + tema + "Tambah produk".
+ * - Di bawah `lg`: tab bar bawah untuk navigasi, laci untuk pencarian dan akun.
+ *
  * `roles` = peran staf selain `admin` yang boleh membuka menu ini. `admin`
  * selalu boleh. Menu hanya disembunyikan untuk kenyamanan; batas akses yang
  * sebenarnya ada di requireStaff() setiap halaman dan aksi.
  */
-const ADMIN_NAV: readonly {
+type NavItem = {
   href: string;
   label: string;
-  description: string;
+  short: string;
   icon: typeof DashboardSquare01Icon;
   roles: readonly StaffRole[];
-}[] = [
+};
+
+const NAV_GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
   {
-    href: "/admin",
-    label: "Dashboard",
-    description: "Ringkasan dan aktivitas",
-    icon: DashboardSquare01Icon,
-    roles: ["sales", "adops", "finance", "legal"],
+    label: "Katalog",
+    items: [
+      { href: "/admin", label: "Dashboard", short: "Dashboard", icon: DashboardSquare01Icon, roles: ["sales", "adops", "finance", "legal"] },
+      { href: "/admin/products", label: "Kelola produk", short: "Produk", icon: Package01Icon, roles: [] },
+      { href: "/admin/import", label: "Impor data", short: "Impor", icon: DatabaseImportIcon, roles: [] },
+      { href: "/admin/ulasan", label: "Ulasan YouTube", short: "Ulasan", icon: Video01Icon, roles: [] },
+    ],
   },
   {
-    href: "/admin/products",
-    label: "Kelola produk",
-    description: "Cari, sunting, dan terbitkan",
-    icon: Package01Icon,
-    roles: [],
-  },
-  {
-    href: "/admin/import",
-    label: "Impor data",
-    description: "CSV, tarik otomatis, foto",
-    icon: DatabaseImportIcon,
-    roles: [],
-  },
-  {
-    href: "/admin/ulasan",
-    label: "Ulasan YouTube",
-    description: "Kandidat video dan ringkasan",
-    icon: Video01Icon,
-    roles: [],
-  },
-  {
-    href: "/admin/iklan",
-    label: "Iklan",
-    description: "Advertiser, IO, materi, laporan",
-    icon: Megaphone01Icon,
-    roles: ["sales", "adops", "finance", "legal"],
+    label: "Monetisasi",
+    items: [{ href: "/admin/iklan", label: "Iklan", short: "Iklan", icon: Megaphone01Icon, roles: ["sales", "adops", "finance", "legal"] }],
   },
 ];
 
-function navFor(role: StaffRole) {
-  return ADMIN_NAV.filter((item) => role === "admin" || item.roles.includes(role));
+const ROLE_LABEL: Record<StaffRole, string> = {
+  admin: "Admin",
+  sales: "Sales",
+  adops: "Ad Ops",
+  finance: "Finance",
+  legal: "Legal",
+};
+
+function allowed(item: NavItem, role: StaffRole) {
+  return role === "admin" || item.roles.includes(role);
 }
 
 function isActive(pathname: string, href: string) {
-  return href === "/admin"
-    ? pathname === href
-    : pathname === href || pathname.startsWith(`${href}/`);
+  return href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+// Label pintasan mengikuti platform; server selalu "Ctrl K" (tidak berubah
+// selama sesi, jadi tidak perlu berlangganan).
+const noopSubscribe = () => () => {};
+const platformShortcut = () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘ K" : "Ctrl K");
+
+function initials(email: string) {
+  const name = email.split("@")[0] ?? "";
+  const parts = name.split(/[._+-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? parts[0]?.[1] ?? "")).toUpperCase() || "CH";
 }
 
 function AdminNavigation({
   pathname,
   role,
+  layoutId,
   onNavigate,
 }: {
   pathname: string;
   role: StaffRole;
+  layoutId: string;
   onNavigate?: () => void;
 }) {
+  const { transition } = useMotionPreset();
   return (
-    <nav aria-label="Navigasi admin" className="mt-8">
-      <p className="px-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        Menu utama
-      </p>
-      <ul className="mt-3 space-y-1">
-        {navFor(role).map((item) => {
-          const active = isActive(pathname, item.href);
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                onClick={onNavigate}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "group flex min-h-14 items-center gap-3 rounded-xl px-3 py-2 transition-[background-color,color,transform] duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-                  active
-                    ? "bg-brand-muted text-brand shadow-sm"
-                    : "text-foreground hover:translate-x-0.5 hover:bg-muted"
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors",
-                    active
-                      ? "bg-brand text-brand-foreground"
-                      : "bg-muted text-muted-foreground group-hover:text-foreground"
-                  )}
-                >
-                  <HugeiconsIcon
-                    icon={item.icon}
-                    size={19}
-                    strokeWidth={1.8}
-                    aria-hidden
-                  />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold">{item.label}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {item.description}
-                  </span>
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+    <nav aria-label="Navigasi admin" className="mt-6 space-y-5">
+      {NAV_GROUPS.map((group) => {
+        const items = group.items.filter((item) => allowed(item, role));
+        if (items.length === 0) return null;
+        return (
+          <div key={group.label}>
+            <p className="px-3 text-xs font-semibold text-muted-foreground">{group.label}</p>
+            <ul className="mt-1.5 space-y-0.5">
+              {items.map((item) => {
+                const active = isActive(pathname, item.href);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onNavigate}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "group relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                        active ? "text-foreground" : "text-foreground/80 hover:bg-foreground/5 hover:text-foreground"
+                      )}
+                    >
+                      {active ? (
+                        <motion.span
+                          layoutId={layoutId}
+                          transition={transition("thumb")}
+                          aria-hidden="true"
+                          className="absolute inset-0 rounded-xl bg-brand-muted"
+                        />
+                      ) : null}
+                      <HugeiconsIcon icon={item.icon} size={19} strokeWidth={1.8} aria-hidden className="relative shrink-0" />
+                      <span className="relative min-w-0 truncate">{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </nav>
+  );
+}
+
+/** Pencarian produk; Ctrl/⌘ K memfokuskannya (hanya peran admin). */
+function ProductSearch({ id, inputRef, shortcut }: { id: string; inputRef: React.RefObject<HTMLInputElement | null>; shortcut: string }) {
+  return (
+    <form action="/admin/products" role="search" className="relative mt-5">
+      <label htmlFor={id} className="sr-only">
+        Cari produk
+      </label>
+      <HugeiconsIcon
+        icon={Search01Icon}
+        size={17}
+        strokeWidth={1.8}
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground"
+      />
+      <input
+        ref={inputRef}
+        id={id}
+        name="q"
+        type="search"
+        placeholder="Cari produk…"
+        autoComplete="off"
+        className="h-11 w-full rounded-xl border border-border bg-card pr-14 pl-10 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      />
+      <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[0.6875rem] font-semibold text-muted-foreground">
+        {shortcut}
+      </kbd>
+    </form>
   );
 }
 
@@ -148,11 +184,17 @@ function SidebarContent({
   pathname,
   email,
   role,
+  layoutId,
+  searchRef,
+  shortcut,
   onNavigate,
 }: {
   pathname: string;
   email: string;
   role: StaffRole;
+  layoutId: string;
+  searchRef: React.RefObject<HTMLInputElement | null>;
+  shortcut: string;
   onNavigate?: () => void;
 }) {
   return (
@@ -161,34 +203,97 @@ function SidebarContent({
         <Link
           href="/admin"
           onClick={onNavigate}
-          className="inline-flex min-h-11 items-center gap-3 rounded-lg focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-11 items-center gap-3 rounded-xl focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="flex size-10 items-center justify-center rounded-xl bg-brand text-sm font-extrabold text-brand-foreground">
-            CH
-          </span>
+          <span className="flex size-10 items-center justify-center rounded-full bg-ink text-sm font-bold text-ink-foreground">CH</span>
           <span>
-            <span className="block text-base font-extrabold leading-tight">CekHarga</span>
+            <span className="block text-lg leading-tight font-semibold tracking-tight">CekHarga</span>
             <span className="block text-xs text-muted-foreground">Admin workspace</span>
           </span>
         </Link>
-        <AdminNavigation pathname={pathname} role={role} onNavigate={onNavigate} />
+        {role === "admin" ? <ProductSearch id={`${layoutId}-cari`} inputRef={searchRef} shortcut={shortcut} /> : null}
+        <AdminNavigation pathname={pathname} role={role} layoutId={layoutId} onNavigate={onNavigate} />
       </div>
-      <div className="border-t border-border pt-4">
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-          Akun aktif
-        </p>
-        <p className="mt-1 truncate text-sm font-semibold" title={email}>
-          {email}
-        </p>
+
+      <div className="mt-8 space-y-2">
         <Link
           href="/"
           onClick={onNavigate}
-          className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-brand underline-offset-4 hover:underline"
+          className="group flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-ink px-4 py-3 text-ink-foreground transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Lihat situs publik
+          <span>
+            <span className="block text-sm font-semibold">Situs publik</span>
+            <span className="block text-xs text-ink-muted">Lihat hasil yang dilihat pengunjung</span>
+          </span>
+          <HugeiconsIcon
+            icon={ArrowUpRight01Icon}
+            size={18}
+            strokeWidth={1.8}
+            aria-hidden
+            className="shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+          />
         </Link>
+        <div className="flex items-center gap-3 rounded-2xl bg-card p-2.5 shadow-sm">
+          <span
+            aria-hidden="true"
+            className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-muted text-xs font-bold text-brand-text"
+          >
+            {initials(email)}
+            <span className="absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-card bg-success" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold" title={email}>
+              {email}
+            </span>
+            <span className="block text-xs text-muted-foreground">{ROLE_LABEL[role]}</span>
+          </span>
+          <form action={signOutAction}>
+            <Button type="submit" variant="ghost" size="icon" aria-label="Keluar" title="Keluar">
+              <HugeiconsIcon icon={Logout01Icon} size={18} strokeWidth={1.8} aria-hidden />
+            </Button>
+          </form>
+        </div>
       </div>
     </>
+  );
+}
+
+/** Tab bar bawah untuk layar kecil (pola Veyla); penanda aktif bergeser. */
+function MobileTabBar({ pathname, role }: { pathname: string; role: StaffRole }) {
+  const { transition } = useMotionPreset();
+  const items = NAV_GROUPS.flatMap((group) => group.items).filter((item) => allowed(item, role));
+  if (items.length < 2) return null;
+  return (
+    <nav
+      aria-label="Navigasi admin bawah"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur-md lg:hidden"
+    >
+      <ul className="mx-auto flex max-w-lg justify-between gap-1">
+        {items.map((item) => {
+          const active = isActive(pathname, item.href);
+          return (
+            <li key={item.href} className="min-w-0 flex-1">
+              <Link
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[0.6875rem] font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {active ? (
+                  <motion.span
+                    layoutId="admin-tab-aktif"
+                    transition={transition("thumb")}
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-xl bg-brand-muted"
+                  />
+                ) : null}
+                <HugeiconsIcon icon={item.icon} size={20} strokeWidth={1.8} aria-hidden className="relative" />
+                <span className={cn("relative truncate", !active && "text-muted-foreground")}>{item.short}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 
@@ -207,12 +312,32 @@ export function AdminShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState<AdminTheme>(initialTheme);
   const [themePending, startThemeTransition] = useTransition();
-  const shouldReduceMotion = useReducedMotion();
+  const shortcut = useSyncExternalStore(noopSubscribe, platformShortcut, () => "Ctrl K");
+  const { reduce, transition } = useMotionPreset();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLElement>(null);
-  const currentSection =
-    ADMIN_NAV.find((item) => isActive(pathname, item.href))?.label ?? "Admin";
+  const searchRef = useRef<HTMLInputElement>(null);
+  const drawerSearchRef = useRef<HTMLInputElement>(null);
+  const current = NAV_GROUPS.flatMap((group) => group.items).find((item) => isActive(pathname, item.href));
+
+  // Ctrl/⌘ K: fokus ke pencarian produk. Di layar kecil laci dibuka dulu.
+  useEffect(() => {
+    if (role !== "admin") return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "k" || !(event.metaKey || event.ctrlKey)) return;
+      event.preventDefault();
+      if (window.innerWidth >= 1024) {
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      } else {
+        setMenuOpen(true);
+        requestAnimationFrame(() => drawerSearchRef.current?.focus());
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [role]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -229,9 +354,7 @@ export function AdminShell({
       }
       if (event.key !== "Tab") return;
       const focusable = Array.from(
-        menuPanelRef.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled])'
-        ) ?? []
+        menuPanelRef.current?.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), input") ?? []
       );
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -273,7 +396,7 @@ export function AdminShell({
 
   // Di dalam <body> flex-col, `flex-1` membuat `h-svh` diabaikan dan shell
   // memanjang mengikuti isi. `max-h-svh` mengunci tinggi ke layar di desktop,
-  // jadi hanya kolom konten yang menggulir dan sidebar (akun, situs publik) tetap.
+  // jadi hanya kolom konten yang menggulir dan sidebar tetap.
   return (
     <div
       data-admin-theme={theme}
@@ -282,17 +405,24 @@ export function AdminShell({
         theme === "dark" && "dark"
       )}
     >
-      <aside className="hidden w-64 shrink-0 flex-col justify-between overflow-y-auto border-r border-border bg-card p-5 transition-colors duration-300 lg:flex">
-        <SidebarContent pathname={pathname} email={email} role={role} />
+      <aside className="hidden w-64 shrink-0 flex-col justify-between overflow-y-auto border-r border-border bg-background p-4 transition-colors duration-300 lg:flex">
+        <SidebarContent
+          pathname={pathname}
+          email={email}
+          role={role}
+          layoutId="admin-nav-aktif"
+          searchRef={searchRef}
+          shortcut={shortcut}
+        />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col lg:overflow-y-auto">
-        <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-border bg-card/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 bg-background/85 px-4 backdrop-blur-md sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-2">
             <Button
               ref={menuButtonRef}
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
               aria-label="Buka menu admin"
               aria-expanded={menuOpen}
@@ -302,14 +432,21 @@ export function AdminShell({
             >
               <HugeiconsIcon icon={Menu02Icon} size={21} strokeWidth={1.8} aria-hidden />
             </Button>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Admin / {currentSection}
-              </p>
-              <p className="truncate text-sm font-bold text-foreground sm:text-base">
-                {currentSection}
-              </p>
-            </div>
+            <nav aria-label="Remah roti" className="min-w-0">
+              <ol className="flex min-w-0 items-center gap-1.5 text-sm">
+                <li className="hidden text-muted-foreground sm:block">
+                  <Link href="/admin" className="rounded-md hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                    Admin
+                  </Link>
+                </li>
+                <li aria-hidden="true" className="hidden text-muted-foreground sm:block">
+                  <HugeiconsIcon icon={ArrowRight01Icon} size={14} strokeWidth={2} />
+                </li>
+                <li aria-current="page" className="truncate font-semibold text-foreground">
+                  {current?.label ?? "Admin"}
+                </li>
+              </ol>
+            </nav>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -320,85 +457,86 @@ export function AdminShell({
               disabled={themePending}
               aria-label={theme === "dark" ? "Gunakan tema terang" : "Gunakan tema gelap"}
               aria-pressed={theme === "dark"}
+              title={theme === "dark" ? "Tema terang" : "Tema gelap"}
+              className="border-border bg-card shadow-sm"
             >
-              <HugeiconsIcon
-                icon={theme === "dark" ? Sun02Icon : Moon02Icon}
-                size={20}
-                strokeWidth={1.8}
-                aria-hidden
-              />
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={theme}
+                  initial={reduce ? false : { rotate: -90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={reduce ? undefined : { rotate: 90, opacity: 0 }}
+                  transition={transition("micro")}
+                  className="flex"
+                >
+                  <HugeiconsIcon icon={theme === "dark" ? Sun02Icon : Moon02Icon} size={19} strokeWidth={1.8} aria-hidden />
+                </motion.span>
+              </AnimatePresence>
             </Button>
-            <form action={signOutAction}>
-              <Button type="submit" variant="outline" size="sm" className="gap-2">
-                <HugeiconsIcon
-                  icon={Logout01Icon}
-                  size={17}
-                  strokeWidth={1.8}
-                  aria-hidden
-                />
-                <span className="hidden sm:inline">Keluar</span>
+            {/* Dasbor dan Kelola produk sudah punya tombol ini di kepala halaman. */}
+            {role === "admin" && pathname !== "/admin" && !pathname.startsWith("/admin/products") ? (
+              <Button asChild className="hidden sm:inline-flex">
+                <Link href="/admin/products/baru">
+                  <HugeiconsIcon icon={PlusSignIcon} size={17} strokeWidth={2} aria-hidden data-icon="inline-start" />
+                  Tambah produk
+                </Link>
               </Button>
-            </form>
+            ) : null}
           </div>
         </header>
 
-        <main id="konten-utama" className="min-w-0 flex-1">
+        <main id="konten-utama" className="min-w-0 flex-1 pb-24 lg:pb-0">
           {children}
         </main>
       </div>
 
+      <MobileTabBar pathname={pathname} role={role} />
+
       <AnimatePresence initial={false}>
         {menuOpen ? (
-        <motion.div
-          key="admin-mobile-menu"
-          className="fixed inset-0 z-50 lg:hidden"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: shouldReduceMotion ? 0.01 : 0.18 }}
-        >
-          <motion.button
-            type="button"
-            aria-label="Tutup menu admin"
-            onClick={closeMenu}
-            tabIndex={-1}
-            className="absolute inset-0 bg-foreground/35"
-          />
-          <motion.aside
-            ref={menuPanelRef}
-            id="menu-admin-mobile"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Menu admin mobile"
-            initial={shouldReduceMotion ? { opacity: 0 } : { x: "-100%" }}
-            animate={shouldReduceMotion ? { opacity: 1 } : { x: 0 }}
-            exit={shouldReduceMotion ? { opacity: 0 } : { x: "-100%" }}
-            transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.24,
-              ease: "easeOut",
-            }}
-            className="relative flex h-full w-[min(19rem,85vw)] flex-col justify-between overflow-y-auto border-r border-border bg-card p-5 shadow-xl"
+          <motion.div
+            key="admin-mobile-menu"
+            className="fixed inset-0 z-50 lg:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={transition("micro")}
           >
-            <div className="absolute right-4 top-4">
-              <Button
-                ref={closeButtonRef}
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label="Tutup menu"
-                onClick={closeMenu}
-              >
-                <HugeiconsIcon
-                  icon={Cancel01Icon}
-                  size={20}
-                  strokeWidth={1.8}
-                  aria-hidden
-                />
-              </Button>
-            </div>
-            <SidebarContent pathname={pathname} email={email} role={role} onNavigate={closeMenu} />
-          </motion.aside>
-        </motion.div>
+            <button
+              type="button"
+              aria-label="Tutup menu admin"
+              onClick={closeMenu}
+              tabIndex={-1}
+              className="absolute inset-0 bg-foreground/35"
+            />
+            <motion.aside
+              ref={menuPanelRef}
+              id="menu-admin-mobile"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu admin"
+              initial={reduce ? { opacity: 0 } : { x: "-100%" }}
+              animate={reduce ? { opacity: 1 } : { x: 0 }}
+              exit={reduce ? { opacity: 0 } : { x: "-100%" }}
+              transition={transition("entrance")}
+              className="relative flex h-full w-[min(19rem,85vw)] flex-col justify-between overflow-y-auto border-r border-border bg-background p-4 shadow-xl"
+            >
+              <div className="absolute top-4 right-4">
+                <Button ref={closeButtonRef} type="button" variant="ghost" size="icon" aria-label="Tutup menu" onClick={closeMenu}>
+                  <HugeiconsIcon icon={Cancel01Icon} size={20} strokeWidth={1.8} aria-hidden />
+                </Button>
+              </div>
+              <SidebarContent
+                pathname={pathname}
+                email={email}
+                role={role}
+                layoutId="admin-nav-aktif-laci"
+                searchRef={drawerSearchRef}
+                shortcut={shortcut}
+                onNavigate={closeMenu}
+              />
+            </motion.aside>
+          </motion.div>
         ) : null}
       </AnimatePresence>
     </div>

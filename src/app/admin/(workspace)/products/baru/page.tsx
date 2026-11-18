@@ -22,7 +22,7 @@ export default async function NewProductPage() {
     <Container className="py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Tambah Produk
           </h1>
           <p className="mt-2 max-w-prose text-sm text-muted-foreground">

@@ -57,7 +57,7 @@ export default async function CandidatePage(props: PageProps<"/admin/ulasan/[id]
       <Link href="/admin/ulasan" className="inline-flex min-h-11 items-center text-sm font-semibold text-brand underline-offset-4 hover:underline">
         Kembali ke kandidat
       </Link>
-      <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">Tulis ringkasan</h1>
+      <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Tulis ringkasan</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {candidate.product.name} · {candidate.channel.title}
       </p>

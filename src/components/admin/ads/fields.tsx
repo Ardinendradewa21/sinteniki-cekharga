@@ -227,7 +227,7 @@ export function PageHeader({ title, description, children }: { title: string; de
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
         {description ? <p className="mt-2 max-w-prose text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {children}

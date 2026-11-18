@@ -88,7 +88,7 @@ function ProductPrice({ product }: { product: AdminProductRow }) {
 
   return (
     <div>
-      <p className="tabular text-sm font-extrabold text-foreground">
+      <p className="tabular text-sm font-bold text-foreground">
         {formatIdr(product.recordedPrice.priceIdr)}
       </p>
       <p className="mt-0.5 text-xs text-muted-foreground">Harga tercatat</p>

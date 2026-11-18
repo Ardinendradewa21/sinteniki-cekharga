@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { AdminDataHealth } from "@/components/admin/data-health";
 import { AdminDashboardCharts } from "@/components/admin/dashboard-charts";
+import { KpiCount } from "@/components/admin/kpi-count";
+import { RingGauge } from "@/components/admin/ring-gauge";
 import { ImportQualityPanel } from "@/components/admin/import-quality";
 import { OfferUrlSuggestionsPanel } from "@/components/admin/offer-url-suggestions";
 import { PriceRefreshAlerts } from "@/components/admin/price-refresh-alerts";
@@ -36,10 +38,23 @@ export const dynamic = "force-dynamic";
  * tugasnya. Halaman yang menolak akses mengarahkan ke sini dengan
  * `?alasan=akses-ditolak`, jadi pesannya juga ditampilkan di sini.
  */
+/** Sapaan menurut jam WIB, mis. "Selamat pagi". */
+function greeting(now: Date): string {
+  const hour = Number(new Intl.DateTimeFormat("id-ID", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Jakarta" }).format(now));
+  if (hour < 11) return "Selamat pagi";
+  if (hour < 15) return "Selamat siang";
+  if (hour < 18) return "Selamat sore";
+  return "Selamat malam";
+}
+
+function todayLabel(now: Date): string {
+  return new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Jakarta" }).format(now);
+}
+
 function StaffHome({ denied }: { denied: boolean }) {
   return (
     <Container className="py-6 sm:py-8 lg:py-10">
-      <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Dashboard</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Dashboard</h1>
       {denied ? (
         <p role="alert" className="mt-4 max-w-prose rounded-xl border border-warning/40 bg-warning-muted px-4 py-3 text-sm text-foreground">
           Halaman tadi khusus peran admin. Hubungi admin bila Anda membutuhkan aksesnya.
@@ -102,42 +117,91 @@ export default async function AdminPage(props: PageProps<"/admin">) {
         ? "Belum dikonfigurasi"
         : "Tidak terhubung";
 
+  const withoutOffers = products.length - productsWithOffers;
+  const offerRatio = products.length > 0 ? productsWithOffers / products.length : 0;
+  const publishedPercent = products.length > 0 ? Math.round((publishedCount / products.length) * 100) : 0;
+
   return (
     <Container className="py-6 sm:py-8 lg:py-10">
+      {/*
+        Kepala dasbor gaya Veyla (AV-01): sapaan + ringkasan satu baris yang
+        dihitung dari data, status backend sebagai pil bertitik "langsung".
+      */}
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-brand">Ringkasan admin</p>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Dashboard</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Pantau katalog dan lanjutkan pekerjaan yang paling sering dilakukan.
+        <div className="min-w-0">
+          <p className="inline-flex min-h-8 items-center gap-2 rounded-pill bg-card px-3 text-xs font-semibold text-foreground shadow-sm">
+            <span aria-hidden="true" className="relative flex size-2">
+              <span className={`absolute inset-0 rounded-full ${backendReady ? "animate-breathe bg-success" : "bg-warning"}`} />
+              <span className={`relative size-2 rounded-full ${backendReady ? "bg-success" : "bg-warning"}`} />
+            </span>
+            Backend: {backendLabel} · {sourceMode === "live" ? "database live" : "data demo"}
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.35rem] sm:leading-tight">
+            <span className="sr-only">Dashboard: </span>
+            {greeting(now)}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            <span className="first-letter:uppercase">{todayLabel(now)}</span>
+            {" · "}
+            <Link href="/admin/products" className="font-semibold text-brand-text underline-offset-4 hover:underline">
+              {draftCount} draft
+            </Link>
+            {withoutOffers > 0 ? (
+              <>
+                {" · "}
+                <span className="font-semibold text-foreground">{withoutOffers} produk tanpa penawaran</span>
+              </>
+            ) : null}
           </p>
         </div>
-        <Button asChild><Link href="/admin/products/baru">Tambah produk</Link></Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="border-border bg-card shadow-sm">
+            <Link href="/admin/import">Impor data</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/products/baru">Tambah produk</Link>
+          </Button>
+        </div>
       </div>
 
+      {/* KPI: satu kartu mint (positif), satu tinta (sorotan), sisanya putih. */}
       <StaggerList as="dl" className="mt-7 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <StaggerItem as="div" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-          <dt className="text-xs font-medium text-muted-foreground sm:text-sm">Total produk</dt>
-          <dd className="mt-3 text-2xl font-extrabold tabular-nums text-foreground sm:text-3xl">{products.length}</dd>
-          <dd className="mt-1 text-xs text-muted-foreground">Tercatat di katalog</dd>
-        </StaggerItem>
-        <StaggerItem as="div" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-          <dt className="text-xs font-medium text-muted-foreground sm:text-sm">Terbit</dt>
-          <dd className="mt-3 text-2xl font-extrabold tabular-nums text-foreground sm:text-3xl">{publishedCount}</dd>
-          <dd className="mt-1 text-xs text-muted-foreground">Tampil di situs publik</dd>
-        </StaggerItem>
-        <StaggerItem as="div" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-          <dt className="text-xs font-medium text-muted-foreground sm:text-sm">Draft</dt>
-          <dd className="mt-3 text-2xl font-extrabold tabular-nums text-foreground sm:text-3xl">{draftCount}</dd>
-          <dd className="mt-1 text-xs text-muted-foreground">Belum tampil ke publik</dd>
-        </StaggerItem>
-        <StaggerItem as="div" className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-          <dt className="text-xs font-medium text-muted-foreground sm:text-sm">Status backend</dt>
-          <dd className="mt-3 flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
-            <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-full ${backendReady ? "bg-success" : "bg-warning"}`} />
-            {backendLabel}
+        <StaggerItem as="div" className="flex min-h-36 flex-col justify-between rounded-2xl bg-brand-muted p-4 text-foreground shadow-sm sm:p-5">
+          <dt className="text-sm font-semibold">Terbit</dt>
+          <dd>
+            <KpiCount value={publishedCount} className="block text-3xl font-semibold tracking-tight sm:text-4xl" />
+            <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-text">
+              <span className="rounded-pill bg-card px-2 py-0.5">{publishedPercent}%</span>
+              dari {products.length} produk
+            </span>
           </dd>
-          <dd className="mt-2 text-xs text-muted-foreground">Mode data: {sourceMode === "live" ? "Database live" : "Demo"}</dd>
+        </StaggerItem>
+        <StaggerItem as="div" className="flex min-h-36 flex-col justify-between rounded-2xl bg-card p-4 shadow-sm sm:p-5">
+          <dt className="text-sm font-semibold text-muted-foreground">Draft</dt>
+          <dd>
+            <KpiCount value={draftCount} className="block text-3xl font-semibold tracking-tight text-foreground sm:text-4xl" />
+            <span className="mt-2 block text-xs text-muted-foreground">Belum tampil ke publik</span>
+          </dd>
+        </StaggerItem>
+        <StaggerItem as="div" className="flex min-h-36 flex-col justify-between rounded-2xl bg-ink p-4 text-ink-foreground shadow-sm sm:p-5">
+          <dt className="text-sm font-semibold text-ink-muted">Total produk</dt>
+          <dd>
+            <KpiCount value={products.length} className="block text-3xl font-semibold tracking-tight sm:text-4xl" />
+            <span className="mt-2 block text-xs text-ink-muted">Tercatat di katalog, termasuk draft</span>
+          </dd>
+        </StaggerItem>
+        <StaggerItem as="div" className="flex min-h-36 items-start justify-between gap-3 rounded-2xl bg-card p-4 shadow-sm sm:p-5">
+          <div className="flex h-full flex-col justify-between">
+            <dt className="text-sm font-semibold text-muted-foreground">Punya penawaran</dt>
+            <dd>
+              <span className="block text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                <KpiCount value={productsWithOffers} />
+                <span className="text-base font-semibold text-muted-foreground">/{products.length}</span>
+              </span>
+              <span className="mt-2 block text-xs text-muted-foreground">Minimal satu penawaran toko</span>
+            </dd>
+          </div>
+          <RingGauge ratio={offerRatio} className="hidden shrink-0 sm:block" />
         </StaggerItem>
       </StaggerList>
 
