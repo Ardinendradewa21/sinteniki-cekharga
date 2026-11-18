@@ -9,6 +9,12 @@ import { type ProductSummary, buildProductSummary, loadPublishedCatalog } from "
 
 export type CatalogFacets = {
   brands: string[];
+  /**
+   * Jumlah produk terpublikasi per merek di SELURUH katalog (bukan hasil
+   * pencarian), untuk chip merek bergaya Calda (CD-02). Hitungan nyata, bukan
+   * popularitas; urutan mengikuti abjad seperti `brands`.
+   */
+  brandCounts: { brand: string; count: number }[];
   ram: number[];
   storage: number[];
 };
@@ -86,10 +92,16 @@ export async function searchCatalog(
 ): Promise<CatalogSearchResult> {
   const catalog = await loadPublishedCatalog(now);
 
+  const brands = [...new Set(catalog.products.map((product) => product.brand))].sort(
+    (a, b) => a.localeCompare(b, "id")
+  );
+  const perBrand = new Map<string, number>();
+  for (const product of catalog.products) {
+    perBrand.set(product.brand, (perBrand.get(product.brand) ?? 0) + 1);
+  }
   const facets: CatalogFacets = {
-    brands: [...new Set(catalog.products.map((product) => product.brand))].sort(
-      (a, b) => a.localeCompare(b, "id")
-    ),
+    brands,
+    brandCounts: brands.map((brand) => ({ brand, count: perBrand.get(brand) ?? 0 })),
     ram: [...new Set(catalog.variants.map((variant) => variant.ramGb))].sort(
       (a, b) => a - b
     ),

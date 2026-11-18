@@ -343,7 +343,10 @@ export function CatalogFilters({
               <Link
                 href={chip.href}
                 aria-label={`Hapus filter ${chip.label}`}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-brand-muted px-3.5 text-sm font-medium text-brand-text transition-colors duration-150 hover:bg-brand/15 focus-visible:ring-2 focus-visible:ring-ring"
+                // Teks foreground, bukan brand-text: chip ini duduk langsung di
+                // kanvas Frost, tempat brand-text di atas brand-muted hanya
+                // 4.25:1 (pindai kontras CD-02); foreground di sana ≥ 10:1.
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-brand-muted px-3.5 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-brand/15 focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {chip.label}
                 <HugeiconsIcon icon={Cancel01Icon} size={14} strokeWidth={2} aria-hidden />
