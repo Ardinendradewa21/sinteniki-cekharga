@@ -68,14 +68,19 @@ export function ProductCard({
         {product.image.isGenericIllustration ? (
           <DevicePlaceholder size="sm" />
         ) : (
-          <Image
-            src={product.image.src}
-            alt={product.image.alt}
-            width={140}
-            height={210}
-            loading={eager ? "eager" : "lazy"}
-            className="h-[86%] max-h-full w-auto object-contain transition-transform duration-150 group-hover:scale-[1.03] sm:h-[82%]"
-          />
+          // `fill` di kotak setinggi 82-86% panggung: rasio foto produk tidak
+          // diketahui, jadi tidak memakai width/height yang lalu diubah CSS
+          // di satu sisi saja (peringatan next/image).
+          <div className="relative h-[86%] w-full sm:h-[82%]">
+            <Image
+              src={product.image.src}
+              alt={product.image.alt}
+              fill
+              sizes="(min-width: 1280px) 16vw, (min-width: 1024px) 20vw, (min-width: 640px) 30vw, 45vw"
+              loading={eager ? "eager" : "lazy"}
+              className="object-contain transition-transform duration-150 group-hover:scale-[1.03]"
+            />
+          </div>
         )}
       </div>
 
