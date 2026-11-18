@@ -1,5 +1,26 @@
 @AGENTS.md
 
+## Cara kerja dengan PO (wajib, sejak 18 November 2026)
+PO = pemilik produk (pengguna yang memberi tugas). Bahasa kerja dan laporan: Indonesia.
+
+1. Alur setiap permintaan baru: (a) ringkas pemahaman dan bagian yang ambigu; (b) kumpulkan bukti
+   lewat pemeriksaan yang hanya membaca (kode, produksi, data, screenshot PO); (c) ajukan rencana dan
+   keputusan dengan rekomendasi di opsi pertama (AskUserQuestion, maksimal 4 pertanyaan); (d) eksekusi
+   setelah PO mengonfirmasi; (e) verifikasi; (f) laporan.
+2. Boleh tanpa konfirmasi: membaca kode/dokumen, cek produksi dan database yang hanya membaca, uji lokal,
+   dan memperbaiki bug di lingkup tugas yang PO minta diperbaiki.
+3. Wajib konfirmasi dulu: UI/copy/logika baru, perubahan aturan PRD atau DESIGN.md, aset visual baru,
+   menulis ke database produksi, merge ke `main` (= deploy produksi), dan panggilan AI berbiaya dalam jumlah banyak.
+4. Dokumentasi pustaka dan layanan (Next.js 16, Motion, Tailwind v4, InsForge, OpenRouter, Playwright)
+   dicek lewat Context7 sebelum menulis kode yang memakai API-nya.
+5. Git: satu branch per tugas, commit dengan email di memori, push lalu verifikasi `git ls-remote`.
+   `main` dibangun Vercel sebagai produksi (`cekharga-id.vercel.app`); branch lain hanya preview.
+6. Server dev: port 3000 bukan milik CekHarga dan server dev PO tidak dihentikan; server sementara
+   sendiri memakai port 3100.
+7. Screenshot dari PO adalah bukti utama: ukur ulang di produksi sebelum menyimpulkan.
+8. Laporan: ringkas; sebelum/sesudah; angka uji yang benar-benar diukur; yang belum dikerjakan;
+   keputusan yang menunggu PO. Templat permintaan untuk PO: `docs/TEMPLAT-PERMINTAAN.md`.
+
 ## Modul Iklan
 Sebelum mengerjakan apa pun terkait iklan, banner, sponsor, slot, kampanye, atau laporan iklan,
 baca @docs/ads/ADS-CONTEXT.md dan ikuti seluruh aturan di dalamnya.
