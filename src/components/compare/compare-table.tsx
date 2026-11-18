@@ -235,13 +235,18 @@ function ProductColumn({
         {item.image.isGenericIllustration ? (
           <DevicePlaceholder size="md" />
         ) : (
-          <Image
-            src={item.image.src}
-            alt={item.image.alt}
-            width={96}
-            height={144}
-            className="h-36 w-auto"
-          />
+          // `fill` di kotak berukuran tetap: rasio foto produk tidak diketahui,
+          // dan width/height + `h-36 w-auto` memicu peringatan next/image
+          // ("width or height modified, but not the other").
+          <div className="relative h-36 w-full">
+            <Image
+              src={item.image.src}
+              alt={item.image.alt}
+              fill
+              sizes="(min-width: 1024px) 20vw, (min-width: 768px) 30vw, 60vw"
+              className="object-contain"
+            />
+          </div>
         )}
       </div>
 
