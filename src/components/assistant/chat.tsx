@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
  * berupa gelembung di kanan, kotak tulis menempel di bawah layar, dan kartu
  * hasil menempel tepat di bawah jawaban yang membahasnya.
  *
- * Layar awal: foto scene di belakang judul (zona --veil-text) dan kotak tulis
+ * Layar awal: latar gradasi merek di belakang judul dan kotak tulis
  * di panel kaca berteks bersama Quick Start (DESIGN.md §7): chip budget dan
  * kegiatan MENGISI kotak tulis, tidak langsung mengirim, dan contoh
  * pertanyaan memperlihatkan bahwa asisten juga bisa membandingkan, mengecek
@@ -277,7 +277,7 @@ export function AssistantChat({
               </ul>
             </div>
             {/* Di dalam panel kaca, bukan langsung di atas foto: di luar zona
-                --veil-text tautan hijau hanya 1,9:1 di atas daun (audit VD-09). */}
+                zona aman tautan hijau hanya 1,9:1 di atas foto daun lama (audit VD-09). */}
             <p className="border-t border-border pt-3 text-sm text-foreground">
               Lebih suka memilih daripada mengetik?{" "}
               <Link href="/assistant?tanya=form" className="font-semibold text-brand-text underline underline-offset-4 hover:text-foreground">

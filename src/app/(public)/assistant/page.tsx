@@ -65,8 +65,8 @@ export default async function AssistantPage({
       <AssistantChat
         isDemo={isDemoData()}
         initialMessage={pesan}
-        // Scene penuh di belakang layar awal (VD-08, DESIGN.md §6.2); judul di zona --veil-text.
-        backdrop={<SceneBackdrop variant="full" textZone="top" />}
+        // Latar gradasi penuh di belakang layar awal (VD-08, DESIGN.md §6.2).
+        backdrop={<SceneBackdrop variant="full" />}
       />
     );
   }

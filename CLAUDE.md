@@ -13,8 +13,9 @@ baca `DESIGN.md` dan `docs/ux/REDESIGN-VERDANT-2026-11.md`, lalu ikuti aturannya
    Harga dirender final di server; count-up hanya saat varian berubah, tidak pernah dari 0.
 3. Motion memakai `motion/react` dan preset di `src/lib/motion.ts`. Jangan menambah GSAP.
 4. Template Verdelo adalah produk berbayar: jangan menyalin kode, foto, ikon, atau teksnya.
-   Screenshot referensi ada di `design/references/verdelo/` dan foto scene mentah di `design/scene-src/`
-   (keduanya di-ignore git). Aset scene jadi dibuat dengan `node scripts/build-scene.mjs`.
+   Screenshot referensi ada di `design/references/verdelo/` (di-ignore git). Sejak 18 November 2026
+   latar halaman berupa gradasi warna merek tanpa foto (keputusan PO); jangan menambah foto latar
+   dekoratif tanpa persetujuan PO.
 5. Kerjakan per tiket VD-xx di branch terpisah. Mulai setiap tiket dengan analisis dan rencana,
    tunggu persetujuan, baru menulis kode. Urutan prompt ada di `docs/ux/verdant/PROMPTS.md`.
 6. Akhiri setiap tiket dengan screenshot 375px dan 1440px (terang dan gelap) di `qa-shots/verdant/<tiket>/`

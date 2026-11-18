@@ -48,19 +48,17 @@ export function Hero({ tour, isDemo }: { tour: HeroTourData; isDemo: boolean }) 
   return (
     <section>
       {/*
-        Scene penuh (DESIGN.md §6.2) di belakang copy, Hero Price Panel, dan
-        strip fakta; ditarik ke atas setinggi Glass Header supaya foto juga
-        tampak di belakang kapsulnya. `data-scene-region` dipakai
-        HeroPanelFrame untuk menyejajarkan foto blur panel dengan foto ini.
+        Latar gradasi penuh (DESIGN.md §6.2) di belakang copy, Hero Price
+        Panel, dan strip fakta; ditarik ke atas setinggi Glass Header supaya
+        gradasinya juga tampak di belakang kapsulnya.
 
         Copy tampil langsung tanpa animasi masuk: h1 adalah elemen LCP dan
         DESIGN.md §8.3 meminta elemen di atas lipatan tidak menunggu animasi.
       */}
       <div
-        data-scene-region=""
         className="relative isolate -mt-(--header-h) pt-[calc(var(--header-h)+2.5rem)] pb-10 md:pt-[calc(var(--header-h)+4rem)] md:pb-14"
       >
-        <SceneBackdrop variant="full" textZone="left" />
+        <SceneBackdrop variant="full" />
         <Container>
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
             <div>

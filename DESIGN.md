@@ -4,6 +4,8 @@ Aturan gaya untuk semua pekerjaan UI publik CekHarga mulai 13 November 2026.
 Urutan prioritas jika bertentangan: `docs/CekHarga_PRD_v2.md` > dokumen ini > skill `cekharga-antislop` > skill `antislop*` > skill pihak ketiga.
 Area admin (`.admin-theme`) TIDAK ikut dokumen ini. Rencana bertahap ada di `docs/ux/REDESIGN-VERDANT-2026-11.md`.
 
+**Revisi 18 November 2026 (keputusan PO): foto scene dihapus.** Foto tumbuhan (siang) dan lampu (malam) dinilai tidak relevan dengan CekHarga; latar kini gradasi warna merek (`--scene-gradient`). Bagian yang menyebut foto scene, `--veil`, `--veil-text`, dan `--scene-blur` sudah disesuaikan; catatan B11 di bagian 10.
+
 Revisi VD-00 (13 November 2026): resep kaca, foto scene, veil teks hero, CountUp, panggung foto, istilah status, dan angka kontras dikoreksi (lihat bagian 10). API pustaka dicocokkan dengan dokumentasi versi terkunci: Next.js 16.3.4, Motion 13.2.0, sharp 0.35.4, Tailwind CSS 4.3.3.
 
 ---
@@ -12,7 +14,7 @@ Revisi VD-00 (13 November 2026): resep kaca, foto scene, veil teks hero, CountUp
 
 1. Nama tema: **Verdant** (terang = Verdant Day, gelap = Verdant Night).
 2. Inspirasi: gaya UI dan motion template Verdelo (demo.codeandchill.store/verdelo). Yang diambil hanya bahasa visualnya. Kode, foto, ikon, dan teks Verdelo TIDAK boleh disalin karena produk berbayar.
-3. Gaya utama: **Glass on Scene**: panel kaca di atas foto latar, aksen hijau mint, kartu data tetap solid.
+3. Gaya utama: **Glass on Gradient**: panel kaca di atas latar gradasi warna merek (tanpa foto), aksen hijau mint, kartu data tetap solid.
 4. Gaya pendukung: Bento Grid, Soft Depth (bayangan berlapis), Single Accent, Micro-interaction, Count-up, Segmented Control dengan thumb bergeser.
 5. Kesan yang dituju: tenang, premium, bisa dipercaya. Bukan ramai, bukan "gamer".
 
@@ -20,9 +22,9 @@ Revisi VD-00 (13 November 2026): resep kaca, foto scene, veil teks hero, CountUp
 
 1. **Data harga tidak pernah di atas kaca.** Harga, tabel spesifikasi, daftar penawaran, grafik riwayat harga, dan teks panjang selalu di permukaan solid (`--card`). Kaca hanya untuk "bingkai": header, filter bar, compare tray, panel hero, composer AI, chip, dan panel dekoratif.
 2. **Foto produk selalu di "panggung" terang** (`--stage`), juga di tema gelap, karena foto produk resmi berlatar putih. Panggung hanya berisi foto. Teks, badge, dan label tidak diletakkan di atas panggung (lihat 3.4).
-3. **Kaca tanpa gambar dan tanpa `background-attachment: fixed`.** Panel kaca memakai warna semi-transparan (`--glass` atau `--glass-text`) plus garis tepi dan kilau. Versi pre-blurred (foto blur di dalam panel) hanya untuk Hero Price Panel (resep di bagian 6). `backdrop-filter` hanya untuk elemen yang menempel atau melayang (Glass Header, Filter Bar, Compare Tray, header sticky tabel perbandingan), maksimal `blur(16px)`, tidak pernah di dalam daftar yang di-scroll.
+3. **Kaca tanpa gambar dan tanpa `background-attachment: fixed`.** Panel kaca memakai warna semi-transparan (`--glass` atau `--glass-text`) plus garis tepi dan kilau. Tidak ada lagi versi pre-blurred berisi foto (B11). `backdrop-filter` hanya untuk elemen yang menempel atau melayang (Glass Header, Filter Bar, Compare Tray, header sticky tabel perbandingan), maksimal `blur(16px)`, tidak pernah di dalam daftar yang di-scroll.
 4. **Teks di atas kaca memakai `--glass-text`**, bukan `--glass`. `--glass` hanya untuk bidang tanpa teks atau yang teksnya berada di elemen solid di dalamnya.
-5. **Teks yang langsung di atas foto scene** (copy hero) wajib di atas `--veil-text`. Di zona itu hanya `--foreground` dan `--muted-foreground`; tautan dan tombol memakai permukaan solid sendiri.
+5. **Teks langsung di atas latar gradasi** (copy hero) memakai `--foreground` dan `--muted-foreground`; gradasinya terang di tema terang dan gelap di tema gelap, jadi kontrasnya setara kanvas (diukur ulang 18 Nov 2026). Tautan dan tombol tetap memakai permukaan solid sendiri.
 6. **Satu warna aksen** (hijau mint/hijau tua). Status (sukses, peringatan, bahaya) selalu disertai kata atau ikon; di tema terang `--success` hampir sama dengan `--brand` (1.06:1), jadi kata adalah pembeda utama.
 7. Semua aturan PRD tetap berlaku: tanpa skor, peringkat, "terbaik", pemenang, testimonial, atau prediksi harga; harga kosong bukan nol; harga selalu menyebut varian dan waktu pemeriksaan.
 8. Aksesibilitas: target sentuh 44 px, input 16 px, kontras teks 4.5:1, elemen UI 3:1, fokus terlihat, `prefers-reduced-motion` dihormati.
@@ -53,8 +55,6 @@ Komponen hanya memakai token, tidak pernah hex langsung. Rasio kontras dihitung 
 | `--glass-text` | `rgba(255,255,255,.86)` | Kaca berteks; terburuk (foto hitam): foreground 12.6:1, muted 5.2:1, brand-text 4.7:1 |
 | `--glass-rim` | `rgba(255,255,255,.62)` | Garis tepi kaca 1px |
 | `--glass-top` | `rgba(255,255,255,.95)` | Kilau tepi atas (inset shadow) |
-| `--veil` | `linear-gradient(180deg, rgba(236,243,238,.18), rgba(226,234,229,.32))` | Lapisan di atas seluruh foto latar |
-| `--veil-text` | `rgba(223,230,225,.92)` sebagai warna gradien zona teks | Terburuk (foto hitam): foreground ≥ 10.5:1, muted 4.77:1 |
 
 ### 3.2 Verdant Night (`.public-theme[data-theme="dark"]`)
 
@@ -77,15 +77,13 @@ Komponen hanya memakai token, tidak pernah hex langsung. Rasio kontras dihitung 
 | `--glass-text` | `rgba(10, 16, 14, .84)` | Kaca berteks; terburuk (foto putih): foreground 11.0:1, muted 6.0:1 |
 | `--glass-rim` | `rgba(225, 255, 238, .10)` | |
 | `--glass-top` | `rgba(235, 255, 244, .22)` | |
-| `--veil` | `linear-gradient(180deg, rgba(6,10,8,.10), rgba(4,8,6,.34))` | |
-| `--veil-text` | `rgba(12,18,16,.85)` sebagai warna gradien zona teks | Terburuk (foto putih): foreground 11.1:1, muted 6.0:1 |
 
 ### 3.3 Token tambahan
 
 | Token | Nilai |
 |---|---|
 | `--frost` | `.5` (0 = bening, 1 = sangat buram). `--glass` dihitung di `.public-theme`; untuk mengubah keburaman satu bagian, timpa `--glass`, bukan `--frost` |
-| `--scene-blur` | `url(/images/scene/day-blur.avif)` / `url(/images/scene/night-blur.avif)`; hanya untuk Hero Price Panel |
+| `--scene-gradient` | Dua cahaya radial hijau samar (`--brand` 17%/14% terang, 13%/10% gelap) di atas `linear-gradient` ke `--background`; latar halaman (6.2) |
 | `--stage-foreground` | `#0f1d17` di kedua tema (16.1:1 / 15.5:1 di panggung). Untuk teks yang memang harus di atas panggung, misalnya inisial di tile logo marketplace |
 | `--scrim` | `rgba(15,29,23,.48)` / `rgba(0,0,0,.62)`. Latar redup di belakang lembar filter ponsel dan dialog |
 
@@ -105,8 +103,6 @@ Ditetapkan VD-01 dari palet yang sama dan diukur:
 | `--input` | sama dengan `--border-strong` | | |
 
 `--accent-warm*` di `.public-theme` menjadi alias hijau (`--brand`, `--brand-muted`, `--brand-text`) supaya pemakaian yang terlewat tidak memunculkan terracotta; admin tetap memakai nilainya sendiri.
-
-Foto scene tajam TIDAK menjadi token CSS. Foto itu dirender lewat `next/image` (bagian 6.2) agar mendapat srcset, prioritas muat, dan format modern.
 
 Warna terracotta lama (`--accent-warm*`) dipensiunkan dari UI publik.
 
@@ -136,7 +132,7 @@ Warna terracotta lama (`--accent-warm*`) dipensiunkan dari UI publik.
 
 Implementasi (VD-01): nama `--shadow-*` dan `--radius-*` adalah namespace tema Tailwind, jadi nilainya disimpan di `--ch-shadow-sm|…|xl` dan `--ch-radius-sm|md|lg|xl` lalu dirujuk lewat `@theme inline`. Tema publik menimpa nilai itu; admin memakai nilai bawaan Tailwind dan radius lamanya. Pemetaan utility di UI publik: `shadow-sm` = `--shadow-sm`, `shadow` dan `shadow-md` = `--shadow`, `shadow-lg` dan `shadow-xl` = `--shadow-lg`; `rounded-sm|md|lg|xl` = 10/14/22/28px.
 
-## 6. Kaca dan foto scene
+## 6. Kaca dan latar
 
 ### 6.1 Resep kaca
 
@@ -160,48 +156,32 @@ Implementasi (VD-01): nama `--shadow-*` dan `--radius-*` adalah namespace tema T
 
 Tidak ada `background-attachment: fixed`. Alasannya: (a) latar fixed digambar ulang setiap scroll dan tidak dikomposisi GPU, (b) posisinya hanya cocok bila scene juga terkunci ke layar, sedangkan scene di sini ikut bergulir, (c) di dalam elemen ber-`transform` (entrance Motion) latar fixed bergeser.
 
-### 6.2 Scene Backdrop
+### 6.2 Latar (Scene Backdrop)
 
-Implementasi VD-03: `src/components/layout/scene-backdrop.tsx` (Server Component) dan utility `scene-*` di `globals.css`.
+Implementasi: `src/components/layout/scene-backdrop.tsx` dan utility `scene-fade`/`scene-gradient` di `globals.css`. Sejak 18 November 2026 **tanpa foto** (B11).
 
-1. Scene adalah lapisan `position: absolute` yang **ikut bergulir** (bukan `fixed`, supaya tidak menjadi efek parallax dan tidak memicu repaint). Induknya `relative isolate`, scene `-z-10`.
-2. Varian `fade` dipasang di layout publik untuk semua halaman: foto **blur** (`--scene-blur`, 3–4 KB) lewat CSS setinggi 480px, memudar ke `--background` dengan `mask-image` mulai dari 45% (terukur: 0.75 dan 0.55 membuat teks muted di 375px tema terang turun ke 4.04:1 dan 4.41:1). Tanpa elemen gambar, jadi ikut berganti tema lewat token dan tidak menambah beban LCP.
-3. Varian `full` dipasang oleh halaman di dalam section hero-nya (beranda: `src/components/home/hero.tsx`), sehingga tingginya selalu sama dengan hero; ditarik ke atas `-mt-(--header-h)` supaya foto juga tampak di belakang Glass Header. `/assistant` mendapat varian `full` di VD-08 setelah pesan dan kartu rekomendasinya berada di permukaan solid.
-4. Foto `full` dirender dengan `next/image`: `fill`, `sizes="100vw"`, `alt=""`, `object-cover`. Next membuat srcset dari master 2400px (HP 412px mengunduh lebar 750, ±11 KB AVIF).
-5. Prioritas muat (Next 16: properti `priority` sudah deprecated, diganti `preload`; dokumentasi menyarankan `fetchPriority="high"` atau `loading="eager"`):
-   - Foto tema aktif (dibaca dari cookie tema di server): `loading="eager"` + `fetchPriority="high"`.
-   - Foto tema lain: `loading="lazy"` + `fetchPriority="low"` dan disembunyikan CSS (`.scene-day`/`.scene-night`). Terverifikasi: tidak diunduh sampai tema diganti.
-   - Halaman yang punya `full` menyembunyikan lapisan `fade` (`.public-theme:has(.scene-full) .scene-fade { display: none }`). Tanpa ini, `fade` yang tertutup menjadi kandidat LCP beranda (terukur, render delay 3 detik).
-6. Di atas foto `full` selalu ada `--veil`, zona copy `--veil-text` (`scene-text-left`: dari atas di HP sampai 52%, dari kiri mulai `lg` sampai 54% lalu memudar ke 80%; `scene-text-top` untuk judul tengah), dan tepi bawah memudar ke canvas.
-7. Teks yang berada di atas foto tetapi di luar zona `--veil-text` (contoh: tab dan keterangan tur hero) wajib di atas `glass-text`.
-8. `next.config.ts`: `images.formats: ["image/avif", "image/webp"]` (VD-03). `images.qualities` di Next 16 wajib berupa allowlist (bawaan `[75]`); jangan memakai nilai `quality` lain tanpa menambahkannya ke daftar.
-9. Glass Header menempel: tinggi total disimpan di `--header-h` (4.75rem, 5.5rem mulai `md`), dipakai `scroll-padding-top` di `html` (anchor dan fokus keyboard tidak tertutup header) dan `top-(--header-h)` untuk elemen sticky lain (header tabel perbandingan).
+1. Latar adalah lapisan `position: absolute` yang ikut bergulir (bukan `fixed`). Induknya `relative isolate`, latar `-z-10`.
+2. Varian `fade` di layout publik untuk semua halaman: `--scene-gradient` setinggi 480px yang memudar ke `--background` lewat `mask-image`.
+3. Varian `full` di hero beranda dan layar awal Tanya AI: gradasi setinggi induknya dengan tepi bawah memudar ke kanvas. Halaman yang punya `full` menyembunyikan lapisan `fade` (`.public-theme:has(.scene-full) .scene-fade { display: none }`) supaya tidak menjadi kandidat LCP.
+4. Tidak ada gambar latar: tidak ada unduhan foto, tidak ada zona veil, dan teks hero cukup memakai token teks biasa. Bila kelak ada foto yang benar-benar relevan dengan CekHarga, PO yang memutuskan dan aturan zona teks dari revisi VD-00 berlaku lagi.
+5. `next.config.ts`: `images.formats: ["image/avif", "image/webp"]` (VD-03). `images.qualities` di Next 16 wajib berupa allowlist (bawaan `[75]`); jangan memakai nilai `quality` lain tanpa menambahkannya ke daftar.
+6. Foto produk remote memakai `fill` + `object-contain` di kotak berukuran tetap (rasio aslinya tidak diketahui), bukan `width`/`height` yang lalu diubah CSS di satu sisi (peringatan next/image, 18 Nov 2026; dijaga TC-IMG-01).
+7. Glass Header menempel: tinggi total disimpan di `--header-h` (4.75rem, 5.5rem mulai `md`), dipakai `scroll-padding-top` di `html` (anchor dan fokus keyboard tidak tertutup header) dan `top-(--header-h)` untuk elemen sticky lain (header tabel perbandingan).
 
-### 6.3 Hero Price Panel pre-blurred
+### 6.3 Hero Price Panel
 
-Implementasi VD-04: `src/components/home/hero-panel-frame.tsx` + `.hero-panel` di `globals.css`.
+Implementasi: `src/components/home/hero-panel-frame.tsx` + `.hero-panel` di `globals.css`.
 
-1. Panel memuat `--scene-blur` (di bawah rona `--glass` dan `--veil`) sebagai `background-image`. `ResizeObserver` di `HeroPanelFrame` mengisi `--blur-size` dan `--blur-pos` supaya foto blur sejajar dengan foto hero (`object-cover`, tengah) di wilayah `[data-scene-region]`.
-2. Latar dipasang **sejak paint pertama** dengan posisi perkiraan (`cover`, tengah); JavaScript hanya menyempurnakan posisinya. Bila latar baru dipasang setelah hydration, panel besar ini terhitung LCP pada saat itu (terukur VD-04).
-3. Tidak ada teks yang langsung di atas kaca panel: isinya kartu solid (adegan + keterangan) dan SegmentedControl bertrack solid. Karena itu panel boleh memakai `--glass` (tembus), bukan `--glass-text`.
-4. Panel tidak memakai entrance dengan `transform` (hanya opacity), supaya latar blurnya tidak bergeser.
-5. Potongan adegan di dalam kartu hanya bergeser 8px tanpa memudar: teks yang sedang memudar terbaca sebagai kontras rendah oleh pemeriksa aksesibilitas (terukur 1.02:1 saat Lighthouse memeriksa di tengah animasi).
-
-### 6.4 Aset
-
-| Berkas | Ukuran | Batas |
-|---|---|---|
-| `public/images/scene/day.avif`, `night.avif` | 2400×1500 (16:10, master untuk `next/image`) | ≤ 200 KB (saat ini 101 KB / 31 KB) |
-| `public/images/scene/day-blur.avif`, `night-blur.avif` | 1200×750, Gaussian sigma 18 (setara blur 36px pada 2400px) | ≤ 40 KB (saat ini 4 KB / 3 KB) |
-
-Dibuat dengan `node scripts/build-scene.mjs` dari foto milik sendiri atau berlisensi bebas di `design/scene-src/` (di-ignore git); foto dipotong 16:10 dengan titik fokus yang bisa diatur (`--position-day`, `--position-night`). Sumber dan lisensi tiap foto dicatat di `public/images/scene/SOURCES.md` (saat ini dua foto Unsplash License).
+1. Kaca warna (`--glass`) di atas gradasi, tanpa foto blur dan tanpa penyejajaran lewat JavaScript (B11).
+2. Tidak ada teks yang langsung di atas kaca panel: isinya kartu solid (adegan + keterangan) dan SegmentedControl bertrack solid.
+3. Potongan adegan di dalam kartu hanya bergeser 8px tanpa memudar: teks yang sedang memudar terbaca sebagai kontras rendah oleh pemeriksa aksesibilitas (terukur 1.02:1 saat Lighthouse memeriksa di tengah animasi).
 
 ## 7. Komponen (nama yang dipakai di prompt)
 
 | Komponen | Isi | Aturan |
 |---|---|---|
 | Glass Header | Logo, Floating Pill Nav, cari, toggle tema | Sticky, satu kapsul mengambang `.glass-text` + `.glass-float` (elemen `<header>` transparan dan `pointer-events-none`), menu aktif = latar `--brand-muted` + `aria-current`, menu ponsel = panel `glass-text` |
-| Scene Backdrop | Foto latar + veil | Satu komponen di layout publik (6.2) |
+| Scene Backdrop | Latar gradasi merek | Satu komponen di layout publik (6.2); tanpa foto sejak 18 Nov 2026 |
 | Hero Price Panel | Panel kaca berisi kartu harga solid, Segmented Control (Cari, Bandingkan, Harga, Tanya AI) | Harga di kartu solid; harga dirender final di server (bagian 8) |
 | Segmented Control | Pilihan berjajar dengan thumb yang bergeser | Thumb pakai `layoutId` Motion; dipakai untuk varian, warna, urutan, periode. Bila pilihan tidak muat di 375px, jatuh ke chip yang membungkus (warna) atau `select` (urutan) |
 | Product Card | Panggung foto terang, nama, varian acuan, harga mulai, waktu periksa, aksi Bandingkan | Kartu solid, hover hanya pada elemen yang bisa diklik. Waktu periksa sebagai Status Pill lewat `CardPriceMeta` (VD-05), juga di contoh perbandingan, tabel perbandingan, dan kartu rekomendasi |
@@ -216,7 +196,7 @@ Dibuat dengan `node scripts/build-scene.mjs` dari foto milik sendiri atau berlis
 | Review Carousel | Kartu ringkasan ulasan per channel, indikator halaman, tombol panah | Menyebut channel, tanggal, aspek, label bersponsor. Tanpa autoplay; bisa dioperasikan keyboard. Scroll-snap CSS (jalan tanpa JavaScript), satu kartu per tampilan; satu ulasan = kartu biasa (VD-06, `review-carousel.tsx`) |
 | Quick Start (Tanya AI) | Chip budget dan kebutuhan + tombol kirim | Pola "quick send". Chip menyebut angka dan kegiatan nyata (gaya copy `cekharga-antislop` §5). Beranda (VD-04): formulir GET ke `/assistant?tanya=form` dengan radio `budget` (2/3/5 juta, Lainnya = kosong) dan checkbox `kegiatan`; berfungsi tanpa JavaScript; tanpa pilihan bawaan; tidak mengirim `budget_wajib` sehingga asisten tetap menanyakan apakah budget batas keras (PRD FR-06) |
 | Recommendation Card | Kandidat, alasan cocok, kompromi, varian, harga + waktu periksa | Tanpa skor atau peringkat |
-| Chat Tanya AI | Layar awal (scene + Quick Start di `glass-text`), percakapan gaya chatbot (jawaban teks polos dengan penanda "CH", gelembung pengguna kanan, kartu menempel di bawah jawabannya), kotak tulis menempel di bawah | VD-08, `src/components/assistant/chat.tsx`: chip Quick Start mengisi kotak tulis (`aria-pressed`), pesan tampil seketika (`useOptimistic`), kartu muncul bertahap saat data nyata tiba (`ArrivalStagger`), gagal = "Coba lagi". Kartu produk yang ditanya/dibandingkan: `product-mini-cards.tsx` |
+| Chat Tanya AI | Layar awal (latar gradasi + Quick Start di `glass-text`), percakapan gaya chatbot (jawaban teks polos dengan penanda "CH", gelembung pengguna kanan, kartu menempel di bawah jawabannya), kotak tulis menempel di bawah | VD-08, `src/components/assistant/chat.tsx`: chip Quick Start mengisi kotak tulis (`aria-pressed`), pesan tampil seketika (`useOptimistic`), kartu muncul bertahap saat data nyata tiba (`ArrivalStagger`), gagal = "Coba lagi". Kartu produk yang ditanya/dibandingkan: `product-mini-cards.tsx` |
 | Status Pill | Titik + kata | Harga segar: "Diperiksa 7 jam lalu". Lewat batas 30 jam: "Harga terakhir tercatat · 2 hari lalu" (istilah PRD §7), warna `--warning`. Selalu ada kata. Komponen: `src/components/status-pill.tsx` (VD-04) |
 
 ## 8. Motion
@@ -257,7 +237,8 @@ Screenshot halaman penuh tidak menggulir, jadi elemen reveal di bawah lipatan ta
 ## 9. Larangan
 
 1. Kaca di bawah harga, tabel, atau teks panjang.
-2. Lebih dari satu warna aksen, gradien pelangi, glow berdenyut. Gradien hanya untuk veil di atas foto dan aksen tombol utama.
+2. Lebih dari satu warna aksen, gradien pelangi, glow berdenyut. Gradien hanya untuk latar halaman (`--scene-gradient`, satu hue hijau merek) dan aksen tombol utama.
+10. Foto latar dekoratif yang tidak berhubungan dengan HP atau belanja (keputusan PO 18 Nov 2026).
 3. Garis perkiraan harga, skor, peringkat, badge "terbaik", "terlaris", "harga terendah".
 4. Menyalin kode, foto, ikon, atau teks dari Verdelo.
 5. Emoji sebagai ikon (pakai Hugeicons yang sudah terpasang).
@@ -280,3 +261,4 @@ Screenshot halaman penuh tidak menggulir, jadi elemen reveal di bawah lipatan ta
 | B8 | `--brand-text` gelap 10.7:1 | 12.1:1 (10.7 adalah `--brand`) | Koreksi angka |
 | B9 | `backdrop-filter` hanya header dan compare tray | Semua elemen menempel/melayang, termasuk Filter Bar dan header sticky tabel perbandingan | Filter Bar sticky tanpa blur membuat kartu di bawahnya terlihat berantakan |
 | B10 | Reduced motion "selesai seketika" tanpa cara | `useReducedMotion()` di preset, durasi 0 | `reducedMotion="user"` tidak mematikan opacity |
+| B11 | Foto scene (tumbuhan siang, lampu malam) di belakang semua halaman, foto tajam di hero, foto blur di Hero Price Panel | Gradasi warna merek `--scene-gradient`; aset `public/images/scene/` dan `scripts/build-scene.mjs` dihapus | Keputusan PO 18 Nov 2026: foto tidak relevan dengan CekHarga. Bonus: LCP beranda tidak lagi menunggu foto (audit 003 no. 4) |
