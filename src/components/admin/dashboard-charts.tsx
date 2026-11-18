@@ -58,7 +58,7 @@ export function AdminDashboardCharts({
               }}
             >
               <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-card">
-                <span className="text-2xl font-extrabold tabular-nums text-foreground">
+                <span className="text-2xl font-bold tabular-nums text-foreground">
                   {publishedPercent}%
                 </span>
                 <span className="text-xs text-muted-foreground">sudah terbit</span>

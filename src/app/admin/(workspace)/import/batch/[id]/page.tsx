@@ -124,7 +124,7 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
             {batch.origin === "scrape" ? "Tarik otomatis" : batch.origin === "schedule" ? "Pemeriksaan harga harian" : "Unggah CSV"} ·{" "}
             {kindLabel}
           </p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight break-all text-foreground">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight break-all text-foreground">
             {batch.sourceLabel}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

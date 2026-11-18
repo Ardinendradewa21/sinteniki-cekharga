@@ -45,7 +45,7 @@ export default async function ComparePairsAdminPage(props: PageProps<"/admin/pro
 
   return (
     <Container className="py-6 sm:py-8 lg:py-10">
-      <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Perbandingan pilihan</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-foreground">Perbandingan pilihan</h1>
       <p className="mt-2 max-w-prose text-sm text-muted-foreground">
         Setiap pasangan menjadi halaman <code>/bandingkan/a-vs-b</code> yang bisa ditemukan mesin pencari. Pilih pasangan
         yang wajar dibandingkan. Pasangan otomatis tidak tampil bila salah satu produk ditarik dari publik.

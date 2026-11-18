@@ -92,7 +92,7 @@ export default async function ReviewsAdminPage(props: PageProps<"/admin/ulasan">
 
   return (
     <Container className="py-6 sm:py-8 lg:py-10">
-      <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Ulasan YouTube</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-foreground">Ulasan YouTube</h1>
       <p className="mt-2 max-w-prose text-sm text-muted-foreground">
         Sistem mencarikan video dari channel terpercaya yang judulnya menyebut produk katalog. Pilih video yang memang
         mengulas produk itu, tonton, lalu tulis ringkasannya. Hanya ringkasan yang kamu terbitkan yang tampil di situs.

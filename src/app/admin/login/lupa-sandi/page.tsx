@@ -14,11 +14,11 @@ export const dynamic = "force-dynamic";
 /** Lupa kata sandi admin (PB-48): kode ke email, lalu kata sandi baru. */
 export default function AdminForgotPasswordPage() {
   return (
-    <main id="konten-utama" className="flex min-h-svh flex-1 items-center bg-muted/40">
+    <main id="konten-utama" className="admin-theme flex min-h-svh flex-1 items-center bg-background text-foreground">
       <Container className="flex justify-center py-12">
         <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
-          <p className="mb-6 text-sm font-extrabold tracking-tight text-brand">CekHarga · Admin workspace</p>
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Lupa kata sandi</h1>
+          <p className="mb-6 text-sm font-bold tracking-tight text-brand">CekHarga · Admin workspace</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Lupa kata sandi</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Kami kirim kode 6 digit ke email akunmu. Kode itu dipakai sekali untuk membuat kata sandi baru.
           </p>

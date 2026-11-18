@@ -117,7 +117,7 @@ export default async function AdminProductDetailPage({
               Kelola Produk
             </Link>
           </p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-foreground">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
             {product.brand} {product.model}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

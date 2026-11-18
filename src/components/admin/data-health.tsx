@@ -216,8 +216,8 @@ function HealthMetric({
     <div className="rounded-xl border border-border bg-card p-4">
       <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
       <dd className="mt-2">
-        <div className="flex items-start justify-between gap-3">
-          <span className="text-2xl font-extrabold tabular-nums text-foreground">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <span className="text-2xl font-bold whitespace-nowrap tabular-nums text-foreground">
             {value}
             <span className="ml-1 text-xs font-medium text-muted-foreground">
               / {total}

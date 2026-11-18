@@ -48,7 +48,7 @@ export function ImportQualityPanel({ quality }: { quality: ImportQuality }) {
               <p className="text-sm font-semibold text-foreground">{row.label}</p>
               <p
                 className={cn(
-                  "mt-1 text-2xl font-extrabold tabular",
+                  "mt-1 text-2xl font-bold tabular",
                   row.value > 0 ? "text-warning" : "text-muted-foreground"
                 )}
               >
