@@ -495,3 +495,28 @@ test("Insight: arah faktual + artinya, tanpa 'lebih baik', dan kosong bila ada n
     if (insight) assert.doesNotMatch(`${insight.fact} ${insight.meaning ?? ""}`, /lebih baik|terbaik|pemenang|unggul/i, label);
   }
 });
+
+import { buildRefreshGrid, wibDate } from "@/lib/admin/refresh-grid";
+
+test("CD-03 grid pemeriksaan harian: tanggal WIB, kategori status, gagal tidak tertutup berhasil", () => {
+  // 18 Nov 2026 20:00 UTC = 19 Nov 03:00 WIB.
+  const now = new Date("2026-11-18T20:00:00Z");
+  assert.equal(wibDate(now), "2026-11-19");
+  const grid = buildRefreshGrid(
+    [
+      { brand: "Xiaomi", runDate: "2026-11-19", status: "queued", message: null },
+      { brand: "OPPO", runDate: "2026-11-19", status: "blocked", message: "Turnstile" },
+      { brand: "OPPO", runDate: "2026-11-19", status: "nothing-to-update", message: null },
+      { brand: "OPPO", runDate: "2026-11-18", status: "no-offers", message: null },
+      { brand: "Xiaomi", runDate: "2026-10-01", status: "queued", message: null },
+    ],
+    now,
+    3
+  );
+  assert.deepEqual(grid.dates, ["2026-11-17", "2026-11-18", "2026-11-19"]);
+  assert.deepEqual(grid.rows.map((row) => row.brand), ["OPPO", "Xiaomi"]);
+  assert.deepEqual(grid.rows[0]!.cells, [null, "tanpa-penawaran", "gagal"], "gagal diutamakan di hari yang sama");
+  assert.deepEqual(grid.rows[1]!.cells, [null, null, "berhasil"], "catatan di luar jendela diabaikan");
+  assert.deepEqual(grid.failuresPerDay, [0, 0, 1]);
+  assert.deepEqual(buildRefreshGrid([], now).rows, []);
+});

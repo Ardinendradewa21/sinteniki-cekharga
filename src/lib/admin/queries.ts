@@ -844,6 +844,44 @@ export type ImportQuality = {
 };
 
 /**
+ * Angka di menu sidebar admin (CD-03, pola badge Veyla): pekerjaan yang
+ * menunggu, dihitung di database (`count`, `head: true`), bukan membaca baris.
+ *
+ * Hak akses dicek di server (aturan system design 5): katalog dan ulasan hanya
+ * untuk peran admin; materi iklan yang menunggu review untuk admin dan adops.
+ * Gagal menghitung tidak menjatuhkan layout: angkanya cukup tidak tampil.
+ */
+export type AdminNavCounts = Partial<Record<"/admin/products" | "/admin/ulasan" | "/admin/iklan", number>>;
+
+export async function getAdminNavCounts(): Promise<AdminNavCounts> {
+  const staff = await requireStaff(["sales", "adops", "finance", "legal"]);
+  const db = getInsforgeAdminClient().database;
+  const safeCount = async (query: PromiseLike<{ count: number | null; error: unknown }>) => {
+    try {
+      const { count, error } = await query;
+      return error ? null : (count ?? 0);
+    } catch {
+      return null;
+    }
+  };
+  const isAdmin = staff.role === "admin";
+  const [drafts, pendingReviews, pendingCreatives] = await Promise.all([
+    isAdmin
+      ? safeCount(db.from("products").select("id", { count: "exact", head: true }).eq("status", "draft").is("deleted_at", null))
+      : null,
+    isAdmin ? safeCount(db.from("review_candidates").select("id", { count: "exact", head: true }).eq("status", "pending")) : null,
+    isAdmin || staff.role === "adops"
+      ? safeCount(db.from("creatives").select("id", { count: "exact", head: true }).eq("review_status", "pending"))
+      : null,
+  ]);
+  const counts: AdminNavCounts = {};
+  if (drafts) counts["/admin/products"] = drafts;
+  if (pendingReviews) counts["/admin/ulasan"] = pendingReviews;
+  if (pendingCreatives) counts["/admin/iklan"] = pendingCreatives;
+  return counts;
+}
+
+/**
  * Ringkasan kualitas data hasil impor untuk dasbor: hal-hal yang perlu
  * ditindaklanjuti admin, dihitung di database (count), bukan dengan membaca
  * seluruh baris.

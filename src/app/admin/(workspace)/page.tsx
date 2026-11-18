@@ -8,6 +8,7 @@ import { RingGauge } from "@/components/admin/ring-gauge";
 import { ImportQualityPanel } from "@/components/admin/import-quality";
 import { OfferUrlSuggestionsPanel } from "@/components/admin/offer-url-suggestions";
 import { PriceRefreshAlerts } from "@/components/admin/price-refresh-alerts";
+import { RefreshHeatmap } from "@/components/admin/refresh-heatmap";
 import { Container } from "@/components/layout/container";
 import { Reveal, StaggerItem, StaggerList } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
   getStuckRefreshBatches,
   listRecentRefreshRuns,
 } from "@/lib/admin/queries";
+import { buildRefreshGrid } from "@/lib/admin/refresh-grid";
 import { requireAdmin } from "@/lib/auth/dal";
 import { checkBackendHealth } from "@/lib/backend/health";
 import { getDataSourceMode, PRICING_POLICY } from "@/lib/config";
@@ -212,6 +214,13 @@ export default async function AdminPage(props: PageProps<"/admin">) {
       ) : null}
 
       {refreshRuns ? <PriceRefreshAlerts alerts={refreshAlerts(refreshRuns, now, stuckBatches)} /> : null}
+
+      {/* Tile harian gaya Veyla (CD-03): merek mana gagal diperiksa, kapan. */}
+      {refreshRuns ? (
+        <Reveal>
+          <RefreshHeatmap grid={buildRefreshGrid(refreshRuns, now)} />
+        </Reveal>
+      ) : null}
 
       <Reveal>
         <AdminDataHealth

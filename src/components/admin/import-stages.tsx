@@ -59,7 +59,7 @@ export function ImportStages({
         {stages.map((stage, index) => {
           const body = (
             <>
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              <span className="text-xs font-semibold text-muted-foreground">
                 {stage.key === "induk" ? "←" : `${index + (parentBatchId ? 0 : 1)}.`} {stage.label}
               </span>
               <span className="mt-0.5 block text-xs text-muted-foreground">{stage.detail}</span>
