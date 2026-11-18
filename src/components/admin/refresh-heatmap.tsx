@@ -1,3 +1,4 @@
+import { TileSweep } from "@/components/admin/tile-sweep";
 import type { RefreshCell, RefreshGrid } from "@/lib/admin/refresh-grid";
 import { officialBrandName } from "@/lib/catalog/brands";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,7 @@ export function RefreshHeatmap({ grid }: { grid: RefreshGrid }) {
 
       {/* `relative`: label sr-only (position absolute) di dalam tabel harus ikut
           terpotong wadah gulir ini; tanpanya halaman ikut melebar di 375px. */}
-      <div className="relative mt-5 overflow-x-auto">
+      <TileSweep className="relative mt-5 overflow-x-auto">
         <table className="border-separate border-spacing-1 text-xs">
           <caption className="sr-only">Status pemeriksaan harga harian per merek dan tanggal</caption>
           <thead>
@@ -84,6 +85,7 @@ export function RefreshHeatmap({ grid }: { grid: RefreshGrid }) {
                     <td key={date} className="p-0">
                       <span
                         title={label}
+                        data-tile-col={index}
                         className={cn(
                           "flex size-6 items-center justify-center text-[10px] font-bold sm:size-7",
                           TILE_RADIUS,
@@ -100,7 +102,7 @@ export function RefreshHeatmap({ grid }: { grid: RefreshGrid }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TileSweep>
     </section>
   );
 }
