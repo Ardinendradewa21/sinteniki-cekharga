@@ -20,7 +20,8 @@ import {
   Sun02Icon,
   Video01Icon,
 } from "@hugeicons/core-free-icons";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 
 import { Button } from "@/components/ui/button";
 import { setAdminThemeAction } from "@/lib/admin/preferences";
@@ -160,7 +161,7 @@ function AdminNavigation({
                       )}
                     >
                       {active ? (
-                        <motion.span
+                        <m.span
                           layoutId={layoutId}
                           transition={transition("thumb")}
                           aria-hidden="true"
@@ -313,7 +314,7 @@ function MobileTabBar({ pathname, role, counts }: { pathname: string; role: Staf
                 className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-xs font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {active ? (
-                  <motion.span
+                  <m.span
                     layoutId="admin-tab-aktif"
                     transition={transition("thumb")}
                     aria-hidden="true"
@@ -500,7 +501,7 @@ export function AdminShell({
               className="border-border bg-card shadow-sm"
             >
               <AnimatePresence mode="wait" initial={false}>
-                <motion.span
+                <m.span
                   key={theme}
                   initial={reduce ? false : { rotate: -90, opacity: 0 }}
                   animate={{ rotate: 0, opacity: 1 }}
@@ -509,7 +510,7 @@ export function AdminShell({
                   className="flex"
                 >
                   <HugeiconsIcon icon={theme === "dark" ? Sun02Icon : Moon02Icon} size={19} strokeWidth={1.8} aria-hidden />
-                </motion.span>
+                </m.span>
               </AnimatePresence>
             </Button>
             {/* Dasbor dan Kelola produk sudah punya tombol ini di kepala halaman. */}
@@ -533,7 +534,7 @@ export function AdminShell({
 
       <AnimatePresence initial={false}>
         {menuOpen ? (
-          <motion.div
+          <m.div
             key="admin-mobile-menu"
             className="fixed inset-0 z-50 lg:hidden"
             initial={{ opacity: 0 }}
@@ -548,7 +549,7 @@ export function AdminShell({
               tabIndex={-1}
               className="absolute inset-0 bg-foreground/35"
             />
-            <motion.aside
+            <m.aside
               ref={menuPanelRef}
               id="menu-admin-mobile"
               role="dialog"
@@ -575,8 +576,8 @@ export function AdminShell({
                 counts={counts}
                 onNavigate={closeMenu}
               />
-            </motion.aside>
-          </motion.div>
+            </m.aside>
+          </m.div>
         ) : null}
       </AnimatePresence>
     </div>

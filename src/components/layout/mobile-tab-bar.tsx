@@ -5,7 +5,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Cancel01Icon, MoreHorizontalIcon } from "@hugeicons/core-free-icons"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence } from "motion/react"
+import * as m from "motion/react-m"
 
 import { NAV_ICONS } from "@/components/layout/nav-icons"
 import { Button } from "@/components/ui/button"
@@ -95,7 +96,7 @@ export function MobileTabBar() {
     "relative isolate flex h-14 w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 text-xs font-semibold tracking-tight outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
 
   const activePill = (
-    <motion.span
+    <m.span
       layoutId="tabbar-aktif"
       aria-hidden
       className="absolute inset-0 -z-10 rounded-2xl bg-primary"
@@ -147,7 +148,7 @@ export function MobileTabBar() {
 
       <AnimatePresence>
         {moreOpen ? (
-          <motion.div
+          <m.div
             key="lembar-lainnya"
             className="fixed inset-0 z-70 md:hidden"
             initial={{ opacity: 0 }}
@@ -162,7 +163,7 @@ export function MobileTabBar() {
               onClick={closeSheet}
               className="absolute inset-0 bg-scrim"
             />
-            <motion.div
+            <m.div
               ref={sheetRef}
               id="lembar-lainnya"
               role="dialog"
@@ -209,8 +210,8 @@ export function MobileTabBar() {
                   )
                 })}
               </ul>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         ) : null}
       </AnimatePresence>
     </>

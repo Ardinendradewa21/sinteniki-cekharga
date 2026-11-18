@@ -107,7 +107,11 @@ export default async function AdsDashboardPage() {
             return (
               <tr key={item.id}>
                 <td className={td}>
-                  <Link href={`/admin/iklan/io/${item.io_id}`} className="font-semibold text-foreground hover:underline">
+                  {/* min-h-11: target sentuh 44px di sel tabel (audit 004 no. 3). */}
+                  <Link
+                    href={`/admin/iklan/io/${item.io_id}`}
+                    className="inline-flex min-h-11 items-center rounded-md font-semibold text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                  >
                     {io?.campaign_name ?? "IO"}
                   </Link>
                   <div className="text-xs text-muted-foreground">{item.name || io?.io_number}</div>

@@ -5,7 +5,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Moon02Icon, Search01Icon, Sun02Icon } from "@hugeicons/core-free-icons"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence } from "motion/react"
+import * as m from "motion/react-m"
 
 import { NAV_ICONS } from "@/components/layout/nav-icons"
 import { Button } from "@/components/ui/button"
@@ -105,7 +106,7 @@ export function MainNavBar({
                   )}
                 >
                   {isActive ? (
-                    <motion.span
+                    <m.span
                       layoutId="header-nav-aktif"
                       aria-hidden
                       className="absolute inset-0 -z-10 rounded-pill bg-primary"
@@ -139,7 +140,7 @@ export function MainNavBar({
         className={roundButton}
       >
         <AnimatePresence mode="wait" initial={false}>
-          <motion.span
+          <m.span
             key={theme}
             className="flex"
             initial={reduce ? false : { rotate: -90, opacity: 0 }}
@@ -148,7 +149,7 @@ export function MainNavBar({
             transition={transition("micro")}
           >
             <HugeiconsIcon icon={theme === "dark" ? Sun02Icon : Moon02Icon} size={19} strokeWidth={1.8} aria-hidden />
-          </motion.span>
+          </m.span>
         </AnimatePresence>
       </Button>
 

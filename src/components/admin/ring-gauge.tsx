@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { useMotionPreset } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ export function RingGauge({ ratio, label, className }: { ratio: number; label?: 
       aria-hidden={label ? undefined : true}
     >
       <circle cx="24" cy="24" r="19" fill="none" strokeWidth="5" className="stroke-border" />
-      <motion.circle
+      <m.circle
         cx="24"
         cy="24"
         r="19"

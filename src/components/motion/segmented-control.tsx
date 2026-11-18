@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 
 import { useMotionPreset } from "@/lib/motion";
@@ -140,7 +140,7 @@ export function SegmentedControl<T extends string>({
             )}
           >
             {checked ? (
-              <motion.span
+              <m.span
                 aria-hidden="true"
                 layoutId={`segmented-thumb-${thumbId}`}
                 transition={transition("thumb")}

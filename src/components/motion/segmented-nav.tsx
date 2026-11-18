@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useId, type ReactNode } from "react";
 
 import { useMotionPreset } from "@/lib/motion";
@@ -63,7 +63,7 @@ export function SegmentedNav({
           )}
         >
           {item.active ? (
-            <motion.span
+            <m.span
               aria-hidden="true"
               layoutId={`segmented-nav-thumb-${thumbId}`}
               transition={transition("thumb")}

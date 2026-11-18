@@ -1,6 +1,7 @@
 "use client";
 
-import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { animate, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import * as m from "motion/react-m";
 import { useEffect } from "react";
 
 import { formatIdr } from "@/lib/catalog/pricing";
@@ -57,7 +58,7 @@ export function CountUp({
 
   return (
     <span className={cn("tabular-nums", className)}>
-      <motion.span aria-hidden="true">{display}</motion.span>
+      <m.span aria-hidden="true">{display}</m.span>
       <span className="sr-only" aria-live="polite">
         {formatValue(value, format)}
       </span>

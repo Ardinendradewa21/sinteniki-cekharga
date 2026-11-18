@@ -4,7 +4,8 @@ import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowDown01Icon, ArrowUp01Icon, Cancel01Icon, SmartPhone01Icon } from "@hugeicons/core-free-icons";
 
@@ -70,7 +71,7 @@ export function CompareTray() {
       {hidden ? null : <div aria-hidden className="h-24 print:hidden" />}
       <AnimatePresence>
         {hidden ? null : (
-          <motion.section
+          <m.section
             key="baki"
             aria-label="Pilihan untuk dibandingkan"
             initial={{ y: "110%" }}
@@ -83,7 +84,7 @@ export function CompareTray() {
             <div className="glass-text glass-float mx-auto max-w-2xl overflow-hidden rounded-xl">
               <AnimatePresence initial={false}>
                 {open ? (
-                  <motion.div
+                  <m.div
                     id={panelId}
                     key="panel"
                     initial={{ opacity: 0 }}
@@ -128,7 +129,7 @@ export function CompareTray() {
                         Hapus semua
                       </button>
                     </div>
-                  </motion.div>
+                  </m.div>
                 ) : null}
               </AnimatePresence>
 
@@ -143,7 +144,7 @@ export function CompareTray() {
                   <span className="flex shrink-0 -space-x-2">
                     <AnimatePresence initial={false} mode="popLayout">
                       {items.map((item) => (
-                        <motion.span
+                        <m.span
                           key={item.slug}
                           layout
                           initial={{ opacity: 0, scale: 0.8 }}
@@ -153,7 +154,7 @@ export function CompareTray() {
                           className="flex"
                         >
                           <Thumb item={item} small />
-                        </motion.span>
+                        </m.span>
                       ))}
                     </AnimatePresence>
                   </span>
@@ -188,7 +189,7 @@ export function CompareTray() {
                 {notice ?? ""}
               </p>
             </div>
-          </motion.section>
+          </m.section>
         )}
       </AnimatePresence>
     </>

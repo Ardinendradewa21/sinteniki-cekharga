@@ -107,3 +107,25 @@ for (const path of KEY_PAGES) {
     if (sizes.h2 > 0) expect(sizes.h3).toBeLessThanOrEqual(sizes.h2);
   });
 }
+
+// Audit 004 no. 1: kolom isian setinggi 19px di beranda lolos karena hanya
+// tombol yang diperiksa. Kini setiap isian teks yang terlihat ikut diukur.
+for (const path of ["/", "/products", "/compare", "/assistant?tanya=form", "/iklan"]) {
+  test(`TC-A11Y-08 ${path} isian teks setinggi minimal 44 px di ponsel @regression`, async ({ page }) => {
+    await page.goto(path);
+    const short = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("main input:not([type=hidden]):not([type=checkbox]):not([type=radio]), main select, main textarea")]
+        .filter((el) => {
+          const box = el.getBoundingClientRect();
+          // Lewati honeypot anti-spam (di luar layar, tabindex -1, aria-hidden):
+          // bukan isian yang disentuh pengguna.
+          const offscreen = box.right <= 0 || box.left >= window.innerWidth;
+          const decoy = el.tabIndex === -1 || el.closest("[aria-hidden=true]") !== null;
+          return box.width > 1 && box.height > 1 && !offscreen && !decoy && getComputedStyle(el).visibility !== "hidden";
+        })
+        .filter((el) => el.getBoundingClientRect().height < 44)
+        .map((el) => `${el.id || el.getAttribute("name") || el.tagName} ${Math.round(el.getBoundingClientRect().height)}px`)
+    );
+    expect(short).toEqual([]);
+  });
+}

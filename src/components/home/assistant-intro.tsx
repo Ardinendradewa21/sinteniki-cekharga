@@ -85,7 +85,9 @@ export function AssistantIntro() {
                   maxLength={600}
                   autoComplete="off"
                   placeholder="Contoh: budget 4 juta, sering foto anak, baterai awet"
-                  className="h-12 min-w-0 flex-1 rounded-md bg-transparent px-4 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  // `sm:flex-1`, bukan `flex-1`: di induk `flex-col` (ponsel) basis 0
+                  // dari flex-1 mengalahkan h-12 dan kolom ini hanya 19px (audit 004 no. 1).
+                  className="h-12 min-w-0 rounded-md bg-transparent px-4 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-1"
                 />
                 <Button type="submit" size="lg" className="shrink-0">
                   Carikan HP

@@ -1,6 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useRef, type ReactNode } from "react";
 
 import { useHydrated } from "@/components/motion/use-hydrated";
@@ -52,7 +53,7 @@ export function CatalogGridItem({
   useRevealOnScroll(ref, { mode: "self", delay });
 
   return (
-    <motion.li
+    <m.li
       ref={ref}
       layout={reduce ? false : "position"}
       // Kartu yang ada sejak halaman dibuka: tanpa animasi masuk. Kartu yang
@@ -64,6 +65,6 @@ export function CatalogGridItem({
       className={className}
     >
       {children}
-    </motion.li>
+    </m.li>
   );
 }

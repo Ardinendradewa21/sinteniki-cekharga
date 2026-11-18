@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { AnimatePresence, motion, type HTMLMotionProps } from "motion/react";
+import { AnimatePresence, type HTMLMotionProps } from "motion/react";
+import * as m from "motion/react-m";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowUpRight01Icon,
@@ -133,7 +134,7 @@ export function HeroTour({ data, isDemo }: { data: HeroTourData; isDemo: boolean
               {i < index || (i === index && !autoplay) ? (
                 <span className="absolute inset-0 bg-brand" />
               ) : i === index ? (
-                <motion.span
+                <m.span
                   key={`${index}-${playing}`}
                   className="absolute inset-y-0 left-0 bg-brand"
                   initial={{ width: "0%" }}
@@ -146,7 +147,7 @@ export function HeroTour({ data, isDemo }: { data: HeroTourData; isDemo: boolean
         </div>
 
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div
+          <m.div
             key={current.tab}
             className="mt-5 min-h-0 flex-1"
             initial={{ opacity: 0 }}
@@ -154,7 +155,7 @@ export function HeroTour({ data, isDemo }: { data: HeroTourData; isDemo: boolean
             exit={{ opacity: 0, transition: transition("exit") }}
           >
             {current.stage}
-          </motion.div>
+          </m.div>
         </AnimatePresence>
 
         <div className="mt-3 border-t border-border pt-3 text-center">
@@ -203,24 +204,24 @@ function SearchStage({ search }: { search: NonNullable<HeroTourData["search"]> }
     <div aria-hidden>
       <div className="flex h-11 items-center gap-2.5 rounded-md border border-input bg-background px-3.5">
         <HugeiconsIcon icon={Search01Icon} size={16} strokeWidth={2} className="shrink-0 text-muted-foreground" />
-        <motion.span
+        <m.span
           className="overflow-hidden text-sm whitespace-nowrap text-foreground"
           initial={reduce ? false : { clipPath: "inset(0 100% 0 0)" }}
           animate={{ clipPath: "inset(0 0% 0 0)" }}
           transition={{ duration: 0.9, delay: 0.2, ease: "linear" }}
         >
           {search.query}
-        </motion.span>
+        </m.span>
       </div>
-      <motion.div
+      <m.div
         {...rise(1.1)}
         className="mt-3 inline-flex rounded-pill border border-brand/30 bg-brand-muted px-3 py-1 text-xs font-medium text-brand-text"
       >
         {search.filterLabel}
-      </motion.div>
+      </m.div>
       <ul className="mt-3 flex flex-col gap-2">
         {search.results.map((result, i) => (
-          <motion.li
+          <m.li
             key={result.name}
             {...(rise(1.4 + i * 0.15) as HTMLMotionProps<"li">)}
             className="flex items-center justify-between gap-3 rounded-md border border-border px-3.5 py-2.5"
@@ -232,7 +233,7 @@ function SearchStage({ search }: { search: NonNullable<HeroTourData["search"]> }
               ) : null}
             </span>
             <span className="tabular shrink-0 text-sm font-bold text-foreground">{result.price}</span>
-          </motion.li>
+          </m.li>
         ))}
       </ul>
     </div>
@@ -245,21 +246,21 @@ function CompareStage({ compare }: { compare: NonNullable<HeroTourData["compare"
     <div aria-hidden>
       <div className="grid grid-cols-2 gap-3">
         {compare.items.map((item, i) => (
-          <motion.div
+          <m.div
             key={item.name}
             {...rise(0.1 + i * 0.05)}
             className="rounded-md border border-border bg-background p-3"
           >
             <p className="line-clamp-2 text-sm font-semibold text-foreground">{item.name}</p>
             <p className="tabular mt-1 text-sm font-bold text-foreground">{item.price}</p>
-          </motion.div>
+          </m.div>
         ))}
       </div>
       <dl className="mt-3 flex flex-col gap-2">
         {compare.rows.map((row, i) => {
           const differs = row.values[0] !== row.values[1];
           return (
-            <motion.div
+            <m.div
               key={row.label}
               {...rise(0.6 + i * 0.2)}
               className={differs ? "rounded-md bg-brand-muted px-3 py-2" : "rounded-md border border-border px-3 py-2"}
@@ -272,7 +273,7 @@ function CompareStage({ compare }: { compare: NonNullable<HeroTourData["compare"
                 <span className="line-clamp-2">{row.values[0]}</span>
                 <span className="line-clamp-2">{row.values[1]}</span>
               </dd>
-            </motion.div>
+            </m.div>
           );
         })}
       </dl>
@@ -284,7 +285,7 @@ function PriceStage({ price, isDemo }: { price: NonNullable<HeroTourData["price"
   const rise = useRise();
   return (
     <div>
-      <motion.div {...rise(0)} className="rounded-md border border-border bg-background p-4">
+      <m.div {...rise(0)} className="rounded-md border border-border bg-background p-4">
         <div className="flex items-start justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">{price.brand}</p>
           {isDemo ? <DemoBadge /> : null}
@@ -300,15 +301,15 @@ function PriceStage({ price, isDemo }: { price: NonNullable<HeroTourData["price"
         <StatusPill tone={price.fresh ? "fresh" : "stale"} className="mt-2.5">
           {price.checked}
         </StatusPill>
-      </motion.div>
-      <motion.div
+      </m.div>
+      <m.div
         {...rise(1.2)}
         aria-hidden
         className="mt-3 flex items-center justify-between rounded-md border border-brand/30 bg-brand-muted px-3.5 py-2.5 text-sm font-semibold text-brand-text"
       >
         Lanjut ke toko pilihanmu
         <HugeiconsIcon icon={ArrowUpRight01Icon} size={16} strokeWidth={2} />
-      </motion.div>
+      </m.div>
     </div>
   );
 }
@@ -317,19 +318,19 @@ function AskStage() {
   const rise = useRise();
   return (
     <div aria-hidden className="flex flex-col gap-3">
-      <motion.div
+      <m.div
         {...rise(0.1)}
         className="ml-auto max-w-[85%] rounded-lg rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground"
       >
         Budget 4 juta, utamakan kamera
-      </motion.div>
-      <motion.div
+      </m.div>
+      <m.div
         {...rise(0.9)}
         className="mr-auto max-w-[85%] rounded-lg rounded-bl-sm bg-muted px-4 py-2.5 text-sm text-foreground"
       >
         Budget 4 juta aku jadikan batas wajib. Kandidatnya aku pilih dari
         katalog CekHarga, lengkap dengan alasan dan komprominya.
-      </motion.div>
+      </m.div>
     </div>
   );
 }
