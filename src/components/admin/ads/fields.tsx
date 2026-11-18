@@ -240,7 +240,7 @@ export function Table({ head, children, empty }: { head: string[]; children: Rea
   return (
     <div className="-mx-5 overflow-x-auto sm:mx-0">
       <table className="w-full min-w-[640px] text-left text-sm">
-        <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className="border-b border-border text-xs font-semibold text-muted-foreground">
           <tr>
             {head.map((cell) => (
               <th key={cell} scope="col" className="px-3 py-2 font-semibold">

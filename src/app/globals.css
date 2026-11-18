@@ -399,7 +399,9 @@
   --input: #7a8184;
   --ring: #255a52;
 
-  --brand: #2f6e65;
+  /* #2c675e (CD-03): badge `text-brand` di atas mint `--brand-muted` dengan
+     #2f6e65 hanya 4.49:1 (pindai kontras); kini 4.95:1, putih di atasnya 6.54:1. */
+  --brand: #2c675e;
   --brand-foreground: #ffffff;
   --brand-muted: #cce5e2;
   --brand-text: #255a52;

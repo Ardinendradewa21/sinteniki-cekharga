@@ -120,7 +120,7 @@ export default async function ImportBatchPage(props: { params: Promise<{ id: str
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand">
+          <p className="text-sm font-semibold text-brand-text">
             {batch.origin === "scrape" ? "Tarik otomatis" : batch.origin === "schedule" ? "Pemeriksaan harga harian" : "Unggah CSV"} ·{" "}
             {kindLabel}
           </p>

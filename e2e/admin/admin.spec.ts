@@ -34,6 +34,29 @@ test.describe("Dasbor admin", () => {
     // Subjudul panel sengaja menyebut pemeriksaan harian; yang diuji isi daftarnya.
     await expect(history.locator("li").filter({ hasText: /Pemeriksaan harga harian/ })).toHaveCount(0);
   });
+
+  test("TC-ADM-04 grid pemeriksaan harian dan angka menu (CD-03) @regression", async ({ page }) => {
+    await page.goto("/admin");
+    const grid = page.locator("section[aria-labelledby=pemeriksaan-harian]");
+    await expect(grid).toBeVisible();
+    // Tabel asli: baris = merek (rowheader), 14 sel per baris.
+    const firstRow = grid.getByRole("row").filter({ has: page.getByRole("rowheader") }).first();
+    await expect(firstRow.getByRole("cell")).toHaveCount(14);
+    // Badge menu menyebut artinya untuk pembaca layar, bukan angka telanjang.
+    const nav = page.getByRole("navigation", { name: "Navigasi admin" }).first();
+    await expect(nav.getByRole("link", { name: /Kelola produk.*produk draft/ })).toBeVisible();
+  });
+
+  test("TC-ADM-05 aksi massal produk hanya muncul setelah ada yang dicentang (CD-03) @regression", async ({ page }) => {
+    await page.goto("/admin/products");
+    await expect(page.getByRole("button", { name: "Terbitkan" })).toHaveCount(0);
+    const firstCheckbox = page.locator("tbody input[type=checkbox]").first();
+    await firstCheckbox.check();
+    await expect(page.getByRole("button", { name: "Terbitkan" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Hapus terpilih \(1\)/ })).toBeVisible();
+    await firstCheckbox.uncheck();
+    await expect(page.getByRole("button", { name: "Terbitkan" })).toHaveCount(0);
+  });
 });
 
 test.describe("Pusat Impor", () => {

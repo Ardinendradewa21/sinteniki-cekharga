@@ -159,7 +159,14 @@ export function AdminProductList({
             : "Pilih produk untuk tindakan massal"}
         </p>
 
-        <div className="flex flex-wrap items-center gap-2">
+        {/*
+          Aksi massal hanya muncul setelah ada produk dicentang (CD-03, pola
+          Veyla): sebelumnya tiga tombol nonaktif selalu tampil dan tampak
+          bisa ditekan. Muncul dengan geser-pudar singkat; reduced motion
+          seketika (aturan global di globals.css).
+        */}
+        {selected.size > 0 ? (
+        <div className="flex animate-in flex-wrap items-center gap-2 fade-in slide-in-from-right-2 duration-200">
           <form action={statusAction}>
             <input type="hidden" name="returnTo" value={returnTo} />
             {[...selected].map((productId) => (
@@ -196,11 +203,13 @@ export function AdminProductList({
             <DeleteSelectedButton count={selected.size} />
           </form>
         </div>
+        ) : null}
       </div>
 
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[900px] border-collapse text-left">
-          <thead className="border-b border-border bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
+          {/* Header kalimat biasa, bukan kapital berjarak lebar (antislop R-06, CD-03). */}
+          <thead className="border-b border-border bg-muted/20 text-xs font-semibold text-muted-foreground">
             <tr>
               <th scope="col" className="w-14 px-4 py-3">
                 <span className="sr-only">Pilih</span>

@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { setAdminThemeAction } from "@/lib/admin/preferences";
 import type { AdminTheme } from "@/lib/admin/preferences-config";
 import { signOutAction } from "@/lib/auth/actions";
+import type { AdminNavCounts } from "@/lib/admin/queries";
 import type { StaffRole } from "@/lib/auth/dal";
 import { useMotionPreset } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -94,15 +95,45 @@ function initials(email: string) {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? parts[0]?.[1] ?? "")).toUpperCase() || "CH";
 }
 
+/** Arti angka di menu, untuk pembaca layar dan tooltip (CD-03). */
+const COUNT_LABEL: Record<string, string> = {
+  "/admin/products": "produk draft",
+  "/admin/ulasan": "kandidat ulasan menunggu",
+  "/admin/iklan": "materi iklan menunggu review",
+};
+
+/** Badge jumlah pekerjaan menunggu (pola Veyla): kapsul tinta, angka nyata dari database. */
+function CountBadge({ href, counts, compact = false }: { href: string; counts: AdminNavCounts; compact?: boolean }) {
+  const value = counts[href as keyof AdminNavCounts];
+  if (!value) return null;
+  const shown = value > 99 ? "99+" : String(value);
+  return (
+    <span
+      title={`${value} ${COUNT_LABEL[href] ?? ""}`}
+      className={cn(
+        "tabular relative inline-flex items-center justify-center rounded-pill bg-ink font-semibold text-ink-foreground",
+        compact ? "absolute -top-0.5 right-1 h-5 min-w-5 px-1 text-xs leading-none" : "ml-auto h-6 min-w-6 px-1.5 text-xs"
+      )}
+    >
+      <span aria-hidden="true">{shown}</span>
+      <span className="sr-only">
+        {value} {COUNT_LABEL[href]}
+      </span>
+    </span>
+  );
+}
+
 function AdminNavigation({
   pathname,
   role,
   layoutId,
+  counts,
   onNavigate,
 }: {
   pathname: string;
   role: StaffRole;
   layoutId: string;
+  counts: AdminNavCounts;
   onNavigate?: () => void;
 }) {
   const { transition } = useMotionPreset();
@@ -138,6 +169,7 @@ function AdminNavigation({
                       ) : null}
                       <HugeiconsIcon icon={item.icon} size={19} strokeWidth={1.8} aria-hidden className="relative shrink-0" />
                       <span className="relative min-w-0 truncate">{item.label}</span>
+                      <CountBadge href={item.href} counts={counts} />
                     </Link>
                   </li>
                 );
@@ -187,12 +219,14 @@ function SidebarContent({
   layoutId,
   searchRef,
   shortcut,
+  counts,
   onNavigate,
 }: {
   pathname: string;
   email: string;
   role: StaffRole;
   layoutId: string;
+  counts: AdminNavCounts;
   searchRef: React.RefObject<HTMLInputElement | null>;
   shortcut: string;
   onNavigate?: () => void;
@@ -212,7 +246,7 @@ function SidebarContent({
           </span>
         </Link>
         {role === "admin" ? <ProductSearch id={`${layoutId}-cari`} inputRef={searchRef} shortcut={shortcut} /> : null}
-        <AdminNavigation pathname={pathname} role={role} layoutId={layoutId} onNavigate={onNavigate} />
+        <AdminNavigation pathname={pathname} role={role} layoutId={layoutId} counts={counts} onNavigate={onNavigate} />
       </div>
 
       <div className="mt-8 space-y-2">
@@ -259,7 +293,7 @@ function SidebarContent({
 }
 
 /** Tab bar bawah untuk layar kecil (pola Veyla); penanda aktif bergeser. */
-function MobileTabBar({ pathname, role }: { pathname: string; role: StaffRole }) {
+function MobileTabBar({ pathname, role, counts }: { pathname: string; role: StaffRole; counts: AdminNavCounts }) {
   const { transition } = useMotionPreset();
   const items = NAV_GROUPS.flatMap((group) => group.items).filter((item) => allowed(item, role));
   if (items.length < 2) return null;
@@ -276,7 +310,7 @@ function MobileTabBar({ pathname, role }: { pathname: string; role: StaffRole })
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[0.6875rem] font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-xs font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {active ? (
                   <motion.span
@@ -288,6 +322,7 @@ function MobileTabBar({ pathname, role }: { pathname: string; role: StaffRole })
                 ) : null}
                 <HugeiconsIcon icon={item.icon} size={20} strokeWidth={1.8} aria-hidden className="relative" />
                 <span className={cn("relative truncate", !active && "text-muted-foreground")}>{item.short}</span>
+                <CountBadge href={item.href} counts={counts} compact />
               </Link>
             </li>
           );
@@ -301,11 +336,14 @@ export function AdminShell({
   email,
   role,
   initialTheme,
+  counts = {},
   children,
 }: {
   email: string;
   role: StaffRole;
   initialTheme: AdminTheme;
+  /** Angka pekerjaan menunggu per menu (CD-03), dihitung di layout server. */
+  counts?: AdminNavCounts;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -413,6 +451,7 @@ export function AdminShell({
           layoutId="admin-nav-aktif"
           searchRef={searchRef}
           shortcut={shortcut}
+          counts={counts}
         />
       </aside>
 
@@ -490,7 +529,7 @@ export function AdminShell({
         </main>
       </div>
 
-      <MobileTabBar pathname={pathname} role={role} />
+      <MobileTabBar pathname={pathname} role={role} counts={counts} />
 
       <AnimatePresence initial={false}>
         {menuOpen ? (
@@ -533,6 +572,7 @@ export function AdminShell({
                 layoutId="admin-nav-aktif-laci"
                 searchRef={drawerSearchRef}
                 shortcut={shortcut}
+                counts={counts}
                 onNavigate={closeMenu}
               />
             </motion.aside>
