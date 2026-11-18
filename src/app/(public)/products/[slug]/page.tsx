@@ -9,6 +9,7 @@ import { ColorPicker } from "@/components/product/color-picker";
 import { DemoBadge, DemoNotice } from "@/components/demo-marker";
 import { Container } from "@/components/layout/container";
 import { PriceDisplay } from "@/components/price-display";
+import { KeySpecTiles } from "@/components/product/key-spec-tiles";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { OfferList } from "@/components/product/offer-list";
 import { PriceHistorySection } from "@/components/product/price-history";
@@ -175,6 +176,8 @@ export default async function ProductDetailPage(
             }
             name={detail.selectedColor ? `${detail.name} ${detail.selectedColor.name}` : detail.name}
           />
+          {/* Stat bar gaya Calda (CD-02): ringkasan dari tabel spesifikasi yang sama. */}
+          <KeySpecTiles specs={detail.specs} />
         </div>
 
         <div className="flex flex-col gap-7">

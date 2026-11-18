@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { BrandChips } from "@/components/catalog/brand-chips";
 import { CatalogFilters } from "@/components/catalog/catalog-filters";
 import { AdSlot, AdUnit, resolveAd } from "@/components/ads/ad-slot";
 import { CatalogResults } from "@/components/catalog/catalog-results";
@@ -9,7 +10,7 @@ import { loadOrNull } from "@/lib/catalog/load";
 import { DemoNotice } from "@/components/demo-marker";
 import { Container } from "@/components/layout/container";
 import { isDemoData, searchCatalog } from "@/lib/catalog/queries";
-import { parseCatalogQuery } from "@/lib/catalog/search-params";
+import { buildCatalogHref, parseCatalogQuery } from "@/lib/catalog/search-params";
 
 export const metadata: Metadata = {
   title: "Produk",
@@ -47,6 +48,22 @@ async function CatalogView({
   ]);
   if (!result) return <DataUnavailable area="Katalog" />;
   const isDemo = isDemoData();
+  // Chip merek gaya Calda (CD-02): "Semua" + satu chip per merek, jumlahnya
+  // produk terpublikasi di seluruh katalog. Pencarian dan filter lain tetap.
+  const brandChips = [
+    {
+      label: "Semua",
+      count: result.totalPublished,
+      href: buildCatalogHref(query, { brands: [] }),
+      active: query.brands.length === 0,
+    },
+    ...result.facets.brandCounts.map(({ brand, count }) => ({
+      label: brand,
+      count,
+      href: buildCatalogHref(query, { brands: [brand] }),
+      active: query.brands.length === 1 && query.brands[0]?.toLowerCase() === brand.toLowerCase(),
+    })),
+  ];
 
   return (
     <>
@@ -63,6 +80,8 @@ async function CatalogView({
         facets={result.facets}
         interpretation={result.interpretation}
       />
+
+      <BrandChips chips={brandChips} className="mt-4" />
 
       <AdSlot code="catalog_top" brand={adBrand} className="mt-6" />
 

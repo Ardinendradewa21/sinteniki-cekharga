@@ -119,4 +119,19 @@ test.describe("Katalog (FR-02)", () => {
     ]);
     await expect(tray).toHaveCount(0);
   });
+
+  test("TC-KAT-09 chip merek menyaring satu merek dan jumlahnya sama dengan hasil (CD-02) @regression", async ({ page }) => {
+    await page.goto("/products");
+    const chips = page.getByRole("navigation", { name: "Saring cepat per merek" });
+    await expect(chips.getByRole("link", { name: /^Semua/ })).toHaveAttribute("aria-current", "page");
+
+    const chip = chips.getByRole("link").nth(1);
+    const label = (await chip.innerText()).split("\n")[0]!.trim();
+    const chipCount = Number((await chip.innerText()).match(/(\d+)/)?.[1]);
+    await chip.click();
+    await expect(page).toHaveURL(new RegExp(`merek=${encodeURIComponent(label)}`));
+    await expect(chips.getByRole("link", { name: new RegExp(`^${label}`) })).toHaveAttribute("aria-current", "page");
+    // Jumlah di chip = produk terpublikasi merek itu = jumlah hasil tanpa filter lain.
+    expect(await catalogTotal(page)).toBe(chipCount);
+  });
 });
