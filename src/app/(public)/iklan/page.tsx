@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ActionForm } from "@/components/admin/ads/action-form";
 import { Checkbox, Field, TextArea } from "@/components/admin/ads/fields";
 import { AdLabel } from "@/components/ads/ad-label";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { PRICING_LABEL } from "@/lib/ads/billing";
@@ -66,8 +67,8 @@ export default async function AdvertisePage() {
   return (
     <Container className="py-10 md:py-14">
       <header className="max-w-3xl">
-        <p className="text-xs font-bold uppercase tracking-widest text-brand-text">CekHarga / Beriklan</p>
-        <h1 className="mt-2 heading-page text-foreground">
+        <Breadcrumbs items={[{ label: "Beranda", href: "/" }, { label: "Beriklan" }]} />
+        <h1 className="mt-3 heading-page text-foreground">
           Jangkau orang yang sedang membandingkan smartphone
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">

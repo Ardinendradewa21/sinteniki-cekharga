@@ -269,9 +269,12 @@
   --glass-text: rgba(255, 255, 255, 0.86);
   --glass-rim: rgba(255, 255, 255, 0.62);
   --glass-top: rgba(255, 255, 255, 0.95);
-  --veil: linear-gradient(180deg, rgba(236, 243, 238, 0.18), rgba(226, 234, 229, 0.32));
-  --veil-text: rgba(223, 230, 225, 0.92);
-  --scene-blur: url(/images/scene/day-blur.avif);
+  /* Latar gradasi merek pengganti foto scene (keputusan PO 18 Nov 2026): dua
+     cahaya hijau samar di atas yang memudar ke kanvas. Tanpa gambar. */
+  --scene-gradient:
+    radial-gradient(70rem 38rem at 10% -12%, rgba(19, 122, 80, 0.17), transparent 65%),
+    radial-gradient(56rem 32rem at 96% 2%, rgba(64, 168, 124, 0.14), transparent 62%),
+    linear-gradient(180deg, #e8f0eb 0%, var(--background) 100%);
 
   --ch-shadow-sm: 0 1px 2px rgba(20, 50, 34, 0.07);
   --ch-shadow: 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.38);
@@ -323,9 +326,10 @@
   --glass-text: rgba(10, 16, 14, 0.84);
   --glass-rim: rgba(225, 255, 238, 0.1);
   --glass-top: rgba(235, 255, 244, 0.22);
-  --veil: linear-gradient(180deg, rgba(6, 10, 8, 0.1), rgba(4, 8, 6, 0.34));
-  --veil-text: rgba(12, 18, 16, 0.85);
-  --scene-blur: url(/images/scene/night-blur.avif);
+  --scene-gradient:
+    radial-gradient(70rem 38rem at 10% -12%, rgba(110, 224, 161, 0.13), transparent 65%),
+    radial-gradient(56rem 32rem at 96% 2%, rgba(64, 168, 124, 0.1), transparent 62%),
+    linear-gradient(180deg, #0f1814 0%, var(--background) 100%);
 
   --ch-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --ch-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 18px 40px -26px rgba(0, 0, 0, 0.6);
@@ -407,71 +411,31 @@
 }
 
 /*
-  Scene Backdrop (DESIGN.md §6.2, komponen src/components/layout/scene-backdrop.tsx).
-  - scene-fade: foto blur tipis di atas setiap halaman, memudar ke canvas.
-    Memakai --scene-blur (3–4 KB) lewat token, jadi ikut berganti tema tanpa
-    elemen gambar tambahan dan tanpa detail tajam di belakang judul halaman.
-  - scene-veil: lapisan --veil di atas foto tajam varian full.
-  - scene-text-*: --veil-text di zona copy hero (DESIGN.md §2.5, §3).
-  - scene-day/scene-night: hanya foto tema aktif yang tampil; foto tema lain
-    lazy dan tersembunyi sehingga baru diunduh saat tema diganti.
+  Latar Verdant (DESIGN.md §6.2, komponen src/components/layout/scene-backdrop.tsx).
+  Sejak 18 November 2026 tanpa foto (keputusan PO: foto tumbuhan/lampu tidak
+  relevan dengan CekHarga): --scene-gradient dari warna merek.
+  - scene-fade: gradasi di atas setiap halaman, memudar ke kanvas.
+  - scene-full: gradasi penuh di belakang hero beranda dan layar awal Tanya AI.
+  - hero-panel: kaca warna di atas gradasi (tanpa foto blur dan tanpa
+    penyejajaran lewat JavaScript).
 */
 @utility scene-fade {
-  background-image: var(--veil), var(--scene-blur);
-  background-size: cover;
-  background-position: center top;
-  /* 0.45 (bukan lebih): diukur VD-03 pada 375px tema terang, teks muted di
-     atas potongan daun gelap 4.04:1 dengan 0.75 dan 4.41:1 dengan 0.55. */
-  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.45), transparent);
+  background-image: var(--scene-gradient);
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.9), transparent);
 }
 
-@utility scene-veil {
-  background-image: var(--veil);
+@utility scene-gradient {
+  background-image: var(--scene-gradient);
 }
 
-@utility scene-text-left {
-  background-image: linear-gradient(to bottom, var(--veil-text) 0 52%, transparent 74%);
-  @media (width >= 64rem) {
-    background-image: linear-gradient(to right, var(--veil-text) 0 54%, transparent 80%);
-  }
-}
-
-@utility scene-text-top {
-  background-image: linear-gradient(to bottom, var(--veil-text) 0 45%, transparent 75%);
-}
-
-.public-theme[data-theme="dark"] .scene-day,
-.public-theme[data-theme="light"] .scene-night {
-  display: none;
-}
-
-/*
-  Hero Price Panel pre-blurred (DESIGN.md §6.3, hero-panel-frame.tsx): foto
-  blur yang sama posisinya dengan foto hero, diberi rona --glass di atasnya.
-
-  Latar dipasang sejak paint pertama dengan posisi perkiraan (cover, tengah);
-  ResizeObserver hanya menyempurnakan --blur-size/--blur-pos. Bila latar baru
-  dipasang setelah hydration, panel besar ini terhitung LCP di titik itu
-  (terukur VD-04: render delay ±2.7 detik).
-*/
 .hero-panel {
-  background-image: linear-gradient(var(--glass), var(--glass)), var(--veil), var(--scene-blur);
-  background-size:
-    100% 100%,
-    var(--blur-size, cover),
-    var(--blur-size, cover);
-  background-position:
-    0 0,
-    var(--blur-pos, center),
-    var(--blur-pos, center);
-  background-repeat: no-repeat;
+  background-color: var(--glass);
 }
 
 /*
-  Halaman dengan scene penuh (beranda) tidak butuh lapisan fade di belakangnya:
-  fade tertutup seluruhnya, tetapi tetap terhitung sebagai kandidat LCP
-  (terukur VD-03: LCP beranda = div scene-fade, render delay 3 detik).
-  display: none mengeluarkannya dari kandidat LCP.
+  Halaman dengan latar penuh (beranda, Tanya AI) tidak butuh lapisan fade di
+  belakangnya; display: none juga mengeluarkannya dari kandidat LCP
+  (terukur VD-03).
 */
 .public-theme:has(.scene-full) .scene-fade {
   display: none;
