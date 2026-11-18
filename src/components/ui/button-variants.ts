@@ -7,13 +7,13 @@ import { cva } from "class-variance-authority"
  * bisa dipanggil juga dari Server Component, mis. untuk tautan atau teks CTA
  * yang harus tampil persis seperti tombol.
  *
- * Tombol tetap padat (solid): kaca Verdant hanya untuk bingkai seperti header
- * dan filter bar, bukan tombol (DESIGN.md §2). Tanpa glow atau efek terangkat.
+ * Tombol tetap padat (solid): kaca hanya untuk bingkai seperti header dan
+ * filter bar, bukan tombol (DESIGN.md §2). Tanpa glow atau efek terangkat.
  * Semua warna lewat token semantik, jadi tema publik/admin terang/gelap tidak
  * butuh override per tombol. Umpan balik interaksi cukup perubahan warna 150ms
- * (micro, DESIGN.md §8). Keputusan pemilik produk 13 November 2026: CTA utama
- * hijau (`--primary` = aksen Verdant). Varian `link` memakai `--brand-text`
- * karena `--primary` terang hanya 4.2:1 di canvas.
+ * (micro, DESIGN.md §8). Sejak tema Calda (CD-00, 18 November 2026) CTA utama
+ * monokrom (`--primary`: hitam di Frost, putih di Smoke) dan biru (`--brand`)
+ * untuk status aktif; varian `link` memakai `--brand-text` yang lolos 4.5:1.
  */
 const buttonVariants = cva(
   "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-pill border text-sm font-medium whitespace-nowrap transition-colors duration-150 ease-out outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",

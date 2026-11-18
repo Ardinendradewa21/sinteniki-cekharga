@@ -25,22 +25,27 @@ PO = pemilik produk (pengguna yang memberi tugas). Bahasa kerja dan laporan: Ind
 Sebelum mengerjakan apa pun terkait iklan, banner, sponsor, slot, kampanye, atau laporan iklan,
 baca @docs/ads/ADS-CONTEXT.md dan ikuti seluruh aturan di dalamnya.
 
-## Redesign UI publik: tema Verdant (mulai 13 November 2026)
+## Redesign UI: publik tema Calda, admin tema Veyla (mulai 18 November 2026)
 Sebelum mengerjakan apa pun pada UI publik (`src/app/(public)`, `src/components` selain `admin/`),
-baca `DESIGN.md` dan `docs/ux/REDESIGN-VERDANT-2026-11.md`, lalu ikuti aturannya.
+baca `DESIGN.md` dan `docs/ux/calda/CD-00.md`, lalu ikuti aturannya. Untuk admin baca
+`docs/ux/admin/AV-01.md`. Riwayat tema sebelumnya (Verdant, 13 November 2026) ada di
+`docs/ux/REDESIGN-VERDANT-2026-11.md` dan `docs/ux/verdant/`.
 
 1. Urutan prioritas: PRD > DESIGN.md > `cekharga-antislop` > `antislop*` > skill lain.
+   Muat `cekharga-antislop` + `antislop` (+ `antislop-ui`, `antislop-human`) untuk setiap kerja UI.
 2. Data harga, tabel, penawaran, dan grafik selalu di permukaan solid, tidak pernah di atas kaca.
    Harga dirender final di server; count-up hanya saat varian berubah, tidak pernah dari 0.
 3. Motion memakai `motion/react` dan preset di `src/lib/motion.ts`. Jangan menambah GSAP.
-4. Template Verdelo adalah produk berbayar: jangan menyalin kode, foto, ikon, atau teksnya.
-   Screenshot referensi ada di `design/references/verdelo/` (di-ignore git). Sejak 18 November 2026
-   latar halaman berupa gradasi warna merek tanpa foto (keputusan PO); jangan menambah foto latar
-   dekoratif tanpa persetujuan PO.
-5. Kerjakan per tiket VD-xx di branch terpisah. Mulai setiap tiket dengan analisis dan rencana,
-   tunggu persetujuan, baru menulis kode. Urutan prompt ada di `docs/ux/verdant/PROMPTS.md`.
-6. Akhiri setiap tiket dengan screenshot 375px dan 1440px (terang dan gelap) di `qa-shots/verdant/<tiket>/`
-   (tidak masuk Git, PRD §12) serta hasil lint, typecheck, test, dan e2e smoke.
+4. Template Calda, Veyla, dan Verdelo adalah produk berbayar: ambil warna, font, bentuk, dan pola
+   interaksi saja; jangan menyalin kode, foto, ikon, atau teksnya. Screenshot referensi ada di
+   `design/references/{calda,veyla,verdelo}/` (di-ignore git). Latar halaman berupa gradasi abu
+   tanpa foto (keputusan PO 18 November 2026); jangan menambah foto latar dekoratif tanpa persetujuan PO.
+5. Kerjakan per tiket CD-xx (publik) atau AV-xx (admin) di branch terpisah. Mulai setiap tiket
+   dengan analisis dan rencana, tunggu persetujuan, baru menulis kode. Ubah CSS dan sumber lewat
+   editor, bukan skrip pengganti teks (antislop R-33).
+6. Akhiri setiap tiket dengan screenshot 375px dan 1440px (terang dan gelap) di
+   `qa-shots/calda/<tiket>/` atau `qa-shots/admin-veyla/` (tidak masuk Git, PRD §12) serta hasil
+   lint, typecheck, test, e2e smoke, dan pindai kontras.
 7. Next 16: properti `priority` pada `next/image` sudah deprecated; pakai `fetchPriority="high"` atau `preload`.
 
 ## Aturan System Design (wajib diikuti)

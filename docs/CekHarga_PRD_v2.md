@@ -183,25 +183,25 @@ Target otomatisasi tidak boleh menghambat seluruh produk: jika akses tidak layak
 
 ## 8. UI/UX — Tema utama yang disepakati
 
-Referensi visual awal adalah tampilan katalog jam tangan yang diberikan pengguna: **premium, minimal, product-first**, kartu putih membulat, headline besar, dan foto produk dominan. Ambil bahasa visualnya, bukan fungsi toko atau identitas mereknya. Sejak 13 November 2026 bahasa visual itu dilanjutkan oleh tema **Verdant** (lihat "Keputusan visual (13 November 2026)" di bawah); aturan rinci token, kaca, dan motion ada di `DESIGN.md` (root repo).
+Referensi visual awal adalah tampilan katalog jam tangan yang diberikan pengguna: **premium, minimal, product-first**, kartu putih membulat, headline besar, dan foto produk dominan. Ambil bahasa visualnya, bukan fungsi toko atau identitas mereknya. Sejak 13 November 2026 bahasa visual itu dilanjutkan oleh tema **Verdant**, lalu sejak 18 November 2026 oleh tema **Calda** (lihat "Keputusan visual" di bawah); aturan rinci token, kaca, dan motion ada di `DESIGN.md` (root repo).
 
 ### Palet dan tipografi
 
-Diperbarui 13 November 2026 (tema Verdant). Nilai pasti, versi gelap, dan rasio kontras ada di `DESIGN.md` §3.
+Diperbarui 18 November 2026 (tema Calda, CD-00). Nilai pasti, versi gelap, dan rasio kontras ada di `DESIGN.md` §3.
 
 | Peran | Arah visual |
 | --- | --- |
-| Canvas | Hijau keabuan lembut; Verdant Day `#DFE6E1` |
-| Surface | Putih `#FFFFFF`; semua data harga, tabel, penawaran, dan grafik di permukaan ini |
-| Headline | Hijau sangat gelap mendekati hitam; `#0F1D17` |
-| CTA utama | Hijau aksen; `#137A50` (terang), mint `#6EE0A1` dengan teks gelap (gelap) |
-| Teks sekunder | Abu kehijauan; `#4A5B52` |
-| Border | Hijau gelap transparan tipis; kontrol form `#6D827E` |
-| Brand | Hijau sebagai satu-satunya aksen; terracotta dipensiunkan dari UI publik |
-| Kaca | Hanya bingkai (header, filter bar, compare tray, panel hero, composer AI) di atas foto latar milik sendiri/berlisensi |
+| Canvas | Abu netral; Frost `#D3D5D8` (terang), Smoke `#2A2C2F` (gelap), dengan gradasi abu tanpa foto |
+| Surface | Hampir putih `#F6F7F8` (terang), abu `#35373B` (gelap); semua data harga, tabel, penawaran, dan grafik di permukaan ini |
+| Headline | Hampir hitam `#16191D` (terang), putih (gelap) |
+| CTA utama | Monokrom: hitam `#1B1E21` dengan teks putih (terang), putih dengan teks gelap (gelap) |
+| Teks sekunder | Abu `#4A4F56` (terang), `#C9CDD2` (gelap) |
+| Border | Garis tipis transparan; kontrol form `#737981` (terang), `#80868E` (gelap) |
+| Brand | Biru sebagai satu-satunya aksen: `#0B70C2` (terang), `#29A1F7` (gelap); untuk status aktif, progres, dan tautan |
+| Kaca | Hanya bingkai (header, filter bar, compare tray, panel hero, composer AI) di atas gradasi latar |
 | Status | Hijau/amber/merah disertai kata atau ikon |
 
-Hex di atas adalah acuan desain, bukan hasil sampling screenshot. Implementasikan melalui semantic token; ukur contrast pada kombinasi yang dipakai. Gunakan Plus Jakarta Sans, headline tebal, harga mudah dipindai, dan body dengan panjang baris nyaman.
+Hex di atas adalah acuan desain, bukan hasil sampling screenshot. Implementasikan melalui semantic token; ukur contrast pada kombinasi yang dipakai. Gunakan Urbanist (sejak 18 November 2026); angka yang harus sejajar (harga, jumlah) memakai Plus Jakarta Sans karena Urbanist tidak punya angka tabular. Harga mudah dipindai, body dengan panjang baris nyaman.
 
 ### Komposisi
 
@@ -237,6 +237,16 @@ Pemilik produk menetapkan tema publik baru bernama Verdant, terinspirasi gaya UI
 - **Foto latar** milik sendiri atau berlisensi bebas, sumbernya dicatat. Kode, foto, ikon, dan teks Verdelo tidak disalin.
 - Detail token dan komponen ada di `DESIGN.md`; rencana bertahap di `docs/ux/REDESIGN-VERDANT-2026-11.md`. Area admin tidak termasuk.
 
+### Keputusan visual (18 November 2026): tema Calda dan admin Veyla
+
+Pemilik produk menetapkan gaya publik kedua, terinspirasi template Calda (dashboard smart-home, berbayar), dan gaya admin dari template Veyla (berbayar). Keduanya referensi visual saja: kode, ikon, foto, dan teksnya tidak disalin. Keputusan ini menggantikan butir warna, font, dan latar keputusan 13 November 2026; aturan kaca, harga, dan motion di atas tetap berlaku.
+
+- **Warna publik:** permukaan abu netral (Frost terang, Smoke gelap). Aksen tunggal **biru**; CTA utama monokrom (hitam di terang, putih di gelap). Hijau tidak lagi menjadi aksen; hijau/amber/merah tetap untuk status.
+- **Font:** Urbanist untuk publik dan admin; Plus Jakarta Sans hanya untuk angka tabular.
+- **Latar:** gradasi abu tanpa foto (keputusan 18 November 2026: foto latar dekoratif tidak dipakai).
+- **Admin:** gaya Veyla (kanvas abu muda, kartu putih, tinta untuk CTA dan kartu sorotan, mint untuk menu aktif), hanya di `.admin-theme`.
+- Dikerjakan bertahap per tiket: CD-00 fondasi, CD-01 navigasi, CD-02 halaman publik, CD-03 admin, CD-04 motion dan QA. Admin AV-01 sudah diterapkan.
+
 ### Motion dan aksesibilitas
 
 Motion adalah tambahan implementasi, bukan perilaku yang dapat dibuktikan dari screenshot referensi. Sejak 13 November 2026: micro-interaction sekitar 160 ms, entrance 350–600 ms, data reveal (grafik tergambar, count-up harga) maksimal 1000 ms dan hanya sekali, dengan opacity/transform. Elemen di atas lipatan pertama tampil langsung atau dengan entrance singkat. Tetap hindari loop, parallax, glow, dan scroll hijacking. (Sebelumnya: micro 120–180 ms, entrance 280–420 ms.)
@@ -249,7 +259,7 @@ Target interaktif minimal 44 px; input minimal 16 px; keyboard, label, focus ter
 
 Utamakan penggunaan ulang stack repository. Jangan mengganti framework atau memasang versi “terbaru” tanpa kebutuhan.
 
-- **Frontend:** Next.js App Router, TypeScript, Tailwind CSS, primitive project/shadcn yang sudah disesuaikan, Hugeicons, Plus Jakarta Sans. Server Component secara default; Client Component untuk interaksi nyata.
+- **Frontend:** Next.js App Router, TypeScript, Tailwind CSS, primitive project/shadcn yang sudah disesuaikan, Hugeicons, Urbanist (angka tabular Plus Jakarta Sans). Server Component secara default; Client Component untuk interaksi nyata.
 - **Backend:** modular monolith dengan domain katalog, penawaran, review, dan rekomendasi. Route/API tipis; logika data dan eligibility berada di service yang dapat diuji.
 - **Database:** PostgreSQL; InsForge menjadi opsi layanan yang direncanakan. Periksa kemampuan dan konfigurasi aktual sebelum mengandalkannya untuk auth/storage.
 - **AI:** OpenRouter melalui integrasi server; model configurable. Gunakan SDK existing bila sesuai, tidak perlu menambah beberapa SDK dengan fungsi sama.
