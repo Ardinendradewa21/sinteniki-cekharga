@@ -194,6 +194,47 @@ export function specGuideFor(label: string): SpecGuideEntry | null {
   return BY_LABEL.get(label) ?? null;
 }
 
+/**
+ * Kata kunci per atribut untuk mencocokkan pertanyaan umum Tanya AI ke bank
+ * materi (persetujuan PO 18 Nov 2026). Urutan = prioritas bila banyak cocok.
+ */
+const KEYWORDS: readonly [string, RegExp][] = [
+  ["NFC", /\bnfc\b/],
+  ["Ketahanan (IP rating)", /\b(ip ?6[4-9]|ip ?rating|tahan air|waterproof|tahan debu|anti air)\b/],
+  ["Refresh rate", /\b(refresh ?rate|\d{2,3} ?hz)\b/],
+  ["Layar", /\b(amoled|oled|ips|lcd|layar|panel layar)\b/],
+  ["Chipset", /\b(chipset|prosesor|processor|soc|snapdragon|dimensity|helio|exynos|unisoc)\b/],
+  ["Susunan kamera", /\b(ultra ?wide|telefoto|telephoto|zoom optik|lensa makro|makro|macro|kamera depth)\b/],
+  ["Kamera utama", /\b(megapiksel|megapixel|\d{2,3} ?mp)\b/],
+  ["Pengisian", /\b(fast charging|charging|ngecas|ngecharge|pengisian|\d{2,3} ?(w|watt))\b/],
+  ["Baterai", /\b(baterai|battery|mah)\b/],
+  ["RAM", /\bram\b/],
+  ["Penyimpanan", /\b(rom|penyimpanan|storage|memori internal|micro ?sd)\b/],
+  ["Jaringan", /\b(5g|4g|lte)\b/],
+  ["Jack headphone 3.5mm", /\b(jack|colokan headset|colokan earphone|3[.,]5 ?mm)\b/],
+  ["Bobot", /\b(berat hp|bobot|gram)\b/],
+  ["Sistem operasi", /\b(update os|update android|pembaruan|one ui|hyperos|coloros|funtouch)\b/],
+  ["Garansi", /\b(garansi|imei|hp inter|internasional)\b/],
+];
+
+/** Bank materi yang relevan dengan kalimat pengguna, paling banyak `max`. */
+export function matchSpecGuides(text: string, max = 2): SpecGuideEntry[] {
+  const normalized = text.normalize("NFKC").toLocaleLowerCase("id-ID");
+  const labels = KEYWORDS.filter(([, pattern]) => pattern.test(normalized)).map(([label]) => label);
+  return specGuidesFor(labels).slice(0, max);
+}
+
+/**
+ * Jawaban deterministik dari bank materi, dipakai bila layanan AI gagal
+ * untuk pertanyaan umum soal spesifikasi: "apa ini" + dua realita pertama.
+ */
+export function guideAnswer(entries: readonly SpecGuideEntry[]): string | null {
+  if (entries.length === 0) return null;
+  return entries
+    .map((entry) => `${entry.label}: ${entry.what} ${entry.reality.slice(0, 2).join(" ")}`)
+    .join("\n\n");
+}
+
 /** Penjelasan untuk sekumpulan label, urutan mengikuti label, tanpa duplikat. */
 export function specGuidesFor(labels: readonly string[]): SpecGuideEntry[] {
   const seen = new Set<string>();

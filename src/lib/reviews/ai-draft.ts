@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { getAiClient } from "@/lib/assistant/ai/client";
+import { normalizeDraft } from "@/lib/reviews/ai-draft-rules";
 import { youtubeWatchUrl } from "@/lib/reviews/youtube-match";
 
 /**
@@ -52,8 +53,8 @@ export const draftSchema = z.object({
   menit: z.string().max(8),
   /** Reviewer menyebut sponsor, kerja sama, atau unit dari brand. */
   bersponsor: z.boolean(),
-  /** Hal yang tidak pasti atau perlu dicek admin. */
-  catatan: z.string().max(400),
+  /** Hal yang tidak pasti atau perlu dicek admin, plus peringatan kata penilaian. */
+  catatan: z.string().max(600),
 });
 export type VideoDraft = z.infer<typeof draftSchema>;
 
@@ -90,12 +91,12 @@ ATURAN:
 - Tulis dalam bahasa Indonesia yang wajar, dengan kalimatmu sendiri. JANGAN menyalin ucapan reviewer kata per kata dan jangan membuat kutipan panjang.
 - Hanya isi yang benar-benar disampaikan reviewer di video ini. Jangan menambah spesifikasi, harga, atau pendapatmu sendiri. Bila sesuatu tidak dibahas, jangan dikarang.
 - "ringkasan": 2 sampai 4 kalimat, minimal 40 karakter, inti penilaian reviewer untuk fokus di atas.
-- "kelebihan" dan "kekurangan": poin pendek menurut reviewer, masing-masing paling banyak 6. Kosongkan bila tidak disebut.
+- "kelebihan" dan "kekurangan": poin pendek menurut reviewer (paling panjang sekitar 25 kata per poin), masing-masing paling banyak 6. Kosongkan bila tidak disebut.
 - "konteks": cara reviewer menguji (mis. "dipakai 2 minggu, main Genshin 1 jam"), kosong bila tidak disebut.
-- "menit": menit bagian video yang paling relevan dengan fokus, format m:ss. Kosongkan bila tidak yakin.
+- "menit": SATU waktu bagian video yang paling relevan dengan fokus, format m:ss (bukan rentang, bukan 0:00). Kosongkan bila tidak yakin.
 - "bersponsor": true bila reviewer menyebut sponsor, kerja sama berbayar, atau "dikirim oleh brand".
 - "relevan": false bila video ternyata bukan ulasan produk ini (mis. produk lain, unboxing tanpa penilaian, kompilasi). Bila false, isi "catatan" dengan alasannya.
-- Tanpa skor, peringkat, atau kata "terbaik", "termurah", "paling bagus".
+- Tanpa skor, peringkat, atau kata "terbaik", "termurah", "paling bagus", "juara", "nomor satu", juga bila reviewer sendiri mengucapkannya. Ganti dengan pengamatan konkret, mis. "zoom 10x masih tajam menurut reviewer", bukan "zoom terbaik".
 - "catatan": hal yang tidak yakin atau perlu dicek admin (mis. "reviewer memakai varian 12/512 GB"). Kosong bila tidak ada.`;
 }
 
@@ -133,8 +134,22 @@ export async function draftFromVideo(input: DraftInput): Promise<{ ok: true; dra
     );
     const raw = completion.choices[0]?.message?.content;
     if (!raw) return { ok: false, reason: "Model tidak mengembalikan draf." };
-    const parsed = draftSchema.safeParse(JSON.parse(raw));
-    if (!parsed.success) return { ok: false, reason: "Draf dari model tidak sesuai bentuk yang diharapkan." };
+    // Keluaran dirapikan ke batas formulir, bukan ditolak utuh (uji coba 18 Nov
+    // 2026: 2 dari 4 draf terbuang hanya karena satu kolom kepanjangan).
+    let json: unknown;
+    try {
+      json = JSON.parse(raw.replace(/^```(?:json)?\s*|\s*```$/g, ""));
+    } catch {
+      console.error("[ulasan-ai] draf bukan JSON yang utuh (mungkin terpotong batas token).");
+      return { ok: false, reason: "Draf dari model terpotong. Coba sekali lagi atau tulis manual." };
+    }
+    const normalized = normalizeDraft(json, input.aspect);
+    const parsed = normalized ? draftSchema.safeParse(normalized) : null;
+    if (!parsed?.success) {
+      // Jalur kolom yang gagal saja, tanpa isi draf (untuk diagnosis).
+      console.error("[ulasan-ai] draf tidak bisa dipakai:", parsed ? parsed.error.issues.map((i) => i.path.join(".")).join(", ") : "tanpa isi");
+      return { ok: false, reason: "Draf dari model tidak bisa dipakai. Coba sekali lagi atau tulis manual." };
+    }
     return { ok: true, draft: parsed.data };
   } catch (error) {
     const status = (error as { status?: number })?.status;

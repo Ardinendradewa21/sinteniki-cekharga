@@ -14,6 +14,7 @@ import { parseNeeds } from "@/lib/assistant/needs";
 import { toResultView } from "@/lib/assistant/results";
 import { guardRequirements, mergeHints, readHints } from "@/lib/assistant/hints";
 import { compareRequest, decideTurn, nextFocus, refinementSuggestions } from "@/lib/assistant/dialog-policy";
+import { specQuestionFallback } from "@/lib/assistant/spec-fallback";
 import { fallbackResultReply, writeProductReply, writeResultReply } from "@/lib/assistant/ai/writer";
 import { spreadAcrossPriceBands } from "@/lib/assistant/price-bands";
 import { findProductMentions } from "@/lib/assistant/product-mentions";
@@ -142,6 +143,20 @@ export async function sendChatMessage(
   ]);
 
   if (!turn.ok) {
+    // Cadangan deterministik (persetujuan PO 18 Nov 2026): pertanyaan umum
+    // soal spesifikasi ("NFC itu buat apa?") tetap terjawab dari bank materi
+    // saat layanan AI gagal, selama tidak menyebut produk katalog dan bukan
+    // permintaan mencari. Selain itu tetap tampil galat + coba lagi.
+    const fallback = specQuestionFallback(text, findProductMentions(text, catalog.products).length > 0);
+    if (fallback) {
+      return {
+        ...prev,
+        messages: [...withUser, { role: "assistant", content: fallback }],
+        suggestions: [],
+        error: null,
+        retryText: null,
+      };
+    }
     return { ...prev, messages: withUser, suggestions: [], error: turn.reason, retryText: text };
   }
 
