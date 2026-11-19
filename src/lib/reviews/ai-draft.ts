@@ -27,11 +27,24 @@ import { youtubeWatchUrl } from "@/lib/reviews/youtube-match";
  * design 7: timeout, tanpa percobaan ulang otomatis, cadangan).
  */
 
+/**
+ * Draf dari video DIMATIKAN (keputusan PO 19 Nov 2026, RV-04): satu video
+ * 12 menit sekitar $0,07, setara ~175 giliran Tanya AI yang memakai kunci
+ * OpenRouter yang sama. Draf dibuat dari transkrip tempelan atau "Rapikan"
+ * (sekitar $0,005-0,015). Kode jalur video dipertahankan; menyalakannya lagi
+ * cukup mengubah nilai ini setelah PO memutuskan.
+ */
+export const VIDEO_DRAFT_ENABLED = false;
+
 export const VIDEO_DRAFT_LIMITS = {
-  /** Draf video per admin per hari (dihitung di database bersama kuota AI). */
+  /** Draf video per admin per hari (bila jalur video dinyalakan lagi). */
   perAdminDaily: 20,
-  /** Draf teks (transkrip/rapikan) per admin per hari; murah, tetap dibatasi. */
-  perAdminDailyText: 60,
+  /**
+   * Draf teks (transkrip/rapikan) per hari untuk SEMUA admin bersama (RV-04):
+   * pagar supaya ringkasan tidak pernah menghabiskan kredit Tanya AI.
+   * 30 draf x ~$0,015 = maks ~$0,45/hari.
+   */
+  allAdminsDailyText: 30,
   /** Draf per admin per menit (memori instance). */
   perMinute: 3,
   /**

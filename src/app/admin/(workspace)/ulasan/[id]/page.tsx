@@ -10,6 +10,7 @@ import { requireStaff } from "@/lib/auth/dal";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { publishFromCandidateAction, rejectCandidateAction } from "@/lib/reviews/actions";
 import { draftForCandidateAction, type DraftRequest } from "@/lib/reviews/ai-draft-actions";
+import { VIDEO_DRAFT_ENABLED } from "@/lib/reviews/ai-draft";
 import { hasAiCredentials } from "@/lib/assistant/ai/client";
 import { getCandidate } from "@/lib/reviews/queries";
 import { youtubeWatchUrl } from "@/lib/reviews/youtube-match";
@@ -111,7 +112,7 @@ export default async function CandidatePage(props: PageProps<"/admin/ulasan/[id]
         <ReviewForm
           action={publish}
           draftAction={hasAiCredentials() ? draft : null}
-          hasVideo
+          hasVideo={VIDEO_DRAFT_ENABLED}
           variants={variants}
           submitLabel="Terbitkan ringkasan"
           initial={{

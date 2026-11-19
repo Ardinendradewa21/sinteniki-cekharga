@@ -145,7 +145,23 @@ export function ReviewForm({
           <p className="mt-1 max-w-prose text-sm text-muted-foreground">
             AI mengisi formulir dalam format kartu. Tidak ada yang tersimpan sebelum kamu memeriksa dan menyimpan.
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          {/* RV-04: transkrip jadi jalur utama (draf dari video dimatikan untuk
+              menghemat kredit), jadi kotaknya langsung terlihat, tidak dilipat. */}
+          <div className="mt-3 space-y-2 rounded-lg border border-border bg-card p-3">
+            <Label htmlFor="transcript" className="text-sm font-semibold text-foreground">
+              Transkrip video
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Di YouTube: buka video, klik &ldquo;…lainnya&rdquo; di deskripsi, pilih &ldquo;Tampilkan transkrip&rdquo;, lalu salin semua teksnya
+              beserta penanda waktunya. Penanda waktu dipakai untuk menit di tiap poin.
+            </p>
+            <textarea id="transcript" ref={transcriptRef} rows={5} maxLength={80_000} className={FIELD} placeholder="0:00 Halo semua..." />
+            <Button type="button" variant="outline" onClick={() => runDraft("transkrip")} disabled={busy}>
+              {running === "transkrip" ? "Membaca transkrip…" : "Buat draf dari transkrip"}
+            </Button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {hasVideo ? (
               <Button type="button" variant="outline" onClick={() => runDraft("video")} disabled={busy}>
                 {running === "video" ? "AI sedang menonton video…" : "Buat draf dari video"}
@@ -154,26 +170,8 @@ export function ReviewForm({
             <Button type="button" variant="outline" onClick={() => runDraft("rapikan")} disabled={busy}>
               {running === "rapikan" ? "Merapikan…" : "Rapikan isian dengan AI"}
             </Button>
+            <p className="text-xs text-muted-foreground">Rapikan: menata isian formulir saat ini ke format kartu tanpa menambah isi.</p>
           </div>
-
-          <details className="group mt-3 rounded-lg border border-border bg-card">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 text-sm font-semibold text-brand-text [&::-webkit-details-marker]:hidden">
-              Tempel transkrip (lebih cepat dan murah)
-            </summary>
-            <div className="space-y-2 border-t border-border p-3">
-              <p className="text-xs text-muted-foreground">
-                Di YouTube: buka video, klik &ldquo;…lainnya&rdquo; di deskripsi, pilih &ldquo;Tampilkan transkrip&rdquo;, lalu salin semua teksnya
-                beserta penanda waktunya. Penanda waktu dipakai untuk menit di tiap poin.
-              </p>
-              <Label htmlFor="transcript" className="sr-only">
-                Transkrip video
-              </Label>
-              <textarea id="transcript" ref={transcriptRef} rows={6} maxLength={80_000} className={FIELD} placeholder="0:00 Halo semua..." />
-              <Button type="button" variant="outline" onClick={() => runDraft("transkrip")} disabled={busy}>
-                {running === "transkrip" ? "Membaca transkrip…" : "Buat draf dari transkrip"}
-              </Button>
-            </div>
-          </details>
 
           {running === "video" ? (
             <p role="status" className="mt-2 text-xs text-muted-foreground">
