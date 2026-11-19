@@ -33,23 +33,25 @@ const nextConfig: NextConfig = {
       Verdant dan foto produk ikut lebih ringan di HP (DESIGN.md §6.2).
     */
     formats: ["image/avif", "image/webp"],
-    ...(insforgeStorageHostname
-      ? {
-          remotePatterns: [
+    remotePatterns: [
+      // Thumbnail video ulasan (RV-01): sampul dari YouTube sebelum pemutar dimuat.
+      { protocol: "https", hostname: "i.ytimg.com", pathname: "/vi/**" },
+      ...(insforgeStorageHostname
+        ? [
             {
-              protocol: "https",
+              protocol: "https" as const,
               hostname: insforgeStorageHostname,
               pathname: "/api/storage/buckets/product-images/objects/**",
             },
             {
               // Materi iklan mitra (slot iklan situs publik).
-              protocol: "https",
+              protocol: "https" as const,
               hostname: insforgeStorageHostname,
               pathname: "/api/storage/buckets/ad-creatives/objects/**",
             },
-          ],
-        }
-      : {}),
+          ]
+        : []),
+    ],
   },
   experimental: {
     ...(Number.isFinite(buildCpus) && buildCpus > 0 ? { cpus: buildCpus } : {}),

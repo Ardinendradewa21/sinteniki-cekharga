@@ -96,4 +96,18 @@ test.describe("Detail produk (FR-03, FR-05)", () => {
     await expect(section.getByRole("heading", { name: "Ulasan keseluruhan", level: 3 })).toBeVisible();
     await expect(section.getByRole("heading", { name: "Ulasan kamera", level: 3 })).toBeVisible();
   });
+
+  test("TC-DET-11 video ulasan diputar di kartu, pemutar baru dimuat saat diklik (RV-01) @regression", async ({ page }) => {
+    // Produk dengan ulasan terbit; dilewati bila datanya belum ada.
+    await page.goto("/products/xiaomi-redmi-17");
+    const play = page.getByRole("button", { name: /Putar video ulasan/ }).first();
+    test.skip((await play.count()) === 0, "Belum ada ulasan video terbit untuk produk uji.");
+    // Sebelum diklik: tanpa iframe YouTube (halaman tetap ringan).
+    await expect(page.locator('iframe[src*="youtube"]')).toHaveCount(0);
+    const open = page.getByRole("link", { name: /Buka di YouTube/ }).first();
+    await expect(open).toHaveAttribute("href", /^https:\/\/www\.youtube\.com\/watch\?v=/);
+    await expect(open).toHaveAttribute("target", "_blank");
+    await play.click();
+    await expect(page.locator('iframe[src^="https://www.youtube-nocookie.com/embed/"]').first()).toBeVisible();
+  });
 });
