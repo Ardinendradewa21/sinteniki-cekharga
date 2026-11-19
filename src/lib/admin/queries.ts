@@ -123,6 +123,8 @@ export type AdminReviewRow = {
   strengths: string[];
   limitations: string[];
   testContext: string | null;
+  /** RV-02: null = ringkasan format lama (belum punya "Intinya"). */
+  verdict: string | null;
   status: "draft" | "published";
 };
 
@@ -649,6 +651,7 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
       strengths: Array.isArray(r.strengths) ? r.strengths.map(String) : [],
       limitations: Array.isArray(r.limitations) ? r.limitations.map(String) : [],
       testContext: (r.test_context as string | null) ?? null,
+      verdict: typeof r.verdict === "string" ? r.verdict : null,
       status: r.status as "draft" | "published",
     }))
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());

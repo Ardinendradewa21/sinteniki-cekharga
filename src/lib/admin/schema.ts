@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { parseRupiahInput } from "@/lib/admin/rupiah-input";
+import { cardFieldsSchema } from "@/lib/reviews/card-input";
 
 /**
  * Validasi masukan form admin (PRD §9 dan §10).
@@ -166,25 +167,14 @@ export function formToNestedObject(formData: FormData): Record<string, unknown> 
  *   atribusi; pembaca harus bisa memeriksa sendiri klaimnya.
  * - `timestampSeconds` boleh kosong, tapi kalau diisi harus masuk akal. Ini
  *   penunjuk ke menit keberapa klaim itu diucapkan.
- * - Kelebihan dan keterbatasan ditulis satu per baris, lalu dipecah di sini.
- *   Baris kosong dibuang supaya tidak ada butir hampa di halaman publik.
+ * - Isian kartu (intinya, label, poin bermenit, ringkasan, konteks) dibaca
+ *   oleh skema bersama RV-02 (`cardFieldsSchema`). "Intinya" boleh kosong di
+ *   sini karena entri manual tersimpan sebagai draft dan bisa dilengkapi lewat Ubah.
  * - Tidak ada penggabungan atau penyaringan pendapat. FR-07 mensyaratkan
  *   review lintas sumber bisa disimpan TANPA menghapus perbedaan pendapat,
  *   jadi dua reviewer yang bertentangan sama-sama tersimpan apa adanya.
  */
-const linesToArray = z.preprocess(
-  (value) =>
-    typeof value === "string"
-      ? value
-          // Textarea di browser mengirim CRLF, bukan LF saja.
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .filter((line) => line.length > 0)
-      : value,
-  z.array(z.string().min(1))
-);
-
-export const reviewInput = z.object({
+export const reviewInput = cardFieldsSchema({ requireVerdict: false }).omit({ timestamp: true }).extend({
   /** Kosong berarti review berlaku untuk produk, bukan varian tertentu. */
   variantId: z.preprocess(emptyToNull, z.uuid().nullable()),
   channelName: z.string().trim().min(1, "Nama channel wajib diisi"),
@@ -200,10 +190,6 @@ export const reviewInput = z.object({
   ),
   /** PB-40: halaman produk memisahkan ulasan keseluruhan dan ulasan kamera. */
   aspect: z.enum(["umum", "kamera"], "Pilih aspek: umum atau kamera"),
-  summary: z.string().trim().min(1, "Ringkasan wajib diisi").max(1200, "Ringkasan maksimal 1.200 karakter"),
-  strengths: linesToArray,
-  limitations: linesToArray,
-  testContext: optionalText,
   /** Kotak centang: terkirim "on" hanya bila dicentang. */
   isSponsored: z.preprocess((value) => value === "on" || value === "true", z.boolean()),
 });

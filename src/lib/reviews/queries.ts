@@ -144,3 +144,84 @@ export async function productsWithPendingCandidates(): Promise<{ id: string; nam
     .map((row) => ({ id: String(row.id), name: `${row.brand} ${row.model}`, pending: counts.get(String(row.id)) ?? 0 }))
     .sort((a, b) => a.name.localeCompare(b.name, "id"));
 }
+
+export type ReviewForEdit = {
+  id: string;
+  productId: string;
+  productName: string;
+  productSlug: string;
+  channelName: string;
+  videoUrl: string;
+  youtubeId: string | null;
+  videoTitle: string | null;
+  aspect: "umum" | "kamera";
+  variantId: string | null;
+  status: "draft" | "published";
+  isSponsored: boolean;
+  timestampSeconds: number | null;
+  summary: string;
+  strengths: string[];
+  strengthSeconds: (number | null)[];
+  limitations: string[];
+  limitationSeconds: (number | null)[];
+  verdict: string | null;
+  goodFor: string[];
+  notFor: string[];
+  testContext: string | null;
+  variants: { id: string; label: string }[];
+};
+
+const seconds = (value: unknown): (number | null)[] =>
+  Array.isArray(value) ? value.map((item) => (typeof item === "number" ? item : null)) : [];
+const texts = (value: unknown): string[] => (Array.isArray(value) ? value.map(String) : []);
+
+/** Satu ringkasan untuk halaman ubah (RV-02): ringkasan, produk, varian, dan judul video dalam 3 query paralel. */
+export async function getReviewForEdit(id: string): Promise<ReviewForEdit | null> {
+  const { data, error } = await db()
+    .from("review_summaries")
+    .select(
+      "id, product_id, variant_id, channel_name, video_url, youtube_video_id, aspect, status, is_sponsored, timestamp_seconds, summary, strengths, strength_seconds, limitations, limitation_seconds, verdict, good_for, not_for, test_context"
+    )
+    .eq("id", id)
+    .limit(1);
+  if (error) throw new Error("Ringkasan ulasan gagal dibaca.");
+  const row = ((data ?? []) as Record<string, unknown>[])[0];
+  if (!row) return null;
+  const productId = String(row.product_id);
+  const youtubeId = typeof row.youtube_video_id === "string" ? row.youtube_video_id : null;
+  const [product, variants, video] = await Promise.all([
+    db().from("products").select("id, slug, brand, model").eq("id", productId).limit(1),
+    db().from("variants").select("id, ram_gb, storage_gb").eq("product_id", productId).order("ram_gb").order("storage_gb"),
+    youtubeId ? db().from("review_videos").select("title").eq("youtube_video_id", youtubeId).limit(1) : Promise.resolve({ data: [] }),
+  ]);
+  const productRow = ((product.data ?? []) as Record<string, unknown>[])[0];
+  if (!productRow) return null;
+  return {
+    id: String(row.id),
+    productId,
+    productName: `${productRow.brand} ${productRow.model}`,
+    productSlug: String(productRow.slug),
+    channelName: String(row.channel_name),
+    videoUrl: String(row.video_url),
+    youtubeId,
+    videoTitle: (((video.data ?? []) as { title?: string }[])[0]?.title as string | undefined) ?? null,
+    aspect: row.aspect === "kamera" ? "kamera" : "umum",
+    variantId: typeof row.variant_id === "string" ? row.variant_id : null,
+    status: row.status === "published" ? "published" : "draft",
+    isSponsored: row.is_sponsored === true,
+    timestampSeconds: typeof row.timestamp_seconds === "number" ? row.timestamp_seconds : null,
+    summary: String(row.summary ?? ""),
+    strengths: texts(row.strengths),
+    strengthSeconds: seconds(row.strength_seconds),
+    limitations: texts(row.limitations),
+    limitationSeconds: seconds(row.limitation_seconds),
+    verdict: typeof row.verdict === "string" ? row.verdict : null,
+    goodFor: texts(row.good_for),
+    notFor: texts(row.not_for),
+    testContext: typeof row.test_context === "string" ? row.test_context : null,
+    variants: ((variants.data ?? []) as { id: string; ram_gb: number; storage_gb: number }[]).map((variant) => ({
+      id: variant.id,
+      label: `${variant.ram_gb}/${variant.storage_gb >= 1024 ? `${variant.storage_gb / 1024} TB` : `${variant.storage_gb} GB`}`,
+    })),
+  };
+}

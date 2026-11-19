@@ -126,13 +126,16 @@ test("rangkuman: penilaian, skor, dan kamera karangan ditolak", () => {
 
 import { draftSchema } from "@/lib/reviews/ai-draft";
 
-test("draf ulasan AI: hanya bentuk yang diharapkan yang mengisi formulir", () => {
+test("draf ulasan AI: hanya bentuk kartu RV-02 yang mengisi formulir", () => {
   const valid = {
     relevan: true,
     aspek: "kamera",
+    intinya: "Kamera utama tajam di siang hari, tetapi berisik di malam hari.",
+    cocok_untuk: ["Foto siang hari"],
+    kurang_cocok: ["Fotografi malam"],
+    kelebihan: [{ poin: "Siang: foto tajam dan warna natural", menit: "4:35" }],
+    kekurangan: [{ poin: "Malam: noise terlihat", menit: "" }],
     ringkasan: "Menurut reviewer, kamera utamanya tajam di siang hari tetapi agak berisik di malam hari.",
-    kelebihan: ["Foto siang tajam"],
-    kekurangan: ["Noise di malam hari"],
     konteks: "Dipakai seminggu",
     menit: "4:35",
     bersponsor: false,
@@ -140,22 +143,31 @@ test("draf ulasan AI: hanya bentuk yang diharapkan yang mengisi formulir", () =>
   };
   assert.ok(draftSchema.safeParse(valid).success);
   assert.equal(draftSchema.safeParse({ ...valid, aspek: "baterai" }).success, false, "aspek hanya umum/kamera (PB-40)");
-  assert.equal(draftSchema.safeParse({ ...valid, kelebihan: Array(7).fill("poin") }).success, false, "maksimal 6 poin");
+  assert.equal(draftSchema.safeParse({ ...valid, kelebihan: Array(5).fill({ poin: "poin", menit: "" }) }).success, false, "maksimal 4 poin");
+  assert.equal(draftSchema.safeParse({ ...valid, cocok_untuk: ["a b", "c d", "e f", "g h"] }).success, false, "maksimal 3 label");
   assert.equal(draftSchema.safeParse({ ...valid, ringkasan: "x".repeat(1300) }).success, false);
   assert.equal(draftSchema.safeParse({ ...valid, bersponsor: "ya" }).success, false);
 });
 
 import { clip, firstTimestamp, normalizeDraft } from "@/lib/reviews/ai-draft-rules";
 
-test("draf ulasan AI: keluaran kepanjangan dirapikan, bukan dibuang (uji coba 18 Nov 2026)", () => {
+test("draf ulasan AI: keluaran kepanjangan dirapikan, bukan dibuang (uji coba 18 Nov 2026, RV-02)", () => {
   const long = "Kamera utama tajam di siang hari dengan warna natural dan rentang dinamis lebar ".repeat(5).trim();
   const draft = normalizeDraft(
     {
       relevan: true,
       aspek: "kamera",
+      intinya: "Kamera siang tajam. Malam masih berisik menurut reviewer.",
+      cocok_untuk: ["Foto siang hari.", "x", "Konten media sosial", "Video vlog", "Label keempat"],
+      kurang_cocok: [],
       ringkasan: "Ringkasan cukup panjang tentang kamera menurut reviewer yang memakai ponsel ini.",
-      kelebihan: [long, "- Zoom AI termasuk yang terbaik", "a", ...Array(6).fill("Poin tambahan")],
-      kekurangan: ["Fokus video lepas"],
+      kelebihan: [
+        { poin: long, menit: "1:10" },
+        "- Zoom AI termasuk yang terbaik [3:05]",
+        { poin: "a", menit: "" },
+        ...Array(6).fill({ poin: "Poin tambahan", menit: "0:00" }),
+      ],
+      kekurangan: [{ poin: "Fokus: video lepas", menit: "12:30 - 14:00" }],
       konteks: "x ".repeat(400),
       menit: "12:30 - 14:00",
       bersponsor: "tidak",
@@ -164,13 +176,17 @@ test("draf ulasan AI: keluaran kepanjangan dirapikan, bukan dibuang (uji coba 18
     "umum"
   )!;
   assert.ok(draft, "draf tetap terpakai");
-  assert.equal(draft.kelebihan.length, 6, "maksimal 6 poin, poin satu huruf dibuang");
-  assert.ok(draft.kelebihan[0]!.length <= 220 && draft.kelebihan[0]!.endsWith("…"), "poin panjang dipotong di batas kata");
-  assert.equal(draft.kelebihan[1], "Zoom AI termasuk yang terbaik", "penanda daftar di depan poin dibuang");
+  assert.equal(draft.intinya, "Kamera siang tajam.", "intinya hanya satu kalimat");
+  assert.deepEqual(draft.cocok_untuk, ["Foto siang hari", "Konten media sosial", "Video vlog"], "maks 3 label, titik dan label 1 huruf dibuang");
+  assert.equal(draft.kelebihan.length, 4, "maksimal 4 poin, poin satu huruf dibuang");
+  assert.ok(draft.kelebihan[0]!.poin.length <= 140 && draft.kelebihan[0]!.poin.endsWith("…"), "poin panjang dipotong di batas kata");
+  assert.deepEqual(draft.kelebihan[1], { poin: "Zoom AI termasuk yang terbaik", menit: "3:05" }, "poin teks: penanda daftar dibuang, [m:ss] jadi menit");
+  assert.equal(draft.kelebihan[2]!.menit, "", "0:00 bukan menit");
+  assert.equal(draft.kekurangan[0]!.menit, "12:30", "rentang jadi waktu pertama");
   assert.match(draft.catatan, /Kelebihan no\. 2 memuat kata penilaian "terbaik"/);
-  assert.match(draft.catatan, /hanya 6 pertama yang dipakai/);
+  assert.match(draft.catatan, /hanya 4 pertama yang dipakai/);
   assert.match(draft.catatan, /12\/256 GB/, "catatan model tetap ada");
-  assert.equal(draft.menit, "12:30", "rentang jadi waktu pertama");
+  assert.equal(draft.menit, "12:30");
   assert.equal(draft.bersponsor, false, "bukan boolean = tidak bersponsor");
   assert.ok(draft.konteks.length <= 300);
   assert.ok(draftSchema.safeParse(draft).success, "hasil normalisasi selalu lolos skema formulir");
@@ -178,8 +194,67 @@ test("draf ulasan AI: keluaran kepanjangan dirapikan, bukan dibuang (uji coba 18
   assert.equal(firstTimestamp("0:00"), "", "0:00 tidak menunjuk bagian mana pun");
   assert.equal(firstTimestamp("menit 4:35"), "4:35");
   assert.equal(clip("satu dua tiga empat", 12), "satu dua…");
-  assert.equal(normalizeDraft({ ringkasan: "", kelebihan: [], kekurangan: [] }, "umum"), null, "tanpa isi = ditolak");
+  assert.equal(normalizeDraft({ intinya: "", ringkasan: "", kelebihan: [], kekurangan: [] }, "umum"), null, "tanpa isi = ditolak");
   assert.equal(normalizeDraft({ ringkasan: "Isi cukup panjang untuk ringkasan draf.", aspek: "baterai" }, "kamera")?.aspek, "kamera");
+});
+
+import { formatClock, parseClock, parsePointLine, parsePointLines, pointSeconds, splitKeyword, zipPoints } from "@/lib/reviews/review-format";
+
+test("format kartu: menit per poin ditulis [m:ss] di akhir baris", () => {
+  assert.deepEqual(parsePointLine("- Baterai: tahan 19 jam [4:12]"), { text: "Baterai: tahan 19 jam", seconds: 252 });
+  assert.deepEqual(parsePointLine("2. Layar: terang (1:02:03)"), { text: "Layar: terang", seconds: 3723 });
+  assert.deepEqual(parsePointLine("Tanpa menit"), { text: "Tanpa menit", seconds: null });
+  assert.deepEqual(parsePointLine("Awal video [0:00]"), { text: "Awal video", seconds: null }, "0:00 bukan menit");
+  assert.equal(parsePointLines("a\n\nb\nc\nd\ne").length, 4, "maksimal 4 poin");
+  assert.equal(parseClock("4:35"), 275);
+  assert.equal(parseClock("90"), 90);
+  assert.equal(parseClock("4.35"), null);
+  assert.equal(formatClock(3723), "1:02:03");
+  assert.equal(formatClock(75), "1:15");
+  assert.deepEqual(pointSeconds([{ text: "a", seconds: null }]), [], "tanpa menit sama sekali = larik kosong");
+  assert.deepEqual(pointSeconds([{ text: "a", seconds: 5 }, { text: "b", seconds: null }]), [5, null], "sejajar dengan teks");
+  assert.deepEqual(zipPoints(["a", "b"], []), [{ text: "a", seconds: null }, { text: "b", seconds: null }], "ulasan lama tanpa menit");
+});
+
+test("format kartu: kata kunci ditebalkan hanya bila pendek", () => {
+  assert.deepEqual(splitKeyword("Baterai: tahan 19 jam"), { keyword: "Baterai", rest: "tahan 19 jam" });
+  assert.deepEqual(splitKeyword("Kamera depan: detail kurang"), { keyword: "Kamera depan", rest: "detail kurang" });
+  assert.equal(splitKeyword("Reviewer bilang bahwa menurut dia hasilnya: bagus").keyword, null, "lebih dari 4 kata = kalimat biasa");
+  assert.equal(splitKeyword("Rekam 4:35 menit").keyword, null, "titik dua di dalam waktu bukan pemisah");
+  assert.equal(splitKeyword("Tanpa titik dua").keyword, null);
+});
+
+import { cardColumns, cardFieldsSchema } from "@/lib/reviews/card-input";
+
+test("isian kartu: >4 poin ditolak dengan pesan (bukan dipotong diam-diam), menit sejajar tersimpan", () => {
+  const schema = cardFieldsSchema({ requireVerdict: true });
+  const base = {
+    verdict: "Cocok untuk kerja harian berkat baterai awet.",
+    goodFor: "Pekerjaan kantor\nPemakaian harian",
+    notFor: "Gaming berat",
+    summary: "Ringkasan lengkap yang cukup panjang untuk lolos batas minimal empat puluh karakter.",
+    strengths: "Baterai: tahan 19 jam [4:12]\nLayar: besar 6,9 inci",
+    limitations: "",
+    testContext: "",
+    timestamp: "4:12",
+  };
+  const ok = schema.safeParse(base);
+  assert.ok(ok.success);
+  const columns = cardColumns(ok.data);
+  assert.deepEqual(columns.strengths, ["Baterai: tahan 19 jam", "Layar: besar 6,9 inci"]);
+  assert.deepEqual(columns.strength_seconds, [252, null]);
+  assert.deepEqual(columns.limitation_seconds, []);
+  assert.deepEqual(columns.good_for, ["Pekerjaan kantor", "Pemakaian harian"]);
+  assert.equal(columns.timestamp_seconds, 252);
+  assert.equal(columns.test_context, null);
+
+  const tooMany = schema.safeParse({ ...base, strengths: "a1\nb2\nc3\nd4\ne5" });
+  assert.equal(tooMany.success, false);
+  assert.match(tooMany.error!.issues[0]!.message, /maksimal 4 poin/);
+  assert.equal(schema.safeParse({ ...base, verdict: "" }).success, false, "intinya wajib di formulir kartu");
+  assert.ok(cardFieldsSchema({ requireVerdict: false }).safeParse({ ...base, verdict: "" }).success, "boleh kosong di entri manual");
+  assert.equal(schema.safeParse({ ...base, notFor: "a b, c d, e f, g h" }).success, false, "maks 3 label");
+  assert.equal(schema.safeParse({ ...base, timestamp: "4.12" }).success, false);
 });
 
 import { JUDGEMENT } from "@/lib/reviews/digest-rules";

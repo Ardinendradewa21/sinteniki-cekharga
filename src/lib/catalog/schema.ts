@@ -138,6 +138,13 @@ export const reviewSummarySchema = z.object({
   summary: z.string().min(1),
   strengths: z.array(z.string().min(1)),
   limitations: z.array(z.string().min(1)),
+  /** RV-02: satu kalimat kesimpulan; null = ulasan format lama. */
+  verdict: z.string().min(1).nullable(),
+  goodFor: z.array(z.string().min(1)),
+  notFor: z.array(z.string().min(1)),
+  /** Menit video per poin, sejajar dengan strengths/limitations; kosong = tanpa menit. */
+  strengthSeconds: z.array(z.int().nonnegative().nullable()),
+  limitationSeconds: z.array(z.int().nonnegative().nullable()),
   /** Konteks pengujian reviewer, mis. "pemakaian 1 minggu, jaringan 4G". */
   testContext: z.string().nullable(),
   /** Video bersponsor wajib ditandai ke pembaca. */

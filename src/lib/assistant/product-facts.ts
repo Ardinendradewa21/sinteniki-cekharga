@@ -62,11 +62,13 @@ async function singleProduct(now: Date, slug: string): Promise<ProductFacts | nu
     lines.push("Ringkasan reviewer (pendapat, bukan pengujian CekHarga):");
     for (const review of detail.reviews.slice(0, 4)) {
       const extra = [
-        review.strengths.length ? `kelebihan: ${review.strengths.join("; ")}` : null,
-        review.limitations.length ? `keterbatasan: ${review.limitations.join("; ")}` : null,
+        review.strengths.length ? `kelebihan: ${review.strengths.map((point) => point.text).join("; ")}` : null,
+        review.limitations.length ? `keterbatasan: ${review.limitations.map((point) => point.text).join("; ")}` : null,
       ].filter(Boolean);
+      // RV-02: "Intinya" (kesimpulan reviewer) didahulukan bila ada.
+      const summary = review.verdict ? `${review.verdict} ${review.summary}` : review.summary;
       lines.push(
-        `- ${review.channelName} (${review.aspect}${review.isSponsored ? ", video bersponsor" : ""}): ${review.summary}${extra.length ? ` (${extra.join(". ")})` : ""}`
+        `- ${review.channelName} (${review.aspect}${review.isSponsored ? ", video bersponsor" : ""}): ${summary}${extra.length ? ` (${extra.join(". ")})` : ""}`
       );
     }
   } else {

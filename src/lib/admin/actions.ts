@@ -21,6 +21,7 @@ import { officialBrandName } from "@/lib/catalog/brands";
 import { formatIdr } from "@/lib/catalog/pricing";
 import { isPendingUrlSuggestion, sameOfferUrl } from "@/lib/import/price-refresh-rules";
 import { loadStoreResolver } from "@/lib/import/stores";
+import { cardColumns } from "@/lib/reviews/card-input";
 import { parseYoutubeVideoId } from "@/lib/reviews/youtube-match";
 
 /**
@@ -834,12 +835,8 @@ export async function addReviewAction(
         channel_name: input.channelName,
         video_url: input.videoUrl,
         published_at: input.publishedAt,
-        timestamp_seconds: input.timestampSeconds,
+        ...cardColumns({ ...input, timestamp: input.timestampSeconds }),
         aspect: input.aspect,
-        summary: input.summary,
-        strengths: input.strengths,
-        limitations: input.limitations,
-        test_context: input.testContext,
         is_sponsored: input.isSponsored,
         youtube_video_id: parseYoutubeVideoId(input.videoUrl),
         // Review baru selalu draft. Ringkasan pendapat orang lain harus

@@ -1,9 +1,10 @@
 import { HugeiconsIcon } from "@hugeicons/react";
-import { LinkSquare01Icon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, LinkSquare01Icon, MinusSignIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 
 import { ReviewCarousel } from "@/components/product/review-carousel";
-import { ReviewVideo, ReviewVideoProvider } from "@/components/product/review-video";
+import { ReviewVideo, ReviewVideoProvider, TimestampButton } from "@/components/product/review-video";
 import type { ProductReview } from "@/lib/catalog/queries";
+import { formatClock, splitKeyword, type ReviewPoint } from "@/lib/reviews/review-format";
 import { parseYoutubeVideoId } from "@/lib/reviews/youtube-match";
 import { cn } from "@/lib/utils";
 
@@ -43,12 +44,6 @@ const GROUPS = [
     empty: "Belum ada ringkasan ulasan kamera untuk produk ini.",
   },
 ] as const;
-
-function formatTimestamp(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return `${minutes}:${String(rest).padStart(2, "0")}`;
-}
 
 function formatPublishedAt(iso: string): string {
   return new Date(iso).toLocaleDateString("id-ID", {
@@ -108,7 +103,9 @@ function ReviewCard({
   className?: string;
 }) {
   return (
-    <li className={cn("rounded-xl border border-border bg-card p-5", className)}>
+    // `relative`: teks sr-only (posisi absolut) tertampung di kartu. Tanpa ini,
+    // kartu carousel di luar layar membuat halaman 375px bisa digeser 380px.
+    <li className={cn("relative rounded-xl border border-border bg-card p-5", className)}>
       <ReviewVideoProvider videoUrl={review.videoUrl} startSeconds={review.timestampSeconds}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-sm font-bold text-foreground">{review.channelName}</p>
@@ -125,58 +122,140 @@ function ReviewCard({
         ) : null}
       </p>
 
-      <p className="mt-3 text-sm leading-relaxed text-foreground">{review.summary}</p>
-
-      {review.strengths.length > 0 || review.limitations.length > 0 ? (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {review.strengths.length > 0 ? (
-            <div>
-              <p className="text-xs font-semibold text-success">Menurut {review.channelName}, kelebihannya</p>
-              <ul className="mt-1.5 space-y-1 text-sm text-muted-foreground">
-                {review.strengths.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
+      {review.verdict ? (
+        <>
+          {/* RV-02: kesimpulan dulu (piramida terbalik), lalu label untuk
+              dipindai, video, poin bermenit, dan ringkasan lengkap dilipat. */}
+          <p className="mt-3 text-xs font-semibold text-muted-foreground">Intinya menurut {review.channelName}</p>
+          <p className="mt-1 text-base leading-snug font-semibold text-foreground">{review.verdict}</p>
+          {review.goodFor.length > 0 || review.notFor.length > 0 ? (
+            <dl className="mt-3 space-y-2">
+              <FitRow label="Cocok untuk" items={review.goodFor} tone="good" />
+              <FitRow label="Kurang cocok untuk" items={review.notFor} tone="bad" />
+            </dl>
           ) : null}
-
-          {review.limitations.length > 0 ? (
-            <div>
-              <p className="text-xs font-semibold text-warning">Keterbatasan yang disebut</p>
-              <ul className="mt-1.5 space-y-1 text-sm text-muted-foreground">
-                {review.limitations.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+          <VideoOrLink review={review} />
+          <Points review={review} />
+          <details className="group mt-4 rounded-lg border border-border">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-3 text-sm font-semibold text-brand-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+              Baca ringkasan lengkap
+              <HugeiconsIcon
+                icon={ArrowDown01Icon}
+                size={16}
+                strokeWidth={2}
+                aria-hidden
+                className="shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-180"
+              />
+            </summary>
+            <div className="border-t border-border px-3 py-3">
+              <p className="text-sm leading-relaxed text-foreground">{review.summary}</p>
+              <TestContext value={review.testContext} />
             </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
-        Konteks pengujian:{" "}
-        {review.testContext ?? <span className="italic">tidak dicatat reviewer</span>}
-      </p>
-
-      {/* RV-01: video diputar di kartu ini (thumbnail dulu, pemutar dimuat
-          saat diklik), dengan pilihan "Buka di YouTube". Tautan lama tetap
-          menjadi cadangan bila ID video tidak bisa dibaca. */}
-      {parseYoutubeVideoId(review.videoUrl) ? (
-        <ReviewVideo channelName={review.channelName} />
+          </details>
+        </>
       ) : (
-        <a
-          href={review.videoUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
-        >
-          Lihat video sumber
-          {review.timestampSeconds !== null ? ` (menit ${formatTimestamp(review.timestampSeconds)})` : ""}
-          <HugeiconsIcon icon={LinkSquare01Icon} size={15} strokeWidth={2} aria-hidden />
-          <span className="sr-only">(membuka tab baru)</span>
-        </a>
+        <>
+          {/* Format lama (sebelum RV-02): ringkasan terbuka, lalu poin. */}
+          <p className="mt-3 text-sm leading-relaxed text-foreground">{review.summary}</p>
+          <Points review={review} />
+          <div className="mt-4 border-t border-border pt-3">
+            <TestContext value={review.testContext} />
+          </div>
+          <VideoOrLink review={review} />
+        </>
       )}
       </ReviewVideoProvider>
     </li>
+  );
+}
+
+function TestContext({ value }: { value: string | null }) {
+  return (
+    <p className="mt-3 text-xs text-muted-foreground first:mt-0">
+      Konteks pengujian: {value ?? <span className="italic">tidak dicatat reviewer</span>}
+    </p>
+  );
+}
+
+/** Label "Cocok untuk" / "Kurang cocok untuk": warna hanya penguat, teks label tetap menyebut maknanya. */
+function FitRow({ label, items, tone }: { label: string; items: string[]; tone: "good" | "bad" }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1.5">
+      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+      {items.map((item) => (
+        <dd
+          key={item}
+          className={cn(
+            "rounded-pill border px-2.5 py-0.5 text-xs font-semibold text-foreground",
+            tone === "good" ? "border-success/40 bg-success/10" : "border-warning/50 bg-warning/10"
+          )}
+        >
+          {item}
+        </dd>
+      ))}
+    </div>
+  );
+}
+
+function Points({ review }: { review: ProductReview }) {
+  if (review.strengths.length === 0 && review.limitations.length === 0) return null;
+  return (
+    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <PointList title={`Kelebihan menurut ${review.channelName}`} points={review.strengths} tone="good" />
+      <PointList title="Kekurangan yang disebut" points={review.limitations} tone="bad" />
+    </div>
+  );
+}
+
+function PointList({ title, points, tone }: { title: string; points: ReviewPoint[]; tone: "good" | "bad" }) {
+  if (points.length === 0) return null;
+  return (
+    <div>
+      <p className={cn("text-xs font-semibold", tone === "good" ? "text-success" : "text-warning")}>{title}</p>
+      <ul className="mt-1.5 space-y-1.5">
+        {points.map((point, index) => {
+          const { keyword, rest } = splitKeyword(point.text);
+          return (
+            <li key={`${index}-${point.text}`} className="flex items-center gap-2 text-sm leading-snug text-muted-foreground">
+              {/* Tanda + / − membuat sisi poin terbaca tanpa bergantung warna. */}
+              <HugeiconsIcon
+                icon={tone === "good" ? PlusSignIcon : MinusSignIcon}
+                size={14}
+                strokeWidth={2.4}
+                aria-hidden
+                className={cn("shrink-0", tone === "good" ? "text-success" : "text-warning")}
+              />
+              <span className="min-w-0 flex-1">
+                {keyword ? <strong className="font-semibold text-foreground">{keyword}:</strong> : null} {rest}
+              </span>
+              {point.seconds !== null ? <TimestampButton seconds={point.seconds} label={point.text} /> : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * RV-01: video diputar di kartu ini (thumbnail dulu, pemutar dimuat saat
+ * diklik), dengan pilihan "Buka di YouTube". Tautan lama menjadi cadangan
+ * bila ID video tidak bisa dibaca.
+ */
+function VideoOrLink({ review }: { review: ProductReview }) {
+  if (parseYoutubeVideoId(review.videoUrl)) return <ReviewVideo channelName={review.channelName} />;
+  return (
+    <a
+      href={review.videoUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+    >
+      Lihat video sumber
+      {review.timestampSeconds !== null ? ` (menit ${formatClock(review.timestampSeconds)})` : ""}
+      <HugeiconsIcon icon={LinkSquare01Icon} size={15} strokeWidth={2} aria-hidden />
+      <span className="sr-only">(membuka tab baru)</span>
+    </a>
   );
 }

@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { CandidateReviewForm } from "@/components/admin/candidate-review-form";
+import { ReviewForm } from "@/components/admin/review-form";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import type { ActionState } from "@/lib/admin/actions";
 import { requireStaff } from "@/lib/auth/dal";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { publishFromCandidateAction, rejectCandidateAction } from "@/lib/reviews/actions";
-import { draftReviewFromVideoAction } from "@/lib/reviews/ai-draft-actions";
+import { draftForCandidateAction, type DraftRequest } from "@/lib/reviews/ai-draft-actions";
 import { hasAiCredentials } from "@/lib/assistant/ai/client";
 import { getCandidate } from "@/lib/reviews/queries";
 import { youtubeWatchUrl } from "@/lib/reviews/youtube-match";
@@ -20,8 +20,12 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
-/** "Buat draf dengan AI" menonton video lewat model; bisa lebih dari satu menit. */
-export const maxDuration = 120;
+/**
+ * "Buat draf dari video" menonton video lewat model; bisa beberapa menit.
+ * 300 s = batas Vercel Hobby dengan Fluid compute (dokumentasi Vercel, dicek
+ * 19 Nov 2026). Batas tunggu model (VIDEO_DRAFT_LIMITS.timeoutMs) wajib di bawahnya.
+ */
+export const maxDuration = 300;
 
 /** Menulis ringkasan dari satu kandidat video (PB-40). */
 export default async function CandidatePage(props: PageProps<"/admin/ulasan/[id]">) {
@@ -47,9 +51,9 @@ export default async function CandidatePage(props: PageProps<"/admin/ulasan/[id]
     return publishFromCandidateAction(id, state, formData);
   }
   // Id kandidat diikat di server, tidak dikirim dari formulir.
-  async function draft(aspect: string) {
+  async function draft(request: DraftRequest) {
     "use server";
-    return draftReviewFromVideoAction(id, aspect);
+    return draftForCandidateAction(id, request);
   }
 
   return (
@@ -104,11 +108,25 @@ export default async function CandidatePage(props: PageProps<"/admin/ulasan/[id]
           ) : null}
         </div>
 
-        <CandidateReviewForm
+        <ReviewForm
           action={publish}
           draftAction={hasAiCredentials() ? draft : null}
-          suggestedAspect={candidate.suggestedAspect}
+          hasVideo
           variants={variants}
+          submitLabel="Terbitkan ringkasan"
+          initial={{
+            aspect: candidate.suggestedAspect,
+            variantId: null,
+            isSponsored: false,
+            verdict: "",
+            goodFor: "",
+            notFor: "",
+            summary: "",
+            strengths: "",
+            limitations: "",
+            testContext: "",
+            timestamp: "",
+          }}
         />
       </div>
     </Container>

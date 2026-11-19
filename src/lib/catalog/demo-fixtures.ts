@@ -28,6 +28,8 @@ import type { CatalogDataset } from "@/lib/catalog/schema";
  */
 
 const DEMO_SOURCE = "Fixture demo CekHarga";
+/** Ulasan format lama (sebelum RV-02): tanpa "Intinya", label, dan menit per poin. */
+const LEGACY_CARD = { verdict: null, goodFor: [], notFor: [], strengthSeconds: [], limitationSeconds: [] };
 const DEMO_USAGE_RIGHTS =
   "Ilustrasi generik milik proyek. Bukan foto produk asli.";
 const GENERIC_DEVICE_IMAGE = "/images/generic-device.svg";
@@ -297,9 +299,15 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         aspect: "umum",
         summary:
           "Bertahan penuh sehari untuk pemakaian campuran; pengisian 67W mengisi sekitar setengah baterai dalam 20 menit.",
-        strengths: ["Pengisian cepat terasa di pemakaian harian"],
-        limitations: ["Bodi hangat saat merekam video lama"],
+        strengths: ["Pengisian: setengah baterai dalam 20 menit"],
+        limitations: ["Suhu: bodi hangat saat merekam video lama"],
         testContext: "Pemakaian campuran 5 hari, jaringan 4G, kecerahan otomatis",
+        // Format kartu RV-02.
+        verdict: "Cocok untuk pemakaian harian berkat baterai awet, tetapi hangat saat merekam video lama.",
+        goodFor: ["Pemakaian harian"],
+        notFor: ["Merekam video lama"],
+        strengthSeconds: [412],
+        limitationSeconds: [null],
         isSponsored: false,
         status: "published",
       },
@@ -319,6 +327,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         strengths: ["Warna siang hari konsisten antar lensa"],
         limitations: ["Mode malam kehilangan detail", "Perekaman video maksimal 4K30"],
         testContext: null,
+        ...LEGACY_CARD,
         isSponsored: false,
         status: "published",
       },
@@ -336,6 +345,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         strengths: ["Performa stabil di sesi menengah"],
         limitations: ["Kecerahan turun setelah 30 menit bermain"],
         testContext: "Sesi permainan 30 menit, suhu ruangan 30°C",
+        ...LEGACY_CARD,
         isSponsored: false,
         status: "published",
       },
@@ -353,6 +363,7 @@ export function buildDemoDataset(now: Date): CatalogDataset {
         strengths: [],
         limitations: [],
         testContext: null,
+        ...LEGACY_CARD,
         isSponsored: false,
         status: "draft",
       },

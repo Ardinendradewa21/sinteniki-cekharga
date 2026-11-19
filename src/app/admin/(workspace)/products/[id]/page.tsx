@@ -62,6 +62,7 @@ const PESAN: Record<string, string> = {
   "penawaran-dipulihkan": "Penawaran dipulihkan. Catat harga hari ini supaya harganya tampil sebagai harga terbaru.",
   "url-diganti": "URL penawaran diganti ke halaman yang tercantum di situs resmi. Riwayat harganya tetap.",
   "url-ditolak": "Usulan URL ditolak dan tidak akan diusulkan lagi.",
+  "ulasan-diubah": "Ringkasan ulasan diperbarui. Bila sudah terbit, versi barunya langsung tampil di halaman produk.",
   "ganda-dihapus":
     "Penawaran ganda dihapus lunak. Harganya kini hanya dari penawaran di URL yang tercantum; riwayat harga lamanya tetap tersimpan.",
 };

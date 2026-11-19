@@ -1,10 +1,11 @@
 "use client"
 
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useId, useState, type ReactNode } from "react"
 import Image from "next/image"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LinkSquare01Icon, PlayIcon } from "@hugeicons/core-free-icons"
 
+import { formatClock } from "@/lib/reviews/review-format"
 import { parseYoutubeVideoId, youtubeWatchUrl } from "@/lib/reviews/youtube-match"
 import { cn } from "@/lib/utils"
 
@@ -27,7 +28,9 @@ type VideoState = {
   watchUrl: string
   start: number | null
   playing: boolean
-  play: (seconds: number | null) => void
+  play: (seconds: number | null, options?: { reveal?: boolean }) => void
+  /** id kotak pemutar, untuk menggulirnya ke layar dari tombol menit. */
+  frameId: string
 }
 
 const VideoContext = createContext<VideoState | null>(null)
@@ -43,18 +46,23 @@ export function ReviewVideoProvider({
 }) {
   const videoId = parseYoutubeVideoId(videoUrl)
   const [state, setState] = useState<{ playing: boolean; start: number | null }>({ playing: false, start: startSeconds })
+  const frameId = useId()
   const value: VideoState = {
     videoId,
     watchUrl: videoUrl,
     start: state.start,
     playing: state.playing,
-    play: (seconds) => setState({ playing: true, start: seconds ?? startSeconds }),
+    frameId,
+    play: (seconds, options) => {
+      setState({ playing: true, start: seconds ?? startSeconds })
+      // Tombol menit di poin: bawa pemutar ke layar (di ponsel bisa di atas lipatan).
+      if (options?.reveal) {
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        document.getElementById(frameId)?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" })
+      }
+    },
   }
   return <VideoContext.Provider value={value}>{children}</VideoContext.Provider>
-}
-
-function formatClock(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
 }
 
 export function ReviewVideo({ channelName, className }: { channelName: string; className?: string }) {
@@ -67,7 +75,7 @@ export function ReviewVideo({ channelName, className }: { channelName: string; c
     <div className={cn("mt-4", className)}>
       {/* Kotak 16:9 dipesan sejak awal: tidak ada pergeseran tata letak saat
           thumbnail berganti pemutar (CLS 0). */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-foreground/10">
+      <div id={video.frameId} className="relative aspect-video w-full scroll-mt-24 overflow-hidden rounded-lg bg-foreground/10">
         {playing ? (
           <iframe
             // key: menit baru = muat ulang pemutar dari menit itu.
@@ -126,15 +134,16 @@ export function ReviewVideo({ channelName, className }: { channelName: string; c
   )
 }
 
-/** Tombol menit di poin ulasan: memutar video kartu ini mulai dari menit itu (dipakai RV-02). */
+/** Tombol menit di poin ulasan: memutar video kartu ini mulai dari menit itu (RV-02). */
 export function TimestampButton({ seconds, label }: { seconds: number; label: string }) {
   const video = useContext(VideoContext)
   if (!video?.videoId) return null
   return (
     // Area sentuh 44px (R-03); kapsul yang terlihat tetap kecil di dalamnya.
+    // Tanpa margin negatif: area sentuh baris berdekatan tidak boleh bertumpuk.
     <button
       type="button"
-      onClick={() => video.play(seconds)}
+      onClick={() => video.play(seconds, { reveal: true })}
       className="group inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-pill focus-visible:outline-none"
     >
       <span className="inline-flex items-center gap-1 rounded-pill border border-border bg-card px-2 py-1 text-xs font-semibold text-brand-text tabular transition-colors duration-150 group-hover:bg-muted group-focus-visible:ring-2 group-focus-visible:ring-ring">

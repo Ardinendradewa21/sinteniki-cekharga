@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +96,15 @@ export function ReviewPanel({
                       ? ` · menit ${Math.floor(r.timestampSeconds / 60)}:${String(r.timestampSeconds % 60).padStart(2, "0")}`
                       : ""}
                   </p>
-                  <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
+                  {r.verdict ? (
+                    <p className="mt-2 max-w-prose text-sm font-semibold text-foreground">{r.verdict}</p>
+                  ) : (
+                    // RV-02: ringkasan lama tampil di situs tanpa "Intinya"; tandai supaya bisa dirapikan.
+                    <p className="mt-2 text-xs font-semibold text-warning">
+                      Format lama: belum ada &ldquo;Intinya&rdquo;. Buka Ubah lalu pakai &ldquo;Rapikan isian dengan AI&rdquo;.
+                    </p>
+                  )}
+                  <p className="mt-2 line-clamp-3 max-w-prose text-sm leading-relaxed text-muted-foreground">
                     {r.summary}
                   </p>
                   {r.strengths.length > 0 || r.limitations.length > 0 ? (
@@ -117,6 +126,9 @@ export function ReviewPanel({
                 </div>
 
                 <div className="flex shrink-0 gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/admin/ulasan/ringkasan/${r.id}`}>Ubah</Link>
+                  </Button>
                   <form action={statusAction}>
                     <input type="hidden" name="reviewId" value={r.id} />
                     <input type="hidden" name="productId" value={product.id} />
@@ -206,15 +218,24 @@ export function ReviewPanel({
           </div>
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="verdict">Intinya</Label>
+          <Input id="verdict" name="verdict" maxLength={200} />
+          <p className="text-xs text-muted-foreground">Satu kalimat kesimpulan reviewer. Bisa diisi nanti lewat Ubah.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Textarea name="goodFor" label="Cocok untuk" hint="Maks 3 label, satu per baris." rows={2} />
+          <Textarea name="notFor" label="Kurang cocok untuk" hint="Maks 3 label, satu per baris." rows={2} />
+        </div>
         <Textarea
           name="summary"
-          label="Ringkasan temuan"
-          hint="Tulis ulang temuan reviewer dengan kalimat sendiri, jangan salin transkrip."
+          label="Ringkasan lengkap"
+          hint="Tulis ulang temuan reviewer dengan kalimat sendiri, jangan salin transkrip. Minimal 40 karakter."
           required
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Textarea name="strengths" label="Kelebihan" hint="Satu per baris." />
-          <Textarea name="limitations" label="Keterbatasan" hint="Satu per baris." />
+          <Textarea name="strengths" label="Kelebihan" hint="Maks 4, satu per baris. Menit di akhir: Baterai: tahan 19 jam [4:12]" />
+          <Textarea name="limitations" label="Keterbatasan" hint="Maks 4, satu per baris." />
         </div>
         <Textarea
           name="testContext"
