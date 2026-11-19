@@ -30,8 +30,13 @@ export const VIDEO_DRAFT_LIMITS = {
   perAdminDaily: 20,
   /** Draf per admin per menit (memori instance). */
   perMinute: 3,
-  /** Video bisa belasan menit; menonton butuh waktu lebih lama dari chat. */
-  timeoutMs: 100_000,
+  /**
+   * Video bisa belasan menit; menonton butuh waktu lebih lama dari chat.
+   * WAJIB di bawah `maxDuration` halaman /admin/ulasan/[id] (120 s) dengan
+   * sisa untuk audit dan render: 19 Nov 2026 produksi mati di 120 s karena
+   * 100 s x 2 percobaan, dan admin melihat halaman galat, bukan pesan.
+   */
+  timeoutMs: 95_000,
   maxOutputTokens: 1500,
 } as const;
 
@@ -129,8 +134,10 @@ export async function draftFromVideo(input: DraftInput): Promise<{ ok: true; dra
           },
         ],
       },
-      // Satu percobaan ulang untuk galat jaringan/5xx; menonton video ditagih per percobaan.
-      { timeout: VIDEO_DRAFT_LIMITS.timeoutMs, maxRetries: 1 }
+      // Tanpa percobaan ulang otomatis: menonton video ditagih per percobaan,
+      // dan dua percobaan tidak muat di batas 120 s fungsi Vercel. Admin bisa
+      // menekan tombolnya lagi bila mau.
+      { timeout: VIDEO_DRAFT_LIMITS.timeoutMs, maxRetries: 0 }
     );
     const raw = completion.choices[0]?.message?.content;
     if (!raw) return { ok: false, reason: "Model tidak mengembalikan draf." };
@@ -153,11 +160,14 @@ export async function draftFromVideo(input: DraftInput): Promise<{ ok: true; dra
     return { ok: true, draft: parsed.data };
   } catch (error) {
     const status = (error as { status?: number })?.status;
-    console.error("[ulasan-ai] draf video gagal:", status ?? (error as Error)?.name ?? "galat");
+    const name = (error as Error)?.name ?? "";
+    console.error("[ulasan-ai] draf video gagal:", status ?? (name || "galat"));
+    const timedOut = /timeout/i.test(name) || /timed out/i.test((error as Error)?.message ?? "");
     return {
       ok: false,
-      reason:
-        status === 402
+      reason: timedOut
+        ? "Model belum selesai menonton video dalam 95 detik, biasanya karena videonya panjang. Coba sekali lagi, pilih video yang lebih pendek, atau tulis ringkasan manual."
+        : status === 402
           ? "OpenRouter menolak: input video butuh sisa batas kredit kunci API minimal $1. Pemilik akun perlu menaikkan batas kunci di openrouter.ai/settings/keys. Sementara itu tulis ringkasan manual."
           : status === 413 || status === 400
           ? "Video tidak bisa diproses model (mungkin terlalu panjang atau dibatasi). Tulis ringkasan manual."
