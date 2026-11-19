@@ -358,9 +358,11 @@ export async function getComparison(
       reviewNotes: detail.reviews.map((review) => ({
         channelName: review.channelName,
         aspect: review.aspect,
-        summary: review.summary,
-        strengths: review.strengths,
-        limitations: review.limitations,
+        // RV-02: "Intinya" ikut di depan ringkasan supaya rangkuman AI
+        // perbandingan memakai kesimpulan reviewer; menit poin tidak relevan di sana.
+        summary: review.verdict ? `${review.verdict} ${review.summary}` : review.summary,
+        strengths: review.strengths.map((point) => point.text),
+        limitations: review.limitations.map((point) => point.text),
         isSponsored: review.isSponsored,
       })),
     };

@@ -9,6 +9,7 @@ import { PriceDisplay } from "@/components/price-display";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { ReviewList } from "@/components/product/review-list";
+import type { ProductReview } from "@/lib/catalog/queries";
 import {
   Accordion,
   AccordionContent,
@@ -42,18 +43,26 @@ import { isDemoData, listProductSummaries } from "@/lib/catalog/queries";
 export const dynamic = "force-dynamic";
 
 
+/** Ulasan format lama (sebelum RV-02). */
+const LEGACY_CARD = { verdict: null, goodFor: [], notFor: [] };
+const point = (text: string, seconds: number | null = null) => ({ text, seconds });
+
 /** Contoh komponen Review Carousel; ditandai DemoNotice di halaman. */
-const REVIEW_EXAMPLES = [
+const REVIEW_EXAMPLES: ProductReview[] = [
   {
+    // Format kartu RV-02: intinya, label, poin dengan menit, ringkasan dilipat.
     id: "contoh-umum-1",
     channelName: "Channel contoh A",
     videoUrl: "https://example.com/ulasan/contoh-a",
     publishedAt: "2026-10-20T03:00:00.000Z",
     timestampSeconds: 412,
     aspect: "umum" as const,
-    summary: "Contoh ringkasan: baterai bertahan sehari untuk pemakaian campuran, layar cukup terang di luar ruangan.",
-    strengths: ["Contoh kelebihan pertama"],
-    limitations: ["Contoh keterbatasan pertama"],
+    verdict: "Contoh intinya: cocok untuk pemakaian harian berkat baterai awet, tetapi kurang untuk game berat.",
+    goodFor: ["Pemakaian harian", "Contoh label kedua"],
+    notFor: ["Gaming berat"],
+    summary: "Contoh ringkasan lengkap: baterai bertahan sehari untuk pemakaian campuran, layar cukup terang di luar ruangan.",
+    strengths: [point("Baterai: contoh poin dengan menit", 412), point("Layar: contoh poin tanpa menit")],
+    limitations: [point("Performa: contoh keterbatasan", 655)],
     testContext: "Contoh konteks: pemakaian 3 hari, kecerahan otomatis",
     isSponsored: false,
     variantLabel: "8/256 GB",
@@ -67,7 +76,8 @@ const REVIEW_EXAMPLES = [
     aspect: "umum" as const,
     summary: "Contoh ringkasan kedua dari video bersponsor, supaya label bersponsor terlihat di kartu.",
     strengths: [],
-    limitations: ["Contoh keterbatasan kedua"],
+    ...LEGACY_CARD,
+    limitations: [point("Contoh keterbatasan kedua")],
     testContext: null,
     isSponsored: true,
     variantLabel: null,
@@ -80,7 +90,8 @@ const REVIEW_EXAMPLES = [
     timestampSeconds: 95,
     aspect: "umum" as const,
     summary: "Contoh ringkasan ketiga.",
-    strengths: ["Contoh kelebihan ketiga"],
+    strengths: [point("Contoh kelebihan ketiga")],
+    ...LEGACY_CARD,
     limitations: [],
     testContext: null,
     isSponsored: false,
@@ -95,6 +106,7 @@ const REVIEW_EXAMPLES = [
     aspect: "kamera" as const,
     summary: "Contoh ringkasan kamera: satu ulasan saja, jadi tampil sebagai kartu biasa tanpa kontrol carousel.",
     strengths: [],
+    ...LEGACY_CARD,
     limitations: [],
     testContext: null,
     isSponsored: false,

@@ -10,7 +10,8 @@ import { recordAudit } from "@/lib/admin/audit";
 import { requireStaff } from "@/lib/auth/dal";
 import { invalidateCatalogCache } from "@/lib/backend/catalog-repository";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
-import { getCandidate } from "@/lib/reviews/queries";
+import { cardColumns, cardFieldsSchema } from "@/lib/reviews/card-input";
+import { getCandidate, getReviewForEdit } from "@/lib/reviews/queries";
 import { enqueueChannelSync } from "@/lib/reviews/sync";
 import { getVideos, resolveChannelHandle, YoutubeApiError } from "@/lib/reviews/youtube-client";
 import { matchVideoTitle, parseYoutubeVideoId, youtubeWatchUrl } from "@/lib/reviews/youtube-match";
@@ -190,40 +191,12 @@ export async function addManualVideoAction(formData: FormData): Promise<void> {
 
 /* ------------------------------------------------- ringkasan dari kandidat */
 
-const summaryInput = z.object({
+/** Isian kartu RV-02 + atribut ulasan. "Intinya" wajib untuk ringkasan baru dan yang diubah. */
+const summaryInput = cardFieldsSchema({ requireVerdict: true }).extend({
   aspect: z.enum(["umum", "kamera"], "Pilih aspek: umum atau kamera"),
-  variantId: z.preprocess((value) => (value === "" ? null : value), z.uuid().nullable()),
-  summary: z.string().trim().min(40, "Ringkasan minimal 40 karakter").max(1200, "Ringkasan maksimal 1.200 karakter"),
-  strengths: z.string().max(1500).transform(lines),
-  limitations: z.string().max(1500).transform(lines),
-  testContext: z.preprocess((value) => (typeof value === "string" && value.trim() ? value.trim() : null), z.string().max(300).nullable()),
-  timestamp: z
-    .string()
-    .trim()
-    .max(8)
-    .transform((value, context) => {
-      if (!value) return null;
-      const match = value.match(/^(?:(\d{1,2}):)?(\d{1,3})(?::(\d{2}))?$/);
-      if (!match) {
-        context.addIssue({ code: "custom", message: "Menit ditulis seperti 4:35" });
-        return z.NEVER;
-      }
-      // "4:35" = menit:detik, "1:04:35" = jam:menit:detik, angka saja = detik.
-      const [, first, second, third] = match;
-      if (first !== undefined && third !== undefined) return Number(first) * 3600 + Number(second) * 60 + Number(third);
-      if (first !== undefined) return Number(first) * 60 + Number(second);
-      return Number(second);
-    }),
+  variantId: z.preprocess((value) => (value === "" || value === undefined ? null : value), z.uuid().nullable()),
   isSponsored: z.preprocess((value) => value === "on", z.boolean()),
 });
-
-function lines(value: string): string[] {
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.replace(/^[-•*]\s*/, "").trim())
-    .filter(Boolean)
-    .slice(0, 6);
-}
 
 export async function publishFromCandidateAction(candidateId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireStaff([]);
@@ -251,12 +224,8 @@ export async function publishFromCandidateAction(candidateId: string, _prev: Act
         youtube_video_id: candidate.video.youtubeId,
         candidate_id: candidate.id,
         published_at: candidate.video.publishedAt,
-        timestamp_seconds: input.timestamp,
+        ...cardColumns(input),
         aspect: input.aspect,
-        summary: input.summary,
-        strengths: input.strengths,
-        limitations: input.limitations,
-        test_context: input.testContext,
         is_sponsored: input.isSponsored,
         // Admin sudah menonton dan menulis sendiri: langsung terbit.
         status: "published",
@@ -280,4 +249,39 @@ export async function publishFromCandidateAction(candidateId: string, _prev: Act
   revalidatePath(`/admin/products/${candidate.product.id}`);
   revalidatePath(`/products/${candidate.product.slug}`);
   done(PANEL, { ok: "terbit" });
+}
+
+/* ---------------------------------------------------- ubah ringkasan (RV-02) */
+
+/**
+ * Menyimpan perubahan satu ringkasan. Channel, tautan video, dan tanggal tidak
+ * bisa diubah di sini (atribusi tetap dari data video); status terbit juga
+ * tidak berubah, jadi ringkasan yang sudah terbit langsung tampil versi barunya.
+ */
+export async function updateReviewAction(reviewId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await requireStaff([]);
+  const parsed = summaryInput.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Isian belum lengkap." };
+  const input = parsed.data;
+
+  const review = await getReviewForEdit(reviewId);
+  if (!review) return { error: "Ringkasan tidak ditemukan." };
+  if (input.variantId && !review.variants.some((variant) => variant.id === input.variantId)) {
+    return { error: "Varian tidak cocok dengan produk." };
+  }
+
+  const { error } = await db()
+    .from("review_summaries")
+    .update({ ...cardColumns(input), aspect: input.aspect, variant_id: input.variantId, is_sponsored: input.isSponsored })
+    .eq("id", review.id);
+  if (error) {
+    const duplicate = String(error.message ?? "").includes("duplicate");
+    return { error: duplicate ? "Video ini sudah punya ringkasan dengan aspek yang sama untuk produk ini." : "Perubahan gagal disimpan." };
+  }
+
+  await recordAudit(admin, "ulasan.ubah", "review", review.id, { productId: review.productId, aspect: input.aspect });
+  invalidateCatalogCache();
+  revalidatePath(`/admin/products/${review.productId}`);
+  revalidatePath(`/products/${review.productSlug}`);
+  done(`/admin/products/${review.productId}`, { pesan: "ulasan-diubah" });
 }

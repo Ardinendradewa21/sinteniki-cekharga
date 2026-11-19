@@ -41,6 +41,10 @@ const isoTime = (v: unknown): string => new Date(str(v)).toISOString();
 const strArray = (v: unknown): string[] =>
   Array.isArray(v) ? v.map(str).filter((s) => s.length > 0) : [];
 
+/** Larik detik sejajar (RV-02): posisi dipertahankan, NULL = poin tanpa menit. */
+const secondsArray = (v: unknown): (number | null)[] =>
+  Array.isArray(v) ? v.map((s) => (typeof s === "number" && s >= 0 ? s : null)) : [];
+
 export function mapProducts(rows: Row[]): CatalogDataset["products"] {
   return rows.map((r) => ({
     id: str(r.id),
@@ -101,6 +105,11 @@ export function mapReviews(rows: Row[]): CatalogDataset["reviews"] {
     summary: str(r.summary),
     strengths: strArray(r.strengths),
     limitations: strArray(r.limitations),
+    verdict: strOrNull(r.verdict),
+    goodFor: strArray(r.good_for),
+    notFor: strArray(r.not_for),
+    strengthSeconds: secondsArray(r.strength_seconds),
+    limitationSeconds: secondsArray(r.limitation_seconds),
     testContext: strOrNull(r.test_context),
     isSponsored: r.is_sponsored === true,
     status: str(r.status) as "draft" | "published",

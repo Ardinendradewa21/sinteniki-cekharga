@@ -4,6 +4,7 @@ import { buildColorOptions, type ProductColorOption } from "@/lib/catalog/colors
 import { isFresh, isPriceableListing, lastSuccessfulCheckAt, latestObservation, resolveStartingPrice, resolveVariantPrice, type PriceResolution } from "@/lib/catalog/pricing";
 import type { CatalogDataset, Offer, ProductSpecs } from "@/lib/catalog/schema";
 import { type ProductSummary, formatVariantLabel, loadPublishedCatalog, variantKey } from "@/lib/catalog/core";
+import { type ReviewPoint, zipPoints } from "@/lib/reviews/review-format";
 
 /** View model halaman detail produk (PRD FR-03, FR-05): varian, warna, penawaran, spesifikasi, ulasan. */
 
@@ -67,8 +68,12 @@ export type ProductReview = {
   timestampSeconds: number | null;
   aspect: "umum" | "kamera";
   summary: string;
-  strengths: string[];
-  limitations: string[];
+  strengths: ReviewPoint[];
+  limitations: ReviewPoint[];
+  /** RV-02: satu kalimat kesimpulan; null = ulasan format lama. */
+  verdict: string | null;
+  goodFor: string[];
+  notFor: string[];
   testContext: string | null;
   isSponsored: boolean;
   /** Review yang terikat varian tertentu, supaya konteksnya tidak digeneralisir. */
@@ -293,8 +298,11 @@ export function buildProductDetail(
       timestampSeconds: review.timestampSeconds,
       aspect: review.aspect,
       summary: review.summary,
-      strengths: review.strengths,
-      limitations: review.limitations,
+      strengths: zipPoints(review.strengths, review.strengthSeconds),
+      limitations: zipPoints(review.limitations, review.limitationSeconds),
+      verdict: review.verdict,
+      goodFor: review.goodFor,
+      notFor: review.notFor,
       testContext: review.testContext,
       isSponsored: review.isSponsored,
       variantLabel: review.variantId
