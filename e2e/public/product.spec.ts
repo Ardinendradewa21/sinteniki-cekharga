@@ -110,4 +110,24 @@ test.describe("Detail produk (FR-03, FR-05)", () => {
     await play.click();
     await expect(page.locator('iframe[src^="https://www.youtube-nocookie.com/embed/"]').first()).toBeVisible();
   });
+
+  test("TC-DET-12 ikon (?) spesifikasi membuka penjelasan ringkas, Esc mengembalikan fokus (RV-03) @regression", async ({ page }) => {
+    await page.goto("/products?urut=checked");
+    const [href] = await productLinks(page);
+    await page.goto(href);
+    const hint = page.getByRole("button", { name: "Apa arti Baterai?" });
+    await expect(hint).toHaveAttribute("aria-expanded", "false");
+    await hint.focus();
+    await page.keyboard.press("Enter");
+    const popover = page.locator("[data-radix-popper-content-wrapper]");
+    await expect(popover).toContainText("Intinya");
+    await expect(popover).toContainText("Perlu diperhatikan");
+    await popover.getByRole("button", { name: "Selengkapnya" }).click();
+    await expect(popover).toContainText("miliampere-jam");
+    await page.keyboard.press("Escape");
+    await expect(popover).toHaveCount(0);
+    await expect(hint).toBeFocused();
+    // Panel panjang lama sudah diganti ikon per baris.
+    await expect(page.getByText("Apa arti spesifikasi ini?")).toHaveCount(0);
+  });
 });

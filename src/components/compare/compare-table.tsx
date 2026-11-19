@@ -14,7 +14,7 @@ import type {
   CompareResult,
   CompareSpecIcon,
 } from "@/lib/catalog/queries";
-import { SpecGuideDisclosure } from "@/components/product/spec-guide-disclosure";
+import { SpecHint } from "@/components/product/spec-hint";
 import { specGuidesFor, type SpecGuideEntry } from "@/lib/catalog/spec-guide";
 import type { SpecInsight } from "@/lib/catalog/spec-insight";
 import { cn } from "@/lib/utils";
@@ -36,8 +36,8 @@ import { cn } from "@/lib/utils";
  *   nilainya berbeda disorot `--brand-muted` dengan label kata "beda" (VD-07),
  *   lalu diberi arah faktual dan artinya (`spec-insight.ts`, keputusan PO
  *   18 Nov 2026): "A 600 mAh lebih besar dari B" + arti singkatnya, bukan
- *   "A lebih baik". Penjelasan tiap atribut ada di "Apa artinya?" per bagian
- *   (bank materi `spec-guide.ts`).
+ *   "A lebih baik". Penjelasan tiap atribut ada di ikon (?) di judul barisnya
+ *   (RV-03, bank materi `spec-guide.ts`).
  * - Nilai yang tidak diketahui tidak pernah dihitung sebagai kalah dan tidak
  *   ditulis "-" yang bisa terbaca "tidak ada". Atribut yang kosong di SEMUA
  *   kolom disebut terbuka di catatan, bukan diisi baris kosong.
@@ -131,6 +131,7 @@ function SpecTable({
   note?: string;
   guides?: SpecGuideEntry[];
 }) {
+  const guideByLabel = new Map(guides.map((guide) => [guide.label, guide]));
   return (
     <section aria-labelledby={`bagian-${id}`} className="mt-10">
       <h4 id={`bagian-${id}`} className="heading-card text-foreground">
@@ -174,6 +175,7 @@ function SpecTable({
                   </>
                 ) : null}
               </span>
+              {guideByLabel.get(row.label) ? <SpecHint entry={guideByLabel.get(row.label)!} /> : null}
             </div>
             {row.cells.map((cell, index) => (
               <div
@@ -199,7 +201,6 @@ function SpecTable({
           </div>
         ))}
       </div>
-      <SpecGuideDisclosure entries={guides} className="mt-3" />
     </section>
   );
 }
