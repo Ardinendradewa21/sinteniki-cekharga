@@ -1,6 +1,6 @@
-import { SpecGuideDisclosure } from "@/components/product/spec-guide-disclosure";
+import { SpecHint } from "@/components/product/spec-hint";
 import type { ProductSpecRow } from "@/lib/catalog/queries";
-import { specGuidesFor } from "@/lib/catalog/spec-guide";
+import { specGuideFor } from "@/lib/catalog/spec-guide";
 
 /**
  * Spesifikasi terstruktur (PRD FR-03).
@@ -34,12 +34,18 @@ export function SpecTable({
       </p>
 
       <dl className="mt-5 divide-y divide-border rounded-xl border border-border bg-card">
-        {specs.map((spec) => (
+        {specs.map((spec) => {
+          // RV-03: penjelasan (?) per baris, menggantikan panel panjang di bawah tabel.
+          const guide = specGuideFor(spec.label);
+          return (
           <div
             key={spec.label}
-            className="flex items-baseline justify-between gap-4 px-5 py-3 text-[0.9375rem]"
+            className="flex items-center justify-between gap-4 px-5 py-3 text-[0.9375rem]"
           >
-            <dt className="text-muted-foreground">{spec.label}</dt>
+            <dt className="flex items-center gap-0.5 text-muted-foreground">
+              {spec.label}
+              {guide ? <SpecHint entry={guide} /> : null}
+            </dt>
             <dd className="text-right font-medium text-foreground">
               {spec.value ?? (
                 <span className="font-normal text-muted-foreground italic">
@@ -48,15 +54,9 @@ export function SpecTable({
               )}
             </dd>
           </div>
-        ))}
+          );
+        })}
       </dl>
-
-      {/* Penjelasan atribut yang terisi (bank materi, keputusan PO 18 Nov 2026). */}
-      <SpecGuideDisclosure
-        className="mt-3"
-        summary="Apa arti spesifikasi ini?"
-        entries={specGuidesFor(specs.filter((spec) => spec.value !== null).map((spec) => spec.label))}
-      />
 
       <p className="mt-3 text-xs text-muted-foreground">
         Sumber spesifikasi: {source}. {knownCount} dari {specs.length} atribut

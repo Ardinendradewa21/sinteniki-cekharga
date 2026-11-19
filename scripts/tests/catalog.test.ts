@@ -445,6 +445,14 @@ test("Bank materi: setiap atribut punya 'apa ini' dan 2-4 butir realita, tanpa k
   assert.deepEqual(specGuidesFor(["RAM", "Pilihan warna", "RAM", "Bobot"]).map((e) => e.label), ["RAM", "Bobot"]);
 });
 
+test("Bank materi RV-03: 'Intinya' dan 'Perlu diperhatikan' pendek untuk popover (?)", () => {
+  for (const entry of SPEC_GUIDE) {
+    assert.ok(entry.short.length >= 10 && entry.short.length <= 110, `${entry.label}: intinya ${entry.short.length} karakter`);
+    assert.ok(entry.tip.length >= 20 && entry.tip.length <= 140, `${entry.label}: tips ${entry.tip.length} karakter`);
+    assert.doesNotMatch(`${entry.short} ${entry.tip}`, /terbaik|juara|pemenang|skor|wajib beli|—/i, entry.label);
+  }
+});
+
 test("Insight: arah faktual + artinya, tanpa 'lebih baik', dan kosong bila ada nilai tak diketahui", () => {
   assert.equal(joinNames(["A", "B", "C"]), "A, B, dan C");
 
