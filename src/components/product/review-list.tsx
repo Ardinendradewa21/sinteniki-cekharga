@@ -2,7 +2,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { LinkSquare01Icon } from "@hugeicons/core-free-icons";
 
 import { ReviewCarousel } from "@/components/product/review-carousel";
+import { ReviewVideo, ReviewVideoProvider } from "@/components/product/review-video";
 import type { ProductReview } from "@/lib/catalog/queries";
+import { parseYoutubeVideoId } from "@/lib/reviews/youtube-match";
 import { cn } from "@/lib/utils";
 
 /**
@@ -107,6 +109,7 @@ function ReviewCard({
 }) {
   return (
     <li className={cn("rounded-xl border border-border bg-card p-5", className)}>
+      <ReviewVideoProvider videoUrl={review.videoUrl} startSeconds={review.timestampSeconds}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-sm font-bold text-foreground">{review.channelName}</p>
         <p className="text-xs text-muted-foreground">{formatPublishedAt(review.publishedAt)}</p>
@@ -155,17 +158,25 @@ function ReviewCard({
         {review.testContext ?? <span className="italic">tidak dicatat reviewer</span>}
       </p>
 
-      <a
-        href={review.videoUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
-      >
-        Lihat video sumber
-        {review.timestampSeconds !== null ? ` (menit ${formatTimestamp(review.timestampSeconds)})` : ""}
-        <HugeiconsIcon icon={LinkSquare01Icon} size={15} strokeWidth={2} aria-hidden />
-        <span className="sr-only">(membuka tab baru)</span>
-      </a>
+      {/* RV-01: video diputar di kartu ini (thumbnail dulu, pemutar dimuat
+          saat diklik), dengan pilihan "Buka di YouTube". Tautan lama tetap
+          menjadi cadangan bila ID video tidak bisa dibaca. */}
+      {parseYoutubeVideoId(review.videoUrl) ? (
+        <ReviewVideo channelName={review.channelName} />
+      ) : (
+        <a
+          href={review.videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+        >
+          Lihat video sumber
+          {review.timestampSeconds !== null ? ` (menit ${formatTimestamp(review.timestampSeconds)})` : ""}
+          <HugeiconsIcon icon={LinkSquare01Icon} size={15} strokeWidth={2} aria-hidden />
+          <span className="sr-only">(membuka tab baru)</span>
+        </a>
+      )}
+      </ReviewVideoProvider>
     </li>
   );
 }
