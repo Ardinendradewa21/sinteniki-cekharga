@@ -9,6 +9,7 @@ import { hasAiCredentials } from "@/lib/assistant/ai/client";
 import { requireStaff } from "@/lib/auth/dal";
 import { updateReviewAction } from "@/lib/reviews/actions";
 import { draftForReviewAction, type DraftRequest } from "@/lib/reviews/ai-draft-actions";
+import { VIDEO_DRAFT_ENABLED } from "@/lib/reviews/ai-draft";
 import { getReviewForEdit } from "@/lib/reviews/queries";
 import { formatClock, pointToLine, zipPoints } from "@/lib/reviews/review-format";
 import { youtubeWatchUrl } from "@/lib/reviews/youtube-match";
@@ -104,7 +105,7 @@ export default async function EditReviewPage(props: PageProps<"/admin/ulasan/rin
         <ReviewForm
           action={save}
           draftAction={hasAiCredentials() ? draft : null}
-          hasVideo={review.youtubeId !== null}
+          hasVideo={VIDEO_DRAFT_ENABLED && review.youtubeId !== null}
           variants={review.variants}
           submitLabel="Simpan perubahan"
           initial={{

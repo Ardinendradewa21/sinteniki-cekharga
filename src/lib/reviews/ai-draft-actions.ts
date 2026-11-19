@@ -7,7 +7,7 @@ import { consumeStaffQuota } from "@/lib/assistant/ai/quota";
 import { hasAiCredentials } from "@/lib/assistant/ai/client";
 import { requireStaff } from "@/lib/auth/dal";
 import { createRateLimiter } from "@/lib/rate-limit";
-import { draftReview, VIDEO_DRAFT_LIMITS, type DraftSource, type VideoDraft } from "@/lib/reviews/ai-draft";
+import { draftReview, VIDEO_DRAFT_ENABLED, VIDEO_DRAFT_LIMITS, type DraftSource, type VideoDraft } from "@/lib/reviews/ai-draft";
 import { getCandidate, getReviewForEdit } from "@/lib/reviews/queries";
 
 /**
@@ -49,6 +49,8 @@ async function runDraft(subject: Subject, request: DraftRequest): Promise<DraftA
 
   let source: DraftSource;
   if (kind === "video") {
+    // Dicek di server, bukan hanya tombolnya yang disembunyikan (aturan system design 5).
+    if (!VIDEO_DRAFT_ENABLED) return { ok: false, error: "Draf dari video sedang dimatikan untuk menghemat kredit AI. Pakai \"Tempel transkrip\"." };
     if (!subject.youtubeId) return { ok: false, error: "Ringkasan ini tidak terhubung ke video YouTube. Pakai \"Tempel transkrip\"." };
     source = { kind: "video", youtubeId: subject.youtubeId };
   } else {
@@ -64,14 +66,20 @@ async function runDraft(subject: Subject, request: DraftRequest): Promise<DraftA
   const limit = perMinute.check(admin.userId || admin.email);
   if (!limit.allowed) return { ok: false, error: `Terlalu cepat. Tunggu ${limit.retryAfterSec} detik.` };
   const isVideo = kind === "video";
-  const daily = isVideo ? VIDEO_DRAFT_LIMITS.perAdminDaily : VIDEO_DRAFT_LIMITS.perAdminDailyText;
-  const quota = await consumeStaffQuota(isVideo ? "draf-ulasan-video" : "draf-ulasan-teks", admin.userId || admin.email, daily);
+  // Video: kuota per admin. Teks: SATU kuota bersama semua admin (RV-04), supaya
+  // total biaya ringkasan per hari terbatas dan kredit Tanya AI aman.
+  const daily = isVideo ? VIDEO_DRAFT_LIMITS.perAdminDaily : VIDEO_DRAFT_LIMITS.allAdminsDailyText;
+  const quota = isVideo
+    ? await consumeStaffQuota("draf-ulasan-video", admin.userId || admin.email, daily)
+    : await consumeStaffQuota("draf-ulasan-teks", "semua-admin", daily);
   if (!quota.allowed) {
     return {
       ok: false,
       error:
         quota.reason === "client"
-          ? `Jatah draf AI ${isVideo ? "dari video" : "dari teks"} hari ini (${daily}) sudah habis. Tulis manual atau lanjut besok.`
+          ? isVideo
+            ? `Jatah draf AI dari video hari ini (${daily}) sudah habis. Tulis manual atau lanjut besok.`
+            : `Jatah draf AI hari ini (${daily} draf untuk semua admin) sudah habis, supaya kredit Tanya AI tetap aman. Tulis manual atau lanjut besok.`
           : "Kuota AI sedang tidak tersedia. Tulis ringkasan manual.",
     };
   }

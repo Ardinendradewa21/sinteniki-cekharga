@@ -268,7 +268,13 @@ test("kata penilaian: 'IP rating' bukan penilaian, 'rating 9/10' dan 'terbaik' t
 });
 
 import fs from "node:fs";
-import { VIDEO_DRAFT_LIMITS } from "@/lib/reviews/ai-draft";
+import { VIDEO_DRAFT_ENABLED, VIDEO_DRAFT_LIMITS } from "@/lib/reviews/ai-draft";
+
+test("hemat kredit (RV-04): draf video mati, draf teks semua admin maks ~$0,50/hari", () => {
+  assert.equal(VIDEO_DRAFT_ENABLED, false, "keputusan PO 19 Nov 2026; menyalakan lagi butuh persetujuan PO");
+  // ~$0,015 per draf teks (terukur 19 Nov 2026: $0,004-0,011).
+  assert.ok(VIDEO_DRAFT_LIMITS.allAdminsDailyText * 0.015 <= 0.5);
+});
 
 test("draf video: batas waktu AI selalu di bawah maxDuration halaman (insiden 19 Nov 2026)", () => {
   const page = fs.readFileSync("src/app/admin/(workspace)/ulasan/[id]/page.tsx", "utf8");

@@ -93,6 +93,9 @@ export function ReviewList({ reviews }: { reviews: ProductReview[] }) {
   );
 }
 
+/** Poin per sisi yang langsung tampil di kartu format RV-02 (RV-04, keputusan PO 19 Nov 2026). */
+const SHOWN_POINTS = 2;
+
 function ReviewCard({
   review,
   aspectLabel,
@@ -102,6 +105,8 @@ function ReviewCard({
   aspectLabel: string;
   className?: string;
 }) {
+  const hiddenPoints =
+    Math.max(0, review.strengths.length - SHOWN_POINTS) + Math.max(0, review.limitations.length - SHOWN_POINTS);
   return (
     // `relative`: teks sr-only (posisi absolut) tertampung di kartu. Tanpa ini,
     // kartu carousel di luar layar membuat halaman 375px bisa digeser 380px.
@@ -135,10 +140,16 @@ function ReviewCard({
             </dl>
           ) : null}
           <VideoOrLink review={review} />
-          <Points review={review} />
+          {/* RV-04: hanya 2 poin teratas per sisi di kartu (keputusan PO: jangan
+              scroll panjang); sisanya ikut dilipat bersama ringkasan lengkap. */}
+          <Points
+            channelName={review.channelName}
+            strengths={review.strengths.slice(0, SHOWN_POINTS)}
+            limitations={review.limitations.slice(0, SHOWN_POINTS)}
+          />
           <details className="group mt-4 rounded-lg border border-border">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-3 text-sm font-semibold text-brand-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-              Baca ringkasan lengkap
+              {hiddenPoints > 0 ? `Baca ringkasan lengkap dan ${hiddenPoints} poin lainnya` : "Baca ringkasan lengkap"}
               <HugeiconsIcon
                 icon={ArrowDown01Icon}
                 size={16}
@@ -148,6 +159,16 @@ function ReviewCard({
               />
             </summary>
             <div className="border-t border-border px-3 py-3">
+              {hiddenPoints > 0 ? (
+                <div className="-mt-4 mb-4">
+                  <Points
+                    channelName={review.channelName}
+                    strengths={review.strengths.slice(SHOWN_POINTS)}
+                    limitations={review.limitations.slice(SHOWN_POINTS)}
+                    more
+                  />
+                </div>
+              ) : null}
               <p className="text-sm leading-relaxed text-foreground">{review.summary}</p>
               <TestContext value={review.testContext} />
             </div>
@@ -157,7 +178,7 @@ function ReviewCard({
         <>
           {/* Format lama (sebelum RV-02): ringkasan terbuka, lalu poin. */}
           <p className="mt-3 text-sm leading-relaxed text-foreground">{review.summary}</p>
-          <Points review={review} />
+          <Points channelName={review.channelName} strengths={review.strengths} limitations={review.limitations} />
           <div className="mt-4 border-t border-border pt-3">
             <TestContext value={review.testContext} />
           </div>
@@ -198,12 +219,23 @@ function FitRow({ label, items, tone }: { label: string; items: string[]; tone: 
   );
 }
 
-function Points({ review }: { review: ProductReview }) {
-  if (review.strengths.length === 0 && review.limitations.length === 0) return null;
+function Points({
+  channelName,
+  strengths,
+  limitations,
+  more = false,
+}: {
+  channelName: string;
+  strengths: ReviewPoint[];
+  limitations: ReviewPoint[];
+  /** Poin lanjutan di dalam "Baca ringkasan lengkap". */
+  more?: boolean;
+}) {
+  if (strengths.length === 0 && limitations.length === 0) return null;
   return (
     <div className="mt-4 grid gap-4 sm:grid-cols-2">
-      <PointList title={`Kelebihan menurut ${review.channelName}`} points={review.strengths} tone="good" />
-      <PointList title="Kekurangan yang disebut" points={review.limitations} tone="bad" />
+      <PointList title={more ? "Kelebihan lainnya" : `Kelebihan menurut ${channelName}`} points={strengths} tone="good" />
+      <PointList title={more ? "Kekurangan lainnya" : "Kekurangan yang disebut"} points={limitations} tone="bad" />
     </div>
   );
 }
