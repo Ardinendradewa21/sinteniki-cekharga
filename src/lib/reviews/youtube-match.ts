@@ -129,3 +129,12 @@ export function parseYoutubeVideoId(input: string): string | null {
 export function youtubeWatchUrl(videoId: string, seconds: number | null = null): string {
   return `https://www.youtube.com/watch?v=${videoId}${seconds ? `&t=${seconds}s` : ""}`;
 }
+
+/**
+ * Izin iframe pemutar YouTube, sama dengan kode sematan resmi YouTube.
+ * `clipboard-write` wajib untuk tombol salin tautan di dalam pemutar (temuan
+ * PO 19 Nov 2026: "Unable to copy link to clipboard"), `web-share` untuk
+ * tombol bagikan. Dipakai semua iframe YouTube supaya tidak berbeda-beda.
+ */
+export const YOUTUBE_EMBED_ALLOW =
+  "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen";

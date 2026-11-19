@@ -13,7 +13,7 @@ import { draftForCandidateAction, type DraftRequest } from "@/lib/reviews/ai-dra
 import { VIDEO_DRAFT_ENABLED } from "@/lib/reviews/ai-draft";
 import { hasAiCredentials } from "@/lib/assistant/ai/client";
 import { getCandidate } from "@/lib/reviews/queries";
-import { youtubeWatchUrl } from "@/lib/reviews/youtube-match";
+import { YOUTUBE_EMBED_ALLOW, youtubeWatchUrl } from "@/lib/reviews/youtube-match";
 
 export const metadata: Metadata = {
   title: "Tulis ringkasan ulasan",
@@ -81,7 +81,8 @@ export default async function CandidatePage(props: PageProps<"/admin/ulasan/[id]
               src={`https://www.youtube-nocookie.com/embed/${candidate.video.youtubeId}`}
               title={candidate.video.title}
               loading="lazy"
-              allow="encrypted-media; picture-in-picture"
+              allow={YOUTUBE_EMBED_ALLOW}
+              referrerPolicy="strict-origin-when-cross-origin"
               allowFullScreen
               className="size-full"
             />
