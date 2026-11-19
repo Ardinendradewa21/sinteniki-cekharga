@@ -191,3 +191,14 @@ test("kata penilaian: 'IP rating' bukan penilaian, 'rating 9/10' dan 'terbaik' t
   assert.equal(JUDGEMENT.test("Zoom AI termasuk yang terbaik"), true);
   assert.equal(JUDGEMENT.test("nilai 8,5/10"), true);
 });
+
+import fs from "node:fs";
+import { VIDEO_DRAFT_LIMITS } from "@/lib/reviews/ai-draft";
+
+test("draf video: batas waktu AI selalu di bawah maxDuration halaman (insiden 19 Nov 2026)", () => {
+  const page = fs.readFileSync("src/app/admin/(workspace)/ulasan/[id]/page.tsx", "utf8");
+  const maxDuration = Number(/export const maxDuration = (\d+)/.exec(page)?.[1]);
+  assert.ok(maxDuration > 0, "maxDuration terbaca");
+  // Sisa minimal 15 s untuk audit, kuota, dan render sesudah model menjawab.
+  assert.ok(VIDEO_DRAFT_LIMITS.timeoutMs + 15_000 <= maxDuration * 1000, "satu percobaan muat di batas fungsi");
+});
