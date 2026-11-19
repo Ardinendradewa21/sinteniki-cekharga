@@ -11,7 +11,7 @@ import { updateReviewAction } from "@/lib/reviews/actions";
 import { draftForReviewAction, type DraftRequest } from "@/lib/reviews/ai-draft-actions";
 import { getReviewForEdit } from "@/lib/reviews/queries";
 import { formatClock, pointToLine, zipPoints } from "@/lib/reviews/review-format";
-import { youtubeWatchUrl } from "@/lib/reviews/youtube-match";
+import { YOUTUBE_EMBED_ALLOW, youtubeWatchUrl } from "@/lib/reviews/youtube-match";
 
 export const metadata: Metadata = {
   title: "Ubah ringkasan ulasan",
@@ -74,7 +74,8 @@ export default async function EditReviewPage(props: PageProps<"/admin/ulasan/rin
                   src={`https://www.youtube-nocookie.com/embed/${review.youtubeId}${review.timestampSeconds ? `?start=${review.timestampSeconds}` : ""}`}
                   title={review.videoTitle ?? `Video ulasan ${review.channelName}`}
                   loading="lazy"
-                  allow="encrypted-media; picture-in-picture"
+                  allow={YOUTUBE_EMBED_ALLOW}
+                  referrerPolicy="strict-origin-when-cross-origin"
                   allowFullScreen
                   className="size-full"
                 />

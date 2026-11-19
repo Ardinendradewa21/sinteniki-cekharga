@@ -6,7 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { LinkSquare01Icon, PlayIcon } from "@hugeicons/core-free-icons"
 
 import { formatClock } from "@/lib/reviews/review-format"
-import { parseYoutubeVideoId, youtubeWatchUrl } from "@/lib/reviews/youtube-match"
+import { parseYoutubeVideoId, YOUTUBE_EMBED_ALLOW, youtubeWatchUrl } from "@/lib/reviews/youtube-match"
 import { cn } from "@/lib/utils"
 
 /**
@@ -82,7 +82,8 @@ export function ReviewVideo({ channelName, className }: { channelName: string; c
             key={start ?? 0}
             src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&playsinline=1${start ? `&start=${start}` : ""}`}
             title={`Video ulasan ${channelName}`}
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allow={YOUTUBE_EMBED_ALLOW}
+            referrerPolicy="strict-origin-when-cross-origin"
             allowFullScreen
             className="absolute inset-0 size-full border-0"
           />
