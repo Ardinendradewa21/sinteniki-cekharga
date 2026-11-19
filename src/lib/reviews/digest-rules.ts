@@ -65,7 +65,12 @@ export function digestFacts(products: readonly DigestProduct[]): string {
     .join("\n\n");
 }
 
-const JUDGEMENT = /\b(terbaik|termurah|terbagus|pemenang|menang telak|juara|paling (bagus|worth|layak|unggul)|nomor satu|skor|rating)\b|\d+(?:[.,]\d+)?\s*\/\s*10\b/i;
+/**
+ * Kata penilaian yang dilarang PRD §3 di teks publik; dipakai juga draf ulasan
+ * AI. "rating" yang menempel pada "IP" (IP rating, rating IP68) adalah nama
+ * spesifikasi ketahanan, bukan penilaian (positif palsu di uji coba draf 18 Nov 2026).
+ */
+export const JUDGEMENT = /\b(terbaik|termurah|terbagus|pemenang|menang telak|juara|paling (bagus|worth|layak|unggul)|nomor satu|skor|(?<!\bIP\s)rating(?!\s+IP))\b|\d+(?:[.,]\d+)?\s*\/\s*10\b/i;
 const MAX_CHARS = 900;
 
 /** Keluaran model yang lolos, atau null bila harus ditolak. */

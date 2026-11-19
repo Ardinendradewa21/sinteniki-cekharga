@@ -144,3 +144,50 @@ test("draf ulasan AI: hanya bentuk yang diharapkan yang mengisi formulir", () =>
   assert.equal(draftSchema.safeParse({ ...valid, ringkasan: "x".repeat(1300) }).success, false);
   assert.equal(draftSchema.safeParse({ ...valid, bersponsor: "ya" }).success, false);
 });
+
+import { clip, firstTimestamp, normalizeDraft } from "@/lib/reviews/ai-draft-rules";
+
+test("draf ulasan AI: keluaran kepanjangan dirapikan, bukan dibuang (uji coba 18 Nov 2026)", () => {
+  const long = "Kamera utama tajam di siang hari dengan warna natural dan rentang dinamis lebar ".repeat(5).trim();
+  const draft = normalizeDraft(
+    {
+      relevan: true,
+      aspek: "kamera",
+      ringkasan: "Ringkasan cukup panjang tentang kamera menurut reviewer yang memakai ponsel ini.",
+      kelebihan: [long, "- Zoom AI termasuk yang terbaik", "a", ...Array(6).fill("Poin tambahan")],
+      kekurangan: ["Fokus video lepas"],
+      konteks: "x ".repeat(400),
+      menit: "12:30 - 14:00",
+      bersponsor: "tidak",
+      catatan: "Reviewer memakai varian 12/256 GB.",
+    },
+    "umum"
+  )!;
+  assert.ok(draft, "draf tetap terpakai");
+  assert.equal(draft.kelebihan.length, 6, "maksimal 6 poin, poin satu huruf dibuang");
+  assert.ok(draft.kelebihan[0]!.length <= 220 && draft.kelebihan[0]!.endsWith("…"), "poin panjang dipotong di batas kata");
+  assert.equal(draft.kelebihan[1], "Zoom AI termasuk yang terbaik", "penanda daftar di depan poin dibuang");
+  assert.match(draft.catatan, /Kelebihan no\. 2 memuat kata penilaian "terbaik"/);
+  assert.match(draft.catatan, /hanya 6 pertama yang dipakai/);
+  assert.match(draft.catatan, /12\/256 GB/, "catatan model tetap ada");
+  assert.equal(draft.menit, "12:30", "rentang jadi waktu pertama");
+  assert.equal(draft.bersponsor, false, "bukan boolean = tidak bersponsor");
+  assert.ok(draft.konteks.length <= 300);
+  assert.ok(draftSchema.safeParse(draft).success, "hasil normalisasi selalu lolos skema formulir");
+
+  assert.equal(firstTimestamp("0:00"), "", "0:00 tidak menunjuk bagian mana pun");
+  assert.equal(firstTimestamp("menit 4:35"), "4:35");
+  assert.equal(clip("satu dua tiga empat", 12), "satu dua…");
+  assert.equal(normalizeDraft({ ringkasan: "", kelebihan: [], kekurangan: [] }, "umum"), null, "tanpa isi = ditolak");
+  assert.equal(normalizeDraft({ ringkasan: "Isi cukup panjang untuk ringkasan draf.", aspek: "baterai" }, "kamera")?.aspek, "kamera");
+});
+
+import { JUDGEMENT } from "@/lib/reviews/digest-rules";
+
+test("kata penilaian: 'IP rating' bukan penilaian, 'rating 9/10' dan 'terbaik' tetap terdeteksi", () => {
+  assert.equal(JUDGEMENT.test("Sudah dilengkapi IP rating IP64"), false);
+  assert.equal(JUDGEMENT.test("rating IP68 untuk debu dan air"), false);
+  assert.equal(JUDGEMENT.test("rating kameranya tinggi"), true);
+  assert.equal(JUDGEMENT.test("Zoom AI termasuk yang terbaik"), true);
+  assert.equal(JUDGEMENT.test("nilai 8,5/10"), true);
+});

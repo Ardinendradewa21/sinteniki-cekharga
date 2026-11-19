@@ -413,6 +413,12 @@ test("balasan: pembuka templat dibuang, sisa kalimat utuh", () => {
   assert.equal(tidyReply("Sip, buat main ML sambil TikTok masih realistis."), "Buat main ML sambil TikTok masih realistis.");
   assert.equal(tidyReply("Oke deh"), "Oke deh", "balasan yang hanya pembuka tidak dikosongkan");
   assert.equal(tidyReply("Okelah kalau begitu"), "Okelah kalau begitu");
+  // Istilah sistem yang lolos dari model diganti padanan sehari-hari (set emas 18 Nov 2026).
+  assert.equal(
+    tidyReply("Aku carikan HP sekitar 3 juta; NFC jadi nilai tambah, bukan syarat wajib."),
+    "Aku carikan HP sekitar 3 juta; NFC jadi nilai tambah, bukan keharusan."
+  );
+  assert.equal(tidyReply("Budget itu batas keras ya."), "Budget itu batas pasti ya.");
 });
 
 import { checkReply, readAmounts } from "@/lib/assistant/reply-validator";
@@ -520,4 +526,26 @@ test("tiket tahap tulis: hanya sah dari server, sebelum kedaluwarsa, dan tidak b
   assert.equal(verifyWriteTicket(`${tampered}.${mac}`, secret, now), null, "isi diubah ditolak");
   assert.equal(verifyWriteTicket("sampah", secret, now), null);
   assert.notEqual(hashNeeds({ budgetIdr: 3_000_000 }), hashNeeds({ budgetIdr: 4_000_000 }));
+});
+
+import { guideAnswer, matchSpecGuides } from "@/lib/catalog/spec-guide";
+import { specQuestionFallback } from "@/lib/assistant/spec-fallback";
+
+test("Tanya AI: pertanyaan umum dicocokkan ke bank materi spesifikasi (maks 2)", () => {
+  assert.deepEqual(matchSpecGuides("amoled sama ips bedanya apa sih").map((e) => e.label), ["Layar"]);
+  assert.deepEqual(matchSpecGuides("NFC itu buat apa?").map((e) => e.label), ["NFC"]);
+  assert.deepEqual(matchSpecGuides("120hz kerasa ga").map((e) => e.label), ["Refresh rate"]);
+  assert.deepEqual(matchSpecGuides("IP68 aman buat berenang?").map((e) => e.label), ["Ketahanan (IP rating)"]);
+  assert.deepEqual(matchSpecGuides("ram 8 gb sama 12 gb kerasa?").map((e) => e.label), ["RAM"]);
+  assert.equal(matchSpecGuides("snapdragon vs dimensity, baterai 6000 mah awet ga, fast charging 67w").length, 2, "maksimal 2 atribut");
+  assert.deepEqual(matchSpecGuides("halo kak"), []);
+  assert.match(guideAnswer(matchSpecGuides("nfc?"))!, /^NFC: /);
+});
+
+test("Tanya AI: cadangan bank materi hanya untuk pertanyaan umum yang jelas", () => {
+  assert.match(specQuestionFallback("NFC itu buat apa?", false)!, /panduan spesifikasi CekHarga/);
+  assert.equal(specQuestionFallback("NFC itu buat apa?", true), null, "menyebut produk katalog");
+  assert.equal(specQuestionFallback("carikan hp nfc 3 juta", false), null, "permintaan mencari");
+  assert.equal(specQuestionFallback("nfc", false), null, "tanpa kata tanya, maksud tidak jelas");
+  assert.equal(specQuestionFallback("bedanya apa ya?", false), null, "tidak cocok atribut mana pun");
 });
