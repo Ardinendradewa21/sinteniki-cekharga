@@ -436,6 +436,12 @@ export function AdminShell({
   // Di dalam <body> flex-col, `flex-1` membuat `h-svh` diabaikan dan shell
   // memanjang mengikuti isi. `max-h-svh` mengunci tinggi ke layar di desktop,
   // jadi hanya kolom konten yang menggulir dan sidebar tetap.
+  //
+  // Kolom konten WAJIB `relative` (temuan PO 20 Nov 2026, batch impor): teks
+  // sr-only berposisi absolut, dan tanpa leluhur ber-position ia ditempatkan
+  // relatif ke dokumen, bukan ke kolom yang menggulir. Daftar panjang lalu
+  // membuat dokumen ikut bisa digulir (batch besar: 8.817px), jadi muncul dua
+  // scrollbar.
   return (
     <div
       data-admin-theme={theme}
@@ -456,7 +462,7 @@ export function AdminShell({
         />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col lg:overflow-y-auto">
+      <div className="relative flex min-w-0 flex-1 flex-col lg:overflow-y-auto">
         <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 bg-background/85 px-4 backdrop-blur-md sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-2">
             <Button
