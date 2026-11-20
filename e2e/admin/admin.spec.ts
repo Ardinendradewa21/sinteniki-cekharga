@@ -27,6 +27,21 @@ test.describe("Dasbor admin", () => {
     await expect(page.locator("select").first()).toHaveValue(params.get("merek")!);
   });
 
+  test("TC-ADM-06 desktop: hanya kolom konten yang menggulir, tidak ada scrollbar ganda (temuan PO 20 Nov 2026) @regression", async ({ page }) => {
+    await page.setViewportSize({ width: 1872, height: 957 });
+    // Halaman berdaftar panjang: produk, impor, dan batch impor terbaru (bila ada).
+    const paths = ["/admin/products", "/admin/import"];
+    await page.goto("/admin/import");
+    const batch = await page.locator('a[href^="/admin/import/batch/"]').first().getAttribute("href").catch(() => null);
+    if (batch) paths.push(batch);
+    for (const path of paths) {
+      await page.goto(path);
+      await page.waitForLoadState("networkidle");
+      const extra = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+      expect(extra, `${path}: dokumen tidak boleh bisa digulir`).toBeLessThanOrEqual(1);
+    }
+  });
+
   test("TC-ADM-03 riwayat dasbor tidak memuat batch terjadwal @regression", async ({ page }) => {
     await page.goto("/admin");
     const history = page.locator("section[aria-labelledby=riwayat-impor]");
