@@ -359,3 +359,21 @@ Temuan dan perbaikan dari uji coba:
 - Label "Iklan" menempel di kiri atas materi. Materi wajib menyisakan **area kosong ±64×32 px di kiri atas**; petunjuknya kini tampil di formulir unggah materi.
 - Materi yang sudah punya data tayang tidak bisa dihapus (bukti tagihan), tetapi sebelumnya juga tidak bisa ditarik. Kini ada aksi **Tarik dari tayang** di detail IO (peran `adops`/`admin`, alasan wajib, checklist persetujuan lama tetap tersimpan).
 - Standar yang sudah dipenuhi: ukuran IAB, label tidak bisa dimatikan, `rel="sponsored"` (pedoman Google untuk tautan berbayar), viewable impression ≥50% ≥1 detik (MRC), ruang slot dipesan (tanpa CLS), skrip pihak ketiga hanya setelah consent, `ads.txt`.
+
+### 14.7 Audit iklan dan iklan dummy (2026-11-21)
+
+Perbaikan (keputusan PO, merge `02618ec`, migrasi `20261121090000_ads-audit-fixes.sql`):
+
+1. **Prioritas dulu, target merek pemenang seri.** Aturan ada di `pickCandidate` (`src/lib/ads/selection.ts`, diuji di `scripts/tests/ads.test.ts`). Iklan bertarget merek hanya tayang di halaman merek itu, tetapi tidak pernah menyingkirkan iklan berprioritas lebih tinggi.
+2. **Gambar ponsel wajib** untuk display bila rasio slot ponsel berbeda dari desktop (`mobileImageRequired`). Materi lama tanpa gambar ponsel memakai rasio desktop di ponsel.
+3. **Line item lewat jadwal** ditandai `ended` oleh cron harian (`ad_close_expired_line_items`). Status IO tetap diubah tim.
+4. **`ad_live_creatives`** hanya menghitung event line item CPM/CPC yang sedang tayang, dan menyaring IO yang dihapus lunak.
+5. **Batas per sesi anonim** (§8 butir 5) lewat RPC `ad_record_events`: 40 tayangan/5 klik per creative per sesi (IP + user agent) per hari, dan 300/30 per IP per hari. Kelebihannya disimpan dengan `is_bot = true`. Tag sesi/jaringan berupa HMAC harian (`session_tag`, `network_tag`), bukan IP.
+6. **Tampilan**: sudut banner `rounded-lg`; label banner ponsel 320×50 di strip atas materi; kartu native ponsel ringkas (±186 px); CTA bawaan "Kunjungi situs ↗"; halaman perbandingan meneruskan merek bila semua produk satu merek.
+
+Iklan dummy: PKS memo internal `001/HOUSE-AD/CH/XI/2026` (berlaku 21 Nov sampai 31 Des 2026), IO `IO-HOUSE-2026-002` "Uji coba iklan dummy Galaxy S26", flat Rp0, prioritas 90, tayang 21 Nov 21.04 sampai 24 Nov 21.04 WIB:
+
+- Native di `catalog_infeed` (semua katalog) dan banner `product_inline` bertarget Samsung (728×90 + 320×50).
+- Tujuan `samsung.com/id/smartphones/galaxy-s26/` dengan UTM `uji_dummy_s26`.
+- Materi tipografis tanpa foto atau logo Samsung. Label pengiklan "CekHarga", dan materi menyebut "Uji coba iklan CekHarga" karena Samsung tidak memesan iklan ini.
+- IO uji coba lama `IO-HOUSE-2026-001` ditandai Selesai.
