@@ -159,11 +159,16 @@ function safeAdminImageSrc(src: string): string | null {
   }
 }
 
-/** Opsi filter diambil dari semua produk, termasuk draft. */
-export async function listAdminProductBrands(): Promise<string[]> {
+export type AdminBrandOption = { name: string; count: number };
+
+/**
+ * Opsi filter diambil dari semua produk, termasuk draft, beserta jumlah
+ * produknya (label chip merek di Kelola produk, AV-02).
+ */
+export async function listAdminProductBrands(): Promise<AdminBrandOption[]> {
   await requireStaff([]);
   const db = getInsforgeAdminClient().database;
-  const brands = new Set<string>();
+  const brands = new Map<string, number>();
 
   // SDK tidak menyediakan DISTINCT untuk query tabel. Baca hanya kolom ringan
   // secara bertahap supaya opsi tetap lengkap tanpa satu select tak terbatas.
@@ -179,12 +184,16 @@ export async function listAdminProductBrands(): Promise<string[]> {
     if (error) throw new Error("Gagal membaca daftar merek produk admin.");
     const rows = (data ?? []) as { id: string; brand: string }[];
     for (const row of rows) {
-      if (typeof row.brand === "string" && row.brand.trim()) brands.add(row.brand);
+      if (typeof row.brand === "string" && row.brand.trim()) brands.set(row.brand, (brands.get(row.brand) ?? 0) + 1);
     }
     if (rows.length < ADMIN_BRANDS_READ_SIZE) break;
   }
 
-  return [...brands].sort(new Intl.Collator("id", { sensitivity: "base" }).compare);
+  // Urut menurut nama (bukan jumlah): posisi chip tidak berpindah saat jumlah berubah.
+  const collator = new Intl.Collator("id", { sensitivity: "base" });
+  return [...brands]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => collator.compare(a.name, b.name));
 }
 
 /**

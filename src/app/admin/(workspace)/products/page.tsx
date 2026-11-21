@@ -1,8 +1,11 @@
 import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { AdminProductList } from "@/components/admin/product-list";
+import { RememberProductFilter } from "@/components/admin/remember-product-filter";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +13,9 @@ import {
   deleteProductsBulkAction,
   setProductsStatusBulkAction,
 } from "@/lib/admin/actions";
+import { ADMIN_PRODUCT_FILTER_COOKIE } from "@/lib/admin/preferences-config";
 import { listAdminProductBrands, listAdminProductsPage } from "@/lib/admin/queries";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Kelola Produk",
@@ -33,13 +38,22 @@ function countParam(value: string | string[] | undefined): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
-function productsHref(query: string, brand: string, page: number): string {
+function filterSearch(query: string, brand: string, page: number): string {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
   if (brand) params.set("brand", brand);
   if (page > 1) params.set("page", String(page));
-  const search = params.toString();
-  return search ? `/admin/products?${search}` : "/admin/products";
+  return params.toString();
+}
+
+/**
+ * Tautan daftar dengan filter tertentu. Tanpa filter memakai `?semua=1`, bukan
+ * `/admin/products` polos: URL polos berarti "pulihkan filter terakhir" (AV-02),
+ * jadi memilih "Semua merek" harus eksplisit.
+ */
+function productsHref(query: string, brand: string, page: number): string {
+  const search = filterSearch(query, brand, page);
+  return search ? `/admin/products?${search}` : "/admin/products?semua=1";
 }
 
 /**
@@ -53,10 +67,26 @@ export default async function AdminProductsPage({
   searchParams,
 }: PageProps<"/admin/products">) {
   const params = await searchParams;
+  const brands = await listAdminProductBrands();
+  const brandNames = brands.map((option) => option.name);
+
+  // AV-02: kembali ke /admin/products tanpa parameter (tombol kembali, menu
+  // samping, breadcrumb) memulihkan filter terakhir admin di browser ini.
+  // Isi cookie divalidasi ulang; merek yang sudah tidak ada diabaikan.
+  if (Object.keys(params).length === 0) {
+    const saved = new URLSearchParams((await cookies()).get(ADMIN_PRODUCT_FILTER_COOKIE)?.value ?? "");
+    const savedBrand = saved.get("brand") ?? "";
+    const restored = filterSearch(
+      (saved.get("q") ?? "").trim().slice(0, 80),
+      brandNames.includes(savedBrand) ? savedBrand : "",
+      pageParam(saved.get("page") ?? undefined)
+    );
+    if (restored) redirect(`/admin/products?${restored}`);
+  }
+
   const query = stringParam(params.q).trim().slice(0, 80);
   const requestedBrand = stringParam(params.brand).trim().slice(0, 80);
-  const brands = await listAdminProductBrands();
-  const brand = brands.includes(requestedBrand) ? requestedBrand : "";
+  const brand = brandNames.includes(requestedBrand) ? requestedBrand : "";
   const requestedPage = pageParam(params.page);
   const result = await listAdminProductsPage({ query, brand, page: requestedPage });
   const changedCount = countParam(params.jumlah);
@@ -148,44 +178,64 @@ export default async function AdminProductsPage({
         </p>
       ) : null}
 
-      <Form
-        action="/admin/products"
-        className="mt-8 flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-end"
-      >
-        <div className="min-w-0 flex-1">
-          <label htmlFor="cari-produk-admin" className="mb-1.5 block text-xs font-semibold text-foreground">
-            Cari produk
-          </label>
-          <Input
-            id="cari-produk-admin"
-            name="q"
-            type="search"
-            defaultValue={query}
-            placeholder="Cari merek, model, atau slug produk…"
-            className="w-full"
-          />
-        </div>
-        <div className="sm:w-52">
-          <label htmlFor="filter-merek-admin" className="mb-1.5 block text-xs font-semibold text-foreground">
-            Filter merek
-          </label>
-          <select
-            id="filter-merek-admin"
-            name="brand"
-            defaultValue={brand}
-            className="flex h-11 w-full rounded-lg border border-border-strong bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">Semua merek</option>
-            {brands.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-        </div>
-        <Button type="submit">Terapkan</Button>
-        {query || brand ? (
-          <Button asChild type="button" variant="outline">
-            <Link href="/admin/products">Reset filter</Link>
-          </Button>
-        ) : null}
-      </Form>
+      {/* AV-02: filter terakhir diingat di browser ini dan dipulihkan saat kembali. */}
+      <RememberProductFilter value={filterSearch(query, brand, result.page)} />
+
+      <div className="mt-8 rounded-xl border border-border bg-card p-4">
+        <Form action="/admin/products" className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <label htmlFor="cari-produk-admin" className="mb-1.5 block text-xs font-semibold text-foreground">
+              Cari produk
+            </label>
+            <Input
+              id="cari-produk-admin"
+              name="q"
+              type="search"
+              defaultValue={query}
+              placeholder="Cari model atau slug produk…"
+              className="w-full"
+            />
+          </div>
+          {/* Mencari tetap di dalam merek yang sedang dipilih. */}
+          {brand ? <input type="hidden" name="brand" value={brand} /> : null}
+          <Button type="submit">Cari</Button>
+          {query || brand ? (
+            <Button asChild type="button" variant="outline">
+              <Link href="/admin/products?semua=1">Reset filter</Link>
+            </Button>
+          ) : null}
+        </Form>
+
+        {/* Chip merek: sekali ketuk langsung menyaring, ketuk lagi untuk lepas
+            (pola chip katalog publik, satu merek per kali). Urut nama supaya
+            posisinya tidak berpindah. */}
+        <nav aria-label="Saring menurut merek" className="mt-4 border-t border-border pt-4">
+          <p className="mb-2 text-xs font-semibold text-foreground">Merek</p>
+          <ul className="flex flex-wrap gap-2">
+            {[{ name: "", count: brands.reduce((sum, option) => sum + option.count, 0) }, ...brands].map((option) => {
+              const active = option.name === brand;
+              return (
+                <li key={option.name || "semua"}>
+                  <Link
+                    href={productsHref(query, active && option.name ? "" : option.name, 1)}
+                    aria-current={active ? "true" : undefined}
+                    className={cn(
+                      "inline-flex min-h-11 items-center gap-1.5 rounded-pill border px-3.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border-strong bg-card text-foreground hover:bg-muted"
+                    )}
+                  >
+                    {option.name || "Semua"}
+                    <span className="tabular text-xs opacity-80">{option.count}</span>
+                    {active && option.name ? <span className="sr-only">(dipilih; ketuk lagi untuk melepas)</span> : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
 
       {result.items.length === 0 ? (
         <div className="mt-8 rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
@@ -200,7 +250,7 @@ export default async function AdminProductsPage({
           </p>
           {query || brand ? (
             <Button asChild variant="outline" size="sm" className="mt-4">
-              <Link href="/admin/products">Tampilkan semua produk</Link>
+              <Link href="/admin/products?semua=1">Tampilkan semua produk</Link>
             </Button>
           ) : null}
         </div>

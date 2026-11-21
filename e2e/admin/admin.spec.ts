@@ -27,6 +27,28 @@ test.describe("Dasbor admin", () => {
     await expect(page.locator("select").first()).toHaveValue(params.get("merek")!);
   });
 
+  test("TC-ADM-07 chip merek Kelola produk diingat setelah membuka produk dan kembali (AV-02) @regression", async ({ page }) => {
+    await page.goto("/admin/products?semua=1");
+    const chips = page.getByRole("navigation", { name: "Saring menurut merek" }).getByRole("link");
+    const brandChip = chips.nth(1); // chip pertama setelah "Semua"
+    const brandName = (await brandChip.textContent())!.replace(/\d+.*$/, "").trim();
+    await brandChip.click();
+    await expect(page).toHaveURL(new RegExp(`brand=${encodeURIComponent(brandName)}`));
+    await expect(brandChip).toHaveAttribute("aria-current", "true");
+
+    // Buka satu produk lalu kembali lewat tautan "Kelola Produk": merek tetap.
+    await page.locator('a[href^="/admin/products/"]').filter({ hasNotText: /Perbandingan|Tambah|Edit/ }).first().click();
+    await page.waitForURL(/\/admin\/products\/[0-9a-f-]{36}/);
+    await page.getByRole("link", { name: "Kelola Produk" }).first().click();
+    await expect(page).toHaveURL(new RegExp(`brand=${encodeURIComponent(brandName)}`));
+
+    // "Semua" melepas filter, dan sesudahnya URL polos tidak memulihkan merek lagi.
+    await chips.first().click();
+    await expect(page).toHaveURL(/semua=1/);
+    await page.goto("/admin/products");
+    await expect(page).toHaveURL(/\/admin\/products$/);
+  });
+
   test("TC-ADM-06 desktop: hanya kolom konten yang menggulir, tidak ada scrollbar ganda (temuan PO 20 Nov 2026) @regression", async ({ page }) => {
     await page.setViewportSize({ width: 1872, height: 957 });
     // Halaman berdaftar panjang: produk, impor, dan batch impor terbaru (bila ada).
