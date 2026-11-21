@@ -1,7 +1,7 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 
 import { findLiveCreative } from "@/lib/ads/decision";
-import { anonSession, dedupeKey, deviceFrom, looksLikeBot, recordAdEvents } from "@/lib/ads/events";
+import { anonSession, dedupeKey, deviceFrom, looksLikeBot, recordAdEvents, sourceTags } from "@/lib/ads/events";
 
 /**
  * Klik iklan: catat lalu alihkan (302) ke tujuan creative.
@@ -27,6 +27,7 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/ads/clic
 
   const userAgent = request.headers.get("user-agent");
   const session = anonSession(request.headers);
+  const tags = sourceTags(request.headers);
   const lineItemId = live.line_item_id;
   const slot = slotCode === live.slot_code ? slotCode : live.slot_code;
   after(() =>
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/ads/clic
         device: deviceFrom(userAgent),
         isBot: looksLikeBot(userAgent),
         dedupeKey: dedupeKey({ session, creativeId, slotCode: slot, type: "click" }),
+        ...tags,
       },
     ])
   );

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { AdSlot } from "@/components/ads/ad-slot";
+import { sharedBrand } from "@/lib/ads/selection";
 import { CompareSummary } from "@/components/compare/compare-summary";
 import { ReviewDigestSection } from "@/components/compare/review-digest-section";
 import { CompareTable } from "@/components/compare/compare-table";
@@ -114,7 +115,11 @@ export default async function ComparePairPage(props: PageProps<"/bandingkan/[pas
         </Button>
       </div>
 
-      <AdSlot code="compare_bottom" className="mt-12" />
+      <AdSlot
+        code="compare_bottom"
+        brand={sharedBrand(result.items.map((item) => item.brand))}
+        className="mt-12"
+      />
     </Container>
   );
 }

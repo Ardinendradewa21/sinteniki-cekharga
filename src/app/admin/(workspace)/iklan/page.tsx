@@ -36,7 +36,12 @@ export default async function AdsDashboardPage() {
     countPendingCreatives(),
     readDailyReport({ from, to: today }),
   ]);
-  const running = items.filter((item) => item.status === "active" || item.status === "paused");
+  // Line item lewat jadwal tidak lagi dianggap berjalan walau cron harian
+  // belum menandainya "Selesai" (temuan F3 audit iklan).
+  const nowMs = new Date().getTime();
+  const running = items.filter(
+    (item) => (item.status === "active" || item.status === "paused") && Date.parse(item.end_at) > nowMs
+  );
   const lifetime = await readDailyReport({ lineItemIds: running.map((item) => item.id) });
   const delivered = sumDelivery(lifetime);
   const ioById = new Map(ios.map((io) => [io.id, io]));

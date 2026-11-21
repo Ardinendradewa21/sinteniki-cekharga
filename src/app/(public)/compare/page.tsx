@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AdSlot } from "@/components/ads/ad-slot";
+import { sharedBrand } from "@/lib/ads/selection";
 import { ComparePicker } from "@/components/compare/compare-picker";
 import { CompareSummary } from "@/components/compare/compare-summary";
 import { ReviewDigestSection } from "@/components/compare/review-digest-section";
@@ -132,7 +133,10 @@ async function CompareView({
 
       {result.items.length === 0 ? <PairExamples /> : null}
 
-      {result.items.length > 0 ? <AdSlot code="compare_bottom" className="mt-12" /> : null}
+      {result.items.length > 0 ? (
+        // T3: iklan bertarget merek ikut tayang bila semua produk satu merek.
+        <AdSlot code="compare_bottom" brand={sharedBrand(result.items.map((item) => item.brand))} className="mt-12" />
+      ) : null}
     </>
   );
 }

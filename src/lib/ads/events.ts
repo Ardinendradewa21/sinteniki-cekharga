@@ -3,6 +3,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { unstable_cache } from "next/cache";
 
+import { jakartaDay } from "@/lib/ads/dates";
 import { getInsforgeAdminClient } from "@/lib/backend/insforge";
 import { selectAll } from "@/lib/backend/paged-read";
 
@@ -11,7 +12,8 @@ import { selectAll } from "@/lib/backend/paged-read";
  *
  * - Tidak menyimpan IP mentah, email, atau identitas pengunjung. Yang
  *   disimpan hanya creative, line item, slot, jenis event, perangkat, tanda
- *   bot, dan dedupe_key (HMAC, tidak bisa dibalik).
+ *   bot, dedupe_key, serta tag sesi/jaringan harian (semuanya HMAC, tidak bisa
+ *   dibalik).
  * - dedupe_key = HMAC(sesi anonim + creative + slot + jenis + menit). Event
  *   ganda dalam menit yang sama diabaikan oleh indeks unik di database.
  * - Event bot/tidak wajar DITANDAI is_bot = true, tidak dihapus, supaya bisa
@@ -41,8 +43,40 @@ function hashSecret(): string {
  * menjadi masukan HMAC di `dedupeKey` dan tidak pernah disimpan.
  */
 export function anonSession(headers: Headers): string {
-  const ip = headers.get("x-forwarded-for")?.split(",")[0]?.trim() || headers.get("x-real-ip") || "";
-  return `${ip}|${headers.get("user-agent") ?? ""}`;
+  return `${clientIp(headers)}|${headers.get("user-agent") ?? ""}`;
+}
+
+function clientIp(headers: Headers): string {
+  return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || headers.get("x-real-ip") || "";
+}
+
+/**
+ * Batas harian per creative (temuan F5 audit iklan, ADS-CONTEXT §8 butir 5).
+ * Event di atas batas tetap disimpan tetapi ditandai is_bot, jadi tidak
+ * masuk laporan dan tagihan. Batas jaringan (IP saja) lebih longgar karena
+ * operator seluler Indonesia membagi satu IP ke banyak pelanggan (CGNAT);
+ * gunanya menangkap skrip yang berganti-ganti user agent.
+ */
+export const AD_EVENT_CAPS = {
+  sessionImpressions: 40,
+  sessionClicks: 5,
+  networkImpressions: 300,
+  networkClicks: 30,
+} as const;
+
+/**
+ * Tag sesi (IP + user agent) dan jaringan (IP) untuk batas harian. HMAC
+ * dengan tanggal WIB: berganti setiap hari, tidak bisa dibalik menjadi IP,
+ * dan tidak bisa menghubungkan kunjungan antarhari.
+ */
+export function sourceTags(headers: Headers): { sessionTag: string | null; networkTag: string | null } {
+  const ip = clientIp(headers);
+  const secret = process.env.ADS_EVENT_SECRET || process.env.INSFORGE_API_KEY;
+  // Tanpa IP atau rahasia: event tetap dicatat, hanya tanpa batas harian.
+  if (!ip || !secret) return { sessionTag: null, networkTag: null };
+  const day = jakartaDay();
+  const tag = (value: string) => createHmac("sha256", secret).update(`tag|${value}|${day}`).digest("hex").slice(0, 24);
+  return { sessionTag: tag(`s|${anonSession(headers)}`), networkTag: tag(`n|${ip}`) };
 }
 
 export function dedupeKey(parts: { session: string; creativeId: string; slotCode: string; type: string }): string {
@@ -71,6 +105,8 @@ export async function recordAdEvents(
     device: "desktop" | "mobile";
     isBot: boolean;
     dedupeKey: string;
+    sessionTag: string | null;
+    networkTag: string | null;
   }[]
 ): Promise<void> {
   if (events.length === 0) return;
@@ -87,13 +123,41 @@ export async function recordAdEvents(
             device: event.device,
             is_bot: event.isBot,
             dedupe_key: event.dedupeKey,
+            session_tag: event.sessionTag,
+            network_tag: event.networkTag,
           },
         ]
       : [];
   });
   if (rows.length === 0) return;
-  const { error } = await getInsforgeAdminClient()
-    .database.from("ad_events")
-    .upsert(rows, { onConflict: "dedupe_key", ignoreDuplicates: true });
-  if (error) console.error("[iklan] event gagal dicatat:", error);
+  const client = getInsforgeAdminClient();
+  // Batas harian dicek dan event disimpan dalam satu panggilan database
+  // (migrasi 20261121090000), supaya hitungannya sama di semua instance.
+  const { error } = await client.database.rpc("ad_record_events", {
+    p_events: rows,
+    p_session_impr_cap: AD_EVENT_CAPS.sessionImpressions,
+    p_session_click_cap: AD_EVENT_CAPS.sessionClicks,
+    p_network_impr_cap: AD_EVENT_CAPS.networkImpressions,
+    p_network_click_cap: AD_EVENT_CAPS.networkClicks,
+  });
+  if (!error) return;
+  // Cadangan (aturan system design 7): simpan tanpa cek batas daripada
+  // kehilangan event. Dedupe per menit tetap berlaku lewat indeks unik.
+  console.error("[iklan] ad_record_events gagal, memakai simpan langsung:", error);
+  const fallback = await client.database
+    .from("ad_events")
+    .upsert(
+      // Tanpa kolom tag: bila RPC gagal karena migrasi belum ada, kolomnya juga belum ada.
+      rows.map((row) => ({
+        creative_id: row.creative_id,
+        line_item_id: row.line_item_id,
+        slot_id: row.slot_id,
+        event_type: row.event_type,
+        device: row.device,
+        is_bot: row.is_bot,
+        dedupe_key: row.dedupe_key,
+      })),
+      { onConflict: "dedupe_key", ignoreDuplicates: true }
+    );
+  if (fallback.error) console.error("[iklan] event gagal dicatat:", fallback.error);
 }

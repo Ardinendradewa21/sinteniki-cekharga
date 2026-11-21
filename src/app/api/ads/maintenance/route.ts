@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { rollupAdEvents } from "@/lib/ads/maintenance";
+import { closeExpiredLineItems, rollupAdEvents } from "@/lib/ads/maintenance";
 
 /**
  * Tugas harian iklan (docs/ads/ADS-CONTEXT.md §12.3): ringkas event mentah
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    return Response.json({ purged: await rollupAdEvents() });
+    return Response.json({ purged: await rollupAdEvents(), closed: await closeExpiredLineItems() });
   } catch (error) {
     console.error("[iklan] rollup gagal:", error);
     return Response.json({ error: "rollup gagal" }, { status: 500 });

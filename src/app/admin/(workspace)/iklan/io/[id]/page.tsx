@@ -35,6 +35,7 @@ import {
   IO_LABEL,
   IO_TRANSITIONS,
   LINE_ITEM_LABEL,
+  mobileImageRequired,
   PRICING_MODELS,
   type IoStatus,
 } from "@/lib/ads/admin-schema";
@@ -351,9 +352,16 @@ export default async function IoDetailPage(props: PageProps<"/admin/iklan/io/[id
                           <Field
                             scope={`c-${item.id}`}
                             name="image_mobile"
-                            label={`Gambar mobile (${slot.mobile_size.replace("x", "×")}, opsional)`}
+                            label={`Gambar ponsel (${slot.mobile_size.replace("x", "×")}, ${
+                              mobileImageRequired(slot.desktop_size, slot.mobile_size) ? "wajib untuk display" : "opsional"
+                            })`}
                             type="file"
                             accept="image/png,image/jpeg,image/webp,image/gif"
+                            hint={
+                              mobileImageRequired(slot.desktop_size, slot.mobile_size)
+                                ? "Rasio slot ponsel berbeda dari desktop, jadi materi desktop tidak dipakai di ponsel."
+                                : undefined
+                            }
                           />
                         ) : null}
                         <Field scope={`c-${item.id}`} name="alt_text" label="Teks alternatif gambar" required maxLength={200} />

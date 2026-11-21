@@ -271,6 +271,21 @@ export function matchesSlotRatio(
   return Math.abs(got - want) / want <= 0.02 && image.width >= Number(match[1]);
 }
 
+/**
+ * Gambar ponsel wajib bila rasio slot ponsel berbeda dari desktop (temuan F1
+ * audit iklan, 21 November 2026). Tanpanya materi 970×250 tampil di kotak
+ * 300×250 sebagai pita kecil dengan bidang kosong besar.
+ */
+export function mobileImageRequired(desktopSize: string | null, mobileSize: string | null): boolean {
+  const parse = (size: string | null) => size?.match(/^(\d+)x(\d+)$/);
+  const desktop = parse(desktopSize);
+  const mobile = parse(mobileSize);
+  if (!desktop || !mobile) return false;
+  const d = Number(desktop[1]) / Number(desktop[2]);
+  const m = Number(mobile[1]) / Number(mobile[2]);
+  return Math.abs(d - m) / d > 0.02;
+}
+
 /** Checklist review creative (ADS-CONTEXT §1 butir 7, §12.1 butir 3). */
 export const REVIEW_CHECKLIST = [
   { key: "no_prohibited", label: "Bukan kategori terlarang (judi, pinjol ilegal, obat terlarang, konten dewasa)" },

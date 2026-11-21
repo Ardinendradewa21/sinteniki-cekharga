@@ -17,3 +17,15 @@ export async function rollupAdEvents(): Promise<number> {
   if (error) throw new Error(`Ringkasan event iklan gagal: ${error.message}`);
   return Number(data ?? 0);
 }
+
+/**
+ * Line item yang lewat end_at ditandai 'ended' (temuan F3 audit iklan).
+ * Penayangannya sudah berhenti karena jendela waktu di `ad_live_creatives`;
+ * ini merapikan status di admin. Status IO tetap diubah tim (laporan dan
+ * invoice akhir mengikuti langkah "Selesai").
+ */
+export async function closeExpiredLineItems(): Promise<number> {
+  const { data, error } = await getInsforgeAdminClient().database.rpc("ad_close_expired_line_items");
+  if (error) throw new Error(`Penutupan line item gagal: ${error.message}`);
+  return Number(data ?? 0);
+}

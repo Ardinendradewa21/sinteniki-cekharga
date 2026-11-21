@@ -3,6 +3,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 
 import { getInsforgePublicClient } from "@/lib/backend/insforge";
+import { pickCandidate } from "@/lib/ads/selection";
 import { getDataSourceMode } from "@/lib/config";
 
 /**
@@ -13,9 +14,8 @@ import { getDataSourceMode } from "@/lib/config";
  *    waktu, IO `ready`/`live`, dan slot aktif. Semua syarat ini ditegakkan di
  *    fungsi database `ad_live_creatives()`, satu-satunya pintu baca publik.
  * 2. Target belum tercapai (`remaining` > 0 atau line item flat).
- * 3. Targeting kontekstual: line item yang menargetkan merek halaman ini
- *    didahulukan; line item bertarget merek lain tidak tayang di halaman lain.
- * 4. Prioritas tertinggi (angka terkecil), lalu rotasi berbobot.
+ * 3. Prioritas tertinggi menang; target merek hanya pemenang seri, lalu
+ *    rotasi berbobot. Rinciannya di `pickCandidate` (selection.ts).
  *
  * Hasil database di-cache 60 detik. Iklan tidak pernah memengaruhi data
  * katalog: modul ini tidak membaca atau menulis tabel produk/harga.
@@ -191,16 +191,6 @@ export async function findLiveCreative(creativeId: string): Promise<LiveCreative
   return (await loadLive()).find((row) => row.creative_id === creativeId) ?? null;
 }
 
-function pickWeighted(rows: LiveRow[]): LiveRow | undefined {
-  const total = rows.reduce((sum, row) => sum + Math.max(1, row.weight), 0);
-  let roll = Math.random() * total;
-  for (const row of rows) {
-    roll -= Math.max(1, row.weight);
-    if (roll < 0) return row;
-  }
-  return rows[0];
-}
-
 function toServed(row: LiveRow): ServedCreative {
   return {
     kind: "campaign",
@@ -238,21 +228,6 @@ export async function decide(
     return null;
   }
 
-  const wanted = brand?.trim().toLowerCase() ?? null;
-  const eligible = rows.filter(
-    (row) =>
-      row.slot_code === slotCode &&
-      !exclude.includes(row.line_item_id) &&
-      (row.remaining === null || row.remaining > 0) &&
-      (row.format === "native" ? Boolean(row.headline) : Boolean(row.image_url))
-  );
-  const targeted = wanted
-    ? eligible.filter((row) => (row.target_brands ?? []).some((b) => b.toLowerCase() === wanted))
-    : [];
-  const pool = targeted.length > 0 ? targeted : eligible.filter((row) => (row.target_brands ?? []).length === 0);
-  if (pool.length === 0) return null;
-
-  const best = Math.min(...pool.map((row) => row.priority));
-  const chosen = pickWeighted(pool.filter((row) => row.priority === best));
+  const chosen = pickCandidate(rows, { slotCode, brand, exclude });
   return chosen ? toServed(chosen) : null;
 }
