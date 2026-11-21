@@ -377,3 +377,9 @@ Iklan dummy: PKS memo internal `001/HOUSE-AD/CH/XI/2026` (berlaku 21 Nov sampai 
 - Tujuan `samsung.com/id/smartphones/galaxy-s26/` dengan UTM `uji_dummy_s26`.
 - Materi tipografis tanpa foto atau logo Samsung. Label pengiklan "CekHarga", dan materi menyebut "Uji coba iklan CekHarga" karena Samsung tidak memesan iklan ini.
 - IO uji coba lama `IO-HOUSE-2026-001` ditandai Selesai.
+- Tambahan pada hari yang sama:
+  - S26 di Beranda atas, Katalog atas, dan Perbandingan bawah.
+  - IO `IO-HOUSE-2026-003` (vivo V70, vivo.com/id) di Beranda tengah, Detail produk samping, dan Detail produk tengah tanpa target merek.
+  - Akibatnya semua slot aktif terisi sampai 24 Nov 21.04 WIB. Rail kiri/kanan tetap nonaktif.
+
+Langkah memasang iklan lewat admin untuk staf: [PANDUAN-ADMIN-IKLAN.md](PANDUAN-ADMIN-IKLAN.md).
