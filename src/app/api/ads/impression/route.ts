@@ -1,7 +1,7 @@
 import { after, type NextRequest } from "next/server";
 
 import { findLiveCreative } from "@/lib/ads/decision";
-import { anonSession, dedupeKey, deviceFrom, looksLikeBot, recordAdEvents } from "@/lib/ads/events";
+import { anonSession, dedupeKey, deviceFrom, looksLikeBot, recordAdEvents, sourceTags } from "@/lib/ads/events";
 
 /**
  * Tayangan terlihat (viewable impression). Dikirim oleh AdViewTracker setelah
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
   const session = anonSession(request.headers);
   const isBot = looksLikeBot(userAgent);
   const device = deviceFrom(userAgent);
+  const tags = sourceTags(request.headers);
 
   after(async () => {
     const events = [];
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
         device,
         isBot,
         dedupeKey: dedupeKey({ session, creativeId: c, slotCode: s, type: "impression" }),
+        ...tags,
       });
     }
     await recordAdEvents(events);

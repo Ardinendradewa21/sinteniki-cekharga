@@ -45,96 +45,120 @@ function linkProps(creative: ServedCreative) {
 
 function DisplayAd({ creative, slot }: { creative: ServedCreative; slot: LiveSlot }) {
   const desktop = parseSize(slot.desktopSize);
-  const mobile = parseSize(slot.mobileSize) ?? desktop;
-  if (!desktop || !mobile || !creative.imageUrl) return null;
+  if (!desktop || !creative.imageUrl) return null;
   const isRail = slot.code.startsWith("rail_");
   const mobileImage = creative.imageUrlMobile && !isRail ? creative.imageUrlMobile : null;
+  // Tanpa gambar ponsel, kotak ponsel memakai rasio materi desktop (temuan F1):
+  // materi 970×250 tidak lagi mengecil menjadi pita di kotak 300×250.
+  const mobile = (mobileImage ? parseSize(slot.mobileSize) : null) ?? desktop;
+  // Banner ponsel setinggi ±50 px (T1): label "Iklan" di atas materi akan
+  // menutup hampir separuh tingginya, jadi di ponsel label pindah ke strip
+  // tipis di atas gambar, tetap di dalam unit iklan.
+  const compactMobile = Boolean(mobileImage) && mobile.h <= 60;
   const style = {
     maxWidth: desktop.w,
     "--ad-ar-d": `${desktop.w} / ${desktop.h}`,
     "--ad-ar-m": `${mobile.w} / ${mobile.h}`,
   } as CSSProperties;
+  const preview = creative.kind === "preview";
 
   return (
     <a
       {...linkProps(creative)}
       style={style}
       className={cn(
-        "group relative mx-auto block aspect-(--ad-ar-m) w-full overflow-hidden rounded-2xl bg-muted shadow-sm ring-1 ring-border/70 hover:ring-brand/40 sm:aspect-(--ad-ar-d)",
+        // Sudut kecil (T1): rounded-2xl memotong sudut materi pengiklan.
+        "group relative mx-auto block w-full overflow-hidden rounded-lg bg-muted shadow-sm ring-1 ring-border/70 hover:ring-brand/40",
         LIFT
       )}
     >
-      <Image
-        src={creative.imageUrl}
-        alt={creative.altText}
-        fill
-        sizes={`(min-width: 640px) ${desktop.w}px, 100vw`}
-        className={cn(
-          // contain, bukan cover: teks di materi tidak boleh terpotong. Unggahan
-          // baru sudah divalidasi rasionya, jadi umumnya tanpa bingkai kosong.
-          "object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100",
-          mobileImage && "hidden sm:block"
-        )}
-      />
-      {mobileImage ? (
+      {compactMobile ? (
+        <span className="flex items-center bg-card px-2 py-1 sm:hidden">
+          <AdLabel preview={preview} />
+        </span>
+      ) : null}
+      <span className="relative block aspect-(--ad-ar-m) w-full sm:aspect-(--ad-ar-d)">
         <Image
-          src={mobileImage}
+          src={creative.imageUrl}
           alt={creative.altText}
           fill
-          sizes="100vw"
-          className="object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03] motion-reduce:transition-none sm:hidden"
+          sizes={`(min-width: 640px) ${desktop.w}px, 100vw`}
+          className={cn(
+            // contain, bukan cover: teks di materi tidak boleh terpotong. Unggahan
+            // baru sudah divalidasi rasionya, jadi umumnya tanpa bingkai kosong.
+            "object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100",
+            mobileImage && "hidden sm:block"
+          )}
         />
-      ) : null}
-      <AdLabel preview={creative.kind === "preview"} className="absolute top-2 left-2" />
+        {mobileImage ? (
+          <Image
+            src={mobileImage}
+            alt={creative.altText}
+            fill
+            sizes="100vw"
+            className="object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03] motion-reduce:transition-none sm:hidden"
+          />
+        ) : null}
+        <AdLabel preview={preview} className={cn("absolute top-2 left-2", compactMobile && "hidden sm:inline-flex")} />
+      </span>
     </a>
   );
 }
 
 function NativeAd({ creative }: { creative: ServedCreative }) {
+  // Contoh iklan (pratinjau) menaut ke media kit di situs ini, bukan keluar.
+  const arrow = creative.kind === "preview" ? "→" : "↗";
   return (
     <a
       {...linkProps(creative)}
       className={cn(
-        "group relative grid overflow-hidden rounded-2xl border border-border bg-card shadow-sm hover:border-brand/40 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]",
+        // Ponsel (T2): gambar persegi kecil di kiri, teks di kanan, supaya
+        // kartu tidak lebih tinggi dari satu baris kartu produk.
+        "group relative grid grid-cols-[104px_minmax(0,1fr)] overflow-hidden rounded-2xl border border-border bg-card shadow-sm hover:border-brand/40 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]",
         LIFT
       )}
     >
       {/* Garis aksen solid: penanda visual bahwa ini unit berbeda dari kartu
           produk. Gradien dan terracotta dipensiunkan (DESIGN.md §9). */}
       <span aria-hidden="true" className="absolute inset-x-0 top-0 z-10 h-1 bg-brand" />
-      <div className="stage relative aspect-video overflow-hidden sm:aspect-auto sm:min-h-48">
+      <div className="stage relative min-h-full overflow-hidden sm:min-h-48">
         {creative.imageUrl ? (
           <Image
             src={creative.imageUrl}
             alt={creative.altText}
             fill
-            sizes="(min-width: 640px) 40vw, 100vw"
+            sizes="(min-width: 640px) 40vw, 104px"
             className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
         ) : null}
-        <AdLabel preview={creative.kind === "preview"} className="absolute top-3 left-3" />
+        <AdLabel preview={creative.kind === "preview"} className="absolute top-3 left-2 sm:left-3" />
       </div>
-      <div className="flex flex-col gap-2 p-5 sm:p-6">
+      <div className="flex flex-col gap-1.5 p-4 sm:gap-2 sm:p-6">
         <div className="flex items-center gap-2">
           {creative.logoUrl ? (
-            <span className="stage relative size-8 shrink-0 overflow-hidden rounded-lg ring-1 ring-border">
+            <span className="stage relative size-6 shrink-0 overflow-hidden rounded-md ring-1 ring-border sm:size-8 sm:rounded-lg">
               <Image src={creative.logoUrl} alt="" fill sizes="32px" className="object-contain p-1" />
             </span>
           ) : null}
           <span className="truncate text-sm font-semibold text-foreground">{creative.advertiserLabel}</span>
           <span className="ml-auto shrink-0 text-xs text-muted-foreground">Bersponsor</span>
         </div>
-        <p className="text-lg leading-snug font-bold tracking-tight text-foreground sm:text-xl">
+        <p className="text-base leading-snug font-bold tracking-tight text-foreground sm:text-xl">
           {creative.headline}
         </p>
         {creative.body ? (
           <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{creative.body}</p>
         ) : null}
-        {/* Teks CTA di dalam kartu yang seluruhnya tautan: tampil seperti tombol
-            sistem (buttonVariants), tetapi bukan elemen interaktif tersendiri. */}
-        <span className={cn(buttonVariants(), "pointer-events-none mt-auto w-fit")}>
-          {creative.ctaLabel || "Selengkapnya"}
-          <span aria-hidden="true">→</span>
+        {/* Teks CTA di dalam kartu yang seluruhnya tautan, jadi bukan elemen
+            interaktif tersendiri. Desktop tampil seperti tombol sistem; ponsel
+            cukup teks agar kartu tetap pendek. Panah ↗ karena tautan keluar
+            situs (R-08). */}
+        <span className="mt-auto text-sm font-semibold text-brand-text sm:hidden">
+          {creative.ctaLabel || "Kunjungi situs"} <span aria-hidden="true">{arrow}</span>
+        </span>
+        <span className={cn(buttonVariants(), "pointer-events-none mt-auto hidden w-fit sm:inline-flex")}>
+          {creative.ctaLabel || "Kunjungi situs"}
+          <span aria-hidden="true">{arrow}</span>
         </span>
       </div>
     </a>

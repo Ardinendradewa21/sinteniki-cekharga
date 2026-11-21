@@ -20,6 +20,7 @@ import {
   ioInput,
   LINE_ITEM_STATUS,
   lineItemFromForm,
+  mobileImageRequired,
   needsEscalation,
   parseRupiah,
   text,
@@ -358,6 +359,15 @@ export async function createCreativeAction(_prev: AdActionState, formData: FormD
   };
 
   const isNative = input.format === "native";
+  if (
+    !isNative &&
+    mobileImageRequired(context.slot.desktop_size, context.slot.mobile_size) &&
+    !fileFrom(formData, "image_mobile")
+  ) {
+    return fail(
+      `Slot ini butuh gambar ponsel ${context.slot.mobile_size?.replace("x", "×")} karena rasionya berbeda dari desktop.`
+    );
+  }
   const main = await upload("image", "Gambar utama", context.slot.desktop_size, !isNative);
   if (!main.ok) return fail(main.reason);
   if (!isNative && !main.url) return fail("Iklan display wajib punya gambar.");
