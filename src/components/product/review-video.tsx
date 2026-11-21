@@ -56,9 +56,15 @@ export function ReviewVideoProvider({
     play: (seconds, options) => {
       setState({ playing: true, start: seconds ?? startSeconds })
       // Tombol menit di poin: bawa pemutar ke layar (di ponsel bisa di atas lipatan).
+      // Ditunda dua frame: di ponsel kotak pemutar baru tampil setelah render
+      // berikutnya (RV-05), dan elemen tersembunyi tidak bisa digulir ke layar.
       if (options?.reveal) {
         const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        document.getElementById(frameId)?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" })
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() =>
+            document.getElementById(frameId)?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" })
+          )
+        )
       }
     },
   }
@@ -74,8 +80,16 @@ export function ReviewVideo({ channelName, className }: { channelName: string; c
   return (
     <div className={cn("mt-4", className)}>
       {/* Kotak 16:9 dipesan sejak awal: tidak ada pergeseran tata letak saat
-          thumbnail berganti pemutar (CLS 0). */}
-      <div id={video.frameId} className="relative aspect-video w-full scroll-mt-24 overflow-hidden rounded-lg bg-foreground/10">
+          thumbnail berganti pemutar (CLS 0). RV-05 (keputusan PO 20 Nov 2026):
+          di ponsel kotak ini disembunyikan sampai "Tonton video" ditekan,
+          supaya kartu tidak memanjang ~170px; thumbnail-nya juga tidak diunduh. */}
+      <div
+        id={video.frameId}
+        className={cn(
+          "relative aspect-video w-full scroll-mt-24 overflow-hidden rounded-lg bg-foreground/10",
+          !playing && "hidden sm:block"
+        )}
+      >
         {playing ? (
           <iframe
             // key: menit baru = muat ulang pemutar dari menit itu.
@@ -121,16 +135,31 @@ export function ReviewVideo({ channelName, className }: { channelName: string; c
         )}
       </div>
 
-      <a
-        href={openUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
-      >
-        Buka di YouTube
-        <HugeiconsIcon icon={LinkSquare01Icon} size={15} strokeWidth={2} aria-hidden />
-        <span className="sr-only">(membuka aplikasi atau tab baru)</span>
-      </a>
+      <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1", playing ? "mt-2" : "sm:mt-2")}>
+        {!playing ? (
+          // Khusus ponsel: satu baris ringkas menggantikan thumbnail 16:9.
+          <button
+            type="button"
+            onClick={() => video.play(start)}
+            className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-pill border border-border-strong bg-card px-4 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:hidden"
+          >
+            <HugeiconsIcon icon={PlayIcon} size={16} strokeWidth={2.2} aria-hidden />
+            Tonton video
+            {start ? <span className="tabular text-xs font-medium text-muted-foreground">mulai {formatClock(start)}</span> : null}
+            <span className="sr-only"> ulasan {channelName} di halaman ini</span>
+          </button>
+        ) : null}
+        <a
+          href={openUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-text underline underline-offset-4 transition-colors duration-150 hover:text-foreground"
+        >
+          Buka di YouTube
+          <HugeiconsIcon icon={LinkSquare01Icon} size={15} strokeWidth={2} aria-hidden />
+          <span className="sr-only">(membuka aplikasi atau tab baru)</span>
+        </a>
+      </div>
     </div>
   )
 }
